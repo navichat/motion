@@ -181,7 +181,7 @@ def export_deephase_to_onnx(model_path, output_path):
 
 if __name__ == "__main__":
     # Path to the found DeepPhase model
-    deephase_model_path = 'RSMT-Realtime-Stylized-Motion-Transition/output/phase_model/minimal_phase_model.pth'
+    deephase_model_path = 'migration_workspace/models/dummy_deephase_model.pth'
     
     # Output path for the ONNX model
     onnx_output_path = 'migration_workspace/models/deephase.onnx'

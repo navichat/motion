@@ -1,0 +1,18 @@
+{
+  "onnx_results": {
+    "deephase.onnx": "\u2705 Valid",
+    "stylevae_encoder.onnx": "\u2705 Valid",
+    "stylevae_decoder.onnx": "\u2705 Valid",
+    "deepmimic_actor.onnx": "\u2705 Valid",
+    "deepmimic_critic.onnx": "\u2705 Valid",
+    "transition_net.onnx": "\u2705 Valid"
+  },
+  "bridge_results": {
+    "status": "\u2705 Bridge working correctly"
+  },
+  "perf_results": {
+    "status": "\u2705 Performance excellent",
+    "fps": 498.3518391759089
+  },
+  "overall_status": "EXCELLENT"
+}
