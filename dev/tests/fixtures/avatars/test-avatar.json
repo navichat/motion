@@ -1,0 +1,15 @@
+{
+  "name": "Test Avatar",
+  "url": "/fixtures/avatars/test-avatar.vrm",
+  "scale": 1,
+  "position": [
+    0,
+    0,
+    0
+  ],
+  "rotation": [
+    0,
+    0,
+    0
+  ]
+}

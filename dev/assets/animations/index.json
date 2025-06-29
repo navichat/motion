@@ -1,0 +1,82 @@
+[
+  {
+    "id": "idle",
+    "name": "Idle Pose",
+    "file": "idle.json",
+    "format": "json",
+    "duration": 10.0,
+    "description": "Natural idle animation with subtle breathing and movement",
+    "tags": ["idle", "neutral", "loop"],
+    "loop": true
+  },
+  {
+    "id": "wave_greeting",
+    "name": "Wave Greeting",
+    "file": "wave_greeting.json", 
+    "format": "json",
+    "duration": 2.5,
+    "description": "Friendly wave gesture for greetings",
+    "tags": ["greeting", "gesture", "social"],
+    "loop": false
+  },
+  {
+    "id": "talking_gesture",
+    "name": "Talking Gesture",
+    "file": "talking_gesture.json",
+    "format": "json", 
+    "duration": 5.0,
+    "description": "Natural hand gestures while speaking",
+    "tags": ["talking", "gesture", "communication"],
+    "loop": true
+  },
+  {
+    "id": "point_forward",
+    "name": "Point Forward",
+    "file": "point_forward.json",
+    "format": "json",
+    "duration": 3.0,
+    "description": "Pointing gesture towards the front",
+    "tags": ["pointing", "gesture", "direction"],
+    "loop": false
+  },
+  {
+    "id": "explain_gesture",
+    "name": "Explain Gesture",
+    "file": "explain_gesture.json",
+    "format": "json",
+    "duration": 6.0,
+    "description": "Explanatory hand movements for teaching",
+    "tags": ["explaining", "teaching", "gesture"],
+    "loop": true
+  },
+  {
+    "id": "applause",
+    "name": "Applause",
+    "file": "applause.json",
+    "format": "json",
+    "duration": 4.0,
+    "description": "Clapping hands in appreciation",
+    "tags": ["applause", "celebration", "gesture"],
+    "loop": true
+  },
+  {
+    "id": "thinking_pose",
+    "name": "Thinking Pose",
+    "file": "thinking_pose.json",
+    "format": "json",
+    "duration": 8.0,
+    "description": "Contemplative pose with hand on chin",
+    "tags": ["thinking", "contemplation", "pose"],
+    "loop": true
+  },
+  {
+    "id": "nod_yes",
+    "name": "Nod Yes",
+    "file": "nod_yes.json",
+    "format": "json",
+    "duration": 1.5,
+    "description": "Affirmative nodding gesture",
+    "tags": ["nodding", "agreement", "gesture"],
+    "loop": false
+  }
+]

@@ -1,0 +1,27 @@
+# RSMT Neural Network Server Requirements
+
+# Core FastAPI dependencies
+fastapi>=0.68.0
+uvicorn[standard]>=0.15.0
+pydantic>=1.8.0
+
+# Machine Learning
+torch>=1.9.0
+torchvision>=0.10.0
+numpy>=1.21.0
+
+# Optional: CUDA support (uncomment if using GPU)
+# torch>=1.9.0+cu111 -f https://download.pytorch.org/whl/cu111/torch_stable.html
+# torchvision>=0.10.0+cu111 -f https://download.pytorch.org/whl/cu111/torch_stable.html
+
+# Data processing
+scipy>=1.7.0
+
+# Development and testing
+pytest>=6.0.0
+requests>=2.26.0
+
+# Optional: Enhanced features
+# onnx>=1.10.0              # For ONNX model export
+# onnxruntime>=1.9.0        # For ONNX inference
+# tensorboard>=2.7.0        # For training visualization

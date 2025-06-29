@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motion Viewer - 3D Avatar Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .main-viewer {
+            display: grid;
+            grid-template-rows: 60px 1fr 100px;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .viewer-container {
+            position: relative;
+            background: #1a1a2e;
+        }
+        
+        .controls {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #64ffda;
+        }
+        
+        .status {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #64ffda;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .avatar-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .avatar-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .avatar-card.active {
+            border-color: #64ffda;
+            background: rgba(100, 255, 218, 0.1);
+        }
+        
+        .avatar-preview {
+            width: 60px;
+            height: 60px;
+            background: #333;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .animation-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .animation-item {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .animation-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .animation-item.playing {
+            background: rgba(100, 255, 218, 0.2);
+            border-left: 4px solid #64ffda;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn.primary {
+            background: linear-gradient(45deg, #64ffda, #1de9b6);
+            color: #1a1a2e;
+        }
+        
+        .three-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 46, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(100, 255, 218, 0.3);
+            border-top: 3px solid #64ffda;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .environment-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .tab {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .tab.active {
+            background: #64ffda;
+            color: #1a1a2e;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .stat-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #64ffda;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="sidebar">
+            <div class="section">
+                <h3>Avatars</h3>
+                <div class="avatar-grid">
+                    <div class="avatar-card active" data-avatar="teacher">
+                        <div class="avatar-preview">👩‍🏫</div>
+                        <div>Teacher</div>
+                    </div>
+                    <div class="avatar-card" data-avatar="student">
+                        <div class="avatar-preview">👨‍🎓</div>
+                        <div>Student</div>
+                    </div>
+                    <div class="avatar-card" data-avatar="default">
+                        <div class="avatar-preview">🧑</div>
+                        <div>Default</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>Animations</h3>
+                <div class="animation-list">
+                    <div class="animation-item" data-animation="idle">🧘 Idle Pose</div>
+                    <div class="animation-item" data-animation="wave">👋 Waving</div>
+                    <div class="animation-item" data-animation="walk">🚶 Walking</div>
+                    <div class="animation-item" data-animation="point">👉 Pointing</div>
+                    <div class="animation-item" data-animation="present">📊 Presenting</div>
+                    <div class="animation-item" data-animation="think">🤔 Thinking</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>Environment</h3>
+                <div class="environment-tabs">
+                    <button class="tab active" data-env="classroom">Classroom</button>
+                    <button class="tab" data-env="office">Office</button>
+                    <button class="tab" data-env="stage">Stage</button>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-number">3</div>
+                    <div class="stat-label">Avatars</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">28</div>
+                    <div class="stat-label">Animations</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-viewer">
+            <div class="header">
+                <div class="logo">Motion Viewer</div>
+                <div class="status">
+                    <div class="status-dot"></div>
+                    <span>Connected • Port 8081</span>
+                </div>
+            </div>
+            
+            <div class="viewer-container" id="viewer-container">
+                <canvas class="three-canvas" id="three-canvas"></canvas>
+                
+                <div class="loading-overlay" id="loading-overlay">
+                    <div class="spinner"></div>
+                    <div>Loading 3D Environment...</div>
+                    <div style="font-size: 14px; opacity: 0.7; margin-top: 10px;">
+                        Initializing Motion Viewer Dashboard
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn primary" id="play-btn">▶️ Play Animation</button>
+                <button class="btn" id="pause-btn">⏸️ Pause</button>
+                <button class="btn" id="reset-btn">🔄 Reset</button>
+                <button class="btn" id="fullscreen-btn">🔍 Fullscreen</button>
+                <div style="margin-left: auto;">
+                    <span id="fps-counter">FPS: 60</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./three.min.js"></script>
+    <script>
+        // Fallback to CDN if local file failed
+        if (typeof THREE === 'undefined') {
+            console.log('Local Three.js failed, trying CDN fallback...');
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js';
+            script.onload = () => {
+                console.log('Three.js loaded from CDN fallback');
+                if (typeof THREE !== 'undefined') {
+                    // Initialize viewer after CDN loads
+                    new MotionViewer();
+                }
+            };
+            script.onerror = () => {
+                console.error('Both local and CDN Three.js failed to load');
+                document.body.innerHTML = '<div style="padding: 50px; text-align: center; color: red;"><h1>Error Loading Three.js</h1><p>Please check your internet connection and try again.</p></div>';
+            };
+            document.head.appendChild(script);
+        }
+    </script>
+    <script>
+        class MotionViewer {
+            constructor() {
+                // Check if THREE.js is available
+                if (typeof THREE === 'undefined') {
+                    console.error('THREE.js is not available');
+                    alert('Error: THREE.js library failed to load. Please refresh the page.');
+                    return;
+                }
+                
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.avatar = null;
+                this.currentAnimation = null;
+                this.mixer = null;
+                this.clock = new THREE.Clock();
+                
+                this.init();
+                this.setupEventListeners();
+                this.animate();
+                
+                // Simulate loading completion
+                setTimeout(() => {
+                    this.hideLoading();
+                }, 2000);
+            }
+            
+            init() {
+                const canvas = document.getElementById('three-canvas');
+                const container = document.getElementById('viewer-container');
+                
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x1a1a2e);
+                
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(
+                    75,
+                    container.clientWidth / container.clientHeight,
+                    0.1,
+                    1000
+                );
+                this.camera.position.set(0, 1.6, 3);
+                
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ 
+                    canvas: canvas,
+                    antialias: true 
+                });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(5, 10, 5);
+                directionalLight.castShadow = true;
+                this.scene.add(directionalLight);
+                
+                // Create a simple avatar representation
+                this.createAvatar();
+                
+                // Create environment
+                this.createEnvironment();
+                
+                // Handle resize
+                window.addEventListener('resize', () => this.onWindowResize());
+            }
+            
+            createAvatar() {
+                // Create avatar group
+                this.avatar = new THREE.Group();
+                this.avatar.position.y = 0;
+                
+                // Body (cylinder)
+                const bodyGeometry = new THREE.CylinderGeometry(0.25, 0.3, 1.2, 8);
+                const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x64ffda });
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                body.position.y = 0.6;
+                body.castShadow = true;
+                this.avatar.add(body);
+                
+                // Head
+                const headGeometry = new THREE.SphereGeometry(0.2);
+                const headMaterial = new THREE.MeshLambertMaterial({ color: 0xfdbcb4 });
+                const head = new THREE.Mesh(headGeometry, headMaterial);
+                head.position.y = 1.4;
+                head.castShadow = true;
+                this.avatar.add(head);
+                
+                // Arms
+                const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 6);
+                const armMaterial = new THREE.MeshLambertMaterial({ color: 0xfdbcb4 });
+                
+                const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+                leftArm.position.set(-0.4, 0.8, 0);
+                leftArm.rotation.z = 0.3;
+                leftArm.castShadow = true;
+                this.avatar.add(leftArm);
+                
+                const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+                rightArm.position.set(0.4, 0.8, 0);
+                rightArm.rotation.z = -0.3;
+                rightArm.castShadow = true;
+                this.avatar.add(rightArm);
+                
+                // Legs
+                const legGeometry = new THREE.CylinderGeometry(0.1, 0.12, 0.8, 6);
+                const legMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+                
+                const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+                leftLeg.position.set(-0.15, -0.4, 0);
+                leftLeg.castShadow = true;
+                this.avatar.add(leftLeg);
+                
+                const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+                rightLeg.position.set(0.15, -0.4, 0);
+                rightLeg.castShadow = true;
+                this.avatar.add(rightLeg);
+                
+                this.scene.add(this.avatar);
+            }
+            
+            createEnvironment() {
+                // Floor
+                const floorGeometry = new THREE.PlaneGeometry(10, 10);
+                const floorMaterial = new THREE.MeshLambertMaterial({ color: 0x2d2d44 });
+                const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                floor.rotation.x = -Math.PI / 2;
+                floor.receiveShadow = true;
+                this.scene.add(floor);
+                
+                // Simple classroom elements
+                this.createClassroom();
+            }
+            
+            createClassroom() {
+                // Whiteboard
+                const boardGeometry = new THREE.PlaneGeometry(3, 1.5);
+                const boardMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+                const board = new THREE.Mesh(boardGeometry, boardMaterial);
+                board.position.set(0, 1.5, -2);
+                this.scene.add(board);
+                
+                // Desk
+                const deskGeometry = new THREE.BoxGeometry(1.5, 0.1, 0.8);
+                const deskMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                const desk = new THREE.Mesh(deskGeometry, deskMaterial);
+                desk.position.set(2, 0.4, 1);
+                this.scene.add(desk);
+            }
+            
+            setupEventListeners() {
+                // Avatar selection
+                document.querySelectorAll('.avatar-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        document.querySelectorAll('.avatar-card').forEach(c => c.classList.remove('active'));
+                        card.classList.add('active');
+                        this.switchAvatar(card.dataset.avatar);
+                    });
+                });
+                
+                // Animation selection
+                document.querySelectorAll('.animation-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        document.querySelectorAll('.animation-item').forEach(i => i.classList.remove('playing'));
+                        item.classList.add('playing');
+                        this.playAnimation(item.dataset.animation);
+                    });
+                });
+                
+                // Environment tabs
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        this.switchEnvironment(tab.dataset.env);
+                    });
+                });
+                
+                // Control buttons
+                document.getElementById('play-btn').addEventListener('click', () => this.playCurrentAnimation());
+                document.getElementById('pause-btn').addEventListener('click', () => this.pauseAnimation());
+                document.getElementById('reset-btn').addEventListener('click', () => this.resetAnimation());
+                document.getElementById('fullscreen-btn').addEventListener('click', () => this.toggleFullscreen());
+            }
+            
+            switchAvatar(avatarId) {
+                console.log('Switching to avatar:', avatarId);
+                // Change avatar color based on selection
+                const colors = {
+                    teacher: 0xff6b9d,
+                    student: 0x64ffda,
+                    default: 0x9c88ff
+                };
+                
+                // Update body color (first child is the body)
+                if (this.avatar && this.avatar.children[0]) {
+                    this.avatar.children[0].material.color.setHex(colors[avatarId] || colors.default);
+                }
+            }
+            
+            playAnimation(animationName) {
+                console.log('Playing animation:', animationName);
+                
+                // Simple animation simulation
+                const animations = {
+                    wave: () => this.animateWave(),
+                    walk: () => this.animateWalk(),
+                    point: () => this.animatePoint(),
+                    present: () => this.animatePresent(),
+                    think: () => this.animateThink(),
+                    idle: () => this.animateIdle()
+                };
+                
+                if (animations[animationName]) {
+                    animations[animationName]();
+                }
+            }
+            
+            animateWave() {
+                // Simple wave animation
+                const startRotation = this.avatar.rotation.z;
+                const animate = () => {
+                    this.avatar.rotation.z = startRotation + Math.sin(Date.now() * 0.01) * 0.2;
+                    setTimeout(() => {
+                        this.avatar.rotation.z = startRotation;
+                    }, 3000);
+                };
+                animate();
+            }
+            
+            animateWalk() {
+                // Simple walk animation
+                const startX = this.avatar.position.x;
+                let direction = 1;
+                
+                const walk = () => {
+                    this.avatar.position.x += direction * 0.02;
+                    this.avatar.rotation.y = direction > 0 ? 0 : Math.PI;
+                    
+                    if (this.avatar.position.x > 2) direction = -1;
+                    if (this.avatar.position.x < -2) direction = 1;
+                };
+                
+                const interval = setInterval(walk, 50);
+                setTimeout(() => {
+                    clearInterval(interval);
+                    this.avatar.position.x = startX;
+                    this.avatar.rotation.y = 0;
+                }, 5000);
+            }
+            
+            animatePoint() {
+                this.avatar.rotation.y = Math.PI / 4;
+                setTimeout(() => {
+                    this.avatar.rotation.y = 0;
+                }, 2000);
+            }
+            
+            animatePresent() {
+                this.avatar.position.z = -0.5;
+                this.avatar.rotation.y = Math.PI;
+                setTimeout(() => {
+                    this.avatar.position.z = 0;
+                    this.avatar.rotation.y = 0;
+                }, 3000);
+            }
+            
+            animateThink() {
+                const think = () => {
+                    this.avatar.rotation.x = Math.sin(Date.now() * 0.005) * 0.1;
+                };
+                const interval = setInterval(think, 50);
+                setTimeout(() => {
+                    clearInterval(interval);
+                    this.avatar.rotation.x = 0;
+                }, 4000);
+            }
+            
+            animateIdle() {
+                this.avatar.rotation.set(0, 0, 0);
+                this.avatar.position.set(0, 0.8, 0);
+            }
+            
+            switchEnvironment(envId) {
+                console.log('Switching to environment:', envId);
+                
+                // Change scene background based on environment
+                const environments = {
+                    classroom: 0x1a1a2e,
+                    office: 0x2a1a1a,
+                    stage: 0x1a2a1a
+                };
+                
+                this.scene.background.setHex(environments[envId] || environments.classroom);
+            }
+            
+            playCurrentAnimation() {
+                const playing = document.querySelector('.animation-item.playing');
+                if (playing) {
+                    this.playAnimation(playing.dataset.animation);
+                }
+            }
+            
+            pauseAnimation() {
+                console.log('Pausing animation');
+            }
+            
+            resetAnimation() {
+                console.log('Resetting animation');
+                this.animateIdle();
+                document.querySelectorAll('.animation-item').forEach(i => i.classList.remove('playing'));
+            }
+            
+            toggleFullscreen() {
+                const container = document.getElementById('viewer-container');
+                if (!document.fullscreenElement) {
+                    container.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+            
+            hideLoading() {
+                const overlay = document.getElementById('loading-overlay');
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 500);
+            }
+            
+            onWindowResize() {
+                const container = document.getElementById('viewer-container');
+                this.camera.aspect = container.clientWidth / container.clientHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                // Update FPS counter
+                const fps = Math.round(1 / this.clock.getDelta());
+                document.getElementById('fps-counter').textContent = `FPS: ${fps}`;
+                
+                // Render
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+        
+        // Initialize the viewer when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Only initialize if THREE loaded locally (CDN fallback handles its own initialization)
+            if (typeof THREE !== 'undefined') {
+                new MotionViewer();
+            }
+        });
+    </script>
+</body>
+</html>

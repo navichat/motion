@@ -1,0 +1,53 @@
+{
+  "name": "Motion Platform Development Configuration",
+  "version": "1.0.0",
+  "environment": "development",
+  "services": {
+    "node_server": {
+      "port": 8080,
+      "host": "localhost"
+    },
+    "python_server": {
+      "port": 8081,
+      "host": "localhost"
+    },
+    "webapp": {
+      "port": 3000,
+      "host": "localhost"
+    },
+    "viewer": {
+      "port": 3001,
+      "host": "localhost"
+    }
+  },
+  "paths": {
+    "assets": "./assets",
+    "animations": "./assets/animations",
+    "avatars": "./assets/avatars", 
+    "scenes": "./assets/scenes",
+    "cache": "./cache",
+    "logs": "./logs"
+  },
+  "features": {
+    "chat_interface": true,
+    "3d_viewer": true,
+    "motion_capture": true,
+    "rsmt_integration": true,
+    "websocket_support": true,
+    "avatar_animations": true
+  },
+  "integration": {
+    "python_to_node": {
+      "enabled": true,
+      "method": "http_api"
+    },
+    "node_to_viewer": {
+      "enabled": true,
+      "method": "websocket"
+    },
+    "asset_sharing": {
+      "enabled": true,
+      "method": "symlinks"
+    }
+  }
+}

@@ -1,0 +1,235 @@
+[
+	{
+		"id": "crowd_std_idle_1",
+		"body": "crowd_std_idle_1.json",
+		"idle": true,
+		"idleBase": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun",
+			"sorrow",
+			"angry"
+		]
+	},
+	{
+		"id": "crowd_std_idle_long_1",
+		"body": "crowd_std_idle_long_1.json",
+		"idle": true,
+		"idleBase": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun",
+			"sorrow",
+			"angry"
+		]
+	},
+	{
+		"id": "crowd_std_idle_long_2",
+		"body": "crowd_std_idle_long_2.json",
+		"idle": true,
+		"idleBase": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun",
+			"sorrow",
+			"angry"
+		]
+	},
+	{
+		"id": "stand-idle_166534-fix",
+		"body": "stand-idle_166534-fix.json",
+		"idle": true,
+		"idleBase": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun",
+			"sorrow",
+			"angry"
+		]
+	},
+	{
+		"id": "idle_251105",
+		"body": "idle_251105.json",
+		"idle": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun"
+		]
+	},
+	{
+		"id": "corridor_idle-b_f",
+		"body": "corridor_idle-b_f.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun",
+			"sorrow"
+		]
+	},
+	{
+		"id": "stand-idlea-f",
+		"body": "stand-idlea-f.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun",
+			"sorrow"
+		]
+	},
+	{
+		"id": "stand_idlea_f",
+		"body": "stand_idlea_f.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun"
+		]
+	},
+	{
+		"id": "stand_idleb_f",
+		"body": "stand_idleb_f.json",
+		"idle": true,
+		"idleLong": true,
+		"overlap": 1400,
+		"suitableEmotions": [
+			"neutral",
+			"fun"
+		]
+	},
+	{
+		"id": "stand_looking_f",
+		"body": "stand_looking_f.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun"
+		]
+	},
+	{
+		"id": "dancetomusic_f_295545",
+		"body": "dancetomusic_f_295545.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"fun",
+			"joy"
+		]
+	},
+	{
+		"id": "swaytomusic_f_295560",
+		"body": "swaytomusic_f_295560.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"fun",
+			"joy"
+		]
+	},
+	{
+		"id": "female-stand-stretch",
+		"body": "female-stand-stretch.json",
+		"idle": true,
+		"idleLong": true,
+		"overlap": 1500,
+		"suitableEmotions": [
+			"neutral",
+			"fun"
+		],
+		"faceOverrides": [
+			{
+				"start": 47,
+				"end": 240,
+				"ramp": 8,
+				"eyesClose": 1
+			}
+		]
+	},
+	{
+		"id": "female-stand-turn",
+		"body": "female-stand-turn.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun"
+		]
+	},
+	{
+		"id": "getting-ready",
+		"body": "getting-ready.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun"
+		]
+	},
+	{
+		"id": "inplace_akimbowaiting",
+		"body": "inplace_akimbowaiting.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun",
+			"angry"
+		]
+	},
+	{
+		"id": "inplace_idlewaiting",
+		"body": "inplace_idlewaiting.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun"
+		]
+	},
+	{
+		"id": "inplace_impatientlywaiting",
+		"body": "inplace_impatientlywaiting.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"sorrow",
+			"angry"
+		]
+	},
+	{
+		"id": "platform-stand-waiting-f",
+		"body": "platform-stand-waiting-f.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun"
+		]
+	},
+	{
+		"id": "polish-nails",
+		"body": "polish-nails.json",
+		"idle": true,
+		"idleLong": true,
+		"suitableEmotions": [
+			"neutral",
+			"fun",
+			"angry"
+		]
+	},
+	{
+		"id": "viewing-mirror_251026",
+		"body": "viewing-mirror_251026.json",
+		"idle": true,
+		"idleLong": true,
+		"overlap": 1600,
+		"suitableEmotions": [
+			"neutral",
+			"fun"
+		]
+	}
+]

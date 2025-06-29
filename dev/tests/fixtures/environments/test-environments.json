@@ -1,0 +1,22 @@
+[
+  {
+    "id": "classroom",
+    "name": "Classroom",
+    "lighting": "bright"
+  },
+  {
+    "id": "stage",
+    "name": "Stage",
+    "lighting": "dramatic"
+  },
+  {
+    "id": "studio",
+    "name": "Studio",
+    "lighting": "neutral"
+  },
+  {
+    "id": "outdoor",
+    "name": "Outdoor",
+    "lighting": "natural"
+  }
+]

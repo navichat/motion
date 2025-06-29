@@ -1,0 +1,49 @@
+{
+  "type": "classroom",
+  "lighting": {
+    "ambient": [
+      0.3,
+      0.3,
+      0.3
+    ],
+    "directional": {
+      "color": [
+        1,
+        1,
+        1
+      ],
+      "position": [
+        10,
+        10,
+        5
+      ],
+      "intensity": 1
+    }
+  },
+  "objects": [
+    {
+      "type": "desk",
+      "position": [
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "type": "chair",
+      "position": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "whiteboard",
+      "position": [
+        0,
+        2,
+        4
+      ]
+    }
+  ]
+}

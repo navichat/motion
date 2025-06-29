@@ -1,0 +1,13 @@
+{
+  "test_avatar_1": {
+    "id": "test_avatar_1",
+    "name": "Test Avatar",
+    "format": "vrm",
+    "url": "/assets/avatars/test_avatar.vrm",
+    "metadata": {
+      "version": "1.0",
+      "author": "Test Author",
+      "created": "2025-06-28"
+    }
+  }
+}

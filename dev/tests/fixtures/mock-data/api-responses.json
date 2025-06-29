@@ -1,0 +1,39 @@
+{
+  "GET /api/avatars": {
+    "status": 200,
+    "data": [
+      {
+        "id": "avatar1",
+        "name": "Avatar 1",
+        "status": "ready"
+      },
+      {
+        "id": "avatar2",
+        "name": "Avatar 2",
+        "status": "ready"
+      }
+    ]
+  },
+  "GET /api/animations": {
+    "status": 200,
+    "data": [
+      {
+        "id": "walk",
+        "name": "Walking",
+        "duration": 2000
+      },
+      {
+        "id": "idle",
+        "name": "Idle",
+        "duration": 5000
+      }
+    ]
+  },
+  "POST /api/upload": {
+    "status": 200,
+    "data": {
+      "id": "uploaded123",
+      "message": "Upload successful"
+    }
+  }
+}

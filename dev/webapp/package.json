@@ -1,0 +1,33 @@
+{
+	"name": "@motion/webapp",
+	"type": "module",
+	"version": "1.0.0",
+	"dependencies": {
+		"@koa/router": "^12.0.0",
+		"@mwni/events": "^3.0.0",
+		"@mwni/fetch": "^1.0.0",
+		"@mwni/log": "^2.2.0",
+		"@mwni/socket": "^1.3.0",
+		"@mwni/wss": "^1.1.0",
+		"@motion/server": "file:../server",
+		"animejs": "^3.2.1",
+		"howler": "^2.2.4",
+		"koa": "^2.14.2",
+		"koa-easy-ws": "^2.1.0",
+		"koa-range": "^0.3.0",
+		"koa-static": "^5.0.0",
+		"mithril": "^2.2.2"
+	},
+	"devDependencies": {
+		"chokidar": "^3.5.3",
+		"esbuild": "0.19.2",
+		"postcss": "^8.4.30",
+		"postcss-import": "^15.1.0",
+		"postcss-nested": "^6.0.1"
+	},
+	"scripts": {
+		"build": "node_modules/.bin/esbuild app.js --bundle --outfile=dist/app.bundle.js",
+		"start": "node server.js",
+		"dev": "node dev.js"
+	}
+}

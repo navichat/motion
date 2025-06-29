@@ -1,0 +1,14 @@
+{
+	"id": "cafe",
+	"sceneFile": "/scenes/cafe.glb",
+	"defaultCamera": {
+		"position": [2.5, 1.4, 0],
+		"target": [-1, 1.4, -1.5],
+		"fov": 48
+	},
+	"conversationCamera": {
+		"position": [0, 1.4, 0.5],
+		"target": [0, 1.4, -1.5],
+		"fov": 50
+	}
+}

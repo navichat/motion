@@ -1,0 +1,19 @@
+{
+	"id": "village_street",
+	"sceneFile": "/scenes/village_street.glb",
+	"defaultCamera": {
+		"position": [0.684637, 0.760843, 6.70825],
+		"target": [0.092573, 1.23674, 3.98232],
+		"fov": 40
+	},
+	"ambientLight": {
+		"direction": [-1, 1, 0],
+		"diffuseColor": [1, 1, 1]
+	},
+	"materialOverrides": {
+		"*": {
+			"makeEmissive": true,
+			"map.anisotropy": 4
+		}
+	}
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "default_avatar",
+    "name": "Default Avatar",
+    "file": "default.vrm",
+    "format": "vrm",
+    "description": "A basic humanoid avatar for testing and demonstration",
+    "previewImage": "default_preview.jpg",
+    "config": {
+      "scale": 1.0,
+      "position": [0, 0, 0],
+      "previewCamera": {
+        "position": [0, 1.6, 3],
+        "target": [0, 1, 0]
+      }
+    }
+  },
+  {
+    "id": "teacher_avatar",
+    "name": "Teacher Avatar",
+    "file": "teacher.vrm",
+    "format": "vrm",
+    "description": "Professional teacher avatar for classroom demonstrations",
+    "previewImage": "teacher_preview.jpg",
+    "config": {
+      "scale": 1.0,
+      "position": [0, 0, 0],
+      "previewCamera": {
+        "position": [0, 1.7, 3.5],
+        "target": [0, 1.2, 0]
+      }
+    }
+  },
+  {
+    "id": "student_avatar",
+    "name": "Student Avatar", 
+    "file": "student.vrm",
+    "format": "vrm",
+    "description": "Student avatar for educational scenarios",
+    "previewImage": "student_preview.jpg",
+    "config": {
+      "scale": 0.95,
+      "position": [0, 0, 0],
+      "previewCamera": {
+        "position": [0, 1.5, 3],
+        "target": [0, 0.9, 0]
+      }
+    }
+  }
+]

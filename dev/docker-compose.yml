@@ -1,0 +1,157 @@
+version: '3.8'
+
+services:
+  # Development environment
+  motion-viewer-dev:
+    build:
+      context: .
+      target: development
+    ports:
+      - "3000:3000"  # Viewer
+      - "3001:3001"  # Server
+      - "3002:3002"  # WebSocket
+    volumes:
+      - ./viewer:/app/viewer
+      - ./server:/app/server
+      - ./tests:/app/tests
+      - /app/viewer/node_modules
+      - /app/server/node_modules
+      - /app/tests/node_modules
+    environment:
+      - NODE_ENV=development
+      - DISPLAY=:99
+    networks:
+      - motion-net
+    command: >
+      sh -c "
+        Xvfb :99 -screen 0 1920x1080x24 &
+        cd server && npm run dev &
+        cd viewer && npm run dev &
+        wait
+      "
+
+  # Testing environment
+  motion-viewer-test:
+    build:
+      context: .
+      target: testing
+    volumes:
+      - ./tests/reports:/app/tests/reports
+      - ./tests/screenshots:/app/tests/screenshots
+      - ./tests/coverage:/app/tests/coverage
+    environment:
+      - NODE_ENV=test
+      - DISPLAY=:99
+      - CI=true
+    networks:
+      - motion-net
+    depends_on:
+      - motion-viewer-dev
+    command: >
+      sh -c "
+        Xvfb :99 -screen 0 1920x1080x24 &
+        sleep 10 &&
+        cd tests &&
+        npm run test:all
+      "
+
+  # Production environment
+  motion-viewer-prod:
+    build:
+      context: .
+      target: production
+    ports:
+      - "8080:3000"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - motion-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Test database for integration tests
+  test-db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=motion_test
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+    ports:
+      - "5433:5432"
+    networks:
+      - motion-net
+    volumes:
+      - test_db_data:/var/lib/postgresql/data
+
+  # Redis for caching in tests
+  test-redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    networks:
+      - motion-net
+    command: redis-server --appendonly yes
+    volumes:
+      - test_redis_data:/data
+
+  # Nginx for production load balancing
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - motion-viewer-prod
+    networks:
+      - motion-net
+    restart: unless-stopped
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - motion-net
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3030:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - motion-net
+    depends_on:
+      - prometheus
+
+networks:
+  motion-net:
+    driver: bridge
+
+volumes:
+  test_db_data:
+  test_redis_data:
+  prometheus_data:
+  grafana_data:

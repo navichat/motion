@@ -1,0 +1,16 @@
+{
+	"name": "@motion/server",
+	"version": "1.0.0",
+	"type": "module",
+	"main": "server.js",
+	"dependencies": {
+		"@cloudkit/client": "^1.3.1",
+		"@mwni/events": "^3.0.0",
+		"@mwni/log": "^2.2.0",
+		"@mwni/random": "^1.0.1",
+		"@mwni/toml": "^1.0.0",
+		"@motion/psyche": "file:../psyche",
+		"@structdb/mysql": "^1.3.3-alpha",
+		"bcrypt": "^5.1.1"
+	}
+}

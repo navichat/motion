@@ -1,0 +1,32 @@
+{
+	"name": "@motion/dev-viewer",
+	"type": "module",
+	"version": "1.0.0",
+	"description": "Unified 3D avatar viewer with RSMT integration",
+	"main": "src/app.js",
+	"scripts": {
+		"build": "esbuild src/app.js --bundle --outfile=dist/app.bundle.js --target=es2020 --format=esm",
+		"dev": "esbuild src/app.js --bundle --outfile=dist/app.bundle.js --watch --servedir=. --serve=3000",
+		"start": "node server/enhanced_rsmt_server.py",
+		"test": "vitest"
+	},
+	"dependencies": {
+		"three": "^0.177.0",
+		"@gltf-transform/core": "^3.7.1",
+		"@gltf-transform/extensions": "^3.7.1",
+		"@pixiv/three-vrm": "^2.0.6",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0",
+		"mithril": "^2.2.2",
+		"animejs": "^3.2.1"
+	},
+	"devDependencies": {
+		"esbuild": "^0.19.2",
+		"vitest": "^0.34.6",
+		"@types/three": "^0.177.0",
+		"typescript": "^5.2.2"
+	},
+	"engines": {
+		"node": ">=16.0.0"
+	}
+}

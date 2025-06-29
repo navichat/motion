@@ -1,0 +1,194 @@
+{
+  "generated": "2025-06-29T13:02:15.031Z",
+  "animations": {
+    "breathing-f": {
+      "file": "breathing-f.json",
+      "name": "breathing-f",
+      "duration": null
+    },
+    "change-pose_251076": {
+      "file": "change-pose_251076.json",
+      "name": "change-pose_251076",
+      "duration": null
+    },
+    "corridor_idle-b_f": {
+      "file": "corridor_idle-b_f.json",
+      "name": "corridor_idle-b_f",
+      "duration": null
+    },
+    "crowd_std_idle_1": {
+      "file": "crowd_std_idle_1.json",
+      "name": "crowd_std_idle_1",
+      "duration": null
+    },
+    "crowd_std_idle_long_1": {
+      "file": "crowd_std_idle_long_1.json",
+      "name": "crowd_std_idle_long_1",
+      "duration": null
+    },
+    "crowd_std_idle_long_2": {
+      "file": "crowd_std_idle_long_2.json",
+      "name": "crowd_std_idle_long_2",
+      "duration": null
+    },
+    "dancetomusic_f_295545": {
+      "file": "dancetomusic_f_295545.json",
+      "name": "dancetomusic_f_295545",
+      "duration": null
+    },
+    "female-stand-stretch": {
+      "file": "female-stand-stretch.json",
+      "name": "female-stand-stretch",
+      "duration": null
+    },
+    "female-stand-turn": {
+      "file": "female-stand-turn.json",
+      "name": "female-stand-turn",
+      "duration": null
+    },
+    "getting-ready": {
+      "file": "getting-ready.json",
+      "name": "getting-ready",
+      "duration": null
+    },
+    "idle_251105": {
+      "file": "idle_251105.json",
+      "name": "idle_251105",
+      "duration": null
+    },
+    "index": {
+      "file": "index.json",
+      "name": "index",
+      "duration": null
+    },
+    "inplace_akimbowaiting": {
+      "file": "inplace_akimbowaiting.json",
+      "name": "inplace_akimbowaiting",
+      "duration": null
+    },
+    "inplace_idlewaiting": {
+      "file": "inplace_idlewaiting.json",
+      "name": "inplace_idlewaiting",
+      "duration": null
+    },
+    "inplace_impatientlywaiting": {
+      "file": "inplace_impatientlywaiting.json",
+      "name": "inplace_impatientlywaiting",
+      "duration": null
+    },
+    "inplace_lookingaroundwaiting": {
+      "file": "inplace_lookingaroundwaiting.json",
+      "name": "inplace_lookingaroundwaiting",
+      "duration": null
+    },
+    "platform-stand-waiting-f": {
+      "file": "platform-stand-waiting-f.json",
+      "name": "platform-stand-waiting-f",
+      "duration": null
+    },
+    "polish-nails": {
+      "file": "polish-nails.json",
+      "name": "polish-nails",
+      "duration": null
+    },
+    "stand-idle_166534-fix": {
+      "file": "stand-idle_166534-fix.json",
+      "name": "stand-idle_166534-fix",
+      "duration": null
+    },
+    "stand-idle_166534": {
+      "file": "stand-idle_166534.json",
+      "name": "stand-idle_166534",
+      "duration": null
+    },
+    "stand-idlea-f": {
+      "file": "stand-idlea-f.json",
+      "name": "stand-idlea-f",
+      "duration": null
+    },
+    "stand_idlea_f": {
+      "file": "stand_idlea_f.json",
+      "name": "stand_idlea_f",
+      "duration": null
+    },
+    "stand_idleb_f": {
+      "file": "stand_idleb_f.json",
+      "name": "stand_idleb_f",
+      "duration": null
+    },
+    "stand_looking_f": {
+      "file": "stand_looking_f.json",
+      "name": "stand_looking_f",
+      "duration": null
+    },
+    "stand_looking_m": {
+      "file": "stand_looking_m.json",
+      "name": "stand_looking_m",
+      "duration": null
+    },
+    "swaytomusic_f_295560": {
+      "file": "swaytomusic_f_295560.json",
+      "name": "swaytomusic_f_295560",
+      "duration": null
+    },
+    "thanks-lady-bow": {
+      "file": "thanks-lady-bow.json",
+      "name": "thanks-lady-bow",
+      "duration": null
+    },
+    "viewing-mirror_251026": {
+      "file": "viewing-mirror_251026.json",
+      "name": "viewing-mirror_251026",
+      "duration": null
+    },
+    "whatever-419965": {
+      "file": "whatever-419965.json",
+      "name": "whatever-419965",
+      "duration": null
+    }
+  },
+  "avatars": {
+    "buny": {
+      "file": "buny.json",
+      "name": "Buny",
+      "model": null
+    },
+    "ichika": {
+      "file": "ichika.json",
+      "name": "Ichika",
+      "model": null
+    },
+    "index": {
+      "file": "index.json",
+      "name": "index",
+      "model": null
+    },
+    "kaede": {
+      "file": "kaede.json",
+      "name": "Kaede",
+      "model": null
+    }
+  },
+  "scenes": {
+    "cafe": {
+      "file": "cafe.json",
+      "name": "cafe",
+      "environment": null
+    },
+    "classroom": {
+      "file": "classroom.json",
+      "name": "classroom",
+      "environment": null
+    },
+    "classroom_legacy": {
+      "file": "classroom_legacy.json",
+      "name": "classroom_legacy",
+      "environment": null
+    },
+    "village_street": {
+      "file": "village_street.json",
+      "name": "village_street",
+      "environment": null
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "timestamp": "2025-06-28T22:06:30.325Z",
+  "summary": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "duration": 0,
+    "suites": {},
+    "passRate": 0,
+    "status": "passed"
+  },
+  "results": {},
+  "artifacts": {
+    "screenshots": [
+      {
+        "name": "baseline",
+        "path": "screenshots/baseline",
+        "size": 0
+      },
+      {
+        "name": "current",
+        "path": "screenshots/current",
+        "size": 0
+      },
+      {
+        "name": "diff",
+        "path": "screenshots/diff",
+        "size": 0
+      },
+      {
+        "name": "thumbnails",
+        "path": "screenshots/thumbnails",
+        "size": 0
+      }
+    ],
+    "videos": [],
+    "traces": [],
+    "logs": []
+  },
+  "environment": {
+    "node": "v22.15.0",
+    "os": "linux x64",
+    "ci": false,
+    "browser": null,
+    "timestamp": "2025-06-28T22:06:30.328Z"
+  },
+  "performance": null
+}

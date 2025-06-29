@@ -1,0 +1,24 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"name": "chat",
+			"path": "../../chat"
+		},
+		{
+			"name": "RSMT-Realtime-Stylized-Motion-Transition",
+			"path": "../../RSMT-Realtime-Stylized-Motion-Transition"
+		},
+		{
+			"name": "pytorch_DeepMimic",
+			"path": "../../pytorch_DeepMimic"
+		},
+		{
+			"name": "BvhToDeepMimic",
+			"path": "../../BvhToDeepMimic"
+		}
+	],
+	"settings": {}
+}

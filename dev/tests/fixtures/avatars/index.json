@@ -1,0 +1,16 @@
+[
+  {
+    "id": "test-avatar-1",
+    "name": "Test Avatar 1",
+    "url": "/fixtures/avatars/test-avatar-1.vrm",
+    "thumbnail": "/fixtures/avatars/test-avatar-1-thumb.jpg",
+    "scale": 1
+  },
+  {
+    "id": "test-avatar-2",
+    "name": "Test Avatar 2",
+    "url": "/fixtures/avatars/test-avatar-2.vrm",
+    "thumbnail": "/fixtures/avatars/test-avatar-2-thumb.jpg",
+    "scale": 0.9
+  }
+]

@@ -1,0 +1,38 @@
+<svg
+  width="200"
+  height="200"
+  viewBox="0 0 200 200"
+  color="#1f284f"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <defs>
+    <linearGradient id="spinner-secondHalf">
+      <stop offset="0%" stop-opacity="0" stop-color="currentColor" />
+      <stop offset="100%" stop-opacity="0.5" stop-color="currentColor" />
+    </linearGradient>
+    <linearGradient id="spinner-firstHalf">
+      <stop offset="0%" stop-opacity="1" stop-color="currentColor" />
+      <stop offset="100%" stop-opacity="0.5" stop-color="currentColor" />
+    </linearGradient>
+  </defs>
+
+  <g stroke-width="40">
+    <path stroke="url(#spinner-secondHalf)" d="M 20 100 A 80 80 180 0 1 180 100" />
+    <path stroke="url(#spinner-firstHalf)" d="M 180 100 A 80 80 0 0 1 20 100" />
+    <path
+      stroke="currentColor"
+      stroke-linecap="round"
+      d="M 20 100 A 80 80 0 0 1 20 90"
+    />
+  </g>
+
+  <animateTransform
+    from="0 0 0"
+    to="360 0 0"
+    attributeName="transform"
+    type="rotate"
+    repeatCount="indefinite"
+    dur="1300ms"
+  />
+</svg>

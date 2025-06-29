@@ -1,0 +1,11 @@
+{
+	"name": "@motion/psyche",
+	"type": "module",
+	"main": "index.js",
+	"dependencies": {
+		"@mwni/events": "^3.0.0",
+		"@mwni/log": "^2.2.0",
+		"@structdb/mysql": "^1.3.3-alpha",
+		"yaml": "^2.3.3"
+	}
+}

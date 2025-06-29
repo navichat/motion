@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motion Viewer Dashboard - 3D Avatar Animation Showcase</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .dashboard {
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .viewers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .viewer-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .viewer-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .viewer-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .viewer-card p {
+            color: #6c757d;
+            margin-bottom: 20px;
+        }
+        
+        .features {
+            list-style: none;
+            margin-bottom: 25px;
+        }
+        
+        .features li {
+            padding: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .features li:before {
+            content: "✅";
+            font-size: 14px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .stats {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 30px;
+            margin: 40px auto;
+            max-width: 800px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .stats h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+        
+        .stat-item {
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .animations-showcase {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 30px;
+            margin: 40px auto;
+            max-width: 1200px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .animations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .animation-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .animation-item:hover {
+            background: #e9ecef;
+            transform: scale(1.05);
+        }
+        
+        .animation-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .animation-info {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>🎭 Motion Viewer Dashboard</h1>
+            <p>3D Avatar Animation Showcase & Control Center</p>
+        </div>
+
+        <div class="stats">
+            <h2>📊 Animation System Status</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number">28</div>
+                    <div class="stat-label">Animations</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">10,854</div>
+                    <div class="stat-label">Total Frames</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">361.8</div>
+                    <div class="stat-label">Seconds of Content</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">54</div>
+                    <div class="stat-label">Joints per Avatar</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">30</div>
+                    <div class="stat-label">FPS</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Test Success Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="viewers-grid">
+            <div class="viewer-card">
+                <h3>🏫 Motion Transitions Viewer</h3>
+                <p>Advanced 3D viewer with real-time motion transition capabilities and neural network integration.</p>
+                <ul class="features">
+                    <li>Real-time motion transitions</li>
+                    <li>RSMT neural network integration</li>
+                    <li>Style transfer visualization</li>
+                    <li>Interactive 3D controls</li>
+                </ul>
+                <a href="file:///home/barberb/motion/RSMT-Realtime-Stylized-Motion-Transition/output/web_viewer/motion_transitions.html" class="btn">Open Motion Transitions Viewer</a>
+            </div>
+
+            <div class="viewer-card">
+                <h3>🦴 Skeleton Animation Viewer</h3>
+                <p>Direct skeleton visualization with bone structure display and detailed animation playback controls.</p>
+                <ul class="features">
+                    <li>Bone structure visualization</li>
+                    <li>Frame-by-frame animation control</li>
+                    <li>Joint rotation displays</li>
+                    <li>Animation debugging tools</li>
+                </ul>
+                <a href="file:///home/barberb/motion/RSMT-Realtime-Stylized-Motion-Transition/output/web_viewer/working_skeleton_viewer.html" class="btn">Open Skeleton Viewer</a>
+            </div>
+
+            <div class="viewer-card">
+                <h3>💬 Chat Avatar Interface</h3>
+                <p>Interactive chat application with animated 3D avatars and real-time character interaction.</p>
+                <ul class="features">
+                    <li>VRM avatar loading</li>
+                    <li>Chat-based interactions</li>
+                    <li>Environment switching</li>
+                    <li>Real-time animation playback</li>
+                </ul>
+                <a href="file:///home/barberb/motion/chat/webapp/app.html" class="btn">Open Chat Interface</a>
+            </div>
+
+            <div class="viewer-card">
+                <h3>🔬 BVH Diagnostic Viewer</h3>
+                <p>Technical diagnostic tool for analyzing BVH motion capture files and debugging animation issues.</p>
+                <ul class="features">
+                    <li>BVH file analysis</li>
+                    <li>Motion data validation</li>
+                    <li>Frame data inspection</li>
+                    <li>Performance diagnostics</li>
+                </ul>
+                <a href="file:///home/barberb/motion/RSMT-Realtime-Stylized-Motion-Transition/output/web_viewer/bvh_diagnostic.html" class="btn">Open Diagnostic Viewer</a>
+            </div>
+
+            <div class="viewer-card">
+                <h3>🎮 Motion Viewer Dev</h3>
+                <p>Development version of the main Motion Viewer with Phase 1 foundation features and classroom environment.</p>
+                <ul class="features">
+                    <li>Classroom environment</li>
+                    <li>Three.js integration</li>
+                    <li>Development tools</li>
+                    <li>Asset preloading</li>
+                </ul>
+                <a href="file:///home/barberb/motion/dev/viewer/templates/index.html" class="btn">Open Development Viewer</a>
+            </div>
+
+            <div class="viewer-card">
+                <h3>📊 Testing Dashboard</h3>
+                <p>Comprehensive testing framework results with visual reports and animation validation results.</p>
+                <ul class="features">
+                    <li>Test execution results</li>
+                    <li>Animation validation</li>
+                    <li>Performance metrics</li>
+                    <li>Visual regression testing</li>
+                </ul>
+                <a href="file:///home/barberb/motion/dev/tests/reports/test-report.html" class="btn">Open Testing Dashboard</a>
+            </div>
+        </div>
+
+        <div class="animations-showcase">
+            <h2>🎬 Available Animations</h2>
+            <p>Professional motion capture animations ready for 3D playback</p>
+            <div class="animations-grid">
+                <div class="animation-item">
+                    <div class="animation-name">breathing-f</div>
+                    <div class="animation-info">200 frames • 6.7s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">dancetomusic_f</div>
+                    <div class="animation-info">309 frames • 10.3s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">female-stand-stretch</div>
+                    <div class="animation-info">339 frames • 11.3s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">inplace_akimbowaiting</div>
+                    <div class="animation-info">761 frames • 25.4s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">change-pose</div>
+                    <div class="animation-info">540 frames • 18.0s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">platform-stand-waiting-f</div>
+                    <div class="animation-info">721 frames • 24.0s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">viewing-mirror</div>
+                    <div class="animation-info">675 frames • 22.5s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">swaytomusic_f</div>
+                    <div class="animation-info">365 frames • 12.2s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">crowd_std_idle_long</div>
+                    <div class="animation-info">496 frames • 16.5s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">getting-ready</div>
+                    <div class="animation-info">459 frames • 15.3s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">stand_looking_f</div>
+                    <div class="animation-info">554 frames • 18.5s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">polish-nails</div>
+                    <div class="animation-info">295 frames • 9.8s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">thanks-lady-bow</div>
+                    <div class="animation-info">185 frames • 6.2s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">whatever-gesture</div>
+                    <div class="animation-info">245 frames • 8.2s</div>
+                </div>
+                <div class="animation-item">
+                    <div class="animation-name">+ 14 more animations</div>
+                    <div class="animation-info">All validated & ready</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

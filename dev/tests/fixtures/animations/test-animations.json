@@ -1,0 +1,62 @@
+{
+  "test_animation_1": {
+    "id": "test_animation_1",
+    "name": "Test Walk Animation",
+    "duration": 2000,
+    "fps": 30,
+    "keyframes": [
+      {
+        "time": 0,
+        "joints": {
+          "root": {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "spine": {
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "time": 1000,
+        "joints": {
+          "root": {
+            "position": [
+              0,
+              0,
+              1
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "spine": {
+            "rotation": [
+              0,
+              0.1,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

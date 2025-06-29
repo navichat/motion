@@ -1,0 +1,13 @@
+{
+	"id": "classroom",
+	"sceneFile": "/scenes/classroom.glb",
+	"ambientLight": {
+		"intensity": 3,
+		"direction": [2, -1, 0],
+		"diffuseColor": [1, 1, 1]
+	},
+	"avatarRoot": {
+		"position": [-0.5, 0, 0.5],
+		"rotation": [0, 180, 0]
+	}
+}

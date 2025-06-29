@@ -1,0 +1,225 @@
+{
+	"type": "object",
+	"properties": {
+		"accounts": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/Account"
+			}
+		},
+		"accountSessions": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/AccountSession"
+			}
+		},
+		"accountRecoveries": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/AccountRecovery"
+			}
+		},
+		"bonds": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/Bond"
+			}
+		},
+		"meetings": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/Meeting"
+			}
+		},
+		"messages": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/Message"
+			}
+		}
+	},
+	"definitions": {
+		"Account": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "integer",
+					"id": true
+				},
+				"guest": {
+					"type": "boolean",
+					"default": false
+				},
+				"email": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				},
+				"balance": {
+					"type": "number",
+					"default": 0
+				},
+				"timeCreated": {
+					"type": "date"
+				}
+			}
+		},
+		"AccountSession": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "integer",
+					"id": true
+				},
+				"account": {
+					"$ref": "#/definitions/Account"
+				},
+				"token": {
+					"type": "string"
+				},
+				"userAgent": {
+					"type": "string"
+				},
+				"ip": {
+					"type": "string"
+				},
+				"timeCreated": {
+					"type": "date"
+				},
+				"timeLastActive": {
+					"type": "date"
+				}
+			},
+			"required": [
+				"account",
+				"token",
+				"userAgent",
+				"ip"
+			],
+			"unique": [
+				"token"
+			],
+			"index": [
+				"account"
+			]
+		},
+		"AccountRecovery": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "integer",
+					"id": true
+				},
+				"account": {
+					"$ref": "#/definitions/Account"
+				},
+				"code": {
+					"type": "string"
+				},
+				"userAgent": {
+					"type": "string"
+				},
+				"ip": {
+					"type": "string"
+				},
+				"timeCreated": {
+					"type": "date"
+				},
+				"timeRedeemed": {
+					"type": "date",
+					"default": null
+				}
+			},
+			"required": [
+				"account",
+				"code",
+				"userAgent",
+				"ip"
+			],
+			"unique": [
+				["account", "code"]
+			],
+			"index": [
+				"account"
+			]
+		},
+		"Bond": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "integer",
+					"id": true
+				},
+				"account": {
+					"type": "integer"
+				},
+				"avatar": {
+					"type": "string"
+				},
+				"timeCreated": {
+					"type": "date"
+				}
+			},
+			"required": [
+				"user",
+				"avatar",
+				"timeCreated"
+			]
+		},
+		"Meeting": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "integer",
+					"id": true
+				},
+				"bond": {
+					"$ref": "#/definitions/Bond"
+				},
+				"timeStarted": {
+					"type": "date"
+				},
+				"timeLastActive": {
+					"type": "date"
+				},
+				"timeEnded": {
+					"type": "date"
+				}
+			},
+			"required": [
+				"bond"
+			]
+		},
+		"Message": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "integer",
+					"id": true
+				},
+				"bond": {
+					"$ref": "#/definitions/Bond"
+				},
+				"meeting": {
+					"$ref": "#/definitions/Meeting"
+				},
+				"role": {
+					"type": "string"
+				},
+				"text": {
+					"type": "string"
+				},
+				"time": {
+					"type": "date"
+				}
+			},
+			"required": [
+				"bond",
+				"session",
+				"side",
+				"text"
+			]
+		}
+	}
+}
