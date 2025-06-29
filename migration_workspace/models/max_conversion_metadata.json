@@ -1,0 +1,31 @@
+{
+  "conversion_timestamp": "2025-06-29 15:10:48",
+  "max_version": "MAX 25.4.0",
+  "conversion_results": {
+    "stylevae_decoder": {
+      "status": "failed",
+      "error": "Usage: max [OPTIONS] COMMAND [ARGS]...\nTry 'max --help' for help.\n\nError: Command not supported: convert\nSupported commands: encode, generate, list, serve, warm-cache\n",
+      "input_file": "/home/barberb/motion/migration_workspace/models/onnx/stylevae_decoder.onnx"
+    },
+    "stylevae_encoder": {
+      "status": "failed",
+      "error": "Usage: max [OPTIONS] COMMAND [ARGS]...\nTry 'max --help' for help.\n\nError: Command not supported: convert\nSupported commands: encode, generate, list, serve, warm-cache\n",
+      "input_file": "/home/barberb/motion/migration_workspace/models/onnx/stylevae_encoder.onnx"
+    },
+    "deephase": {
+      "status": "failed",
+      "error": "Usage: max [OPTIONS] COMMAND [ARGS]...\nTry 'max --help' for help.\n\nError: Command not supported: convert\nSupported commands: encode, generate, list, serve, warm-cache\n",
+      "input_file": "/home/barberb/motion/migration_workspace/models/onnx/deephase.onnx"
+    },
+    "deepmimic_actor": {
+      "status": "failed",
+      "error": "Usage: max [OPTIONS] COMMAND [ARGS]...\nTry 'max --help' for help.\n\nError: Command not supported: convert\nSupported commands: encode, generate, list, serve, warm-cache\n",
+      "input_file": "/home/barberb/motion/migration_workspace/models/onnx/deepmimic_actor.onnx"
+    },
+    "deepmimic_critic": {
+      "status": "failed",
+      "error": "Usage: max [OPTIONS] COMMAND [ARGS]...\nTry 'max --help' for help.\n\nError: Command not supported: convert\nSupported commands: encode, generate, list, serve, warm-cache\n",
+      "input_file": "/home/barberb/motion/migration_workspace/models/onnx/deepmimic_critic.onnx"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+    "migration_config": {
+        "source_models": {
+            "deephase": "../RSMT-Realtime-Stylized-Motion-Transition/",
+            "stylevae": "../RSMT-Realtime-Stylized-Motion-Transition/",
+            "transitionnet": "../RSMT-Realtime-Stylized-Motion-Transition/",
+            "deepmimic": "../pytorch_DeepMimic/"
+        },
+        "target_paths": {
+            "onnx_models": "./models/onnx/",
+            "max_models": "./models/max/",
+            "validation_data": "./data/samples/"
+        },
+        "conversion_settings": {
+            "onnx_opset_version": 11,
+            "max_optimization_level": "O3",
+            "batch_size": 1,
+            "input_shapes": {
+                "deephase": [1, 132],
+                "stylevae": [1, 60, 256],
+                "transitionnet": [1, 321]
+            }
+        },
+        "validation_settings": {
+            "accuracy_threshold": 1e-6,
+            "performance_iterations": 100,
+            "test_batch_sizes": [1, 8, 32]
+        }
+    }
+}

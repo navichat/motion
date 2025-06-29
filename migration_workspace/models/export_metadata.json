@@ -1,0 +1,37 @@
+{
+  "export_timestamp": "None",
+  "pytorch_version": "2.7.0+cu126",
+  "onnx_opset_version": 11,
+  "exported_models": {
+    "stylevae_decoder": {
+      "file_path": "/home/barberb/motion/migration_workspace/models/onnx/stylevae_decoder.onnx",
+      "file_size_kb": 9549.3583984375,
+      "status": "exported"
+    },
+    "stylevae_encoder": {
+      "file_path": "/home/barberb/motion/migration_workspace/models/onnx/stylevae_encoder.onnx",
+      "file_size_kb": 9790.9462890625,
+      "status": "exported"
+    },
+    "deephase": {
+      "file_path": "/home/barberb/motion/migration_workspace/models/onnx/deephase.onnx",
+      "file_size_kb": 279.1552734375,
+      "status": "exported"
+    },
+    "deepmimic_actor": {
+      "file_path": "/home/barberb/motion/migration_workspace/models/onnx/deepmimic_actor.onnx",
+      "file_size_kb": 2915.236328125,
+      "status": "exported"
+    },
+    "deepmimic_critic": {
+      "file_path": "/home/barberb/motion/migration_workspace/models/onnx/deepmimic_critic.onnx",
+      "file_size_kb": 2844.9951171875,
+      "status": "exported"
+    },
+    "transition_net": {
+      "file_path": "/home/barberb/motion/migration_workspace/models/onnx/transition_net.onnx",
+      "file_size_kb": 9016.7,
+      "status": "exported"
+    }
+  }
+}

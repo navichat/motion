@@ -1,0 +1,101 @@
+{
+  "deephase": {
+    "name": "DeepPhase",
+    "type": "Phase Encoding Network",
+    "input_shape": [
+      132
+    ],
+    "output_shape": [
+      2
+    ],
+    "architecture": [
+      132,
+      256,
+      128,
+      32,
+      2
+    ],
+    "activation": "ReLU",
+    "purpose": "Encode motion data to 2D phase manifold",
+    "training_script": "/home/barberb/motion/RSMT-Realtime-Stylized-Motion-Transition/train_deephase.py",
+    "complexity": "Medium",
+    "migration_priority": "High"
+  },
+  "stylevae": {
+    "name": "StyleVAE",
+    "type": "Variational Autoencoder",
+    "input_shape": [
+      60,
+      "motion_features"
+    ],
+    "latent_dim": 256,
+    "output_shape": [
+      60,
+      "motion_features"
+    ],
+    "encoder_architecture": "CNN + FC layers",
+    "decoder_architecture": "FC + CNN layers",
+    "purpose": "Extract and generate motion style vectors",
+    "training_script": "/home/barberb/motion/RSMT-Realtime-Stylized-Motion-Transition/train_styleVAE.py",
+    "complexity": "High",
+    "migration_priority": "High"
+  },
+  "transitionnet": {
+    "name": "TransitionNet",
+    "type": "Motion Transition Generator",
+    "input_shape": [
+      "source_motion",
+      "target_motion",
+      "style_vectors"
+    ],
+    "output_shape": [
+      "transition_sequence"
+    ],
+    "architecture": "Multi-layer perceptron with attention",
+    "purpose": "Generate smooth transitions between motion clips",
+    "training_script": "/home/barberb/motion/RSMT-Realtime-Stylized-Motion-Transition/train_transitionNet.py",
+    "complexity": "High",
+    "migration_priority": "High"
+  },
+  "deepmimic_actor": {
+    "name": "DeepMimic_Actor",
+    "type": "Policy Network (PPO)",
+    "input_shape": [
+      "state_size"
+    ],
+    "output_shape": [
+      "action_size"
+    ],
+    "architecture": [
+      1024,
+      512,
+      "action_size"
+    ],
+    "activation": "ReLU",
+    "output_activation": "Tanh",
+    "purpose": "Generate actions for character control",
+    "algorithm": "PPO (Proximal Policy Optimization)",
+    "complexity": "Medium",
+    "migration_priority": "Medium"
+  },
+  "deepmimic_critic": {
+    "name": "DeepMimic_Critic",
+    "type": "Value Function Network",
+    "input_shape": [
+      "state_size"
+    ],
+    "output_shape": [
+      1
+    ],
+    "architecture": [
+      1024,
+      512,
+      1
+    ],
+    "activation": "ReLU",
+    "purpose": "Estimate state values for PPO training",
+    "algorithm": "PPO Value Function",
+    "complexity": "Medium",
+    "migration_priority": "Medium"
+  }
+}

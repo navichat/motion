@@ -1,0 +1,15 @@
+torch>=1.12.0
+torchvision
+onnx>=1.12.0
+onnxruntime
+numpy>=1.21.0
+scipy
+matplotlib
+tqdm
+psutil
+fastapi
+uvicorn
+pydantic
+pytest
+jupyter
+tensorboard
