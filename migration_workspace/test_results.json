@@ -1,18 +1,32 @@
 {
-  "onnx_results": {
-    "deephase.onnx": "\u2705 Valid",
-    "stylevae_encoder.onnx": "\u2705 Valid",
-    "stylevae_decoder.onnx": "\u2705 Valid",
-    "deepmimic_actor.onnx": "\u2705 Valid",
-    "deepmimic_critic.onnx": "\u2705 Valid",
-    "transition_net.onnx": "\u2705 Valid"
-  },
-  "bridge_results": {
-    "status": "\u2705 Bridge working correctly"
-  },
-  "perf_results": {
-    "status": "\u2705 Performance excellent",
-    "fps": 403.57844408404486
-  },
-  "overall_status": "EXCELLENT"
+  "timestamp": 1751239834.5562682,
+  "success_rate": 0.8,
+  "detailed_results": {
+    "weight_extraction": {
+      "deephase_weights.npz": true,
+      "deepmimic_actor_weights.npz": true,
+      "deepmimic_critic_weights.npz": true
+    },
+    "pytorch_model": {
+      "working": true,
+      "avg_time": 0.00014513659477233886,
+      "throughput": 68900.61059849166,
+      "output_shape": [
+        10,
+        2
+      ]
+    },
+    "onnx_models": true,
+    "mojo_compilation": {
+      "test_mojo_env.mojo": true,
+      "test_basic.mojo": true,
+      "motion_inference.mojo": false,
+      "motion_inference_fixed.mojo": false,
+      "test_simple.mojo": true,
+      "deephase_fixed.mojo": false,
+      "deephase.mojo": false,
+      "deephase_simple.mojo": false
+    },
+    "weight_loading": true
+  }
 }
