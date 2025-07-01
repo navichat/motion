@@ -1,0 +1,24 @@
+torch>=1.12.0
+torchvision
+onnx>=1.12.0
+onnxruntime
+numpy>=1.21.0
+scipy
+matplotlib
+tqdm
+psutil
+fastapi
+uvicorn
+pydantic
+pytest
+jupyter
+tensorboard
+
+# Production API deployment dependencies
+flask==2.3.3
+flask-cors==4.0.0
+gunicorn==21.2.0
+waitress==2.1.2
+prometheus-flask-exporter==0.23.0
+structlog==23.1.0
+requests==2.31.0
