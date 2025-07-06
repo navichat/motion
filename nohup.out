@@ -34,3 +34,18 @@
 127.0.0.1 - - [05/Jul/2025 17:03:23] code 404, message File not found
 127.0.0.1 - - [05/Jul/2025 17:03:23] "GET /favicon.ico HTTP/1.1" 404 -
 127.0.0.1 - - [05/Jul/2025 17:03:24] "GET /neutral_reference.bvh HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jul/2025 18:12:11] "GET /rsmt_showcase_modern.html HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jul/2025 18:12:11] "GET /js/VRMBVHAdapter.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jul/2025 18:12:11] "GET /js/AdvancedVRMLoader.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jul/2025 18:12:11] "GET /js/FacialExpressionSystem.js HTTP/1.1" 304 -
+127.0.0.1 - - [05/Jul/2025 18:12:11] "GET /js/VRMMaterialExtractor.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jul/2025 18:12:11] "GET /js/ClassroomEnvironment.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jul/2025 18:12:11] "GET /js/EnhancedCharacterSystem.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jul/2025 18:12:11] "GET /js/AnimationBlender.js HTTP/1.1" 304 -
+127.0.0.1 - - [05/Jul/2025 18:12:11] code 404, message File not found
+127.0.0.1 - - [05/Jul/2025 18:12:11] "GET /js/ClassroomCameraController.js HTTP/1.1" 404 -
+127.0.0.1 - - [05/Jul/2025 18:12:15] "GET /assets/scenes/classroom.glb HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jul/2025 18:12:16] "GET /assets/avatars/ichika.vrm HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jul/2025 18:12:17] code 404, message File not found
+127.0.0.1 - - [05/Jul/2025 18:12:17] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+127.0.0.1 - - [05/Jul/2025 18:12:36] "GET /rsmt_showcase_modern.html HTTP/1.1" 304 -
