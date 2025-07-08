@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple BVH Motion Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #222;
+            color: white;
+        }
+        #container {
+            width: 100%;
+            height: 80vh;
+            border: 2px solid #444;
+            position: relative;
+            background: linear-gradient(180deg, #333 0%, #111 100%);
+        }
+        #controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #0066cc; }
+        #stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        #debug {
+            margin: 10px 0;
+            padding: 10px;
+            background: #333;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple BVH Motion Test - Debug Version</h1>
+    
+    <div id="debug">
+        <div>Debug Log:</div>
+        <div id="debugLog">Starting...</div>
+    </div>
+    
+    <div id="container">
+        <div id="stats">
+            <div>Frame: <span id="currentFrame">0</span> / <span id="totalFrames">0</span></div>
+            <div>Status: <span id="status">Loading...</span></div>
+            <div>Hips Pos: <span id="hipsPos">0,0,0</span></div>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <button onclick="testLoad()">Test Load BVH</button>
+        <button onclick="testPlay()">Test Play</button>
+        <button onclick="testStep()">Step Frame</button>
+    </div>
+
+    <script src="three.min.js"></script>
+    <script>
+        let scene, camera, renderer, clock;
+        let animationData = null;
+        let currentFrame = 0;
+        let isPlaying = false;
+        let hipsMesh = null;
+        
+        function log(message) {
+            console.log(message);
+            document.getElementById('debugLog').innerHTML += '<br>' + message;
+        }
+
+        function init() {
+            log('Starting initialization...');
+            
+            try {
+                const container = document.getElementById('container');
+                
+                // Scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x222222);
+                log('Scene created');
+                
+                // Camera
+                camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                camera.position.set(100, 100, 100);
+                camera.lookAt(0, 0, 0);
+                log('Camera created');
+                
+                // Renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                container.appendChild(renderer.domElement);
+                log('Renderer created');
+                
+                // Clock
+                clock = new THREE.Clock();
+                
+                // Test objects
+                createTestObjects();
+                
+                // Start render loop
+                animate();
+                
+                log('Initialization complete');
+                document.getElementById('status').textContent = 'Ready';
+                
+            } catch (error) {
+                log('ERROR in init: ' + error.message);
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        function createTestObjects() {
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(200, 200);
+            const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x444444 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+            
+            // Grid
+            const gridHelper = new THREE.GridHelper(200, 20, 0x666666, 0x444444);
+            scene.add(gridHelper);
+            
+            // Test sphere for hips
+            const geometry = new THREE.SphereGeometry(3, 8, 6);
+            const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            hipsMesh = new THREE.Mesh(geometry, material);
+            hipsMesh.position.set(0, 10, 0);
+            scene.add(hipsMesh);
+            
+            // Basic lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            log('Test objects created');
+        }
+
+        function testLoad() {
+            log('Testing BVH load...');
+            document.getElementById('status').textContent = 'Loading...';
+            
+            fetch('neutral_walking.bvh')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status);
+                    }
+                    log('BVH file fetched successfully');
+                    return response.text();
+                })
+                .then(data => {
+                    log('BVH data received, length: ' + data.length);
+                    parseBVH(data);
+                })
+                .catch(error => {
+                    log('ERROR loading BVH: ' + error.message);
+                    document.getElementById('status').textContent = 'Error: ' + error.message;
+                });
+        }
+
+        function parseBVH(bvhData) {
+            try {
+                log('Parsing BVH data...');
+                
+                const lines = bvhData.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+                log('Total lines: ' + lines.length);
+                
+                // Find motion section
+                let motionIndex = -1;
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i] === 'MOTION') {
+                        motionIndex = i;
+                        break;
+                    }
+                }
+                
+                if (motionIndex === -1) {
+                    throw new Error('No MOTION section found');
+                }
+                log('MOTION section found at line ' + motionIndex);
+                
+                // Parse frame info
+                const framesLine = lines[motionIndex + 1];
+                const frameTimeLine = lines[motionIndex + 2];
+                
+                const frameCount = parseInt(framesLine.split(':')[1].trim());
+                const frameTime = parseFloat(frameTimeLine.split(':')[1].trim());
+                
+                log('Frame count: ' + frameCount);
+                log('Frame time: ' + frameTime);
+                
+                // Parse frame data
+                animationData = {
+                    frameCount: frameCount,
+                    frameTime: frameTime,
+                    frames: []
+                };
+                
+                let framesParsed = 0;
+                for (let i = motionIndex + 3; i < lines.length && framesParsed < frameCount; i++) {
+                    const frameData = lines[i].split(/\s+/).map(val => parseFloat(val)).filter(val => !isNaN(val));
+                    if (frameData.length > 0) {
+                        animationData.frames.push(frameData);
+                        framesParsed++;
+                    }
+                }
+                
+                log('Frames parsed: ' + animationData.frames.length);
+                if (animationData.frames.length > 0) {
+                    log('First frame channels: ' + animationData.frames[0].length);
+                    log('First frame sample: ' + animationData.frames[0].slice(0, 6).join(', '));
+                }
+                
+                document.getElementById('totalFrames').textContent = frameCount;
+                document.getElementById('status').textContent = 'BVH Loaded';
+                
+                // Test first frame
+                if (animationData.frames.length > 0) {
+                    applyFrame(0);
+                }
+                
+            } catch (error) {
+                log('ERROR parsing BVH: ' + error.message);
+                document.getElementById('status').textContent = 'Parse Error: ' + error.message;
+            }
+        }
+
+        function applyFrame(frameIndex) {
+            if (!animationData || !animationData.frames[frameIndex]) {
+                log('No data for frame ' + frameIndex);
+                return;
+            }
+            
+            try {
+                const frameData = animationData.frames[frameIndex];
+                
+                // First 6 channels should be hips position and rotation
+                if (frameData.length >= 6) {
+                    const x = frameData[0] * 0.1; // Scale down
+                    const y = frameData[1] * 0.1;
+                    const z = frameData[2] * 0.1;
+                    
+                    hipsMesh.position.set(x, y, z);
+                    
+                    document.getElementById('hipsPos').textContent = 
+                        x.toFixed(1) + ',' + y.toFixed(1) + ',' + z.toFixed(1);
+                }
+                
+                currentFrame = frameIndex;
+                document.getElementById('currentFrame').textContent = currentFrame;
+                
+            } catch (error) {
+                log('ERROR applying frame: ' + error.message);
+            }
+        }
+
+        function testPlay() {
+            if (!animationData) {
+                log('No animation data loaded');
+                return;
+            }
+            
+            isPlaying = !isPlaying;
+            log('Playback: ' + (isPlaying ? 'started' : 'stopped'));
+            
+            if (isPlaying) {
+                clock.start();
+            }
+        }
+
+        function testStep() {
+            if (!animationData) {
+                log('No animation data loaded');
+                return;
+            }
+            
+            currentFrame = (currentFrame + 1) % animationData.frameCount;
+            applyFrame(currentFrame);
+            log('Stepped to frame ' + currentFrame);
+        }
+
+        function updateAnimation() {
+            if (!animationData || !isPlaying) return;
+            
+            try {
+                const deltaTime = clock.getDelta();
+                const frameTime = animationData.frameTime;
+                
+                // Simple frame stepping
+                if (deltaTime > frameTime) {
+                    currentFrame = (currentFrame + 1) % animationData.frameCount;
+                    applyFrame(currentFrame);
+                }
+                
+            } catch (error) {
+                log('ERROR in animation: ' + error.message);
+                isPlaying = false;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            try {
+                updateAnimation();
+                renderer.render(scene, camera);
+            } catch (error) {
+                log('ERROR in render: ' + error.message);
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            log('Page loaded, starting init...');
+            init();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    </script>
+</body>
+</html>

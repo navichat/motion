@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Viewer</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 20px;
+            background: #1a1a1a; 
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #debug-info {
+            background: #333;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        #container { 
+            width: 80%; 
+            height: 400px; 
+            background: #000;
+            border: 2px solid #666;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .info { background: #2d2d5a; }
+    </style>
+</head>
+<body>
+    <h1>🔧 RSMT Motion Viewer Debug</h1>
+    
+    <div id="debug-info">
+        <h3>Debug Information:</h3>
+        <div id="status-log"></div>
+    </div>
+    
+    <div id="container"></div>
+    
+    <script>
+        function log(message, type = 'info') {
+            console.log(message);
+            const statusLog = document.getElementById('status-log');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            statusLog.appendChild(div);
+        }
+        
+        log("🚀 Starting debug process...", "info");
+        
+        // Test 1: Check if Three.js loads
+        log("📦 Testing Three.js library loading...", "info");
+        
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+        script.onload = function() {
+            log("✅ Three.js loaded successfully!", "success");
+            testThreeJS();
+        };
+        script.onerror = function() {
+            log("❌ Failed to load Three.js library", "error");
+            tryLocalTest();
+        };
+        document.head.appendChild(script);
+        
+        function testThreeJS() {
+            try {
+                log("🧪 Testing Three.js functionality...", "info");
+                
+                if (typeof THREE === 'undefined') {
+                    log("❌ THREE is undefined", "error");
+                    return;
+                }
+                
+                log("✅ THREE object exists", "success");
+                
+                // Test scene creation
+                const scene = new THREE.Scene();
+                log("✅ Scene created", "success");
+                
+                // Test camera creation
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                log("✅ Camera created", "success");
+                
+                // Test renderer creation
+                const renderer = new THREE.WebGLRenderer();
+                renderer.setSize(800, 400);
+                document.getElementById('container').appendChild(renderer.domElement);
+                log("✅ Renderer created and added to DOM", "success");
+                
+                // Set simple scene
+                scene.background = new THREE.Color(0x0f0f23);
+                camera.position.z = 5;
+                
+                // Add a test cube
+                const geometry = new THREE.BoxGeometry();
+                const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                const cube = new THREE.Mesh(geometry, material);
+                scene.add(cube);
+                
+                log("✅ Test cube added to scene", "success");
+                
+                // Test render
+                renderer.render(scene, camera);
+                log("✅ Initial render successful", "success");
+                
+                // Start animation
+                function animate() {
+                    requestAnimationFrame(animate);
+                    cube.rotation.x += 0.01;
+                    cube.rotation.y += 0.01;
+                    renderer.render(scene, camera);
+                }
+                animate();
+                
+                log("🎉 Animation started - you should see a spinning green cube!", "success");
+                
+                // Test BVH file access
+                testBVHAccess();
+                
+            } catch (error) {
+                log(`❌ Three.js test failed: ${error.message}`, "error");
+            }
+        }
+        
+        async function testBVHAccess() {
+            log("📁 Testing BVH file access...", "info");
+            
+            try {
+                const response = await fetch('../motion_transitions/emotional_journey_transitions.bvh');
+                if (response.ok) {
+                    const text = await response.text();
+                    log(`✅ BVH file loaded: ${text.length} characters`, "success");
+                    log(`📄 First 100 chars: ${text.substring(0, 100)}...`, "info");
+                } else {
+                    log(`❌ BVH file not accessible: ${response.status} ${response.statusText}`, "error");
+                }
+            } catch (error) {
+                log(`❌ BVH file access error: ${error.message}`, "error");
+            }
+        }
+        
+        function tryLocalTest() {
+            log("🔄 Trying without Three.js...", "info");
+            document.getElementById('container').innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #666;">
+                    <h3>Three.js not available</h3>
+                    <p>Testing basic functionality without 3D graphics</p>
+                </div>
+            `;
+        }
+        
+        // Test window load
+        window.addEventListener('load', function() {
+            log("🏁 Window loaded event fired", "success");
+        });
+        
+        // Test for errors
+        window.addEventListener('error', function(e) {
+            log(`❌ JavaScript error: ${e.message} at ${e.filename}:${e.lineno}`, "error");
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Basic Test</title>
+    <style>
+        body {
+            background: #333;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .test {
+            background: #444;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { border-left: 4px solid #4CAF50; }
+        .error { border-left: 4px solid #f44336; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Basic Browser Test</h1>
+    <div id="tests"></div>
+    
+    <script>
+        function addTest(message, isSuccess) {
+            const div = document.createElement('div');
+            div.className = 'test ' + (isSuccess ? 'success' : 'error');
+            div.innerHTML = message;
+            document.getElementById('tests').appendChild(div);
+        }
+        
+        // Test 1: Basic JavaScript
+        addTest('✅ JavaScript is working', true);
+        
+        // Test 2: DOM manipulation
+        try {
+            const testDiv = document.createElement('div');
+            addTest('✅ DOM manipulation works', true);
+        } catch (e) {
+            addTest('❌ DOM manipulation failed: ' + e.message, false);
+        }
+        
+        // Test 3: Fetch API
+        if (typeof fetch !== 'undefined') {
+            addTest('✅ Fetch API available', true);
+        } else {
+            addTest('❌ Fetch API not available', false);
+        }
+        
+        // Test 4: RequestAnimationFrame
+        if (typeof requestAnimationFrame !== 'undefined') {
+            addTest('✅ RequestAnimationFrame available', true);
+        } else {
+            addTest('❌ RequestAnimationFrame not available', false);
+        }
+        
+        // Test 5: Console logging
+        console.log('Console test - this should appear in browser console');
+        addTest('✅ Console logging test (check browser console)', true);
+        
+        // Test 6: Try to access a local file
+        setTimeout(async () => {
+            try {
+                const response = await fetch('./basic_test.html');
+                if (response.ok) {
+                    addTest('✅ Local file access works', true);
+                } else {
+                    addTest('❌ Local file access failed: ' + response.status, false);
+                }
+            } catch (e) {
+                addTest('❌ Local file access error: ' + e.message, false);
+            }
+        }, 100);
+        
+        addTest('🏁 Basic test completed', true);
+    </script>
+</body>
+</html>

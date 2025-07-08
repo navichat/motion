@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BVH Data Diagnostic Viewer</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0;
+            background: #1a1a2e; 
+            font-family: 'Courier New', monospace;
+            color: white;
+        }
+        #container { width: 100vw; height: 100vh; display: flex; }
+        #leftPanel { 
+            width: 50%; 
+            padding: 20px; 
+            background: rgba(0,0,0,0.8);
+            overflow-y: auto;
+        }
+        #rightPanel { 
+            width: 50%; 
+            position: relative;
+        }
+        .section { 
+            margin: 20px 0; 
+            padding: 15px; 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 8px; 
+        }
+        .data-row { 
+            font-size: 12px; 
+            margin: 3px 0; 
+            font-family: monospace;
+        }
+        .highlight { background: rgba(255,255,0,0.3); }
+        .error { background: rgba(255,0,0,0.3); }
+        .success { background: rgba(0,255,0,0.3); }
+        button { 
+            margin: 5px; padding: 10px 15px; 
+            background: #4CAF50; color: white; border: none; 
+            border-radius: 5px; cursor: pointer;
+        }
+        button:hover { background: #45a049; }
+        input[type="range"] {
+            width: 100%; margin: 10px 0;
+        }
+        #canvasContainer { width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="leftPanel">
+            <h2>🔍 BVH Data Diagnostic</h2>
+            
+            <div class="section">
+                <h3>File Status</h3>
+                <div id="fileStatus">Loading...</div>
+                <button onclick="loadBVHFile()">Reload BVH File</button>
+            </div>
+            
+            <div class="section">
+                <h3>Frame Control</h3>
+                <div>Frame: <span id="currentFrame">0</span> / <span id="totalFrames">0</span></div>
+                <input type="range" id="frameSlider" min="0" max="100" value="0" oninput="setFrame(this.value)">
+                <button onclick="toggleAutoPlay()">▶️ <span id="playText">Play</span></button>
+                <button onclick="stepFrame(1)">Step Forward</button>
+                <button onclick="stepFrame(-1)">Step Backward</button>
+            </div>
+            
+            <div class="section">
+                <h3>Current Frame Data</h3>
+                <div>Values in frame: <span id="frameValueCount">0</span></div>
+                <div id="frameData" style="max-height: 200px; overflow-y: auto; font-size: 11px;">
+                    No data loaded
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>Motion Analysis</h3>
+                <div id="motionAnalysis">
+                    <div>Root Position: <span id="rootPosition">-</span></div>
+                    <div>Root Rotation: <span id="rootRotation">-</span></div>
+                    <div>Frame Difference: <span id="frameDiff">-</span></div>
+                    <div>Motion Magnitude: <span id="motionMag">-</span></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>BVH Structure</h3>
+                <div id="bvhStructure">Not loaded</div>
+            </div>
+            
+            <div class="section">
+                <h3>Raw Data Sample</h3>
+                <div id="rawDataSample" style="max-height: 150px; overflow-y: auto; font-size: 10px;">
+                    No data
+                </div>
+            </div>
+        </div>
+        
+        <div id="rightPanel">
+            <div id="canvasContainer"></div>
+        </div>
+    </div>
+
+    <script src="./three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let bvhData = null;
+        let bvhStructure = null;
+        let currentFrameIndex = 0;
+        let isAutoPlaying = false;
+        let skeleton = null;
+        let previousFrameData = null;
+        
+        function log(message, type = 'info') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        async function init() {
+            try {
+                // Create Three.js scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x2a2a3e);
+                
+                camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                camera.position.set(2, 1.5, 3);
+                camera.lookAt(0, 1, 0);
+                
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth * 0.5, window.innerHeight);
+                document.getElementById('canvasContainer').appendChild(renderer.domElement);
+                
+                // Add lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(5, 5, 5);
+                scene.add(directionalLight);
+                
+                // Add grid
+                const grid = new THREE.GridHelper(4, 4, 0x666666, 0x333333);
+                scene.add(grid);
+                
+                // Create simple visualization skeleton
+                createVisualizationSkeleton();
+                
+                // Start render loop
+                animate();
+                
+                // Load BVH data
+                await loadBVHFile();
+                
+                document.getElementById('fileStatus').innerHTML = '<span class="success">✅ Diagnostic viewer ready</span>';
+                
+            } catch (error) {
+                document.getElementById('fileStatus').innerHTML = `<span class="error">❌ Init failed: ${error.message}</span>`;
+                log(`Init error: ${error.stack}`, 'error');
+            }
+        }
+        
+        function createVisualizationSkeleton() {
+            skeleton = new THREE.Group();
+            
+            // Create 10 joints for visualization
+            for (let i = 0; i < 10; i++) {
+                const geometry = new THREE.SphereGeometry(0.05, 8, 8);
+                const material = new THREE.MeshLambertMaterial({ 
+                    color: new THREE.Color().setHSL(i / 10, 0.8, 0.6)
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                
+                // Arrange in a rough skeleton shape
+                if (i === 0) sphere.position.set(0, 1, 0); // root
+                else if (i === 1) sphere.position.set(0, 1.3, 0); // spine
+                else if (i === 2) sphere.position.set(0, 1.6, 0); // head
+                else if (i === 3) sphere.position.set(-0.3, 1.4, 0); // left arm
+                else if (i === 4) sphere.position.set(0.3, 1.4, 0); // right arm
+                else if (i === 5) sphere.position.set(-0.1, 0.7, 0); // left hip
+                else if (i === 6) sphere.position.set(0.1, 0.7, 0); // right hip
+                else if (i === 7) sphere.position.set(-0.1, 0.3, 0); // left knee
+                else if (i === 8) sphere.position.set(0.1, 0.3, 0); // right knee
+                else sphere.position.set(0, 0.5, 0); // extra
+                
+                sphere.userData = { 
+                    jointIndex: i, 
+                    initialPos: sphere.position.clone()
+                };
+                skeleton.add(sphere);
+            }
+            
+            scene.add(skeleton);
+        }
+        
+        async function loadBVHFile() {
+            const filename = 'emotional_journey_transitions.bvh';
+            document.getElementById('fileStatus').innerHTML = '🔄 Loading BVH file...';
+            
+            try {
+                const response = await fetch(filename);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const bvhText = await response.text();
+                document.getElementById('fileStatus').innerHTML = `<span class="success">✅ File loaded: ${Math.round(bvhText.length/1024)}KB</span>`;
+                
+                // Parse the BVH data
+                const result = parseBVHDetailed(bvhText);
+                bvhData = result.motionData;
+                bvhStructure = result.structure;
+                
+                if (!bvhData || bvhData.length === 0) {
+                    throw new Error('No motion data found');
+                }
+                
+                // Update UI
+                document.getElementById('totalFrames').textContent = bvhData.length;
+                document.getElementById('frameSlider').max = bvhData.length - 1;
+                
+                // Show structure info
+                document.getElementById('bvhStructure').innerHTML = `
+                    <div>Total Frames: ${bvhData.length}</div>
+                    <div>Channels per Frame: ${bvhData[0] ? bvhData[0].length : 0}</div>
+                    <div>Joints Found: ${bvhStructure.joints}</div>
+                    <div>Total Channels: ${bvhStructure.totalChannels}</div>
+                `;
+                
+                // Show raw data sample
+                showRawDataSample();
+                
+                // Set to first frame
+                setFrame(0);
+                
+                document.getElementById('fileStatus').innerHTML = `<span class="success">✅ BVH parsed: ${bvhData.length} frames</span>`;
+                
+            } catch (error) {
+                document.getElementById('fileStatus').innerHTML = `<span class="error">❌ Load failed: ${error.message}</span>`;
+                log(`Load error: ${error.stack}`, 'error');
+            }
+        }
+        
+        function parseBVHDetailed(bvhText) {
+            const lines = bvhText.split('\n').map(line => line.trim());
+            let motionData = [];
+            let inMotion = false;
+            let totalChannels = 0;
+            let joints = 0;
+            
+            // Count structure info
+            for (let line of lines) {
+                if (line === 'MOTION') {
+                    inMotion = true;
+                    continue;
+                } else if (line.startsWith('Frame Time:') || line.startsWith('Frames:')) {
+                    continue;
+                }
+                
+                if (!inMotion) {
+                    if (line.startsWith('ROOT') || line.startsWith('JOINT')) {
+                        joints++;
+                    } else if (line.startsWith('CHANNELS')) {
+                        const channelCount = parseInt(line.split(/\s+/)[1]);
+                        totalChannels += channelCount;
+                    }
+                } else if (line && !line.startsWith('Frame')) {
+                    const values = line.split(/\s+/).map(v => parseFloat(v)).filter(v => !isNaN(v));
+                    if (values.length > 0) {
+                        motionData.push(values);
+                    }
+                }
+            }
+            
+            return {
+                motionData: motionData,
+                structure: {
+                    joints: joints,
+                    totalChannels: totalChannels
+                }
+            };
+        }
+        
+        function showRawDataSample() {
+            if (!bvhData || bvhData.length === 0) return;
+            
+            let sampleHTML = '';
+            for (let i = 0; i < Math.min(5, bvhData.length); i++) {
+                const frame = bvhData[i];
+                sampleHTML += `<div class="data-row">Frame ${i}: [${frame.slice(0, 10).map(v => v.toFixed(3)).join(', ')}${frame.length > 10 ? '...' : ''}]</div>`;
+            }
+            document.getElementById('rawDataSample').innerHTML = sampleHTML;
+        }
+        
+        function setFrame(frameIndex) {
+            if (!bvhData || frameIndex >= bvhData.length) return;
+            
+            currentFrameIndex = parseInt(frameIndex);
+            const frameData = bvhData[currentFrameIndex];
+            
+            // Update UI
+            document.getElementById('currentFrame').textContent = currentFrameIndex;
+            document.getElementById('frameValueCount').textContent = frameData.length;
+            
+            // Show frame data
+            let frameHTML = '';
+            for (let i = 0; i < frameData.length; i++) {
+                const value = frameData[i];
+                const isSignificant = Math.abs(value) > 1.0;
+                frameHTML += `<div class="data-row ${isSignificant ? 'highlight' : ''}">Channel ${i}: ${value.toFixed(6)}</div>`;
+            }
+            document.getElementById('frameData').innerHTML = frameHTML;
+            
+            // Motion analysis
+            if (frameData.length >= 6) {
+                document.getElementById('rootPosition').textContent = 
+                    `X:${frameData[0].toFixed(3)} Y:${frameData[1].toFixed(3)} Z:${frameData[2].toFixed(3)}`;
+                document.getElementById('rootRotation').textContent = 
+                    `X:${frameData[3].toFixed(1)}° Y:${frameData[4].toFixed(1)}° Z:${frameData[5].toFixed(1)}°`;
+            }
+            
+            // Calculate frame difference
+            if (previousFrameData) {
+                let totalDiff = 0;
+                for (let i = 0; i < Math.min(frameData.length, previousFrameData.length); i++) {
+                    totalDiff += Math.abs(frameData[i] - previousFrameData[i]);
+                }
+                document.getElementById('frameDiff').textContent = totalDiff.toFixed(3);
+                
+                // Motion magnitude
+                const magnitude = Math.sqrt(
+                    Math.pow(frameData[0] - (previousFrameData[0] || 0), 2) +
+                    Math.pow(frameData[1] - (previousFrameData[1] || 0), 2) +
+                    Math.pow(frameData[2] - (previousFrameData[2] || 0), 2)
+                );
+                document.getElementById('motionMag').textContent = magnitude.toFixed(6);
+            }
+            
+            // Apply to visualization skeleton
+            if (skeleton && frameData.length > 0) {
+                skeleton.children.forEach((joint, index) => {
+                    if (joint.userData && joint.userData.initialPos) {
+                        const initialPos = joint.userData.initialPos;
+                        
+                        // Apply BVH data with visible scaling
+                        let scale = 0.01; // Make motion visible
+                        let dataIndex = index * 3;
+                        
+                        if (dataIndex + 2 < frameData.length) {
+                            joint.position.set(
+                                initialPos.x + frameData[dataIndex] * scale,
+                                initialPos.y + frameData[dataIndex + 1] * scale,
+                                initialPos.z + frameData[dataIndex + 2] * scale
+                            );
+                        }
+                    }
+                });
+            }
+            
+            previousFrameData = [...frameData];
+            document.getElementById('frameSlider').value = currentFrameIndex;
+        }
+        
+        function stepFrame(direction) {
+            if (!bvhData) return;
+            const newFrame = Math.max(0, Math.min(bvhData.length - 1, currentFrameIndex + direction));
+            setFrame(newFrame);
+        }
+        
+        function toggleAutoPlay() {
+            isAutoPlaying = !isAutoPlaying;
+            document.getElementById('playText').textContent = isAutoPlaying ? 'Pause' : 'Play';
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (isAutoPlaying && bvhData) {
+                const nextFrame = (currentFrameIndex + 1) % bvhData.length;
+                setFrame(nextFrame);
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = (window.innerWidth * 0.5) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth * 0.5, window.innerHeight);
+        });
+        
+        // Initialize
+        if (typeof THREE !== 'undefined') {
+            init();
+        } else {
+            window.addEventListener('load', init);
+        }
+    </script>
+</body>
+</html>

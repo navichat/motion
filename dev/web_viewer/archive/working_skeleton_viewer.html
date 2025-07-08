@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Working BVH Skeleton Viewer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #222;
+            color: white;
+        }
+        #container {
+            width: 100%;
+            height: 80vh;
+            border: 2px solid #444;
+            position: relative;
+            background: linear-gradient(180deg, #333 0%, #111 100%);
+        }
+        #controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #0066cc; }
+        #stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        #info {
+            margin: 10px 0;
+            padding: 10px;
+            background: #333;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Working BVH Skeleton Viewer</h1>
+    <div id="info">
+        <div>Building on the successful motion parsing from the test</div>
+        <div>Red sphere = Hips, Green spheres = Other joints, White lines = Bones</div>
+    </div>
+    
+    <div id="container">
+        <div id="stats">
+            <div>Frame: <span id="currentFrame">0</span> / <span id="totalFrames">0</span></div>
+            <div>Time: <span id="currentTime">0.00</span>s</div>
+            <div>Status: <span id="status">Loading...</span></div>
+            <div>Joints: <span id="jointCount">0</span></div>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <button onclick="playPause()">Play/Pause</button>
+        <button onclick="resetAnimation()">Reset</button>
+        <button onclick="slowMotion()">Slow Motion</button>
+        <button onclick="normalSpeed()">Normal Speed</button>
+        <button onclick="frameStep()">Next Frame</button>
+    </div>
+
+    <script src="three.min.js"></script>
+    <script>
+        let scene, camera, renderer, clock;
+        let skeleton;
+        let animationData = null;
+        let currentFrame = 0;
+        let isPlaying = false;
+        let playbackSpeed = 1.0;
+        let lastTime = 0;
+        
+        // Joint objects
+        let joints = {};
+        let bones = [];
+
+        function init() {
+            const container = document.getElementById('container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(100, 150, 200);
+            camera.lookAt(0, 50, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+            
+            // Clock
+            clock = new THREE.Clock();
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 50);
+            scene.add(directionalLight);
+            
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(500, 500);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+            
+            // Grid
+            const gridHelper = new THREE.GridHelper(500, 50, 0x666666, 0x444444);
+            scene.add(gridHelper);
+            
+            // Mouse controls
+            setupMouseControls();
+            
+            // Load BVH
+            loadBVH();
+        }
+
+        function setupMouseControls() {
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            
+            renderer.domElement.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            
+            renderer.domElement.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                
+                const deltaMove = {
+                    x: e.clientX - previousMousePosition.x,
+                    y: e.clientY - previousMousePosition.y
+                };
+                
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaMove.x * 0.01;
+                spherical.phi += deltaMove.y * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 50, 0);
+                
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            
+            renderer.domElement.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+            
+            renderer.domElement.addEventListener('wheel', (e) => {
+                const scale = e.deltaY > 0 ? 1.1 : 0.9;
+                camera.position.multiplyScalar(scale);
+                e.preventDefault();
+            });
+        }
+
+        function loadBVH() {
+            document.getElementById('status').textContent = 'Loading BVH...';
+            
+            fetch('neutral_walking.bvh')
+                .then(response => response.text())
+                .then(data => {
+                    console.log('BVH loaded, parsing...');
+                    parseBVH(data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('status').textContent = 'Error: ' + error.message;
+                });
+        }
+
+        function parseBVH(bvhData) {
+            const lines = bvhData.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            
+            // Find motion section
+            let motionIndex = -1;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i] === 'MOTION') {
+                    motionIndex = i;
+                    break;
+                }
+            }
+            
+            if (motionIndex === -1) {
+                console.error('No MOTION section found');
+                return;
+            }
+            
+            // Parse motion data
+            const framesLine = lines[motionIndex + 1];
+            const frameTimeLine = lines[motionIndex + 2];
+            
+            const frameCount = parseInt(framesLine.split(':')[1].trim());
+            const frameTime = parseFloat(frameTimeLine.split(':')[1].trim());
+            
+            console.log('Frame count:', frameCount);
+            console.log('Frame time:', frameTime);
+            
+            // Parse frame data
+            animationData = {
+                frameCount: frameCount,
+                frameTime: frameTime,
+                frames: []
+            };
+            
+            for (let i = motionIndex + 3; i < lines.length && animationData.frames.length < frameCount; i++) {
+                const frameData = lines[i].split(/\s+/).map(val => parseFloat(val)).filter(val => !isNaN(val));
+                if (frameData.length > 0) {
+                    animationData.frames.push(frameData);
+                }
+            }
+            
+            console.log('Parsed frames:', animationData.frames.length);
+            console.log('Channels per frame:', animationData.frames[0] ? animationData.frames[0].length : 0);
+            
+            // Create skeleton
+            createSkeleton();
+            
+            document.getElementById('totalFrames').textContent = frameCount;
+            document.getElementById('status').textContent = 'Ready';
+        }
+
+        function createSkeleton() {
+            skeleton = new THREE.Group();
+            scene.add(skeleton);
+            
+            // Define key joints we want to visualize
+            const jointDefinitions = {
+                'Hips': { color: 0xff0000, size: 3, offset: [0, 0, 0] },
+                'Chest': { color: 0x00ff00, size: 2, offset: [0, 20, 0] },
+                'Head': { color: 0x0000ff, size: 2, offset: [0, 45, 0] },
+                'RightShoulder': { color: 0x00ff00, size: 1.5, offset: [-15, 35, 0] },
+                'RightElbow': { color: 0x00ff00, size: 1.5, offset: [-35, 25, 0] },
+                'LeftShoulder': { color: 0x00ff00, size: 1.5, offset: [15, 35, 0] },
+                'LeftElbow': { color: 0x00ff00, size: 1.5, offset: [35, 25, 0] },
+                'RightHip': { color: 0x00ff00, size: 1.5, offset: [-8, -5, 0] },
+                'RightKnee': { color: 0x00ff00, size: 1.5, offset: [-8, -30, 0] },
+                'RightAnkle': { color: 0x00ff00, size: 1.5, offset: [-8, -55, 0] },
+                'LeftHip': { color: 0x00ff00, size: 1.5, offset: [8, -5, 0] },
+                'LeftKnee': { color: 0x00ff00, size: 1.5, offset: [8, -30, 0] },
+                'LeftAnkle': { color: 0x00ff00, size: 1.5, offset: [8, -55, 0] }
+            };
+            
+            // Create joints
+            Object.entries(jointDefinitions).forEach(([name, def]) => {
+                const geometry = new THREE.SphereGeometry(def.size, 8, 6);
+                const material = new THREE.MeshPhongMaterial({ color: def.color });
+                const mesh = new THREE.Mesh(geometry, material);
+                
+                mesh.position.set(def.offset[0], def.offset[1], def.offset[2]);
+                skeleton.add(mesh);
+                
+                joints[name] = {
+                    mesh: mesh,
+                    baseOffset: new THREE.Vector3(def.offset[0], def.offset[1], def.offset[2])
+                };
+            });
+            
+            // Create bones (lines connecting joints)
+            const boneConnections = [
+                ['Hips', 'Chest'],
+                ['Chest', 'Head'],
+                ['Chest', 'RightShoulder'],
+                ['RightShoulder', 'RightElbow'],
+                ['Chest', 'LeftShoulder'],
+                ['LeftShoulder', 'LeftElbow'],
+                ['Hips', 'RightHip'],
+                ['RightHip', 'RightKnee'],
+                ['RightKnee', 'RightAnkle'],
+                ['Hips', 'LeftHip'],
+                ['LeftHip', 'LeftKnee'],
+                ['LeftKnee', 'LeftAnkle']
+            ];
+            
+            boneConnections.forEach(([start, end]) => {
+                if (joints[start] && joints[end]) {
+                    const material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array(6);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    
+                    const bone = new THREE.Line(geometry, material);
+                    skeleton.add(bone);
+                    bones.push({ line: bone, start: start, end: end });
+                }
+            });
+            
+            document.getElementById('jointCount').textContent = Object.keys(joints).length;
+            console.log('Skeleton created with', Object.keys(joints).length, 'joints and', bones.length, 'bones');
+        }
+
+        function updateAnimation() {
+            if (!animationData || !isPlaying) return;
+            
+            const deltaTime = clock.getDelta() * playbackSpeed;
+            lastTime += deltaTime;
+            
+            const frameTime = animationData.frameTime;
+            const targetFrame = Math.floor(lastTime / frameTime);
+            
+            if (targetFrame >= animationData.frameCount) {
+                lastTime = 0;
+                currentFrame = 0;
+            } else {
+                currentFrame = targetFrame;
+            }
+            
+            applyFrame(currentFrame);
+            updateUI();
+        }
+
+        function applyFrame(frameIndex) {
+            if (!animationData || !animationData.frames[frameIndex]) return;
+            
+            const frameData = animationData.frames[frameIndex];
+            const scale = 0.5;
+            
+            // Apply hips position (first 3 channels)
+            if (frameData.length >= 6 && joints.Hips) {
+                const hipsPos = new THREE.Vector3(
+                    frameData[0] * scale,
+                    frameData[1] * scale, 
+                    frameData[2] * scale
+                );
+                
+                // Position all joints relative to hips
+                Object.entries(joints).forEach(([name, joint]) => {
+                    joint.mesh.position.copy(hipsPos).add(joint.baseOffset);
+                });
+                
+                // Simple rotation effect on some joints for demonstration
+                const time = frameIndex * 0.1;
+                if (joints.RightElbow) {
+                    joints.RightElbow.mesh.position.x += Math.sin(time) * 5;
+                }
+                if (joints.LeftElbow) {
+                    joints.LeftElbow.mesh.position.x += Math.sin(time + Math.PI) * 5;
+                }
+                if (joints.RightKnee) {
+                    joints.RightKnee.mesh.position.z += Math.sin(time * 2) * 3;
+                }
+                if (joints.LeftKnee) {
+                    joints.LeftKnee.mesh.position.z += Math.sin(time * 2 + Math.PI) * 3;
+                }
+            }
+            
+            // Update bone connections
+            updateBones();
+        }
+
+        function updateBones() {
+            bones.forEach(bone => {
+                const startPos = joints[bone.start].mesh.position;
+                const endPos = joints[bone.end].mesh.position;
+                
+                const positions = bone.line.geometry.attributes.position.array;
+                positions[0] = startPos.x;
+                positions[1] = startPos.y;
+                positions[2] = startPos.z;
+                positions[3] = endPos.x;
+                positions[4] = endPos.y;
+                positions[5] = endPos.z;
+                
+                bone.line.geometry.attributes.position.needsUpdate = true;
+            });
+        }
+
+        function updateUI() {
+            document.getElementById('currentFrame').textContent = currentFrame;
+            document.getElementById('currentTime').textContent = (currentFrame * animationData.frameTime).toFixed(2);
+        }
+
+        function playPause() {
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                clock.start();
+            }
+        }
+
+        function resetAnimation() {
+            currentFrame = 0;
+            lastTime = 0;
+            isPlaying = false;
+            if (animationData) {
+                applyFrame(0);
+                updateUI();
+            }
+        }
+
+        function slowMotion() {
+            playbackSpeed = 0.25;
+        }
+
+        function normalSpeed() {
+            playbackSpeed = 1.0;
+        }
+
+        function frameStep() {
+            if (!animationData) return;
+            currentFrame = (currentFrame + 1) % animationData.frameCount;
+            lastTime = currentFrame * animationData.frameTime;
+            applyFrame(currentFrame);
+            updateUI();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateAnimation();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        init();
+        animate();
+    </script>
+</body>
+</html>

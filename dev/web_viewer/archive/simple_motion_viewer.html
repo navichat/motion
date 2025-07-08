@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple BVH Motion Viewer</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+        }
+        
+        .controls {
+            width: 400px;
+            background: rgba(0,0,0,0.9);
+            padding: 25px;
+            backdrop-filter: blur(15px);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            overflow-y: auto;
+        }
+        
+        .viewer {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        h2 { 
+            margin-top: 0; 
+            color: #f093fb; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5); 
+        }
+        
+        .sequence-info {
+            background: rgba(240, 147, 251, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #f093fb;
+        }
+        
+        .motion-display {
+            width: 80%;
+            height: 80%;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        
+        .skeleton {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 300px;
+        }
+        
+        .joint {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            transform: translate(-50%, -50%);
+            transition: all 0.1s ease;
+        }
+        
+        .bone {
+            position: absolute;
+            background: rgba(255,255,255,0.6);
+            height: 2px;
+            transform-origin: left center;
+            transition: all 0.1s ease;
+        }
+        
+        .head { background: #ff6b6b; top: 10%; left: 50%; }
+        .neck { background: #ff8e8e; top: 20%; left: 50%; }
+        .spine { background: #ffb3b3; top: 40%; left: 50%; }
+        .hips { background: #ffd1d1; top: 60%; left: 50%; }
+        
+        .left-shoulder { background: #4ecdc4; top: 25%; left: 35%; }
+        .left-elbow { background: #45b7b8; top: 35%; left: 25%; }
+        .left-hand { background: #26a0a3; top: 45%; left: 15%; }
+        
+        .right-shoulder { background: #6c5ce7; top: 25%; left: 65%; }
+        .right-elbow { background: #74b9ff; top: 35%; left: 75%; }
+        .right-hand { background: #0984e3; top: 45%; left: 85%; }
+        
+        .left-hip { background: #feca57; top: 65%; left: 45%; }
+        .left-knee { background: #ff9ff3; top: 80%; left: 40%; }
+        .left-foot { background: #f368e0; top: 95%; left: 35%; }
+        
+        .right-hip { background: #ff7675; top: 65%; left: 55%; }
+        .right-knee { background: #fd79a8; top: 80%; left: 60%; }
+        .right-foot { background: #e84393; top: 95%; left: 65%; }
+        
+        .current-phase {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 18px;
+            text-align: center;
+        }
+        
+        .transition-indicator {
+            background: linear-gradient(90deg, #f093fb, #f5576c);
+            color: white;
+        }
+        
+        .style-indicator {
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            color: white;
+        }
+        
+        button { 
+            width: 100%;
+            margin: 8px 0; 
+            padding: 12px 20px; 
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover { 
+            background: linear-gradient(45deg, #f5576c, #f093fb);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        
+        select { 
+            width: 100%;
+            margin: 8px 0; 
+            padding: 10px; 
+            background: #2a2a2a; 
+            color: white; 
+            border: 1px solid #555;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f093fb, #4facfe);
+            border-radius: 4px;
+            transition: width 0.1s ease;
+            width: 0%;
+        }
+        
+        .stats {
+            font-size: 12px;
+            color: #ccc;
+            margin: 10px 0;
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .loading {
+            color: #ffd700;
+            font-weight: bold;
+        }
+        
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .error {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <h2>🎭 RSMT Motion Viewer</h2>
+            <div class="loading" id="status">Initializing viewer...</div>
+            
+            <div style="margin: 20px 0;">
+                <label>Transition Sequence:</label>
+                <select id="sequenceSelect" onchange="changeSequence()">
+                    <option value="emotional_journey">🎭 Emotional Journey</option>
+                    <option value="character_styles">🤖 Character Styles</option>
+                    <option value="movement_energy">⚡ Movement Energy</option>
+                </select>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div id="sequenceInfo" class="sequence-info">
+                <strong>Emotional Journey</strong><br>
+                Neutral → Elated → Angry → Depressed → Neutral<br>
+                <small>Simulated motion transitions</small>
+            </div>
+            
+            <button onclick="toggleAnimation()">⏯️ Play/Pause</button>
+            <button onclick="resetAnimation()">🔄 Reset</button>
+            <button onclick="changeSpeed()">⚡ Speed: <span id="speedDisplay">1x</span></button>
+            
+            <div class="stats" id="statsInfo">
+                <strong>Motion Statistics:</strong><br>
+                Frame: <span id="frameCount">0</span> / <span id="totalFrames">370</span><br>
+                Duration: <span id="currentTime">0.0</span>s / <span id="totalTime">12.3</span>s<br>
+                Phase: <span id="currentPhaseText">Neutral</span>
+            </div>
+            
+            <div class="stats">
+                <strong>🔧 Viewer Info:</strong><br>
+                • Uses CSS animations instead of WebGL<br>
+                • Simulates motion transitions<br>
+                • No external dependencies<br>
+                • Works in all browsers
+            </div>
+        </div>
+        
+        <div class="viewer">
+            <div class="motion-display">
+                <div class="current-phase style-indicator" id="currentPhase">🎭 Neutral</div>
+                
+                <div class="skeleton" id="skeleton">
+                    <!-- Head and spine -->
+                    <div class="joint head" id="head"></div>
+                    <div class="joint neck" id="neck"></div>
+                    <div class="joint spine" id="spine"></div>
+                    <div class="joint hips" id="hips"></div>
+                    
+                    <!-- Left arm -->
+                    <div class="joint left-shoulder" id="leftShoulder"></div>
+                    <div class="joint left-elbow" id="leftElbow"></div>
+                    <div class="joint left-hand" id="leftHand"></div>
+                    
+                    <!-- Right arm -->
+                    <div class="joint right-shoulder" id="rightShoulder"></div>
+                    <div class="joint right-elbow" id="rightElbow"></div>
+                    <div class="joint right-hand" id="rightHand"></div>
+                    
+                    <!-- Left leg -->
+                    <div class="joint left-hip" id="leftHip"></div>
+                    <div class="joint left-knee" id="leftKnee"></div>
+                    <div class="joint left-foot" id="leftFoot"></div>
+                    
+                    <!-- Right leg -->
+                    <div class="joint right-hip" id="rightHip"></div>
+                    <div class="joint right-knee" id="rightKnee"></div>
+                    <div class="joint right-foot" id="rightFoot"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let animationFrame = 0;
+        let totalFrames = 370;
+        let isAnimating = true;
+        let animationSpeed = 1;
+        let currentSequence = 'emotional_journey';
+        
+        const sequences = {
+            emotional_journey: {
+                name: 'Emotional Journey',
+                description: 'Neutral → Elated → Angry → Depressed → Neutral',
+                timeline: [
+                    {type: 'style', name: 'Neutral', start: 0, duration: 50},
+                    {type: 'transition', name: 'Neutral → Elated', start: 50, duration: 30},
+                    {type: 'style', name: 'Elated', start: 80, duration: 50},
+                    {type: 'transition', name: 'Elated → Angry', start: 130, duration: 30},
+                    {type: 'style', name: 'Angry', start: 160, duration: 50},
+                    {type: 'transition', name: 'Angry → Depressed', start: 210, duration: 30},
+                    {type: 'style', name: 'Depressed', start: 240, duration: 50},
+                    {type: 'transition', name: 'Depressed → Neutral', start: 290, duration: 30},
+                    {type: 'style', name: 'Neutral', start: 320, duration: 50}
+                ]
+            },
+            character_styles: {
+                name: 'Character Styles',
+                description: 'Neutral → Robot → Zombie → Drunk → Neutral',
+                timeline: [
+                    {type: 'style', name: 'Neutral', start: 0, duration: 50},
+                    {type: 'transition', name: 'Neutral → Robot', start: 50, duration: 30},
+                    {type: 'style', name: 'Robot', start: 80, duration: 50},
+                    {type: 'transition', name: 'Robot → Zombie', start: 130, duration: 30},
+                    {type: 'style', name: 'Zombie', start: 160, duration: 50},
+                    {type: 'transition', name: 'Zombie → Drunk', start: 210, duration: 30},
+                    {type: 'style', name: 'Drunk', start: 240, duration: 50},
+                    {type: 'transition', name: 'Drunk → Neutral', start: 290, duration: 30},
+                    {type: 'style', name: 'Neutral', start: 320, duration: 50}
+                ]
+            },
+            movement_energy: {
+                name: 'Movement Energy',
+                description: 'Tiptoe → Skip → March → Crouched → Proud',
+                timeline: [
+                    {type: 'style', name: 'Tiptoe', start: 0, duration: 50},
+                    {type: 'transition', name: 'Tiptoe → Skip', start: 50, duration: 30},
+                    {type: 'style', name: 'Skip', start: 80, duration: 50},
+                    {type: 'transition', name: 'Skip → March', start: 130, duration: 30},
+                    {type: 'style', name: 'March', start: 160, duration: 50},
+                    {type: 'transition', name: 'March → Crouched', start: 210, duration: 30},
+                    {type: 'style', name: 'Crouched', start: 240, duration: 50},
+                    {type: 'transition', name: 'Crouched → Proud', start: 290, duration: 30},
+                    {type: 'style', name: 'Proud', start: 320, duration: 50}
+                ]
+            }
+        };
+        
+        function updateStatus(message, type = 'loading') {
+            document.getElementById('status').innerHTML = `<span class="${type}">${message}</span>`;
+        }
+        
+        function getCurrentPhase() {
+            const sequence = sequences[currentSequence];
+            for (let phase of sequence.timeline) {
+                if (animationFrame >= phase.start && animationFrame < phase.start + phase.duration) {
+                    return phase;
+                }
+            }
+            return sequence.timeline[sequence.timeline.length - 1];
+        }
+        
+        function animateMotion() {
+            const phase = getCurrentPhase();
+            const frameProgress = animationFrame / totalFrames;
+            const time = Date.now() * 0.001;
+            
+            // Update phase display
+            const phaseElement = document.getElementById('currentPhase');
+            if (phase.type === 'transition') {
+                phaseElement.className = 'current-phase transition-indicator';
+                phaseElement.innerHTML = `🔄 ${phase.name}`;
+            } else {
+                phaseElement.className = 'current-phase style-indicator';
+                phaseElement.innerHTML = `🎭 ${phase.name}`;
+            }
+            
+            // Simulate different motion styles
+            let motionIntensity = 1;
+            let motionStyle = 'neutral';
+            
+            if (phase.name.includes('Elated') || phase.name.includes('Skip')) {
+                motionIntensity = 2;
+                motionStyle = 'energetic';
+            } else if (phase.name.includes('Angry') || phase.name.includes('March')) {
+                motionIntensity = 1.5;
+                motionStyle = 'aggressive';
+            } else if (phase.name.includes('Depressed') || phase.name.includes('Crouched')) {
+                motionIntensity = 0.5;
+                motionStyle = 'subdued';
+            } else if (phase.name.includes('Robot')) {
+                motionIntensity = 0.8;
+                motionStyle = 'mechanical';
+            } else if (phase.name.includes('Zombie')) {
+                motionIntensity = 0.6;
+                motionStyle = 'shambling';
+            } else if (phase.name.includes('Drunk')) {
+                motionIntensity = 1.2;
+                motionStyle = 'wobbly';
+            } else if (phase.name.includes('Tiptoe')) {
+                motionIntensity = 0.7;
+                motionStyle = 'delicate';
+            } else if (phase.name.includes('Proud')) {
+                motionIntensity = 0.9;
+                motionStyle = 'confident';
+            }
+            
+            // Apply motion to joints
+            const skeleton = document.getElementById('skeleton');
+            const frameTime = time * animationSpeed;
+            
+            // Base walking motion
+            const walkCycle = Math.sin(frameTime * 3 * motionIntensity);
+            const walkCycle2 = Math.sin(frameTime * 3 * motionIntensity + Math.PI);
+            
+            // Style-specific modifications
+            let headBob = 0;
+            let armSwing = walkCycle * 15 * motionIntensity;
+            let legStep = walkCycle * 20 * motionIntensity;
+            let bodyLean = 0;
+            
+            switch (motionStyle) {
+                case 'energetic':
+                    headBob = Math.sin(frameTime * 6) * 8;
+                    armSwing *= 1.5;
+                    legStep *= 1.3;
+                    break;
+                case 'aggressive':
+                    armSwing *= 1.2;
+                    bodyLean = Math.sin(frameTime * 2) * 5;
+                    break;
+                case 'subdued':
+                    headBob = -5;
+                    armSwing *= 0.3;
+                    legStep *= 0.5;
+                    break;
+                case 'mechanical':
+                    armSwing = Math.round(armSwing / 5) * 5;
+                    legStep = Math.round(legStep / 8) * 8;
+                    break;
+                case 'shambling':
+                    armSwing += Math.sin(frameTime * 1.5) * 8;
+                    headBob = Math.sin(frameTime * 2) * 3;
+                    break;
+                case 'wobbly':
+                    bodyLean = Math.sin(frameTime * 2.5) * 10;
+                    headBob = Math.sin(frameTime * 4) * 6;
+                    break;
+                case 'delicate':
+                    headBob = Math.sin(frameTime * 8) * 2;
+                    armSwing *= 0.6;
+                    legStep *= 0.7;
+                    break;
+                case 'confident':
+                    headBob = 2;
+                    armSwing *= 0.8;
+                    bodyLean = Math.sin(frameTime * 1) * 3;
+                    break;
+            }
+            
+            // Apply transforms
+            skeleton.style.transform = `translate(-50%, -50%) rotate(${bodyLean}deg)`;
+            
+            // Head
+            document.getElementById('head').style.transform = 
+                `translate(-50%, calc(-50% + ${headBob}px))`;
+            
+            // Arms
+            document.getElementById('leftHand').style.transform = 
+                `translate(calc(-50% + ${armSwing}px), -50%)`;
+            document.getElementById('rightHand').style.transform = 
+                `translate(calc(-50% + ${-armSwing}px), -50%)`;
+            
+            // Legs
+            document.getElementById('leftFoot').style.transform = 
+                `translate(calc(-50% + ${legStep}px), -50%)`;
+            document.getElementById('rightFoot').style.transform = 
+                `translate(calc(-50% + ${-legStep}px), -50%)`;
+            
+            // Update UI
+            const uiProgress = (animationFrame / totalFrames) * 100;
+            document.getElementById('progressFill').style.width = uiProgress + '%';
+            document.getElementById('frameCount').textContent = animationFrame;
+            document.getElementById('currentTime').textContent = (animationFrame / 30).toFixed(1);
+            document.getElementById('currentPhaseText').textContent = phase.name;
+        }
+        
+        function changeSequence() {
+            const select = document.getElementById('sequenceSelect');
+            currentSequence = select.value;
+            const sequence = sequences[currentSequence];
+            
+            document.getElementById('sequenceInfo').innerHTML = `
+                <strong>${sequence.name}</strong><br>
+                ${sequence.description}<br>
+                <small>Simulated motion transitions</small>
+            `;
+            
+            resetAnimation();
+        }
+        
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            updateStatus(isAnimating ? 'Animation playing' : 'Animation paused', 'success');
+        }
+        
+        function resetAnimation() {
+            animationFrame = 0;
+            updateStatus('Animation reset', 'success');
+        }
+        
+        function changeSpeed() {
+            animationSpeed = animationSpeed >= 2 ? 0.5 : animationSpeed + 0.5;
+            document.getElementById('speedDisplay').textContent = animationSpeed + 'x';
+            updateStatus(`Speed changed to ${animationSpeed}x`, 'success');
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (isAnimating) {
+                animationFrame = (animationFrame + animationSpeed) % totalFrames;
+                animateMotion();
+            }
+        }
+        
+        // Initialize
+        window.addEventListener('load', function() {
+            updateStatus('✅ CSS Motion Viewer ready!', 'success');
+            animate();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Skeleton Test</title>
+    <style>
+        body { margin: 0; background: #222; color: white; font-family: Arial; }
+        #info { position: absolute; top: 10px; left: 10px; z-index: 100; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div>Skeleton Test</div>
+        <div id="status">Loading...</div>
+        <div id="joints-count">Joints: 0</div>
+        <div id="bones-count">Bones: 0</div>
+    </div>
+    
+    <script src="three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let joints = {};
+        let bones = [];
+        let skeleton = null;
+        
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111122);
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+            camera.lookAt(0, 3, 0);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            scene.add(directionalLight);
+            
+            // Grid
+            const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+            scene.add(gridHelper);
+            
+            // Create skeleton
+            createSkeleton();
+            
+            // Test positioning
+            testSkeleton();
+            
+            // Start render loop
+            animate();
+        }
+        
+        function createSkeleton() {
+            // Create skeleton group
+            skeleton = new THREE.Group();
+            scene.add(skeleton);
+            
+            // Create joints based on BVH hierarchy with proper offsets
+            const jointDefinitions = {
+                'Hips': { color: 0xff0000, size: 0.3, offset: [0, 0, 0], parent: null },
+                'Chest': { color: 0x00ff00, size: 0.2, offset: [0, 13, 0], parent: 'Hips' },
+                'Head': { color: 0x0000ff, size: 0.2, offset: [0, 35, 0], parent: 'Chest' },
+                'RightShoulder': { color: 0x00ff00, size: 0.15, offset: [-16, 0, 0], parent: 'Chest' },
+                'RightElbow': { color: 0x00ff00, size: 0.15, offset: [-31, 0, 0], parent: 'RightShoulder' },
+                'LeftShoulder': { color: 0x00ff00, size: 0.15, offset: [16, 0, 0], parent: 'Chest' },
+                'LeftElbow': { color: 0x00ff00, size: 0.15, offset: [31, 0, 0], parent: 'LeftShoulder' },
+                'RightHip': { color: 0x00ff00, size: 0.15, offset: [-11, 0, 0], parent: 'Hips' },
+                'RightKnee': { color: 0x00ff00, size: 0.15, offset: [0, -44, 0], parent: 'RightHip' },
+                'RightAnkle': { color: 0x00ff00, size: 0.15, offset: [0, -43, 0], parent: 'RightKnee' },
+                'LeftHip': { color: 0x00ff00, size: 0.15, offset: [11, 0, 0], parent: 'Hips' },
+                'LeftKnee': { color: 0x00ff00, size: 0.15, offset: [0, -44, 0], parent: 'LeftHip' },
+                'LeftAnkle': { color: 0x00ff00, size: 0.15, offset: [0, -43, 0], parent: 'LeftKnee' }
+            };
+            
+            // Create joints
+            Object.entries(jointDefinitions).forEach(([name, def]) => {
+                const geometry = new THREE.SphereGeometry(def.size, 8, 6);
+                const material = new THREE.MeshPhongMaterial({ color: def.color });
+                const mesh = new THREE.Mesh(geometry, material);
+                
+                skeleton.add(mesh);
+                
+                joints[name] = {
+                    mesh: mesh,
+                    offset: new THREE.Vector3(def.offset[0], def.offset[1], def.offset[2]).multiplyScalar(0.01),
+                    parent: def.parent,
+                    worldMatrix: new THREE.Matrix4(),
+                    localMatrix: new THREE.Matrix4(),
+                    position: new THREE.Vector3(),
+                    rotation: new THREE.Euler()
+                };
+            });
+            
+            // Create bones
+            const boneConnections = [
+                ['Hips', 'Chest'],
+                ['Chest', 'Head'],
+                ['Chest', 'RightShoulder'],
+                ['RightShoulder', 'RightElbow'],
+                ['Chest', 'LeftShoulder'],
+                ['LeftShoulder', 'LeftElbow'],
+                ['Hips', 'RightHip'],
+                ['RightHip', 'RightKnee'],
+                ['RightKnee', 'RightAnkle'],
+                ['Hips', 'LeftHip'],
+                ['LeftHip', 'LeftKnee'],
+                ['LeftKnee', 'LeftAnkle']
+            ];
+            
+            boneConnections.forEach(([start, end]) => {
+                if (joints[start] && joints[end]) {
+                    const material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array(6);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    
+                    const bone = new THREE.Line(geometry, material);
+                    skeleton.add(bone);
+                    bones.push({ line: bone, start: start, end: end });
+                }
+            });
+            
+            console.log('Skeleton created with', Object.keys(joints).length, 'joints and', bones.length, 'bones');
+            
+            // Update UI
+            document.getElementById('joints-count').textContent = 'Joints: ' + Object.keys(joints).length;
+            document.getElementById('bones-count').textContent = 'Bones: ' + bones.length;
+            document.getElementById('status').textContent = 'Skeleton created!';
+        }
+        
+        function testSkeleton() {
+            // Set up a simple pose to test the skeleton
+            joints.Hips.position.set(0, 3, 0);
+            joints.Hips.rotation.set(0, 0, 0);
+            
+            // Update positions
+            updateJointPositions();
+            updateBones();
+        }
+        
+        function updateJointPositions() {
+            // Start with hips
+            if (joints.Hips) {
+                joints.Hips.mesh.position.copy(joints.Hips.position);
+                joints.Hips.mesh.rotation.copy(joints.Hips.rotation);
+                
+                joints.Hips.worldMatrix.compose(
+                    joints.Hips.position,
+                    new THREE.Quaternion().setFromEuler(joints.Hips.rotation),
+                    new THREE.Vector3(1, 1, 1)
+                );
+            }
+            
+            // Update other joints based on hierarchy
+            Object.entries(joints).forEach(([name, joint]) => {
+                if (name === 'Hips' || !joint.parent) return;
+                
+                const parent = joints[joint.parent];
+                if (!parent) return;
+                
+                // Create local transform
+                joint.localMatrix.compose(
+                    joint.offset,
+                    new THREE.Quaternion().setFromEuler(joint.rotation),
+                    new THREE.Vector3(1, 1, 1)
+                );
+                
+                // Combine with parent transform
+                joint.worldMatrix.multiplyMatrices(parent.worldMatrix, joint.localMatrix);
+                
+                // Extract world position and rotation
+                const worldPos = new THREE.Vector3();
+                const worldRot = new THREE.Quaternion();
+                const worldScale = new THREE.Vector3();
+                joint.worldMatrix.decompose(worldPos, worldRot, worldScale);
+                
+                joint.mesh.position.copy(worldPos);
+                joint.mesh.quaternion.copy(worldRot);
+            });
+        }
+        
+        function updateBones() {
+            bones.forEach(bone => {
+                const startPos = joints[bone.start].mesh.position;
+                const endPos = joints[bone.end].mesh.position;
+                
+                const positions = bone.line.geometry.attributes.position.array;
+                positions[0] = startPos.x;
+                positions[1] = startPos.y;
+                positions[2] = startPos.z;
+                positions[3] = endPos.x;
+                positions[4] = endPos.y;
+                positions[5] = endPos.z;
+                
+                bone.line.geometry.attributes.position.needsUpdate = true;
+            });
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        
+        // Start
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Known Good BVH Viewer - Neutral Walking</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #222;
+            color: white;
+        }
+        #container {
+            width: 100%;
+            height: 80vh;
+            border: 2px solid #444;
+            position: relative;
+            background: linear-gradient(180deg, #333 0%, #111 100%);
+        }
+        #controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #0066cc; }
+        #info {
+            margin: 10px 0;
+            padding: 10px;
+            background: #333;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        #stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Known Good BVH Viewer - Testing Neutral_FW.bvh</h1>
+    <div id="info">
+        <div>File: neutral_walking.bvh (Original: Neutral_FW.bvh from 100STYLE dataset)</div>
+        <div>Expected: 7,896 frames at 60 FPS (16.67ms per frame)</div>
+        <div>Duration: ~131 seconds of walking motion</div>
+    </div>
+    
+    <div id="container">
+        <div id="stats">
+            <div>Frame: <span id="currentFrame">0</span> / <span id="totalFrames">0</span></div>
+            <div>Time: <span id="currentTime">0.00</span>s</div>
+            <div>FPS: <span id="fps">0</span></div>
+            <div>Root Position: <span id="rootPos">0, 0, 0</span></div>
+            <div>Status: <span id="status">Loading...</span></div>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <button onclick="playPause()">Play/Pause</button>
+        <button onclick="resetAnimation()">Reset</button>
+        <button onclick="slowMotion()">Slow Motion</button>
+        <button onclick="normalSpeed()">Normal Speed</button>
+        <button onclick="frameStep()">Next Frame</button>
+    </div>
+
+    <script src="three.min.js"></script>
+    <script>
+        let scene, camera, renderer, clock;
+        let skeleton, bones = {};
+        let animationData = null;
+        let currentFrame = 0;
+        let isPlaying = false;
+        let playbackSpeed = 1.0;
+        let lastTime = 0;
+        let frameRate = 60; // 60 FPS = 0.016667 seconds per frame
+
+        // Initialize Three.js scene
+        function init() {
+            const container = document.getElementById('container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 100, 200);
+            camera.lookAt(0, 50, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+            
+            // Clock
+            clock = new THREE.Clock();
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // Ground plane
+            const groundGeometry = new THREE.PlaneGeometry(500, 500);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Grid
+            const gridHelper = new THREE.GridHelper(500, 50, 0x666666, 0x444444);
+            scene.add(gridHelper);
+            
+            // Simple mouse controls
+            setupMouseControls();
+            
+            // Load BVH
+            loadBVH();
+        }
+
+        function setupMouseControls() {
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            
+            renderer.domElement.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            
+            renderer.domElement.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                
+                const deltaMove = {
+                    x: e.clientX - previousMousePosition.x,
+                    y: e.clientY - previousMousePosition.y
+                };
+                
+                // Rotate camera around target
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaMove.x * 0.01;
+                spherical.phi += deltaMove.y * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 50, 0);
+                
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            
+            renderer.domElement.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+            
+            renderer.domElement.addEventListener('wheel', (e) => {
+                const scale = e.deltaY > 0 ? 1.1 : 0.9;
+                camera.position.multiplyScalar(scale);
+                e.preventDefault();
+            });
+        }
+
+        function loadBVH() {
+            document.getElementById('status').textContent = 'Loading BVH...';
+            
+            fetch('neutral_walking.bvh')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    console.log('BVH file loaded, size:', data.length, 'characters');
+                    document.getElementById('status').textContent = 'Parsing BVH...';
+                    parseBVH(data);
+                })
+                .catch(error => {
+                    console.error('Error loading BVH:', error);
+                    document.getElementById('status').textContent = 'Error: ' + error.message;
+                });
+        }
+
+        function parseBVH(bvhData) {
+            console.log('Parsing BVH data...');
+            
+            const lines = bvhData.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            console.log('Total lines:', lines.length);
+            
+            let isInHierarchy = false;
+            let isInMotion = false;
+            let motionStartIndex = -1;
+            
+            // Find the motion section
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i] === 'HIERARCHY') {
+                    isInHierarchy = true;
+                    console.log('Found HIERARCHY at line', i);
+                } else if (lines[i] === 'MOTION') {
+                    isInHierarchy = false;
+                    isInMotion = true;
+                    motionStartIndex = i;
+                    console.log('Found MOTION section at line', i);
+                    break;
+                }
+            }
+            
+            if (motionStartIndex === -1) {
+                console.error('No MOTION section found');
+                document.getElementById('status').textContent = 'Error: No MOTION section found';
+                return;
+            }
+            
+            // Parse motion data
+            const framesLine = lines[motionStartIndex + 1];
+            const frameTimeLine = lines[motionStartIndex + 2];
+            
+            console.log('Frames line:', framesLine);
+            console.log('Frame time line:', frameTimeLine);
+            
+            const frameCount = parseInt(framesLine.split(':')[1].trim());
+            const frameTime = parseFloat(frameTimeLine.split(':')[1].trim());
+            
+            console.log('Frame count:', frameCount);
+            console.log('Frame time:', frameTime);
+            
+            // Extract motion data
+            animationData = {
+                frameCount: frameCount,
+                frameTime: frameTime,
+                frames: []
+            };
+            
+            // Parse each frame of motion data
+            for (let i = motionStartIndex + 3; i < lines.length && animationData.frames.length < frameCount; i++) {
+                const frameData = lines[i].split(/\s+/).map(val => parseFloat(val)).filter(val => !isNaN(val));
+                if (frameData.length > 0) {
+                    animationData.frames.push(frameData);
+                }
+            }
+            
+            console.log('Parsed frames:', animationData.frames.length);
+            console.log('First frame data length:', animationData.frames[0] ? animationData.frames[0].length : 0);
+            console.log('First frame sample:', animationData.frames[0] ? animationData.frames[0].slice(0, 10) : 'none');
+            
+            // Create skeleton
+            createSkeleton();
+            
+            // Update UI
+            document.getElementById('totalFrames').textContent = frameCount;
+            document.getElementById('status').textContent = 'Ready';
+            frameRate = 1.0 / frameTime;
+            
+            console.log('BVH parsing complete!');
+            console.log('Animation ready with', frameCount, 'frames at', frameRate, 'FPS');
+        }
+
+        function createSkeleton() {
+            // Create a simple visualization of the BVH data
+            // We'll create spheres to represent joints and lines to connect them
+            
+            skeleton = new THREE.Group();
+            scene.add(skeleton);
+            
+            // Create a simple representation - we'll just show the root position for now
+            const geometry = new THREE.SphereGeometry(2, 8, 6);
+            const material = new THREE.MeshPhongMaterial({ color: 0xff4444 });
+            const rootJoint = new THREE.Mesh(geometry, material);
+            rootJoint.castShadow = true;
+            skeleton.add(rootJoint);
+            
+            bones.root = rootJoint;
+            
+            console.log('Simple skeleton created');
+        }
+
+        function updateAnimation() {
+            if (!animationData || !isPlaying) return;
+            
+            const deltaTime = clock.getDelta() * playbackSpeed;
+            lastTime += deltaTime;
+            
+            const frameTime = animationData.frameTime;
+            const targetFrame = Math.floor(lastTime / frameTime);
+            
+            if (targetFrame >= animationData.frameCount) {
+                // Loop animation
+                lastTime = 0;
+                currentFrame = 0;
+            } else {
+                currentFrame = targetFrame;
+            }
+            
+            applyFrame(currentFrame);
+            updateUI();
+        }
+
+        function applyFrame(frameIndex) {
+            if (!animationData || !animationData.frames[frameIndex]) return;
+            
+            const frameData = animationData.frames[frameIndex];
+            
+            // The first 6 values are typically root position and rotation
+            if (frameData.length >= 6 && bones.root) {
+                const x = frameData[0];
+                const y = frameData[1];
+                const z = frameData[2];
+                const rotY = frameData[3] * Math.PI / 180; // Convert to radians
+                const rotX = frameData[4] * Math.PI / 180;
+                const rotZ = frameData[5] * Math.PI / 180;
+                
+                // Apply position (scale down for better viewing)
+                bones.root.position.set(x * 0.1, y * 0.1, z * 0.1);
+                
+                // Apply rotation
+                bones.root.rotation.set(rotX, rotY, rotZ);
+                
+                // Update root position display
+                document.getElementById('rootPos').textContent = 
+                    `${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}`;
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('currentFrame').textContent = currentFrame;
+            document.getElementById('currentTime').textContent = (currentFrame * animationData.frameTime).toFixed(2);
+            document.getElementById('fps').textContent = Math.round(1 / clock.getDelta());
+        }
+
+        function playPause() {
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                clock.start();
+            }
+            console.log('Playback:', isPlaying ? 'playing' : 'paused');
+        }
+
+        function resetAnimation() {
+            currentFrame = 0;
+            lastTime = 0;
+            isPlaying = false;
+            if (animationData) {
+                applyFrame(0);
+                updateUI();
+            }
+            console.log('Animation reset');
+        }
+
+        function slowMotion() {
+            playbackSpeed = 0.25;
+            console.log('Slow motion mode');
+        }
+
+        function normalSpeed() {
+            playbackSpeed = 1.0;
+            console.log('Normal speed mode');
+        }
+
+        function frameStep() {
+            if (!animationData) return;
+            currentFrame = (currentFrame + 1) % animationData.frameCount;
+            lastTime = currentFrame * animationData.frameTime;
+            applyFrame(currentFrame);
+            updateUI();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateAnimation();
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        // Initialize
+        init();
+        animate();
+        
+        console.log('Known Good BVH Viewer initialized');
+    </script>
+</body>
+</html>

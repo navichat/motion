@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minimal RSMT Test</title>
+</head>
+<body>
+    <div id="loading" style="font-size: 24px; text-align: center; padding: 50px;">Loading RSMT System...</div>
+    <div id="ui-panel" style="display: none; padding: 20px; background: #333; color: white;">
+        <h2>🎭 RSMT System Ready!</h2>
+        <p>UI Panel is now visible - JavaScript is working!</p>
+    </div>
+    
+    <script>
+        console.log('Script starting...');
+        
+        function forceShowUI() {
+            console.log('Force showing UI...');
+            
+            const loadingElement = document.getElementById('loading');
+            const uiPanel = document.getElementById('ui-panel');
+            
+            if (loadingElement) {
+                loadingElement.style.display = 'none';
+                console.log('Loading hidden');
+            }
+            
+            if (uiPanel) {
+                uiPanel.style.display = 'block';
+                console.log('UI panel shown');
+            }
+        }
+        
+        // Multiple fallbacks
+        document.addEventListener('DOMContentLoaded', forceShowUI);
+        window.addEventListener('load', forceShowUI);
+        setTimeout(forceShowUI, 500);
+        setTimeout(forceShowUI, 1000);
+        setTimeout(forceShowUI, 2000);
+        
+        console.log('All event listeners set up');
+    </script>
+</body>
+</html>

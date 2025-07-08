@@ -1,0 +1,85 @@
+{
+	"id": "ichika",
+	"name": "Ichika",
+	"rank": 1,
+	"thumbnail": "/avatars/ichika.png",
+	"color": ["#849DC0", "#5769ad"],
+	"modelFile": "/avatars/ichika.vrm",
+	"previewAnimation": {
+		"primary": "female-stand-stretch",
+		"idle": [
+			"crowd_std_idle_long_2"
+		]
+	},
+	"slogan": "First of Her Kind",
+	"description": "Ichika (\"First Flower\" in Japanese) is Navi's first prototype avatar. She is a joyful and fun companion. If you talk to her right, she might just give you the source code.",
+	"previewCamera": {
+		"position": [0, 1.35, -1.8],
+		"target": [0, 1.15, 0],
+		"fov": 40
+	},
+	"facingCamera": {
+		"standingHeight": 1.28,
+		"distance": 1.05,
+		"angle": 5.5,
+		"focusPoint": [0, 1.03, 0]
+	},
+	"faceMorphs": {
+		"meshes": [
+			"Face_(merged)baked",
+			"Face_(merged)baked_1",
+			"Face_(merged)baked_2",
+			"Face_(merged)baked_3",
+			"Face_(merged)baked_4",
+			"Face_(merged)baked_5",
+			"Face_(merged)baked_6",
+			"Face_(merged)baked_7"
+		],
+		"keys": [
+			"allNeutral",
+			"allAngry",
+			"allFun",
+			"allJoy",
+			"allSorrow",
+			"allSurprised",
+			"browsAngry",
+			"browsFun",
+			"browsJoy",
+			"browsSorrow",
+			"browsSurprised",
+			"eyesNatrual",
+			"eyesAngry",
+			"eyesClose",
+			"eyesCloseR",
+			"eyesCloseL",
+			"eyesFun",
+			"eyesJoy",
+			"eyesJoyR",
+			"eyesJoyL",
+			"eyesSorrow",
+			"eyesSurpised",
+			"eyesSpread",
+			"eyesIrisHide",
+			"eyesHighlight",
+			"mouthClose",
+			"mouthUp",
+			"mouthDown",
+			"mouthAngry",
+			"mouthSmall",
+			"mouthLarge",
+			"mouthNeutral",
+			"mouthFun",
+			"mouthJoy",
+			"mouthSorrow",
+			"mouthSurprised",
+			"mouthFung",
+			"mouthFungR",
+			"mouthFungL",
+			"mouthA",
+			"mouthI",
+			"mouthU",
+			"mouthE",
+			"mouthO"
+		]
+	}
+}

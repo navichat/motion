@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSMT Motion Viewer - Local Three.js</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; 
+        }
+        #container { width: 100vw; height: 100vh; }
+        #controls { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            color: white; 
+            background: rgba(0,0,0,0.9);
+            padding: 25px;
+            border-radius: 15px;
+            min-width: 350px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
+        }
+        h3 { margin-top: 0; color: #f093fb; }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .loading { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+        .success { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        .error { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+        
+        button { 
+            margin: 5px; 
+            padding: 12px 20px; 
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { 
+            background: linear-gradient(45deg, #f5576c, #f093fb);
+        }
+        
+        .current-phase {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4facfe;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(79, 172, 254, 0.1);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="controls">
+        <h3>🎭 RSMT Motion Viewer</h3>
+        
+        <div id="status" class="status loading">Initializing...</div>
+        
+        <div class="current-phase" id="currentPhase">Loading...</div>
+        
+        <div>
+            <button onclick="toggleAnimation()">⏯️ Play/Pause</button>
+            <button onclick="resetAnimation()">🔄 Reset</button>
+            <button onclick="changeSpeed()">⚡ Speed: <span id="speedDisplay">1x</span></button>
+        </div>
+        
+        <div style="margin-top: 15px; font-size: 12px; color: #ccc;">
+            Frame: <span id="frameCount">0</span> / 370<br>
+            Time: <span id="currentTime">0.0</span>s / 12.3s
+        </div>
+    </div>
+
+    <script src="./three.min.js"></script>
+    <script>
+        let scene, camera, renderer, clock;
+        let skeleton = null;
+        let animationFrame = 0;
+        let isAnimating = true;
+        let animationSpeed = 1;
+        
+        const motionPhases = [
+            {name: 'Neutral', start: 0, duration: 50, color: '#4facfe'},
+            {name: 'Transitioning...', start: 50, duration: 30, color: '#f093fb'},
+            {name: 'Elated', start: 80, duration: 50, color: '#00f2fe'},
+            {name: 'Transitioning...', start: 130, duration: 30, color: '#f093fb'},
+            {name: 'Angry', start: 160, duration: 50, color: '#f5576c'},
+            {name: 'Transitioning...', start: 210, duration: 30, color: '#f093fb'},
+            {name: 'Depressed', start: 240, duration: 50, color: '#667eea'},
+            {name: 'Transitioning...', start: 290, duration: 30, color: '#f093fb'},
+            {name: 'Neutral', start: 320, duration: 50, color: '#4facfe'}
+        ];
+        
+        function updateStatus(message, type = 'loading') {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function init() {
+            try {
+                updateStatus('Checking Three.js...', 'loading');
+                
+                if (typeof THREE === 'undefined') {
+                    updateStatus('❌ Three.js not loaded', 'error');
+                    return;
+                }
+                
+                updateStatus('✅ Three.js loaded, creating scene...', 'success');
+                
+                // Create scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x1a1a2e);
+                
+                // Create camera
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(0, 2, 5);
+                camera.lookAt(0, 1, 0);
+                
+                // Create renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                document.getElementById('container').appendChild(renderer.domElement);
+                
+                updateStatus('✅ Renderer created', 'success');
+                
+                // Add lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                directionalLight.position.set(5, 10, 5);
+                scene.add(directionalLight);
+                
+                // Add colored atmosphere lights
+                const pinkLight = new THREE.PointLight(0xf093fb, 0.5, 10);
+                pinkLight.position.set(-3, 2, 3);
+                scene.add(pinkLight);
+                
+                const blueLight = new THREE.PointLight(0x4facfe, 0.5, 10);
+                blueLight.position.set(3, 2, -3);
+                scene.add(blueLight);
+                
+                // Add ground
+                const groundGeometry = new THREE.PlaneGeometry(20, 20);
+                const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x2a2a2e });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                ground.receiveShadow = true;
+                scene.add(ground);
+                
+                updateStatus('✅ Scene setup complete', 'success');
+                
+                // Create animated skeleton
+                createSkeleton();
+                
+                // Start animation
+                clock = new THREE.Clock();
+                animate();
+                
+                updateStatus('🎉 Motion viewer ready!', 'success');
+                
+            } catch (error) {
+                updateStatus(`❌ Initialization failed: ${error.message}`, 'error');
+                console.error('Initialization error:', error);
+            }
+        }
+        
+        function createSkeleton() {
+            skeleton = new THREE.Group();
+            
+            // Define skeleton structure
+            const joints = [
+                { name: 'head', pos: [0, 1.8, 0], color: 0xff6b6b },
+                { name: 'neck', pos: [0, 1.6, 0], color: 0xff8e8e },
+                { name: 'spine', pos: [0, 1.2, 0], color: 0xffb3b3 },
+                { name: 'hips', pos: [0, 0.9, 0], color: 0xffd1d1 },
+                
+                { name: 'leftShoulder', pos: [-0.3, 1.5, 0], color: 0x4ecdc4 },
+                { name: 'leftElbow', pos: [-0.6, 1.3, 0], color: 0x45b7b8 },
+                { name: 'leftHand', pos: [-0.9, 1.0, 0], color: 0x26a0a3 },
+                
+                { name: 'rightShoulder', pos: [0.3, 1.5, 0], color: 0x6c5ce7 },
+                { name: 'rightElbow', pos: [0.6, 1.3, 0], color: 0x74b9ff },
+                { name: 'rightHand', pos: [0.9, 1.0, 0], color: 0x0984e3 },
+                
+                { name: 'leftHip', pos: [-0.15, 0.8, 0], color: 0xfeca57 },
+                { name: 'leftKnee', pos: [-0.15, 0.4, 0], color: 0xff9ff3 },
+                { name: 'leftFoot', pos: [-0.15, 0.0, 0], color: 0xf368e0 },
+                
+                { name: 'rightHip', pos: [0.15, 0.8, 0], color: 0xff7675 },
+                { name: 'rightKnee', pos: [0.15, 0.4, 0], color: 0xfd79a8 },
+                { name: 'rightFoot', pos: [0.15, 0.0, 0], color: 0xe84393 }
+            ];
+            
+            // Create joint spheres
+            joints.forEach((joint, i) => {
+                const geometry = new THREE.SphereGeometry(0.05, 16, 16);
+                const material = new THREE.MeshLambertMaterial({ color: joint.color });
+                const sphere = new THREE.Mesh(geometry, material);
+                
+                sphere.position.set(joint.pos[0], joint.pos[1], joint.pos[2]);
+                sphere.castShadow = true;
+                sphere.userData = { 
+                    jointIndex: i, 
+                    initialPos: [...joint.pos],
+                    name: joint.name
+                };
+                
+                skeleton.add(sphere);
+            });
+            
+            // Create bones (simple lines)
+            const boneConnections = [
+                [0, 1], [1, 2], [2, 3], // spine
+                [1, 4], [4, 5], [5, 6], // left arm
+                [1, 7], [7, 8], [8, 9], // right arm
+                [3, 10], [10, 11], [11, 12], // left leg
+                [3, 13], [13, 14], [14, 15] // right leg
+            ];
+            
+            boneConnections.forEach(([from, to]) => {
+                const fromJoint = joints[from];
+                const toJoint = joints[to];
+                
+                const geometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(...fromJoint.pos),
+                    new THREE.Vector3(...toJoint.pos)
+                ]);
+                const material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 3 });
+                const line = new THREE.Line(geometry, material);
+                
+                line.userData = { from, to, isBone: true };
+                skeleton.add(line);
+            });
+            
+            scene.add(skeleton);
+        }
+        
+        function getCurrentPhase() {
+            for (let phase of motionPhases) {
+                if (animationFrame >= phase.start && animationFrame < phase.start + phase.duration) {
+                    return phase;
+                }
+            }
+            return motionPhases[motionPhases.length - 1];
+        }
+        
+        function updateMotion() {
+            if (!skeleton) return;
+            
+            const time = clock.getElapsedTime();
+            const phase = getCurrentPhase();
+            
+            // Update UI
+            document.getElementById('currentPhase').innerHTML = `🎭 ${phase.name}`;
+            document.getElementById('currentPhase').style.color = phase.color;
+            document.getElementById('frameCount').textContent = Math.floor(animationFrame);
+            document.getElementById('currentTime').textContent = (animationFrame / 30).toFixed(1);
+            
+            // Simulate different motion styles
+            let intensity = 1;
+            let style = 'neutral';
+            
+            if (phase.name === 'Elated') {
+                intensity = 1.5;
+                style = 'bouncy';
+            } else if (phase.name === 'Angry') {
+                intensity = 1.2;
+                style = 'aggressive';
+            } else if (phase.name === 'Depressed') {
+                intensity = 0.5;
+                style = 'low';
+            }
+            
+            // Apply motion to skeleton
+            skeleton.children.forEach((child) => {
+                if (child.userData && child.userData.jointIndex !== undefined) {
+                    const initialPos = child.userData.initialPos;
+                    const frameTime = time * animationSpeed;
+                    
+                    // Different motion patterns
+                    let motion = [0, 0, 0];
+                    
+                    switch (style) {
+                        case 'bouncy':
+                            motion[1] = Math.sin(frameTime * 6) * 0.1 * intensity;
+                            motion[0] = Math.sin(frameTime * 4) * 0.05 * intensity;
+                            break;
+                        case 'aggressive':
+                            motion[0] = Math.sin(frameTime * 3) * 0.08 * intensity;
+                            motion[2] = Math.cos(frameTime * 3) * 0.06 * intensity;
+                            break;
+                        case 'low':
+                            motion[1] = -0.1 * intensity;
+                            motion[0] = Math.sin(frameTime * 2) * 0.03 * intensity;
+                            break;
+                        default:
+                            motion[1] = Math.sin(frameTime * 3) * 0.05;
+                            motion[0] = Math.sin(frameTime * 2) * 0.03;
+                    }
+                    
+                    // Apply motion
+                    child.position.set(
+                        initialPos[0] + motion[0],
+                        initialPos[1] + motion[1],
+                        initialPos[2] + motion[2]
+                    );
+                }
+                
+                // Update bone lines
+                if (child.userData && child.userData.isBone) {
+                    const fromJoint = skeleton.children[child.userData.from];
+                    const toJoint = skeleton.children[child.userData.to];
+                    
+                    if (fromJoint && toJoint) {
+                        const positions = child.geometry.attributes.position.array;
+                        positions[0] = fromJoint.position.x;
+                        positions[1] = fromJoint.position.y;
+                        positions[2] = fromJoint.position.z;
+                        positions[3] = toJoint.position.x;
+                        positions[4] = toJoint.position.y;
+                        positions[5] = toJoint.position.z;
+                        child.geometry.attributes.position.needsUpdate = true;
+                    }
+                }
+            });
+            
+            // Auto rotate skeleton
+            if (skeleton) {
+                skeleton.rotation.y += 0.005;
+            }
+        }
+        
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            updateStatus(isAnimating ? 'Animation resumed' : 'Animation paused', 'success');
+        }
+        
+        function resetAnimation() {
+            animationFrame = 0;
+            updateStatus('Animation reset', 'success');
+        }
+        
+        function changeSpeed() {
+            animationSpeed = animationSpeed >= 2 ? 0.5 : animationSpeed + 0.5;
+            document.getElementById('speedDisplay').textContent = animationSpeed + 'x';
+            updateStatus(`Speed: ${animationSpeed}x`, 'success');
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (isAnimating) {
+                animationFrame = (animationFrame + animationSpeed) % 370;
+                updateMotion();
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Initialize when Three.js loads
+        if (typeof THREE !== 'undefined') {
+            init();
+        } else {
+            window.addEventListener('load', init);
+        }
+        
+        // Error handling
+        window.addEventListener('error', (e) => {
+            updateStatus(`❌ Error: ${e.message}`, 'error');
+            console.error('Runtime error:', e);
+        });
+    </script>
+</body>
+</html>

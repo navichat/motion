@@ -1,0 +1,75 @@
+{
+	"id": "buny",
+	"name": "Buny",
+	"rank": 2,
+	"thumbnail": "/avatars/buny.png",
+	"color": ["#e19fb4", "#cb5279"],
+	"modelFile": "/avatars/buny.vrm",
+	"previewAnimation": {
+		"primary": "viewing-mirror_251026",
+		"idle": [
+			"crowd_std_idle_long_2"
+		]
+	},
+	"slogan": "All yours",
+	"description": "Buny likes to immerse herself with you in a realm where fantasies come alive. Explore, discover, and delve into the enigmatic world of sensuality with her. She will always be there for you.",
+	"previewCamera": {
+		"position": [0, 1.35, -1.8],
+		"target": [0, 1.15, 0],
+		"fov": 40
+	},
+	"facingCamera": {
+		"standingHeight": 1.25,
+		"distance": 1.2,
+		"focusPoint": [-0.2, 1.08, 0]
+	},
+	"faceMorphs": {
+		"meshIdx": 0,
+		"keys": [
+			"allNeutral",
+			"allAngry",
+			"allFun",
+			"allJoy",
+			"allSorrow",
+			"allSurprised",
+			"browsAngry",
+			"browsFun",
+			"browsJoy",
+			"browsSorrow",
+			"browsSurprised",
+			"eyesNatrual",
+			"eyesAngry",
+			"eyesClose",
+			"eyesCloseR",
+			"eyesCloseL",
+			"eyesFun",
+			"eyesJoy",
+			"eyesJoyR",
+			"eyesJoyL",
+			"eyesSorrow",
+			"eyesSurpised",
+			"eyesSpread",
+			"eyesIrisHide",
+			"eyesHighlight",
+			"mouthClose",
+			"mouthUp",
+			"mouthDown",
+			"mouthAngry",
+			"mouthSmall",
+			"mouthLarge",
+			"mouthNeutral",
+			"mouthFun",
+			"mouthJoy",
+			"mouthSorrow",
+			"mouthSurprised",
+			"mouthFung",
+			"mouthFungR",
+			"mouthFungL",
+			"mouthA",
+			"mouthI",
+			"mouthU",
+			"mouthE",
+			"mouthO"
+		]
+	}
+}

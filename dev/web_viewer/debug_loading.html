@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Loading Test</title>
+</head>
+<body>
+    <div id="loading">Loading...</div>
+    <div id="ui-panel" style="display: none;">UI Panel Loaded!</div>
+    
+    <script>
+        console.log('Script starting...');
+        
+        function initializeBasicUI() {
+            console.log('Starting basic UI initialization...');
+            
+            const loadingElement = document.getElementById('loading');
+            const uiPanel = document.getElementById('ui-panel');
+            
+            if (loadingElement) {
+                loadingElement.style.display = 'none';
+                console.log('Loading screen hidden');
+            }
+            
+            if (uiPanel) {
+                uiPanel.style.display = 'block';
+                console.log('UI panel shown');
+            }
+        }
+        
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing...');
+            initializeBasicUI();
+        });
+        
+        // Emergency fallback
+        setTimeout(() => {
+            console.log('Emergency initialization');
+            initializeBasicUI();
+        }, 1000);
+    </script>
+</body>
+</html>

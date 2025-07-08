@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ECS Integration Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #222; 
+            color: white; 
+        }
+        .test-result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 5px; 
+        }
+        .success { background: #4CAF50; }
+        .error { background: #f44336; }
+        .warning { background: #FF9800; }
+    </style>
+</head>
+<body>
+    <h1>🧪 ECS Integration Test</h1>
+    <div id="test-results"></div>
+    
+    <script>
+        const resultsDiv = document.getElementById('test-results');
+        
+        function addResult(message, type = 'success') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            resultsDiv.appendChild(div);
+        }
+        
+        // Test if the ECS modules are loadable
+        async function testECSModules() {
+            try {
+                // Test if modules can be imported
+                const modules = [
+                    './js/VRMBVHAdapter.js',
+                    './js/EnhancedCharacterSystem.js', 
+                    './js/FacialExpressionSystem.js',
+                    './js/AnimationBlender.js',
+                    './js/ClassroomCameraController.js'
+                ];
+                
+                for (const module of modules) {
+                    try {
+                        await fetch(module);
+                        addResult(`✅ ${module} - Available`);
+                    } catch (error) {
+                        addResult(`❌ ${module} - Failed: ${error.message}`, 'error');
+                    }
+                }
+                
+                // Test if THREE.js loads correctly
+                const { THREE } = await import('https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js');
+                if (THREE || window.THREE) {
+                    addResult('✅ THREE.js - Loaded successfully');
+                } else {
+                    addResult('❌ THREE.js - Not available', 'error');
+                }
+                
+                addResult('🎯 ECS Module test completed');
+                
+            } catch (error) {
+                addResult(`❌ Module test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Run the test
+        testECSModules();
+    </script>
+</body>
+</html>

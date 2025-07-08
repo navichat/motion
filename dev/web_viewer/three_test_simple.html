@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>THREE.js Simple Test</title>
+</head>
+<body>
+    <div id="result">Testing THREE.js...</div>
+    
+    <script src="three.min.js"></script>
+    <script>
+        console.log('Script loaded, checking THREE...');
+        
+        setTimeout(() => {
+            const resultDiv = document.getElementById('result');
+            
+            if (typeof THREE !== 'undefined') {
+                resultDiv.innerHTML = '✅ THREE.js loaded successfully!<br>Version: ' + THREE.REVISION;
+                resultDiv.style.color = 'green';
+                console.log('THREE.js version:', THREE.REVISION);
+                
+                // Test basic functionality
+                try {
+                    const scene = new THREE.Scene();
+                    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                    resultDiv.innerHTML += '<br>✅ Basic THREE.js objects created successfully!';
+                } catch (error) {
+                    resultDiv.innerHTML += '<br>❌ Error creating THREE.js objects: ' + error.message;
+                    resultDiv.style.color = 'orange';
+                }
+            } else {
+                resultDiv.innerHTML = '❌ THREE.js not loaded';
+                resultDiv.style.color = 'red';
+                console.error('THREE is undefined');
+            }
+        }, 100);
+    </script>
+</body>
+</html>
