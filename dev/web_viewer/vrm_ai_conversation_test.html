@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VRM Avatar AI Conversation - Llama 3.2 + Kokoro + Whisper</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
     <style>
         body {
             margin: 0;
@@ -455,14 +456,44 @@
                 // Check WebGPU support
                 if ('gpu' in navigator) {
                     const adapter = await navigator.gpu.requestAdapter();
-                    capabilities.webgpu = !!adapter;
-                    updateDebugInfo(`🔍 WebGPU support: ${capabilities.webgpu ? 'Yes (experimental)' : 'No'}`);
+                    if (adapter) {
+                        capabilities.webgpu = true;
+                        
+                        // Check GPU memory limits
+                        const device = await adapter.requestDevice();
+                        const limits = adapter.limits;
+                        const memoryInfo = {
+                            maxBufferSize: limits.maxBufferSize || 'unknown',
+                            maxStorageBufferBindingSize: limits.maxStorageBufferBindingSize || 'unknown'
+                        };
+                        
+                        updateDebugInfo(`🔍 WebGPU support: Yes (experimental)`);
+                        updateDebugInfo(`   Max buffer size: ${Math.round((memoryInfo.maxBufferSize || 0) / 1024 / 1024)}MB`);
+                        
+                        // Test if we can allocate a small buffer to check for memory issues
+                        try {
+                            const testBuffer = device.createBuffer({
+                                size: 1024 * 1024, // 1MB test
+                                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+                            });
+                            testBuffer.destroy();
+                            updateDebugInfo(`   Memory test: Passed`);
+                        } catch (memError) {
+                            updateDebugInfo(`   Memory test: Failed - will use WASM fallback`);
+                            capabilities.webgpu = false; // Force fallback to WASM
+                        }
+                        
+                        device.destroy();
+                    } else {
+                        capabilities.webgpu = false;
+                        updateDebugInfo(`🔍 WebGPU: Adapter not available`);
+                    }
                 } else {
                     updateDebugInfo('🔍 WebGPU: Not available on this platform');
                 }
             } catch (error) {
                 // WebGPU errors are expected on many systems
-                updateDebugInfo(`🔍 WebGPU: Not available (experimental feature)`);
+                updateDebugInfo(`🔍 WebGPU: Not available (${error.message.substring(0, 50)}...)`);
             }
 
             // Check WebGL support
@@ -1023,6 +1054,13 @@
                     await loadGLBClassroomFile(file);
                 }
             });
+            
+            // Set up stop speaking button
+            if (stopSpeakingBtn) {
+                stopSpeakingBtn.addEventListener('click', () => {
+                    stopSpeaking();
+                });
+            }
         }
 
         async function loadVRMFile(file) {
@@ -1188,19 +1226,241 @@
             return 'neutral';
         }
 
-        // Enhanced speech synthesis with multiple fallbacks and better error handling
-        async function speakText(text, voiceOption = null) {
-            // Try Kokoro TTS first if available
-            if (kokoroTTS) {
-                updateDebugInfo('🔄 Using Kokoro TTS...');
-                return await speakTextWithKokoro(text, 'af_heart');
+        // Audio queue for Kokoro TTS
+        let audioQueue = [];
+        let isPlayingAudio = false;
+        let currentAudioSource = null;
+
+        // Split AI response into optimized chunks for Kokoro TTS
+        function splitResponseForKokoroTTS(text) {
+            const segments = [];
+            
+            // Clean emotion markers first but preserve them for later use
+            const cleanText = text.replace(/\[[^\]]+\]/g, '').trim();
+            
+            // First, split by sentences (periods, exclamation marks, question marks)
+            // Enhanced regex to handle more sentence endings and abbreviations
+            const sentences = cleanText.split(/(?<=[.!?])\s+(?=[A-Z])/g).filter(sentence => sentence.trim().length > 0);
+            
+            for (let sentence of sentences) {
+                sentence = sentence.trim();
+                
+                // If sentence is 128 characters or less, use it as-is
+                if (sentence.length <= 128) {
+                    segments.push(sentence);
+                    continue;
+                }
+                
+                // If sentence is over 128 characters, split by natural pause points (commas, semicolons)
+                const pauseParts = sentence.split(/(?<=[,;:])\s+/).filter(part => part.trim().length > 0);
+                
+                for (let part of pauseParts) {
+                    part = part.trim();
+                    
+                    // If pause part is 128 characters or less, use it as-is
+                    if (part.length <= 128) {
+                        segments.push(part);
+                        continue;
+                    }
+                    
+                    // If pause part is over 128 but under 256 characters, use it as-is
+                    if (part.length <= 256) {
+                        segments.push(part);
+                        continue;
+                    }
+                    
+                    // If part is over 256 characters, split by words
+                    const words = part.split(/\s+/).filter(word => word.trim().length > 0);
+                    let currentChunk = '';
+                    
+                    for (const word of words) {
+                        // If adding this word would exceed 128 characters, save current chunk and start new one
+                        if (currentChunk.length + word.length + 1 > 128) {
+                            if (currentChunk.trim().length > 0) {
+                                segments.push(currentChunk.trim());
+                            }
+                            currentChunk = word;
+                        } else {
+                            currentChunk += (currentChunk.length > 0 ? ' ' : '') + word;
+                        }
+                    }
+                    
+                    // Add the final chunk if it has content
+                    if (currentChunk.trim().length > 0) {
+                        segments.push(currentChunk.trim());
+                    }
+                }
             }
             
-            // Fallback to Web Speech API
-            return await speakTextWithWebAPI(text, voiceOption);
+            // Filter out empty segments and ensure no chunk exceeds 128 chars
+            return segments.filter(segment => segment.trim().length > 0).map(segment => {
+                if (segment.length > 128) {
+                    updateDebugInfo(`⚠️ Chunk still too long (${segment.length} chars), truncating: "${segment.substring(0, 50)}..."`);
+                    return segment.substring(0, 128);
+                }
+                return segment;
+            });
         }
 
-        // Web Speech API TTS implementation
+        // Audio queue management
+        async function playNextAudioInQueue() {
+            if (isPlayingAudio || audioQueue.length === 0) {
+                return;
+            }
+
+            isPlayingAudio = true;
+            const audioBuffer = audioQueue.shift();
+            
+            try {
+                await playAudioBuffer(audioBuffer);
+            } catch (error) {
+                updateDebugInfo(`❌ Audio playback error: ${error.message}`);
+            }
+            
+            isPlayingAudio = false;
+            
+            // Play next item in queue if available
+            if (audioQueue.length > 0) {
+                setTimeout(playNextAudioInQueue, 50); // Small delay between chunks
+            }
+        }
+
+        // Play audio buffer with Web Audio API
+        async function playAudioBuffer(audioBuffer) {
+            return new Promise((resolve, reject) => {
+                try {
+                    if (!audioContext) {
+                        reject(new Error('Audio context not available'));
+                        return;
+                    }
+
+                    const source = audioContext.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(audioContext.destination);
+                    
+                    source.onended = () => {
+                        currentAudioSource = null;
+                        resolve();
+                    };
+                    
+                    source.onerror = (error) => {
+                        currentAudioSource = null;
+                        reject(error);
+                    };
+                    
+                    currentAudioSource = source;
+                    source.start(0);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        // Clear audio queue and stop current playback
+        function clearAudioQueue() {
+            audioQueue = [];
+            if (currentAudioSource) {
+                try {
+                    currentAudioSource.stop();
+                    currentAudioSource = null;
+                } catch (error) {
+                    // Ignore errors when stopping audio
+                }
+            }
+            isPlayingAudio = false;
+        }
+        
+        // Enhanced speech synthesis with Kokoro TTS chunking and audio queuing
+        async function speakText(text, voiceOption = null) {
+            // Clear any existing audio queue
+            clearAudioQueue();
+            
+            // Use optimized chunking for Kokoro TTS
+            const chunks = splitResponseForKokoroTTS(text);
+            updateDebugInfo(`📝 Split text into ${chunks.length} optimized chunks for Kokoro TTS`);
+            
+            // Process each chunk and queue audio
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i];
+                updateDebugInfo(`🎵 Processing chunk ${i + 1}/${chunks.length} (${chunk.length} chars): "${chunk.substring(0, 50)}..."`);
+                
+                // Try Kokoro TTS first if available
+                if (kokoroTTS) {
+                    await speakTextChunkWithKokoro(chunk, 'af_heart');
+                } else {
+                    // Fallback to Web Speech API
+                    await speakTextChunkWithWebAPI(chunk, voiceOption);
+                }
+            }
+            
+            updateDebugInfo(`✅ Completed processing all ${chunks.length} chunks`);
+        }
+
+        // Kokoro TTS chunk processing with audio queuing
+        async function speakTextChunkWithKokoro(text, voice = 'af_heart') {
+            try {
+                if (!kokoroTTS) {
+                    throw new Error('Kokoro TTS not available');
+                }
+                
+                if (!audioContext) {
+                    await ensureAudioContextActive();
+                }
+                
+                updateDebugInfo(`🎤 Generating audio with Kokoro TTS: "${text.substring(0, 30)}..."`);
+                
+                // Generate audio with Kokoro TTS
+                const audioData = await kokoroTTS.generate(text, voice);
+                
+                if (!audioData || audioData.length === 0) {
+                    throw new Error('No audio data generated');
+                }
+                
+                // Convert Float32Array to Web Audio API AudioBuffer
+                const audioBuffer = audioContext.createBuffer(1, audioData.length, 22050);
+                const channelData = audioBuffer.getChannelData(0);
+                for (let i = 0; i < audioData.length; i++) {
+                    channelData[i] = audioData[i];
+                }
+                
+                // Add to audio queue
+                audioQueue.push(audioBuffer);
+                updateDebugInfo(`🎵 Audio chunk queued (${audioData.length} samples, queue length: ${audioQueue.length})`);
+                
+                // Start playing if not already playing
+                if (!isPlayingAudio) {
+                    playNextAudioInQueue();
+                }
+                
+            } catch (error) {
+                updateDebugInfo(`❌ Kokoro TTS error: ${error.message}`);
+                // Fallback to Web Speech API for this chunk
+                await speakTextChunkWithWebAPI(text);
+            }
+        }
+
+        // Stop speaking function with audio queue support
+        function stopSpeaking() {
+            try {
+                // Clear audio queue and stop current playback
+                clearAudioQueue();
+                
+                // Stop Web Speech API if active
+                if (speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) {
+                    speechSynthesis.cancel();
+                    updateDebugInfo('🔇 Web Speech API stopped');
+                }
+                
+                // Reset speech state
+                isAvatarSpeaking = false;
+                currentSpeech = null;
+                stopSpeakingBtn.disabled = true;
+                
+                updateDebugInfo('🔇 All speech stopped and audio queue cleared');
+            } catch (error) {
+                updateDebugInfo(`❌ Error stopping speech: ${error.message}`);
+            }
+        }
         async function speakTextWithWebAPI(text, voiceOption = null) {
             // Ensure audio context is active for any audio processing
             await ensureAudioContextActive();
@@ -1224,10 +1484,10 @@
                 return;
             }
             
-            updateDebugInfo(`🗣️ Speaking: "${cleanText.substring(0, 50)}..."`);
+            updateDebugInfo(`🗣️ Speaking with Web API: "${cleanText.substring(0, 50)}..."`);
             
             try {
-                // Use Web Speech API as primary TTS
+                // Use Web Speech API as fallback TTS
                 if (speechSynthesis && currentVoice) {
                     // Ensure speech synthesis is ready
                     if (speechSynthesis.speaking || speechSynthesis.pending) {
@@ -1248,27 +1508,31 @@
                     utterance.pitch = 1.0;
                     utterance.volume = 0.8;
                     
-                    utterance.onend = () => {
-                        isAvatarSpeaking = false;
-                        stopSpeakingBtn.disabled = true;
-                        updateDebugInfo('🔇 Speech completed');
-                    };
-                    
-                    utterance.onerror = (error) => {
-                        // Handle specific error types gracefully
-                        if (error.error === 'interrupted') {
-                            updateDebugInfo('🔄 Speech was interrupted (normal behavior)');
-                        } else {
-                            console.error('Speech synthesis error:', error);
-                            updateDebugInfo(`❌ Speech error: ${error.error}`);
-                        }
-                        isAvatarSpeaking = false;
-                        stopSpeakingBtn.disabled = true;
-                    };
-                    
-                    // Start speaking
-                    speechSynthesis.speak(utterance);
-                    currentSpeech = utterance;
+                    return new Promise((resolve) => {
+                        utterance.onend = () => {
+                            isAvatarSpeaking = false;
+                            stopSpeakingBtn.disabled = true;
+                            updateDebugInfo('🔇 Web Speech completed');
+                            resolve();
+                        };
+                        
+                        utterance.onerror = (error) => {
+                            // Handle specific error types gracefully
+                            if (error.error === 'interrupted') {
+                                updateDebugInfo('🔄 Speech was interrupted (normal behavior)');
+                            } else {
+                                console.error('Speech synthesis error:', error);
+                                updateDebugInfo(`❌ Speech error: ${error.error}`);
+                            }
+                            isAvatarSpeaking = false;
+                            stopSpeakingBtn.disabled = true;
+                            resolve();
+                        };
+                        
+                        // Start speaking
+                        speechSynthesis.speak(utterance);
+                        currentSpeech = utterance;
+                    });
                     
                 } else {
                     updateDebugInfo('❌ Speech synthesis not available');
@@ -1400,6 +1664,35 @@
             try {
                 updateDebugInfo('🔄 Checking for Kokoro TTS (optional enhancement)...');
                 
+                // Check if we should force WASM due to WebGPU memory constraints
+                if (device === 'webgpu') {
+                    // Test WebGPU memory availability before proceeding
+                    try {
+                        if ('gpu' in navigator) {
+                            const adapter = await navigator.gpu.requestAdapter();
+                            if (adapter) {
+                                const testDevice = await adapter.requestDevice();
+                                // Try to create a moderate-sized buffer to test memory
+                                const testBuffer = testDevice.createBuffer({
+                                    size: 64 * 1024 * 1024, // 64MB test
+                                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+                                });
+                                testBuffer.destroy();
+                                testDevice.destroy();
+                                updateDebugInfo('✅ WebGPU memory test passed');
+                            } else {
+                                throw new Error('No WebGPU adapter available');
+                            }
+                        } else {
+                            throw new Error('WebGPU not supported');
+                        }
+                    } catch (memoryError) {
+                        updateDebugInfo('⚠️ WebGPU memory constraint detected - switching to WASM');
+                        updateDebugInfo(`   Error: ${memoryError.message}`);
+                        device = 'wasm'; // Force WASM fallback
+                    }
+                }
+                
                 // Patch fetch to prevent network requests during Kokoro loading
                 restoreFetch = patchFetchForLocalKokoro();
                 updateDebugInfo('🔒 Patched fetch to redirect HF requests to local files');
@@ -1474,10 +1767,11 @@
                 let modelFileName;
                 
                 if (device === 'webgpu') {
-                    // WebGPU can handle more advanced quantization
-                    selectedDtype = 'fp16';
-                    modelFileName = 'model_fp16.onnx';
-                    updateDebugInfo('🎯 Selected FP16 weights for WebGPU (optimal quality/performance)');
+                    // WebGPU can handle more advanced quantization, but fp16 is not supported on this device.
+                    // Fallback to fp32 for WebGPU.
+                    selectedDtype = 'fp32';
+                    modelFileName = 'model.onnx'; // Assuming model.onnx is fp32
+                    updateDebugInfo('🎯 Selected FP32 weights for WebGPU (fp16 not supported)');
                 } else if (device === 'wasm') {
                     // WASM benefits from quantized models for speed and memory efficiency
                     // Check available memory to decide quantization level
@@ -1487,63 +1781,11 @@
                         // High memory devices can use Q8 for better quality
                         selectedDtype = 'q8';
                         modelFileName = 'model_q8f16.onnx';
-                        updateDebugInfo('🎯 Selected Q8 weights for WASM (high memory device)');
-                    } else if (memoryInfo >= 4) {
-                        // Medium memory devices use Q4F16 for balanced performance
-                        selectedDtype = 'q4f16';
-                        modelFileName = 'model_q4f16.onnx';
-                        updateDebugInfo('🎯 Selected Q4F16 weights for WASM (medium memory device)');
-                    } else {
-                        // Low memory devices use Q4 for maximum efficiency
-                        selectedDtype = 'q4';
-                        modelFileName = 'model_q4.onnx';
-                        updateDebugInfo('🎯 Selected Q4 weights for WASM (low memory device)');
-                    }
-                } else {
-                    // Fallback to most compatible quantization
-                    selectedDtype = 'q8';
-                    modelFileName = 'model_quantized.onnx';
-                    updateDebugInfo('🎯 Selected quantized weights for CPU fallback');
-                }
-                
-                updateDebugInfo(`🔧 Loading model: ${modelFileName}`);
-                updateDebugInfo(`💾 Target device: ${device} | Data type: ${selectedDtype}`);
-                
-                // Re-enforce local-only environment before loading
-                env.allowRemoteModels = false;
-                env.allowLocalModels = true;
-                env.localModelPath = './Kokoro-82M-v1.0-ONNX/';
-                env.cacheDir = './cache/';
-                
-                // Create file resolver for local operation
-                const fileResolver = createLocalFileResolver('./Kokoro-82M-v1.0-ONNX');
-                
-                let loadingSuccess = false;
-                let lastError = null;
-                
-                // Force environment to use local files only and disable remote access
-                env.allowRemoteModels = false;
-                env.allowLocalModels = true;
-                env.localModelPath = './Kokoro-82M-v1.0-ONNX/';
-                
-                updateDebugInfo('🔒 Forced environment to local-only mode');
-                updateDebugInfo(`📁 Local model path set to: ${env.localModelPath}`);
-                
-                // Try each possible model path until one works
-                for (const modelPath of possibleModelPaths) {
-                    if (loadingSuccess) break;
-                    
-                    updateDebugInfo(`🔄 Attempting path: ${modelPath}`);
-                    
-                    try {
-                        // Force loading with absolute local settings
-                        kokoroTTS = await KokoroTTS.from_pretrained(modelPath, {
-                            device: device,
-                            dtype: selectedDtype,
-                            local_files_only: true,  // Force local-only loading
-                            use_auth_token: false,   // Disable auth completely
                             cache_dir: './cache/',   // Use local cache
                             revision: 'main',        // Don't try to fetch revision info
+                            model_file_name: modelFileName, // Explicitly specify model file
+                            config_file_name: 'config.json',
+                            tokenizer_file_name: 'tokenizer.json',
                             progress_callback: (progress) => {
                                 updateDebugInfo(`📥 Loading: ${progress.file || 'model files'} (${Math.round(progress.progress || 0)}%)`);
                             }
@@ -1555,7 +1797,7 @@
                         
                         // Auto-run backend analysis after successful initialization
                         updateDebugInfo('🔍 Running automatic backend analysis...');
-                        setTimeout(() => runComprehensiveKokoroAnalysis(), 1000);
+                        setTimeout(() => window.runComprehensiveKokoroAnalysis(), 1000);
                         
                         loadingSuccess = true;
                         break;
@@ -1611,6 +1853,9 @@
                                 local_files_only: true,
                                 use_auth_token: false,
                                 cache_dir: './cache/',
+                                model_file_name: 'model_q4.onnx', // Explicitly specify Q4 model file
+                                config_file_name: 'config.json',
+                                tokenizer_file_name: 'tokenizer.json',
                                 progress_callback: (progress) => {
                                     updateDebugInfo(`📥 Q4 fallback: ${progress.file || 'model files'} (${Math.round(progress.progress || 0)}%)`);
                                 }
@@ -1629,12 +1874,15 @@
                         try {
                             // Try with just the base directory name and let the library figure it out
                             kokoroTTS = await KokoroTTS.from_pretrained('./Kokoro-82M-v1.0-ONNX', {
-                                device: 'cpu', // Force CPU to avoid WebGPU/WASM issues
+                                device: device, // Use determined device (webgpu or wasm)
                                 dtype: 'q4',   // Force Q4 for maximum compatibility
                                 local_files_only: true,
                                 use_auth_token: false,
                                 cache_dir: './cache/',
                                 force_download: false,
+                                model_file_name: 'model_q4.onnx', // Explicitly specify Q4 model file
+                                config_file_name: 'config.json',
+                                tokenizer_file_name: 'tokenizer.json',
                                 progress_callback: (progress) => {
                                     updateDebugInfo(`📥 Ultimate fallback: ${progress.file || 'loading'} (${Math.round(progress.progress || 0)}%)`);
                                 }
@@ -1659,7 +1907,7 @@
                 // Run comprehensive backend analysis after successful load
                 setTimeout(async () => {
                     try {
-                        await runComprehensiveKokoroAnalysis();
+                        await window.runComprehensiveKokoroAnalysis();
                     } catch (analysisError) {
                         updateDebugInfo(`⚠️ Backend analysis failed: ${analysisError.message}`);
                     }
@@ -1824,7 +2072,7 @@
             return results;
         }
         
-        async function runComprehensiveKokoroAnalysis() {
+        window.runComprehensiveKokoroAnalysis = async function() {
             updateDebugInfo('');
             updateDebugInfo('🔬 COMPREHENSIVE KOKORO TTS ANALYSIS');
             updateDebugInfo('═'.repeat(60));
@@ -1844,10 +2092,8 @@
             updateDebugInfo('3️⃣ Monitoring network requests...');
             updateDebugInfo('   (Check browser Network tab for ort-wasm vs ort-webgpu requests)');
             
-            // 4. Run performance benchmark
-            updateDebugInfo('');
-            updateDebugInfo('4️⃣ Running weight performance benchmark...');
-            const benchmarkResults = await benchmarkKokoroWeights();
+            // 4. Run performance benchmark (disabled due to WebGPU issues)
+            // const benchmarkResults = await benchmarkKokoroWeights();
             
             updateDebugInfo('');
             updateDebugInfo('═'.repeat(60));
@@ -1968,48 +2214,105 @@
                 return speakTextWithWebAPI(text);
             }
             
+            // Enforce 256-character limit
+            if (text.length > 256) {
+                updateDebugInfo(`❌ CRITICAL: Text chunk too large for Kokoro (${text.length} chars), truncating`);
+                text = text.substring(0, 256);
+            }
+            
             try {
-                updateDebugInfo(`🗣️ Kokoro speaking: "${text.substring(0, 50)}..."`);
-                
-                isAvatarSpeaking = true;
-                stopSpeakingBtn.disabled = false;
+                updateDebugInfo(`🗣️ Generating Kokoro audio for: "${text.substring(0, 50)}..." (${text.length} chars)`);
                 
                 const audioData = await kokoroTTS.generate(text, { voice, speed: 1.0 });
                 
-                // Ensure audio context is available
-                const audioReady = await ensureAudioContextActive();
-                if (!audioReady) {
-                    updateDebugInfo('❌ Audio context not available, falling back to Web Speech API');
-                    return speakTextWithWebAPI(text);
+                if (audioData) {
+                    // Add to queue for ordered playback
+                    enqueueKokoroAudio(audioData, text);
+                    
+                    // Wait for this audio to finish before returning
+                    return new Promise((resolve) => {
+                        const checkComplete = () => {
+                            if (!isProcessingKokoroQueue && kokoroAudioQueue.length === 0) {
+                                resolve();
+                            } else {
+                                setTimeout(checkComplete, 100);
+                            }
+                        };
+                        checkComplete();
+                    });
+                } else {
+                    throw new Error('No audio data received from Kokoro');
                 }
+            } catch (error) {
+                updateDebugInfo(`❌ Kokoro TTS chunk error: ${error.message}`);
+                // Fallback to Web Speech API for this chunk
+                return speakTextChunkWithWebAPI(text);
+            }
+        }
+        
+        // Audio queue system for Kokoro TTS
+        let kokoroAudioQueue = [];
+        let isProcessingKokoroQueue = false;
+        let currentKokoroAudio = null;
+        
+        // Add audio chunk to Kokoro queue
+        function enqueueKokoroAudio(audioData, text) {
+            kokoroAudioQueue.push({ audioData, text, timestamp: Date.now() });
+            updateDebugInfo(`🎵 Enqueued Kokoro audio (queue length: ${kokoroAudioQueue.length})`);
+            processKokoroQueue();
+        }
+        
+        // Process Kokoro audio queue
+        async function processKokoroQueue() {
+            if (isProcessingKokoroQueue || kokoroAudioQueue.length === 0) {
+                return;
+            }
+            
+            isProcessingKokoroQueue = true;
+            
+            while (kokoroAudioQueue.length > 0) {
+                const { audioData, text } = kokoroAudioQueue.shift();
+                updateDebugInfo(`🎵 Playing queued Kokoro audio: "${text.substring(0, 30)}..."`);
                 
-                // Debug the audio data structure
-                updateDebugInfo('🔍 Kokoro audio data structure:');
-                updateDebugInfo(`  • Type: ${typeof audioData}`);
-                updateDebugInfo(`  • Keys: ${Object.keys(audioData || {}).join(', ')}`);
-                
-                if (audioData && audioData.audio) {
-                    updateDebugInfo(`  • audioData.audio type: ${typeof audioData.audio}`);
-                    updateDebugInfo(`  • audioData.audio constructor: ${audioData.audio.constructor.name}`);
-                    if (audioData.audio.length !== undefined) {
-                        updateDebugInfo(`  • audioData.audio length: ${audioData.audio.length}`);
-                    }
-                    if (audioData.audio.data) {
-                        updateDebugInfo(`  • audioData.audio.data type: ${typeof audioData.audio.data}`);
-                        updateDebugInfo(`  • audioData.audio.data constructor: ${audioData.audio.data.constructor.name}`);
-                        if (audioData.audio.data.length !== undefined) {
-                            updateDebugInfo(`  • audioData.audio.data length: ${audioData.audio.data.length}`);
-                        }
-                    }
-                }
-                
-                if (audioData && audioData.sample_rate) {
-                    updateDebugInfo(`  • Sample rate: ${audioData.sample_rate}Hz`);
-                }
-                
-                // Enhanced audio handling with multiple fallback methods
                 try {
-                    // First, try to get the actual audio buffer from Kokoro response
+                    await playKokoroAudioData(audioData, text);
+                } catch (error) {
+                    updateDebugInfo(`❌ Error playing queued Kokoro audio: ${error.message}`);
+                }
+                
+                // Small gap between audio chunks
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            isProcessingKokoroQueue = false;
+        }
+        
+        // Clear Kokoro audio queue
+        function clearKokoroQueue() {
+            kokoroAudioQueue = [];
+            if (currentKokoroAudio) {
+                if (currentKokoroAudio.stop) {
+                    currentKokoroAudio.stop();
+                } else if (currentKokoroAudio.pause) {
+                    currentKokoroAudio.pause();
+                }
+                currentKokoroAudio = null;
+            }
+            updateDebugInfo('🔇 Cleared Kokoro audio queue');
+        }
+        
+        // Play Kokoro audio data (used by queue system)
+        async function playKokoroAudioData(audioData, text) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    // Ensure audio context is available
+                    const audioReady = await ensureAudioContextActive();
+                    if (!audioReady) {
+                        updateDebugInfo('❌ Audio context not available for Kokoro playback');
+                        reject(new Error('Audio context not available'));
+                        return;
+                    }
+                    
                     let audioBuffer = null;
                     let rawAudioData = null;
                     
@@ -2051,13 +2354,13 @@
                         source.connect(audioContext.destination);
                         
                         source.onended = () => {
-                            isAvatarSpeaking = false;
-                            stopSpeakingBtn.disabled = true;
-                            updateDebugInfo('� Kokoro speech completed (Web Audio API)');
+                            updateDebugInfo('🔇 Kokoro audio chunk completed');
+                            currentKokoroAudio = null;
+                            resolve();
                         };
                         
                         source.start();
-                        currentSpeech = source;
+                        currentKokoroAudio = source;
                         updateDebugInfo('🎵 Playing Kokoro TTS audio via Web Audio API');
                         return;
                     }
@@ -2076,742 +2379,76 @@
                         audio.volume = 0.8;
                         
                         audio.onended = () => {
-                            isAvatarSpeaking = false;
-                            stopSpeakingBtn.disabled = true;
-                            updateDebugInfo('🔇 Kokoro speech completed (HTML Audio)');
+                            updateDebugInfo('🔇 Kokoro audio chunk completed (HTML Audio)');
+                            currentKokoroAudio = null;
                             URL.revokeObjectURL(audioUrl);
+                            resolve();
                         };
                         
                         audio.onerror = (audioError) => {
                             updateDebugInfo(`❌ HTML Audio error: ${audioError.target?.error?.message || 'Media decode error'}`);
-                            isAvatarSpeaking = false;
-                            stopSpeakingBtn.disabled = true;
+                            currentKokoroAudio = null;
                             URL.revokeObjectURL(audioUrl);
-                            // Fall back to Web Speech API
-                            return speakTextWithWebAPI(text);
+                            reject(new Error('HTML Audio playback failed'));
                         };
                         
                         await audio.play();
-                        currentSpeech = audio;
+                        currentKokoroAudio = audio;
                         updateDebugInfo('🎵 Playing Kokoro TTS audio via HTML Audio (WAV)');
                         return;
                     }
                     
-                    // Final fallback: try with whatever audio data we have
-                    let blob;
-                    if (audioData.audio && audioData.audio.buffer) {
-                        blob = new Blob([audioData.audio.buffer], { type: 'audio/wav' });
-                    } else if (audioData.audio) {
-                        blob = new Blob([audioData.audio], { type: 'audio/wav' });
-                    } else {
-                        throw new Error('No usable audio data found in Kokoro response');
-                    }
+                    reject(new Error('No usable audio data found in Kokoro response'));
                     
-                    const audioUrl = URL.createObjectURL(blob);
-                    const audio = new Audio(audioUrl);
-                    audio.volume = 0.8;
-                    
-                    audio.onended = () => {
-                        isAvatarSpeaking = false;
-                        stopSpeakingBtn.disabled = true;
-                        updateDebugInfo('🔇 Kokoro speech completed (HTML Audio fallback)');
-                        URL.revokeObjectURL(audioUrl);
-                    };
-                    
-                    audio.onerror = (audioError) => {
-                        updateDebugInfo(`❌ HTML Audio fallback error: ${audioError.target?.error?.message || 'Unknown error'}`);
-                        isAvatarSpeaking = false;
-                        stopSpeakingBtn.disabled = true;
-                        URL.revokeObjectURL(audioUrl);
-                        throw new Error('All audio playback methods failed');
-                    };
-                    
-                    await audio.play();
-                    currentSpeech = audio;
-                    updateDebugInfo('🎵 Playing Kokoro TTS audio via HTML Audio (fallback)');
-                    
-                } catch (audioError) {
-                    updateDebugInfo(`❌ All Kokoro audio methods failed: ${audioError.message}`);
-                    throw audioError;
-                }
-                
-            } catch (error) {
-                // Show detailed error for debugging Kokoro speech generation
-                console.error('🔍 Kokoro speech generation detailed error:', error);
-                updateDebugInfo(`❌ Kokoro speech failed: ${error.message}`);
-                updateDebugInfo(`🔍 Falling back to Web Speech API`);
-                
-                isAvatarSpeaking = false;
-                stopSpeakingBtn.disabled = true;
-                
-                // Fallback to Web Speech API
-                return speakTextWithWebAPI(text);
-            }
-        }
-
-        // Enhanced Speech Recognition with Whisper/Moonshine
-        
-        async function initializeWhisperModel(device) {
-            try {
-                updateDebugInfo('🔄 Checking for speech recognition models (optional enhancement)...');
-                
-                // Try Moonshine first (faster), then Whisper
-                const modelOptions = [
-                    { 
-                        name: 'Moonshine', 
-                        id: 'onnx-community/moonshine-base-ONNX',
-                        config: {
-                            device: device,
-                            dtype: device === 'webgpu' ? { 
-                                encoder_model: 'fp32', 
-                                decoder_model_merged: 'q4' 
-                            } : { 
-                                encoder_model: 'fp32', 
-                                decoder_model_merged: 'q8' 
-                            }
-                        }
-                    },
-                    { 
-                        name: 'Whisper Tiny', 
-                        id: 'onnx-community/whisper-tiny.en',
-                        config: {
-                            device: device,
-                            dtype: device === 'webgpu' ? 'fp16' : 'fp32'
-                        }
-                    }
-                ];
-                
-                for (const modelOption of modelOptions) {
-                    try {
-                        updateDebugInfo(`🔄 Trying ${modelOption.name} (optional enhancement)...`);
-                        
-                        // Add timeout for model loading to prevent hanging
-                        const timeoutPromise = new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Model loading timeout')), 30000)
-                        );
-                        
-                        const modelPromise = pipeline(
-                            'automatic-speech-recognition',
-                            modelOption.id,
-                            {
-                                ...modelOption.config,
-                                progress_callback: (progress) => {
-                                    if (progress.status === 'downloading') {
-                                        updateDebugInfo(`📥 ${modelOption.name}: ${progress.file} (${Math.round(progress.progress || 0)}%)`);
-                                    }
-                                }
-                            }
-                        );
-                        
-                        speechRecognitionModel = await Promise.race([modelPromise, timeoutPromise]);
-                        
-                        updateDebugInfo(`✅ ${modelOption.name} loaded successfully`);
-                        updateSpeechStatus(`${modelOption.name} ready`);
-                        return true;
-                    } catch (error) {
-                        // Show detailed error for debugging
-                        console.error(`🔍 ${modelOption.name} detailed error:`, error);
-                        updateDebugInfo(`❌ ${modelOption.name} error: ${error.message}`);
-                        
-                        if (error.message.includes('timeout')) {
-                            updateDebugInfo(`⏰ ${modelOption.name} loading timed out (30s limit)`);
-                        } else if (error.message.includes('Unknown feature extractor') || error.message.includes('MoonshineFeatureExtractor')) {
-                            updateDebugInfo(`🔍 ${modelOption.name} feature extractor not supported in this browser/version`);
-                            updateDebugInfo(`🔍 Full error: ${error.message}`);
-                        } else if (error.message.includes('Unknown Feature Extractor type')) {
-                            updateDebugInfo(`🔍 ${modelOption.name} uses unsupported feature extractor type`);
-                            updateDebugInfo(`🔍 Full error: ${error.message}`);
-                        } else if (error.message.includes('404') || error.message.includes('Failed to fetch')) {
-                            updateDebugInfo(`🔍 ${modelOption.name} model files not available on Hugging Face`);
-                        } else {
-                            updateDebugInfo(`🔍 ${modelOption.name} full error: ${error.message}`);
-                            updateDebugInfo(`🔍 Error stack: ${error.stack?.substring(0, 200)}...`);
-                        }
-                    }
-                }
-                
-                updateDebugInfo('ℹ️ No advanced speech recognition models available - using Web Speech API');
-                return false;
-            } catch (error) {
-                // Show detailed error for debugging speech recognition models
-                console.error('🔍 Speech recognition models detailed error:', error);
-                updateDebugInfo(`❌ Speech recognition error: ${error.message}`);
-                updateDebugInfo(`🔍 Error stack: ${error.stack?.substring(0, 200)}...`);
-                return false;
-            }
-        }
-
-        // Enhanced voice input processing with model support
-        async function processVoiceInputWithModel(audioBlob) {
-            try {
-                updateDebugInfo('🎧 Processing voice input with AI model...');
-                
-                if (speechRecognitionModel) {
-                    // Convert blob to array buffer
-                    const arrayBuffer = await audioBlob.arrayBuffer();
-                    
-                    // Ensure audio context is available
-                    const audioReady = await ensureAudioContextActive();
-                    if (!audioReady) {
-                        updateDebugInfo('ℹ️ Audio context not available, using Web Speech API');
-                        return await processVoiceInputWithWebAPI(audioBlob);
-                    }
-                    
-                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                    
-                    // Convert to the format expected by the model
-                    const audio = new Float32Array(audioBuffer.getChannelData(0));
-                    
-                    updateDebugInfo('🔄 Running speech recognition...');
-                    const result = await speechRecognitionModel(audio);
-                    
-                    const transcription = result.text.trim();
-                    updateDebugInfo(`📝 AI model heard: "${transcription}"`);
-                    
-                    return transcription;
-                } else {
-                    // Fallback to Web Speech API
-                    updateDebugInfo('🔄 Using Web Speech API...');
-                    return await processVoiceInputWithWebAPI(audioBlob);
-                }
-            } catch (error) {
-                // Show detailed error for debugging voice input processing
-                console.error('🔍 Voice input processing detailed error:', error);
-                updateDebugInfo(`❌ AI voice processing failed: ${error.message}`);
-                updateDebugInfo(`🔍 Falling back to Web Speech API`);
-                
-                // Fallback to Web Speech API
-                return await processVoiceInputWithWebAPI(audioBlob);
-            }
-        }
-
-        // Web Speech API fallback
-        async function processVoiceInputWithWebAPI(audioBlob) {
-            return new Promise((resolve) => {
-                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                    updateDebugInfo('❌ Web Speech API not supported');
-                    resolve(null);
-                    return;
-                }
-                
-                const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-                recognition.continuous = false;
-                recognition.interimResults = false;
-                recognition.lang = 'en-US';
-                
-                let resolved = false;
-                
-                recognition.onresult = (event) => {
-                    if (!resolved) {
-                        const transcript = event.results[0][0].transcript;
-                        updateDebugInfo(`📝 Web Speech API heard: "${transcript}"`);
-                        resolved = true;
-                        resolve(transcript);
-                    }
-                };
-                
-                recognition.onerror = (error) => {
-                    if (!resolved) {
-                        if (error.error === 'no-speech') {
-                            updateDebugInfo('ℹ️ No speech detected');
-                        } else if (error.error === 'network') {
-                            updateDebugInfo('ℹ️ Network error during speech recognition');
-                        } else {
-                            updateDebugInfo(`ℹ️ Speech recognition: ${error.error}`);
-                        }
-                        resolved = true;
-                        resolve(null);
-                    }
-                };
-                
-                recognition.onend = () => {
-                    if (!resolved) {
-                        updateDebugInfo('ℹ️ Speech recognition ended without result');
-                        resolved = true;
-                        resolve(null);
-                    }
-                };
-                
-                // For Web Speech API, we don't need the audio blob
-                // It uses the microphone directly
-                try {
-                    recognition.start();
-                    updateDebugInfo('🎤 Web Speech API listening...');
-                    
-                    // Add timeout to prevent hanging
-                    setTimeout(() => {
-                        if (!resolved) {
-                            recognition.stop();
-                            updateDebugInfo('⏰ Speech recognition timed out');
-                            resolved = true;
-                            resolve(null);
-                        }
-                    }, 10000); // 10 second timeout
-                } catch (startError) {
-                    updateDebugInfo(`❌ Could not start speech recognition: ${startError.message}`);
-                    resolved = true;
-                    resolve(null);
+                } catch (error) {
+                    updateDebugInfo(`❌ Error in playKokoroAudioData: ${error.message}`);
+                    reject(error);
                 }
             });
         }
-
-        // Animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-
-            try {
-                const delta = clock.getDelta();
-
-                // Update controls
-                if (controls) {
-                    controls.update();
-                }
-
-                // Update VRM character animation
-                if (vrmCharacter && animationMixer) {
-                    animationMixer.update(delta);
-                }
-
-                // Update BVH adapter if available
-                if (vrmAdapter && isPlaying && bvhData) {
-                    try {
-                        vrmAdapter.updateFrame(animationFrame);
-                        animationFrame += 1;
-                        
-                        // Loop animation
-                        if (animationFrame >= bvhData.frames.length) {
-                            animationFrame = 0;
-                        }
-                    } catch (animError) {
-                        // Handle animation errors gracefully without spamming console
-                        console.log('Animation frame error (handled):', animError.message);
-                        // Reset animation frame to prevent continuous errors
-                        animationFrame = 0;
-                    }
-                }
-
-                // Render the scene
-                if (renderer && scene && camera) {
-                    renderer.render(scene, camera);
-                }
-            } catch (error) {
-                // Handle any unexpected errors in the animation loop
-                console.error('Animation loop error:', error);
-                // Continue animation loop despite errors
-            }
-        }
-
-        // Window resize handler
-        function onWindowResize() {
-            if (camera && renderer) {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            }
-        }
-
-        // Add event listener for window resize
-        window.addEventListener('resize', onWindowResize);
-
-        // Initialize the application
-        init().catch(error => {
-            console.error('Failed to initialize:', error);
-            updateLoadingStatus('Failed to initialize');
-            updateDebugInfo(`❌ Initialization error: ${error.message}`);
-        });
-
-        // Global error handlers for better user experience
-        window.addEventListener('error', (event) => {
-            // Don't spam the console with errors from optional features
-            const message = event.error?.message || event.message || 'Unknown error';
-            
-            // Filter out common optional feature errors
-            if (message.includes('Failed to fetch') && (
-                message.includes('kokoro') || 
-                message.includes('moonshine') || 
-                message.includes('whisper') ||
-                message.includes('.vrm') ||
-                message.includes('.glb')
-            )) {
-                event.preventDefault(); // Prevent these from showing in console
-                return; // Don't show these to user
+        
+        // Kokoro TTS chunk processing with audio queue
+        async function speakTextChunkWithKokoro(text, voice = 'af_heart') {
+            if (!kokoroTTS) {
+                updateDebugInfo('ℹ️ Kokoro TTS not available, falling back to Web Speech API');
+                return speakTextChunkWithWebAPI(text);
             }
             
-            // Filter out specific model loading errors
-            if (message.includes('Unknown Feature Extractor') || 
-                message.includes('MoonshineFeatureExtractor') ||
-                message.includes('404') && message.includes('kokoro')) {
-                event.preventDefault(); // Prevent these from showing in console
-                return;
+            // Enforce 256-character limit
+            if (text.length > 256) {
+                updateDebugInfo(`❌ CRITICAL: Text chunk too large for Kokoro (${text.length} chars), truncating`);
+                text = text.substring(0, 256);
             }
-            
-            // Log serious errors
-            console.log('Application error (handled):', message);
-            updateDebugInfo(`ℹ️ Handled error: ${message.substring(0, 60)}...`);
-        });
-
-        window.addEventListener('unhandledrejection', (event) => {
-            const message = event.reason?.message || event.reason || 'Unknown promise rejection';
-            
-            // Filter out common optional feature promise rejections
-            if (typeof message === 'string' && (
-                message.includes('Failed to fetch') || 
-                message.includes('404') ||
-                message.includes('kokoro') ||
-                message.includes('moonshine') ||
-                message.includes('whisper') ||
-                message.includes('MIME type') ||
-                message.includes('Unknown feature extractor') ||
-                message.includes('Unknown Feature Extractor') ||
-                message.includes('MoonshineFeatureExtractor')
-            )) {
-                event.preventDefault(); // Prevent uncaught promise rejection error
-                return;
-            }
-            
-            console.log('Promise rejection (handled):', message);
-            updateDebugInfo(`ℹ️ Handled promise rejection: ${message.toString().substring(0, 60)}...`);
-            event.preventDefault(); // Prevent uncaught promise rejection error
-        });
-
-        // Add helpful startup messages
-        document.addEventListener('DOMContentLoaded', () => {
-            // Override console.error temporarily to suppress optional feature errors
-            const originalConsoleError = console.error;
-            const originalConsoleLog = console.log;
-            
-            console.error = function(...args) {
-                const message = args.join(' ');
-                
-                // Filter out specific optional feature errors
-                if (message.includes('GET') && message.includes('404') && message.includes('kokoro')) {
-                    return; // Suppress Kokoro 404 errors
-                }
-                if (message.includes('Unknown Feature Extractor type: MoonshineFeatureExtractor')) {
-                    return; // Suppress Moonshine feature extractor errors
-                }
-                if (message.includes('Failed to fetch') && (message.includes('kokoro') || message.includes('moonshine'))) {
-                    return; // Suppress fetch errors for optional features
-                }
-                
-                // Call original console.error for other messages
-                originalConsoleError.apply(console, args);
-            };
-            
-            console.log = function(...args) {
-                const message = args.join(' ');
-                
-                // Filter out specific optional feature log messages
-                if (message.includes('Moonshine info (optional): Unknown Feature Extractor type: MoonshineFeatureExtractor')) {
-                    return; // Suppress Moonshine feature extractor info logs
-                }
-                if (message.includes('info (optional):') && message.includes('Unknown Feature Extractor')) {
-                    return; // Suppress other model info logs about feature extractors
-                }
-                
-                // Call original console.log for other messages
-                originalConsoleLog.apply(console, args);
-            };
-            
-            updateDebugInfo('🚀 VRM AI Conversation Test started');
-            updateDebugInfo('');
-            updateDebugInfo('=== CORE FEATURES ===');
-            updateDebugInfo('✅ 3D Graphics Engine (Three.js)');
-            updateDebugInfo('✅ VRM Character Support');
-            updateDebugInfo('✅ Built-in Conversation AI');
-            updateDebugInfo('✅ Speech Synthesis (Web Speech API)');
-            updateDebugInfo('✅ Speech Recognition (Web Speech API)');
-            updateDebugInfo('✅ Animation System');
-            updateDebugInfo('');
-            updateDebugInfo('=== OPTIONAL ENHANCEMENTS ===');
-            updateDebugInfo('🔄 Kokoro TTS (advanced voice synthesis)');
-            updateDebugInfo('🔄 Moonshine/Whisper (advanced speech recognition)');
-            updateDebugInfo('🔄 External AI Models (enhanced conversation)');
-            updateDebugInfo('');
-            updateDebugInfo('💡 All core features work without optional enhancements');
-            updateDebugInfo('🎯 System will gracefully fall back to standard web APIs');
-            updateDebugInfo('');
-            updateDebugInfo('📋 INSTRUCTIONS:');
-            updateDebugInfo('• System loads VRM character and classroom automatically');
-            updateDebugInfo('• Use Record button for voice input or type messages');
-            updateDebugInfo('• Avatar expresses emotions based on conversation');
-            updateDebugInfo('• Load your own VRM files and animations via UI');
-            updateDebugInfo('');
-        });
-
-        // Global functions for HTML button interactions
-        window.resetCharacterPosition = function() {
-            if (vrmCharacter) {
-                let safePosition = new THREE.Vector3(0, 0, 0);
-                try {
-                    if (classroom && classroom.initialized) {
-                        safePosition = classroom.getRandomSafePosition();
-                        safePosition.y = 0;
-                    }
-                } catch (error) {
-                    safePosition = new THREE.Vector3(0, 0, 0);
-                }
-                
-                vrmCharacter.scene.position.copy(safePosition);
-                characterPosition.copy(safePosition);
-                updateDebugInfo('📍 Character position reset');
-                
-                // Update camera target
-                if (controls) {
-                    controls.target.copy(vrmCharacter.scene.position);
-                    controls.target.y += 1.0;
-                }
-            }
-        };
-
-        window.toggleAnimation = function() {
-            isPlaying = !isPlaying;
-            updateDebugInfo(`🎭 Animation ${isPlaying ? 'playing' : 'paused'}`);
-        };
-
-        window.resetAnimation = function() {
-            animationFrame = 0;
-            if (vrmAdapter) {
-                vrmAdapter.resetPose();
-            }
-            updateDebugInfo('🔄 Animation reset');
-        };
-
-        window.loadSelectedAnimation = function() {
-            const select = document.getElementById('animation-select');
-            const selectedAnimation = select.value;
-            loadBVHAnimation(selectedAnimation);
-        };
-
-        window.toggleClassroom = function() {
-            if (classroom && classroom.classroomModel) {
-                classroom.classroomModel.visible = !classroom.classroomModel.visible;
-                updateDebugInfo(`🏫 Classroom ${classroom.classroomModel.visible ? 'shown' : 'hidden'}`);
-            }
-        };
-
-        window.setAvatarMood = function(mood) {
-            currentMood = mood;
-            updateDebugInfo(`😊 Avatar mood set to: ${mood}`);
-            
-            // Apply mood-based animation or expression
-            if (vrmCharacter && vrmCharacter.expressionManager) {
-                try {
-                    // Map moods to VRM expressions
-                    const expressionMap = {
-                        'happy': 'happy',
-                        'sad': 'sad', 
-                        'angry': 'angry',
-                        'neutral': 'neutral'
-                    };
-                    
-                    const expression = expressionMap[mood] || 'neutral';
-                    vrmCharacter.expressionManager.setValue(expression, 1.0);
-                } catch (error) {
-                    // Expression system not available
-                }
-            }
-        };
-
-        window.toggleRecording = function() {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording();
-            }
-        };
-
-        window.stopSpeaking = function() {
-            if (currentSpeech) {
-                try {
-                    // Handle Web Speech API
-                    if (speechSynthesis && speechSynthesis.speaking) {
-                        speechSynthesis.cancel();
-                        updateDebugInfo('🔇 Stopped Web Speech API');
-                    }
-                    
-                    // Handle Web Audio API (AudioBufferSourceNode)
-                    if (currentSpeech.stop && typeof currentSpeech.stop === 'function') {
-                        currentSpeech.stop();
-                        updateDebugInfo('🔇 Stopped Web Audio API');
-                    }
-                    
-                    // Handle HTML Audio element
-                    if (currentSpeech.pause && typeof currentSpeech.pause === 'function') {
-                        currentSpeech.pause();
-                        currentSpeech.currentTime = 0;
-                        updateDebugInfo('🔇 Stopped HTML Audio');
-                    }
-                    
-                } catch (stopError) {
-                    updateDebugInfo(`⚠️ Error stopping speech: ${stopError.message}`);
-                }
-                
-                currentSpeech = null;
-            }
-            isAvatarSpeaking = false;
-            stopSpeakingBtn.disabled = true;
-            updateDebugInfo('🔇 Speech stopped');
-        };
-
-        window.sendMessage = function() {
-            const message = messageInput.value.trim();
-            if (message) {
-                handleUserMessage(message);
-                messageInput.value = '';
-            }
-        };
-
-        window.clearConversation = function() {
-            conversationLog.innerHTML = '<div class="system-message">Conversation cleared</div>';
-            conversationHistory = [conversationHistory[0]]; // Keep system message
-            updateDebugInfo('🧹 Conversation cleared');
-        };
-
-        window.testTTS = function(text) {
-            speakText(text || 'Hello! I am your AI avatar assistant.');
-        };
-
-        window.initializeModels = function() {
-            updateDebugInfo('🔄 Reloading AI models...');
-            initializeModels();
-        };
-
-        window.handleKeyPress = function(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        };
-
-        // Voice recording functions
-        async function startRecording() {
-            try {
-                // Ensure audio context is active for any audio processing
-                await ensureAudioContextActive();
-                
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
-                    }
-                };
-                
-                mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    await processVoiceInput(audioBlob);
-                    
-                    // Clean up
-                    stream.getTracks().forEach(track => track.stop());
-                };
-                
-                mediaRecorder.start();
-                isRecording = true;
-                recordBtn.textContent = '🔴 Stop';
-                recordBtn.classList.add('recording');
-                updateDebugInfo('🎤 Recording started...');
-                
-            } catch (error) {
-                updateDebugInfo(`❌ Recording failed: ${error.message}`);
-                isRecording = false;
-            }
-        }
-
-        function stopRecording() {
-            if (mediaRecorder && isRecording) {
-                mediaRecorder.stop();
-                isRecording = false;
-                recordBtn.textContent = '🎤 Record';
-                recordBtn.classList.remove('recording');
-                updateDebugInfo('🎤 Recording stopped, processing...');
-            }
-        }
-
-        async function processVoiceInput(audioBlob) {
-            let transcript = null;
-            
-            if (speechRecognitionModel) {
-                transcript = await processVoiceInputWithModel(audioBlob);
-            } else {
-                transcript = await processVoiceInputWithWebAPI(audioBlob);
-            }
-            
-            if (transcript) {
-                await handleUserMessage(transcript);
-            } else {
-                updateDebugInfo('❌ Could not understand speech');
-            }
-        }
-
-        async function handleUserMessage(message) {
-            if (!message.trim()) return;
-            
-            addToConversation('user', message);
-            updateDebugInfo(`👤 User: "${message}"`);
             
             try {
-                const response = await generateResponse(message);
-                addToConversation('ai', response);
-                updateDebugInfo(`🤖 AI: "${response}"`);
+                updateDebugInfo(`🗣️ Generating Kokoro audio for: "${text.substring(0, 50)}..." (${text.length} chars)`);
                 
-                // Extract emotion and apply to avatar
-                const emotion = extractEmotion(response);
-                setAvatarMood(emotion);
+                const audioData = await kokoroTTS.generate(text, { voice, speed: 1.0 });
                 
-                // Speak the response
-                await speakText(response);
-                
-            } catch (error) {
-                const errorResponse = "I'm having trouble thinking right now. Could you try again?";
-                addToConversation('ai', errorResponse);
-                updateDebugInfo(`❌ Response error: ${error.message}`);
-                await speakText(errorResponse);
-            }
-        }
-
-        async function loadBVHAnimation(filename) {
-            try {
-                updateDebugInfo(`🎭 Loading animation: ${filename}`);
-                const response = await fetch(`./assets/animations/${filename}`);
-                
-                if (!response.ok) {
-                    throw new Error(`Animation not found: ${filename} (${response.status})`);
-                }
-                
-                const bvhText = await response.text();
-                
-                // Basic validation that we got BVH content
-                if (!bvhText.includes('HIERARCHY') && !bvhText.includes('MOTION')) {
-                    throw new Error('Invalid BVH file format');
-                }
-                
-                // This would need a BVH parser - for now just log success
-                updateDebugInfo(`✅ Animation loaded: ${filename}`);
-                
-                if (vrmAdapter) {
-                    // Apply animation to VRM character
-                    // This would require implementing BVH parsing and application
-                    updateDebugInfo('🎭 Animation applied to character');
+                if (audioData) {
+                    // Add to queue for ordered playback
+                    enqueueKokoroAudio(audioData, text);
+                    
+                    // Wait for this audio to finish before returning
+                    return new Promise((resolve) => {
+                        const checkComplete = () => {
+                            if (!isProcessingKokoroQueue && kokoroAudioQueue.length === 0) {
+                                resolve();
+                            } else {
+                                setTimeout(checkComplete, 100);
+                            }
+                        };
+                        checkComplete();
+                    });
                 } else {
-                    updateDebugInfo('ℹ️ No VRM character loaded for animation');
+                    throw new Error('No audio data received from Kokoro');
                 }
-                
             } catch (error) {
-                if (error.message.includes('404') || error.message.includes('not found')) {
-                    updateDebugInfo(`ℹ️ Animation file not found: ${filename}`);
-                } else if (error.message.includes('Invalid BVH')) {
-                    updateDebugInfo(`❌ Invalid animation file: ${filename}`);
-                } else {
-                    updateDebugInfo(`ℹ️ Animation loading failed: ${error.message.substring(0, 50)}...`);
-                }
-                console.log('Animation loading info:', error.message);
+                updateDebugInfo(`❌ Kokoro TTS chunk error: ${error.message}`);
+                // Fallback to Web Speech API for this chunk
+                return speakTextChunkWithWebAPI(text);
             }
         }
-
-        // ...existing code...
     </script>
 </body>
 </html>
