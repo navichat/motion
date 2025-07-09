@@ -381,6 +381,40 @@
     <script src="./js/VRMBVHAdapter.js"></script>
 
     <script type="module">
+        // Immediately check for critical dependencies and log status
+        console.log('🔧 Starting dependency check...');
+        
+        // Check THREE.js
+        try {
+            await import('three');
+            console.log('✅ THREE.js available');
+        } catch (threeError) {
+            console.error('❌ THREE.js import failed:', threeError);
+            document.body.innerHTML = `<div style="color:red;padding:20px;font-family:monospace;">
+                <h2>DEPENDENCY ERROR</h2>
+                <p>Failed to import THREE.js: ${threeError.message}</p>
+                <p>Check that three.js is properly installed and available.</p>
+            </div>`;
+            throw new Error('THREE.js dependency missing');
+        }
+
+        // Check GLTFLoader
+        try {
+            await import('three/addons/loaders/GLTFLoader.js');
+            console.log('✅ GLTFLoader available');
+        } catch (gltfError) {
+            console.error('❌ GLTFLoader import failed:', gltfError);
+        }
+
+        // Check VRM
+        try {
+            await import('@pixiv/three-vrm');
+            console.log('✅ VRM loader available');
+        } catch (vrmError) {
+            console.error('❌ VRM loader import failed:', vrmError);
+        }
+
+        
         // Import required modules
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -388,6 +422,13 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { pipeline, env } from '@huggingface/transformers';
 
+        // Check Transformers.js (optional)
+        try {
+            await import('@huggingface/transformers');
+            console.log('✅ Transformers.js available');
+        } catch (transformersError) {
+            console.log('ℹ️ Transformers.js not available (optional):', transformersError.message);
+        }
         // Configure transformers.js environment for local-only operation
         env.allowRemoteModels = false;
         env.allowLocalModels = true;
@@ -401,7 +442,7 @@
 
         // Global variables
         let scene, camera, renderer, controls;
-        let classroom, vrmCharacter, vrmAdapter, lightingManager;
+        let classroom, vrmCharacter, vrmAdapter, lightingManager; // Declared here, will initialize below
         let animationMixer, currentAction;
         let bvhData = null;
         let isPlaying = false;
@@ -581,7 +622,12 @@
             console.log('📝', message);
             if (loadingStatus) {
                 loadingStatus.textContent = message;
+                loadingStatus.style.color = ''; // Reset color
             }
+            
+            // Add timestamp for debugging
+            const timestamp = new Date().toLocaleTimeString();
+            updateDebugInfo(`[${timestamp}] 📝 ${message}`);
         }
 
         function updateDebugInfo(message) {
@@ -730,25 +776,92 @@
 
         async function initializeModels() {
             try {
+                updateDebugInfo('🚀 Starting model initialization...');
+                updateDebugInfo('⏱️ Step 1/7: Device capability detection');
+                
                 updateLoadingStatus('Detecting device capabilities...');
-                const capabilities = await detectDeviceCapabilities();
+                updateDebugInfo('🔍 Detecting device capabilities...');
+                
+                let capabilities;
+                try {
+                    capabilities = await Promise.race([
+                        detectDeviceCapabilities(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Device detection timeout')), 10000)
+                        )
+                    ]);
+                    updateDebugInfo('✅ Device capabilities detected');
+                } catch (capError) {
+                    updateDebugInfo(`❌ Device detection failed: ${capError.message}`);
+                    // Use fallback capabilities
+                    capabilities = {
+                        webgpu: false,
+                        wasm: true,
+                        speechSynthesis: 'speechSynthesis' in window,
+                        speechRecognition: 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window,
+                        webgl: true
+                    };
+                    updateDebugInfo('🔄 Using fallback device capabilities');
+                }
                 
                 // Determine best device to use
                 const device = capabilities.webgpu ? 'webgpu' : 'wasm';
                 updateDebugInfo(`🎯 Selected device: ${device}`);
                 
+                updateDebugInfo('⏱️ Step 2/7: Audio system initialization');
                 updateLoadingStatus('Initializing audio systems...');
-                await initializeAudio();
-                initializeVoices();
+                updateDebugInfo('🔊 Initializing audio systems...');
                 
-                updateLoadingStatus('AI models are optional - using built-in conversation system...');
-                updateModelStatus('Using intelligent built-in responses');
+                try {
+                    await Promise.race([
+                        initializeAudio(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Audio initialization timeout')), 5000)
+                        )
+                    ]);
+                    updateDebugInfo('✅ Audio context prepared');
+                } catch (audioError) {
+                    updateDebugInfo(`⚠️ Audio initialization issue: ${audioError.message}`);
+                }
                 
+                try {
+                    initializeVoices();
+                    updateDebugInfo('✅ Voice synthesis ready');
+                } catch (voiceError) {
+                    updateDebugInfo(`⚠️ Voice initialization issue: ${voiceError.message}`);
+                }
+                
+                updateDebugInfo('⏱️ Step 3/7: Built-in conversation system');
+                updateLoadingStatus('Setting up conversation system...');
+                updateModelStatus('Built-in intelligent responses');
+                updateDebugInfo('💬 Built-in conversation system ready');
+                
+                updateDebugInfo('⏱️ Step 4/7: Kokoro TTS initialization (optional)');
                 // Initialize TTS (prefer Kokoro, fallback to Web Speech API)
                 let kokoroSuccess = false;
                 if (capabilities.webgpu || capabilities.wasm) {
                     updateDebugInfo('🔄 Attempting to load Kokoro TTS...');
-                    kokoroSuccess = await initializeKokoroTTS(device);
+                    try {
+                        // Add timeout for Kokoro TTS initialization
+                        kokoroSuccess = await Promise.race([
+                            initializeKokoroTTS(device),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('Kokoro TTS initialization timed out')), 25000)
+                            )
+                        ]);
+                        if (kokoroSuccess) {
+                            updateDebugInfo('✅ Kokoro TTS loaded successfully');
+                            updateTTSStatus('Kokoro TTS ready');
+                        } else {
+                            updateDebugInfo('ℹ️ Kokoro TTS not available, will use Web Speech API');
+                        }
+                    } catch (kokoroError) {
+                        updateDebugInfo(`⚠️ Kokoro TTS initialization failed: ${kokoroError.message}`);
+                        console.error('Kokoro TTS detailed error:', kokoroError);
+                        kokoroSuccess = false;
+                    }
+                } else {
+                    updateDebugInfo('ℹ️ Skipping Kokoro TTS (no WebGPU or WASM support)');
                 }
                 
                 if (!kokoroSuccess && capabilities.speechSynthesis) {
@@ -756,11 +869,14 @@
                     updateDebugInfo('🎤 Using Web Speech API for TTS');
                 }
                 
+                updateDebugInfo('⏱️ Step 5/7: Speech recognition setup');
                 // Initialize Speech Recognition (prefer Whisper/Moonshine, fallback to Web Speech API)
                 let speechModelSuccess = false;
                 if (capabilities.webgpu || capabilities.wasm) {
                     updateDebugInfo('🔄 Attempting to load speech recognition model...');
-                    speechModelSuccess = await initializeWhisperModel(device);
+                    // speechModelSuccess = await initializeWhisperModel(device); // Commented out - not implemented yet
+                    updateDebugInfo('ℹ️ Speech recognition models not implemented yet');
+                    speechModelSuccess = false;
                 }
                 
                 if (!speechModelSuccess && capabilities.speechRecognition) {
@@ -768,6 +884,7 @@
                     updateDebugInfo('🎤 Using Web Speech API for speech recognition');
                 }
                 
+                updateDebugInfo('⏱️ Step 6/7: Optional language model loading');
                 // Optionally try to load smaller, working models (with timeout) - fully optional
                 try {
                     updateDebugInfo('🔄 Attempting to load small language model (optional)...');
@@ -777,8 +894,8 @@
                         throw new Error('Transformers.js not available');
                     }
                     
-                    // Add timeout for model loading
-                    const loadModelWithTimeout = async (modelName, timeoutMs = 15000) => {
+                    // Add timeout for model loading with shorter timeout for better UX
+                    const loadModelWithTimeout = async (modelName, timeoutMs = 8000) => {
                         return Promise.race([
                             pipeline('text-generation', modelName, {
                                 device: 'wasm',
@@ -803,8 +920,8 @@
                     
                     for (const modelName of modelOptions) {
                         try {
-                            updateDebugInfo(`⏳ Loading ${modelName} (15s timeout)...`);
-                            llamaModel = await loadModelWithTimeout(modelName, 15000);
+                            updateDebugInfo(`⏳ Loading ${modelName} (8s timeout)...`);
+                            llamaModel = await loadModelWithTimeout(modelName, 8000);
                             updateDebugInfo(`✅ Loaded model: ${modelName}`);
                             updateModelStatus(`AI Model: ${modelName} (Ready)`);
                             break;
@@ -812,10 +929,9 @@
                             // Show detailed error for debugging model loading
                             console.error(`🔍 ${modelName} detailed error:`, modelError);
                             if (modelError.message.includes('Timeout')) {
-                                updateDebugInfo(`⏰ ${modelName} loading timed out (15s limit)`);
+                                updateDebugInfo(`⏰ ${modelName} loading timed out (8s limit)`);
                             } else {
                                 updateDebugInfo(`❌ Failed to load ${modelName}: ${modelError.message}`);
-                                updateDebugInfo(`🔍 Error stack: ${modelError.stack?.substring(0, 200)}...`);
                             }
                         }
                     }
@@ -834,9 +950,9 @@
                     updateDebugInfo('⚠️ External AI models unavailable - using smart built-in conversation system');
                     updateDebugInfo(`🔍 Import error: ${importError.message}`);
                     updateAIStatus('Intelligent built-in responses');
-                    console.log('Model loading failed:', importError.message);
                 }
 
+                updateDebugInfo('⏱️ Step 7/7: Final system status check');
                 // Final status updates
                 if (!capabilities.speechSynthesis && !kokoroSuccess) {
                     updateTTSStatus('Not available');
@@ -877,189 +993,272 @@
 
                 return true;
             } catch (error) {
-                console.error('Model initialization error:', error);
-                updateDebugInfo(`❌ Model error: ${error.message}`);
-                updateModelStatus('Using built-in conversation system');
-                updateAIStatus('Basic built-in responses');
+                console.error('Model initialization critical error:', error);
+                updateDebugInfo(`💥 CRITICAL MODEL ERROR: ${error.message}`);
+                updateDebugInfo('📍 Error stack: ' + (error.stack || 'No stack trace available').substring(0, 200));
+                updateModelStatus('Error - using minimal fallback');
+                updateAIStatus('Basic fallback responses');
                 
                 // Ensure speech synthesis is available as fallback
                 if (speechSynthesis) {
                     updateTTSStatus('Basic Web Speech API');
                     updateSpeechStatus('Basic Web Speech API');
-                    updateDebugInfo('✅ Using browser speech synthesis');
-                    addToConversation('system', 'System ready with built-in conversation capabilities!');
+                    updateDebugInfo('✅ Using browser speech synthesis as last resort');
+                    addToConversation('system', 'System ready with minimal conversation capabilities.');
                     return true;
                 } else {
                     updateTTSStatus('Not available');
                     updateSpeechStatus('Not available');
-                    updateDebugInfo('❌ No speech capabilities available');
+                    updateDebugInfo('❌ No speech capabilities available at all');
+                    addToConversation('system', 'System error - limited functionality available.');
                     return false;
                 }
             }
         }
 
+
+        // Handle window resize
+        function onWindowResize() {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+        
+        // Add resize listener
+        window.addEventListener('resize', onWindowResize);
+
         async function init() {
-            updateSystemStatus('Initializing 3D scene...');
-            updateLoadingStatus('Creating 3D scene...');
-            
-            // Create scene
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb);
-            
-            // Create camera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 1.8, 3);
-            
-            // Create renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = false;
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.0;
-            renderer.outputColorSpace = THREE.SRGBColorSpace;
-            
-            document.getElementById('container').appendChild(renderer.domElement);
-            
-            // Add controls
-            controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.target.set(0, 0.9, 0);
-            
-            updateSystemStatus('Loading classroom environment...');
-            updateLoadingStatus('Setting up classroom environment...');
-            updateEnvStatus('Loading classroom...');
-            
-            // Initialize classroom
-            classroom = new ClassroomGLBLoader(scene);
-            await classroom.initialize();
-            await loadDefaultClassroom();
-            
-            // Setup lighting
-            setupLighting();
-            
-            // Setup file loaders
-            setupFileLoader();
-            
-            updateSystemStatus('Initializing AI systems...');
-            updateLoadingStatus('Initializing AI models...');
-            updateAIStatus('Loading...');
-            updateTTSStatus('Initializing...');
-            updateSpeechStatus('Initializing...');
-            
-            // Initialize AI models
-            const modelsReady = await initializeModels();
-            
-            if (modelsReady) {
-                updateSystemStatus('All systems ready!');
-                updateLoadingStatus('Ready!');
-            } else {
-                updateSystemStatus('Ready (basic functionality)');
-                updateLoadingStatus('Ready (limited functionality)');
-            }
-            
-            // Start animation loop
-            animate();
-            
-            // Hide loading screen
-            setTimeout(() => {
-                loadingDiv.style.display = 'none';
-            }, 1000);
-            
-            updateDebugInfo('🎭 3D avatar conversation system initialized');
-        }
-
-        async function loadDefaultClassroom() {
             try {
-                const classroomPath = './assets/scenes/classroom.glb';
-                updateLoadingStatus('Loading classroom...');
+                updateSystemStatus('Initializing 3D scene...');
+                updateLoadingStatus('Creating 3D scene...');
+                updateDebugInfo('🎬 Starting application initialization...');
                 
-                const success = await classroom.loadClassroomGLB(classroomPath);
-                if (success) {
-                    updateDebugInfo('✅ Classroom loaded');
-                    updateEnvStatus('Classroom loaded');
-                } else {
-                    updateDebugInfo('ℹ️ No default classroom');
-                    updateEnvStatus('Empty scene');
+                // Create scene
+                updateDebugInfo('📐 Creating THREE.js scene...');
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x87ceeb);
+                updateDebugInfo('✅ Scene created');
+                
+                // Create camera
+                updateDebugInfo('📹 Setting up camera...');
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(0, 1.8, 3);
+                updateDebugInfo('✅ Camera configured');
+                
+                // Create renderer
+                updateDebugInfo('🖥️ Initializing WebGL renderer...');
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = false;
+                renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                renderer.toneMappingExposure = 1.0;
+                renderer.outputColorSpace = THREE.SRGBColorSpace;
+                document.getElementById('container').appendChild(renderer.domElement);
+                updateDebugInfo('✅ WebGL renderer ready');
+                
+                // Add controls
+                updateDebugInfo('🎮 Setting up orbit controls...');
+                controls = new OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+                controls.target.set(0, 0.9, 0);
+                updateDebugInfo('✅ Controls ready');
+                
+                updateSystemStatus('Loading classroom environment...');
+                updateLoadingStatus('Setting up classroom environment...');
+                updateEnvStatus('Loading classroom...');
+                
+                // Initialize classroom with timeout
+                updateDebugInfo('🏫 Initializing classroom loader...');
+                try {
+                    classroom = new ClassroomGLBLoader(scene);
+                    await Promise.race([
+                        classroom.initialize(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Classroom initialization timeout')), 10000)
+                        )
+                    ]);
+                    updateDebugInfo('✅ Classroom loader initialized');
+                    
+                    updateDebugInfo('🏫 Loading default classroom...');
+                    await Promise.race([
+                        loadDefaultClassroom(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Classroom loading timeout')), 15000)
+                        )
+                    ]);
+                    updateDebugInfo('✅ Classroom environment ready');
+                } catch (classroomError) {
+                    updateDebugInfo(`⚠️ Classroom loading failed: ${classroomError.message}`);
+                    updateEnvStatus('Basic scene (no classroom)');
+                    // Continue with basic scene
                 }
-            } catch (error) {
-                updateDebugInfo('ℹ️ Using empty scene');
-                updateEnvStatus('Empty scene');
-            }
-
-            await loadDefaultVRM();
-        }
-
-        async function loadDefaultVRM() {
-            updateAvatarStatus('Looking for VRM character...');
-            try {
-                const defaultVRMs = [
-                    './assets/characters/ichika.vrm',
-                    './assets/characters/kaede.vrm'
-                ];
                 
-                for (const vrmPath of defaultVRMs) {
+                // Initialize VRMLightingManager
+                updateDebugInfo('💡 Initializing VRMLightingManager...');
+                lightingManager = new VRMLightingManager(scene, renderer);
+                
+                // Setup lighting with timeout
+                updateDebugInfo('💡 Setting up lighting...');
+                try {
+                    await Promise.race([
+                        lightingManager.initialize('classroom'), // Use the initialize method of the class
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Lighting setup timeout')), 5000)
+                        )
+                    ]);
+                    updateDebugInfo('✅ Lighting configured');
+                } catch (lightingError) {
+                    updateDebugInfo(`⚠️ Lighting setup failed: ${lightingError.message}`);
+                    updateDebugInfo('🔄 Using default lighting (if available) or continuing without specific lighting setup...');
+                    // The VRMLightingManager.initialize() method already handles fallback within itself
+                    // No need for a separate setupFallbackLighting() call here.
+                    updateDebugInfo('✅ Lighting setup attempted, proceeding.');
+                }
+                
+                // Setup file loaders
+                updateDebugInfo('📁 Setting up file loaders...');
+                try {
+                    setupFileLoader();
+                    updateDebugInfo('✅ File loaders ready');
+                } catch (fileError) {
+                    updateDebugInfo(`⚠️ File loader setup failed: ${fileError.message}`);
+                }
+                
+                updateSystemStatus('Initializing AI systems...');
+                updateLoadingStatus('Initializing AI models...');
+                updateAIStatus('Loading...');
+                updateTTSStatus('Initializing...');
+                updateSpeechStatus('Initializing...');
+                
+                // Initialize AI models with explicit error handling and progress tracking
+                let modelsReady = false;
+                updateDebugInfo('🧠 Starting AI model initialization...');
+                updateDebugInfo('⏰ Model initialization timeout: 45 seconds');
+                
+                try {
+                    // Add progress tracking with periodic updates
+                    const progressInterval = setInterval(() => {
+                        updateDebugInfo('⌛ Model initialization still in progress...');
+                    }, 5000);
+                    
                     try {
-                        const response = await fetch(vrmPath);
-                        if (response.ok) {
-                            const arrayBuffer = await response.arrayBuffer();
-                            await loadVRMFromArrayBuffer(arrayBuffer, vrmPath.split('/').pop());
-                            updateDebugInfo(`✅ Auto-loaded VRM: ${vrmPath.split('/').pop()}`);
-                            updateAvatarStatus(`${vrmPath.split('/').pop()} loaded`);
-                            return;
-                        }
-                    } catch (error) {
-                        console.log(`Failed to load ${vrmPath}`);
+                        modelsReady = await Promise.race([
+                            initializeModels(),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('Model initialization timed out after 45 seconds')), 45000)
+                            )
+                        ]);
+                        clearInterval(progressInterval);
+                        updateDebugInfo('✅ Model initialization completed successfully');
+                    } catch (initError) {
+                        clearInterval(progressInterval);
+                        throw initError;
                     }
+                    
+                } catch (error) {
+                    console.error('Model initialization error:', error);
+                    updateDebugInfo(`❌ Model initialization failed: ${error.message}`);
+                    updateDebugInfo('🔄 Switching to fallback mode...');
+                    
+                    // Force fallback mode with basic functionality
+                    updateModelStatus('Using built-in conversation system');
+                    updateAIStatus('Basic built-in responses');
+                    updateTTSStatus('Web Speech API (fallback)');
+                    updateSpeechStatus('Web Speech API (fallback)');
+                    
+                    // Ensure basic speech synthesis is available
+                    if ('speechSynthesis' in window) {
+                        updateDebugInfo('✅ Web Speech API available as fallback');
+                        initializeVoices(); // Initialize basic voices
+                    } else {
+                        updateDebugInfo('❌ No speech synthesis available');
+                    }
+                    
+                    modelsReady = true; // Continue with basic functionality
                 }
-                updateAvatarStatus('No VRM loaded - use Load VRM button');
-                updateDebugInfo('ℹ️ No default VRM found - use Load VRM button');
-            } catch (error) {
-                updateDebugInfo('ℹ️ No default VRM found');
-                updateAvatarStatus('No VRM loaded');
+                
+                // Update final status
+                if (modelsReady) {
+                    updateSystemStatus('All systems ready!');
+                    updateLoadingStatus('Ready!');
+                    updateDebugInfo('🎉 Application fully initialized');
+                } else {
+                    updateSystemStatus('Ready (basic functionality)');
+                    updateLoadingStatus('Ready (limited functionality)');
+                    updateDebugInfo('⚠️ Application running with limited functionality');
+                }
+                
+                // Start animation loop
+                updateDebugInfo('🎬 Starting animation loop...');
+                animate();
+                updateDebugInfo('✅ Animation loop started');
+                
+                // Show welcome message
+                updateDebugInfo('💬 Adding welcome message...');
+                addToConversation('system', 'AI Avatar is ready! Type a message or use voice input.');
+                
+                // Hide loading screen with slight delay
+                updateDebugInfo('🎊 Initialization complete - hiding loading screen...');
+                setTimeout(() => {
+                    if (loadingDiv) {
+                        loadingDiv.style.display = 'none';
+                        updateDebugInfo('🎊 Ready for user interaction!');
+                    }
+                }, 2000);
+                
+            } catch (criticalError) {
+                console.error('Critical initialization error:', criticalError);
+                updateDebugInfo(`💥 CRITICAL ERROR: ${criticalError.message}`);
+                updateSystemStatus('Initialization failed');
+                updateLoadingStatus('ERROR - Check debug panel');
+                
+                // Show error to user prominently
+                if (loadingStatus) {
+                    loadingStatus.textContent = `ERROR: ${criticalError.message}`;
+                    loadingStatus.style.color = 'red';
+                }
+                
+                // Still try to hide loading screen so user can see error
+                setTimeout(() => {
+                    if (loadingDiv) {
+                        loadingDiv.style.display = 'none';
+                    }
+                }, 3000);
             }
         }
 
-        function setupLighting() {
-            lightingManager = new VRMLightingManager(scene, renderer);
-            lightingManager.initialize('classroom').then(() => {
-                updateDebugInfo('✅ Lighting system ready');
-            }).catch(() => {
-                setupFallbackLighting();
-            });
-        }
-
-        function setupFallbackLighting() {
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-            scene.add(ambientLight);
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
             
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-            directionalLight.position.set(10, 10, 5);
-            scene.add(directionalLight);
-        }
-
-        function setupFileLoader() {
-            const vrmFileInput = document.getElementById('vrm-file');
-            vrmFileInput.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (file) {
-                    await loadVRMFile(file);
+            try {
+                // Update controls
+                if (controls) {
+                    controls.update();
                 }
-            });
-            
-            const glbFileInput = document.getElementById('glb-file');
-            glbFileInput.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (file) {
-                    await loadGLBClassroomFile(file);
+                
+                // Update VRM
+                if (vrmCharacter) {
+                    const deltaTime = clock.getDelta();
+                    vrmCharacter.update(deltaTime);
                 }
-            });
-            
-            // Set up stop speaking button
-            if (stopSpeakingBtn) {
-                stopSpeakingBtn.addEventListener('click', () => {
-                    stopSpeaking();
-                });
+                
+                // Update mixer for animations
+                if (animationMixer) {
+                    const deltaTime = clock.getDelta();
+                    animationMixer.update(deltaTime);
+                }
+                
+                // Render the scene
+                if (renderer && scene && camera) {
+                    renderer.render(scene, camera);
+                }
+            } catch (renderError) {
+                console.error('Render loop error:', renderError);
+                // Continue animation loop even if there's a render error
             }
         }
 
@@ -1747,6 +1946,7 @@
                 ];
                 
                 let selectedModelPath = possibleModelPaths[0]; // Default
+               
                 updateDebugInfo(`📁 Trying model paths: ${possibleModelPaths.join(', ')}`);
                 
                 // Check if config.json exists at the expected location to validate path
@@ -1781,6 +1981,33 @@
                         // High memory devices can use Q8 for better quality
                         selectedDtype = 'q8';
                         modelFileName = 'model_q8f16.onnx';
+                        updateDebugInfo('🎯 Selected Q8 weights for high-memory WASM');
+                    } else if (memoryInfo >= 4) {
+                        // Medium memory devices can use Q4 for balanced performance
+                        selectedDtype = 'q4';
+                        modelFileName = 'model_q4.onnx';
+                        updateDebugInfo('🎯 Selected Q4 weights for medium-memory WASM');
+                    } else {
+                        // Low memory devices should use the most quantized model
+                        selectedDtype = 'q4';
+                        modelFileName = 'model_q4.onnx';
+                        updateDebugInfo('🎯 Selected Q4 weights for low-memory WASM');
+                    }
+                }
+                
+                // Try loading Kokoro TTS with the selected configuration
+                let loadingSuccess = false;
+                let lastError = null;
+                
+                for (const modelPath of possibleModelPaths) {
+                    try {
+                        updateDebugInfo(`🔄 Trying Kokoro TTS with path: ${modelPath}`);
+                        
+                        kokoroTTS = await KokoroTTS.from_pretrained(modelPath, {
+                            device: device,
+                            dtype: selectedDtype,
+                            local_files_only: true,
+                            use_auth_token: false,
                             cache_dir: './cache/',   // Use local cache
                             revision: 'main',        // Don't try to fetch revision info
                             model_file_name: modelFileName, // Explicitly specify model file
@@ -2094,6 +2321,7 @@
             
             // 4. Run performance benchmark (disabled due to WebGPU issues)
             // const benchmarkResults = await benchmarkKokoroWeights();
+            const benchmarkResults = { disabled: true, reason: 'WebGPU compatibility issues' };
             
             updateDebugInfo('');
             updateDebugInfo('═'.repeat(60));
@@ -2109,20 +2337,55 @@
         // Backend Detection and Benchmarking Utilities
         async function detectONNXBackend() {
             try {
-                // Check if ONNX Runtime Web is available
-                if (typeof ort === 'undefined') {
-                    // Try to access via window or global
-                    const ortRuntime = window.ort || globalThis.ort;
-                    if (!ortRuntime) {
-                        updateDebugInfo('❌ ONNX Runtime not found');
-                        return { backend: 'unknown', providers: [] };
+                // Check if ONNX Runtime Web is available globally
+                let ortRuntime = null;
+                
+                // Try different ways to access ONNX Runtime
+                if (typeof ort !== 'undefined') {
+                    ortRuntime = ort;
+                    updateDebugInfo('✅ Found global ort variable');
+                } else if (window.ort) {
+                    ortRuntime = window.ort;
+                    updateDebugInfo('✅ Found window.ort');
+                } else if (globalThis.ort) {
+                    ortRuntime = globalThis.ort;
+                    updateDebugInfo('✅ Found globalThis.ort');
+                } else {
+                    // Check if Kokoro TTS has embedded ONNX Runtime
+                    if (kokoroTTS && kokoroTTS.ort) {
+                        ortRuntime = kokoroTTS.ort;
+                        updateDebugInfo('✅ Found ONNX Runtime via Kokoro TTS');
+                    } else {
+                        updateDebugInfo('❌ ONNX Runtime not found globally');
+                        updateDebugInfo('ℹ️ This is normal when using bundled Kokoro TTS');
+                        return { backend: 'bundled', providers: ['embedded'], note: 'ONNX Runtime bundled within Kokoro TTS' };
                     }
                 }
                 
                 // Get available execution providers
-                const providers = await ort.env.webgpu.getAvailableProviders?.() || [];
-                updateDebugInfo(`🔍 ONNX Available providers: ${providers.join(', ')}`);
-                
+                const providers = [];
+                try {
+                    if (ortRuntime.env?.webgpu?.getAvailableProviders) {
+                        const availableProviders = await ortRuntime.env.webgpu.getAvailableProviders();
+                        providers.push(...availableProviders);
+                        updateDebugInfo(`🔍 ONNX Available providers: ${providers.join(', ')}`);
+                    } else if (ortRuntime.InferenceSession?.availableProviders) {
+                        providers.push(...ortRuntime.InferenceSession.availableProviders());
+                        updateDebugInfo(`🔍 ONNX Available providers: ${providers.join(', ')}`);
+                    } else {
+                        updateDebugInfo('ℹ️ Cannot query available providers from this ONNX Runtime version');
+                        // Make educated guesses based on browser capabilities
+                        if ('gpu' in navigator) providers.push('webgpu');
+                        if (typeof WebAssembly !== 'undefined') providers.push('wasm');
+                        providers.push('cpu');
+                    }
+                } catch (providerError) {
+                    updateDebugInfo(`⚠️ Provider query failed: ${providerError.message}`);
+                    // Fallback to basic detection
+                    if ('gpu' in navigator) providers.push('webgpu');
+                    if (typeof WebAssembly !== 'undefined') providers.push('wasm');
+                    providers.push('cpu');
+                }
                 // Check which provider is actually being used
                 let activeBackend = 'unknown';
                 if (providers.includes('webgpu')) {
@@ -2158,51 +2421,109 @@
         async function analyzeKokoroBackend() {
             if (!kokoroTTS) {
                 updateDebugInfo('❌ Kokoro TTS not loaded - cannot analyze backend');
-                return { backend: 'not_loaded' };
+                return { backend: 'not_loaded', status: 'Kokoro TTS not initialized' };
             }
             
             try {
-                // Try to access the internal ONNX session from Kokoro TTS
                 updateDebugInfo('🔍 Analyzing Kokoro TTS backend configuration...');
                 
-                // Check if we can access the model's session info
-                let sessionInfo = {};
+                let sessionInfo = {
+                    status: 'loaded',
+                    hasModel: !!kokoroTTS.model,
+                    hasSession: false,
+                    providers: [],
+                    device: 'unknown',
+                    modelType: 'unknown'
+                };
                 
-                // Try different ways to access the ONNX session
+                // Check if we can access the model's session info
                 if (kokoroTTS.model?.session) {
                     sessionInfo.hasSession = true;
                     sessionInfo.sessionType = typeof kokoroTTS.model.session;
                     updateDebugInfo('✅ Found Kokoro model session');
+                    
+                    // Try to get session info
+                    if (kokoroTTS.model.session.executionProviders) {
+                        sessionInfo.providers = kokoroTTS.model.session.executionProviders;
+                        updateDebugInfo(`🎯 Session providers: ${sessionInfo.providers.join(', ')}`);
+                    }
                 } else if (kokoroTTS.session) {
                     sessionInfo.hasSession = true;
                     sessionInfo.sessionType = typeof kokoroTTS.session;
                     updateDebugInfo('✅ Found Kokoro session directly');
                 } else {
                     updateDebugInfo('⚠️ Could not access Kokoro ONNX session directly');
+                    updateDebugInfo('ℹ️ This is normal for bundled Kokoro installations');
                 }
                 
-                // Check for execution provider information
-                const executionProviders = kokoroTTS.model?.executionProviders || 
-                                         kokoroTTS.executionProviders || 
-                                         kokoroTTS.session?.executionProviders || [];
+                // Check for execution provider information in different locations
+                const possibleProviderSources = [
+                    kokoroTTS.model?.executionProviders,
+                    kokoroTTS.executionProviders,
+                    kokoroTTS.session?.executionProviders,
+                    kokoroTTS.config?.executionProviders,
+                    kokoroTTS._executionProviders
+                ];
                 
-                if (executionProviders.length > 0) {
-                    updateDebugInfo(`🎯 Kokoro execution providers: ${executionProviders.join(', ')}`);
-                    sessionInfo.providers = executionProviders;
-                    sessionInfo.primaryProvider = executionProviders[0];
-                } else {
+                for (const source of possibleProviderSources) {
+                    if (source && Array.isArray(source) && source.length > 0) {
+                        sessionInfo.providers = source;
+                        updateDebugInfo(`🎯 Kokoro execution providers: ${source.join(', ')}`);
+                        sessionInfo.primaryProvider = source[0];
+                        break;
+                    }
+                }
+                
+                if (sessionInfo.providers.length === 0) {
                     updateDebugInfo('⚠️ Could not determine Kokoro execution providers');
+                    updateDebugInfo('ℹ️ Providers may be embedded within the bundled module');
                 }
                 
                 // Check device information
-                const deviceInfo = kokoroTTS.device || 'unknown';
-                updateDebugInfo(`💻 Kokoro device: ${deviceInfo}`);
-                sessionInfo.device = deviceInfo;
+                const deviceSources = [
+                    kokoroTTS.device,
+                    kokoroTTS.config?.device,
+                    kokoroTTS.model?.device,
+                    kokoroTTS._device
+                ];
+                
+                for (const device of deviceSources) {
+                    if (device && device !== 'unknown') {
+                        sessionInfo.device = device;
+                        updateDebugInfo(`💻 Kokoro device: ${device}`);
+                        break;
+                    }
+                }
+                
+                if (sessionInfo.device === 'unknown') {
+                    updateDebugInfo('💻 Kokoro device: unknown (likely auto-detected)');
+                }
+                
+                // Check model type and configuration
+                if (kokoroTTS.config) {
+                    sessionInfo.modelType = kokoroTTS.config.model_type || 'text-to-speech';
+                    sessionInfo.sampleRate = kokoroTTS.config.sample_rate;
+                    updateDebugInfo(`🎼 Model type: ${sessionInfo.modelType}`);
+                    if (sessionInfo.sampleRate) {
+                        updateDebugInfo(`🎵 Sample rate: ${sessionInfo.sampleRate}Hz`);
+                    }
+                }
+                
+                // Check available voices
+                if (kokoroTTS.voices) {
+                    const voiceCount = Object.keys(kokoroTTS.voices).length;
+                    sessionInfo.voiceCount = voiceCount;
+                    updateDebugInfo(`🎭 Available voices: ${voiceCount}`);
+                    if (voiceCount > 0) {
+                        const voiceNames = Object.keys(kokoroTTS.voices).slice(0, 5); // Show first 5
+                        updateDebugInfo(`   Examples: ${voiceNames.join(', ')}${voiceCount > 5 ? '...' : ''}`);
+                    }
+                }
                 
                 return sessionInfo;
             } catch (error) {
                 updateDebugInfo(`❌ Kokoro backend analysis error: ${error.message}`);
-                return { backend: 'error', error: error.message };
+                return { backend: 'error', error: error.message, status: 'Analysis failed' };
             }
         }
     
@@ -2406,49 +2727,87 @@
                 }
             });
         }
-        
-        // Kokoro TTS chunk processing with audio queue
-        async function speakTextChunkWithKokoro(text, voice = 'af_heart') {
-            if (!kokoroTTS) {
-                updateDebugInfo('ℹ️ Kokoro TTS not available, falling back to Web Speech API');
-                return speakTextChunkWithWebAPI(text);
-            }
+
+        // Global error handlers to catch all errors
+        window.addEventListener('error', (event) => {
+            console.error('🚨 Global JavaScript error:', event.error);
+            updateDebugInfo(`🚨 GLOBAL ERROR: ${event.error?.message || 'Unknown error'}`);
+            updateDebugInfo(`📍 File: ${event.filename}:${event.lineno}:${event.colno}`);
             
-            // Enforce 256-character limit
-            if (text.length > 256) {
-                updateDebugInfo(`❌ CRITICAL: Text chunk too large for Kokoro (${text.length} chars), truncating`);
-                text = text.substring(0, 256);
+            // Show error prominently in loading status
+            if (loadingStatus && loadingDiv.style.display !== 'none') {
+                loadingStatus.textContent = `ERROR: ${event.error?.message || 'JavaScript error occurred'}`;
+                loadingStatus.style.color = 'red';
             }
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('🚨 Unhandled promise rejection:', event.reason);
+            updateDebugInfo(`🚨 UNHANDLED PROMISE REJECTION: ${event.reason?.message || event.reason}`);
             
-            try {
-                updateDebugInfo(`🗣️ Generating Kokoro audio for: "${text.substring(0, 50)}..." (${text.length} chars)`);
-                
-                const audioData = await kokoroTTS.generate(text, { voice, speed: 1.0 });
-                
-                if (audioData) {
-                    // Add to queue for ordered playback
-                    enqueueKokoroAudio(audioData, text);
-                    
-                    // Wait for this audio to finish before returning
-                    return new Promise((resolve) => {
-                        const checkComplete = () => {
-                            if (!isProcessingKokoroQueue && kokoroAudioQueue.length === 0) {
-                                resolve();
-                            } else {
-                                setTimeout(checkComplete, 100);
-                            }
-                        };
-                        checkComplete();
-                    });
-                } else {
-                    throw new Error('No audio data received from Kokoro');
+            // Show error prominently in loading status
+            if (loadingStatus && loadingDiv.style.display !== 'none') {
+                loadingStatus.textContent = `PROMISE ERROR: ${event.reason?.message || 'Promise rejection'}`;
+                loadingStatus.style.color = 'red';
+            }
+        });
+
+        // Add debug heartbeat during loading
+        let heartbeatInterval = null;
+        function startLoadingHeartbeat() {
+            let heartbeatCount = 0;
+            heartbeatInterval = setInterval(() => {
+                heartbeatCount++;
+                const dots = '.'.repeat((heartbeatCount % 4) + 1);
+                if (loadingDiv && loadingDiv.style.display !== 'none') {
+                    const currentStatus = loadingStatus?.textContent || 'Loading';
+                    if (!currentStatus.includes('ERROR')) {
+                        loadingStatus.textContent = `${currentStatus.replace(/\.+$/, '')}${dots}`;
+                    }
                 }
-            } catch (error) {
-                updateDebugInfo(`❌ Kokoro TTS chunk error: ${error.message}`);
-                // Fallback to Web Speech API for this chunk
-                return speakTextChunkWithWebAPI(text);
+                updateDebugInfo(`💓 Heartbeat ${heartbeatCount} - app is alive`);
+            }, 2000);
+        }
+
+        function stopLoadingHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
             }
         }
+
+        // Initialize the application when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                updateDebugInfo('🚀 DOM loaded, starting initialization...');
+                startLoadingHeartbeat();
+                init().then(() => {
+                    stopLoadingHeartbeat();
+                    updateDebugInfo('✅ Application initialization completed');
+                }).catch((error) => {
+                    stopLoadingHeartbeat();
+                    console.error('💥 Initialization failed:', error);
+                    updateDebugInfo(`💥 INIT FAILED: ${error.message}`);
+                    updateLoadingStatus(`INIT ERROR: ${error.message}`);
+                    if (loadingStatus) loadingStatus.style.color = 'red';
+                });
+            });
+        } else {
+            // DOM already loaded
+            updateDebugInfo('🚀 DOM already loaded, starting initialization...');
+            startLoadingHeartbeat();
+            init().then(() => {
+                stopLoadingHeartbeat();
+                updateDebugInfo('✅ Application initialization completed');
+            }).catch((error) => {
+                stopLoadingHeartbeat();
+                console.error('💥 Initialization failed:', error);
+                updateDebugInfo(`💥 INIT FAILED: ${error.message}`);
+                updateLoadingStatus(`INIT ERROR: ${error.message}`);
+                if (loadingStatus) loadingStatus.style.color = 'red';
+            });
+        }
+
     </script>
 </body>
 </html>
