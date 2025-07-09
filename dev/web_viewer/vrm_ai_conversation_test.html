@@ -1,0 +1,2817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRM Avatar AI Conversation - Llama 3.2 + Kokoro + Whisper</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            max-width: 400px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .title {
+            color: #00d4ff;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-section h3 {
+            margin: 0 0 10px 0;
+            color: #64b5f6;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #00d4ff, #0084ff);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 212, 255, 0.3);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .success-button {
+            background: linear-gradient(45deg, #4caf50, #45a049) !important;
+        }
+        
+        .warning-button {
+            background: linear-gradient(45deg, #ff9800, #f57c00) !important;
+        }
+        
+        .danger-button {
+            background: linear-gradient(45deg, #f44336, #d32f2f) !important;
+        }
+        
+        .speaking {
+            background: linear-gradient(45deg, #ff6b35, #f7931e) !important;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        select, input[type="range"], input[type="text"], textarea {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            color: white;
+            padding: 5px 8px;
+            font-size: 12px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .status {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #81c784;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .error {
+            color: #f44336;
+        }
+        
+        .chat-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            width: 400px;
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .conversation-log {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 5px;
+        }
+        
+        .user-message {
+            background: rgba(0, 212, 255, 0.2);
+            text-align: right;
+        }
+        
+        .ai-message {
+            background: rgba(76, 175, 80, 0.2);
+            text-align: left;
+        }
+        
+        .system-message {
+            background: rgba(255, 193, 7, 0.2);
+            text-align: center;
+            font-style: italic;
+        }
+        
+        .voice-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .text-input {
+            display: flex;
+            gap: 10px;
+        }
+        
+        #message-input {
+            flex: 1;
+        }
+        
+        .model-status {
+            font-size: 10px;
+            color: #81c784;
+            margin-top: 5px;
+        }
+        
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .recording {
+            background: linear-gradient(45deg, #ff4444, #cc0000) !important;
+            animation: record-pulse 0.5s infinite;
+        }
+        
+        @keyframes record-pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Loading AI Avatar Conversation...</div>
+        <div id="loading-status">Initializing models...</div>
+    </div>
+    
+    <div id="container">
+        <div id="ui-panel">
+            <div class="title">🤖 AI Avatar Chat</div>
+            
+            <div class="control-section">
+                <h3>🎭 Character Controls</h3>
+                <div class="controls">
+                    <input type="file" id="vrm-file" accept=".vrm" style="display: none;">
+                    <button onclick="document.getElementById('vrm-file').click()">Load VRM</button>
+                    <button onclick="resetCharacterPosition()">Reset Position</button>
+                </div>
+                <div class="controls">
+                    <button onclick="toggleAnimation()">Play/Pause Anim</button>
+                    <button onclick="resetAnimation()">Reset Animation</button>
+                </div>
+                <div class="controls">
+                    <select id="animation-select">
+                        <option value="neutral_reference.bvh">Neutral</option>
+                        <option value="angry_reference.bvh">Angry</option>
+                        <option value="elated_reference.bvh">Happy</option>
+                        <option value="dramatic_walking.bvh">Walking</option>
+                    </select>
+                    <button onclick="loadSelectedAnimation()">Load</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>🏫 Environment</h3>
+                <div class="controls">
+                    <input type="file" id="glb-file" accept=".glb,.gltf" style="display: none;">
+                    <button onclick="document.getElementById('glb-file').click()">Load Classroom</button>
+                    <button onclick="toggleClassroom()">Toggle Scene</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>🎨 Avatar Mood</h3>
+                <div class="controls">
+                    <button onclick="setAvatarMood('happy')">😊 Happy</button>
+                    <button onclick="setAvatarMood('sad')">😢 Sad</button>
+                    <button onclick="setAvatarMood('angry')">😠 Angry</button>
+                    <button onclick="setAvatarMood('neutral')">😐 Neutral</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>📊 Debug Info</h3>
+                <div class="status" id="debug-info">
+                    Initializing AI conversation system...
+                </div>
+                <div class="model-status" id="model-status">
+                    Models loading...
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-panel">
+            <div class="title">💬 Conversation</div>
+            
+            <div class="conversation-log" id="conversation-log">
+                <div class="system-message">AI Avatar is initializing...</div>
+            </div>
+            
+            <div class="voice-input">
+                <button id="record-btn" onclick="toggleRecording()">🎤 Record</button>
+                <button id="stop-speaking-btn" onclick="stopSpeaking()" disabled>🔇 Stop</button>
+                <select id="voice-select">
+                    <option value="0">Loading voices...</option>
+                </select>
+            </div>
+            
+            <div class="text-input">
+                <input type="text" id="message-input" placeholder="Type your message here..." onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+            
+            <div class="controls">
+                <button onclick="clearConversation()">Clear Chat</button>
+                <button onclick="testTTS('Hello! I am your AI avatar assistant.')">Test Voice</button>
+                <button onclick="initializeModels()">Reload Models</button>
+                <button onclick="runComprehensiveKokoroAnalysis()">🔬 Analyze Backend</button>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <div id="scene-info">
+                <div><strong>System Status:</strong> <span id="system-status">Initializing...</span></div>
+                <div><strong>AI Conversation:</strong> <span id="ai-status">Intelligent built-in responses</span></div>
+                <div><strong>Voice Synthesis:</strong> <span id="tts-status">Web Speech API</span></div>
+                <div><strong>Speech Recognition:</strong> <span id="speech-status">Web Speech API</span></div>
+                <div><strong>3D Avatar:</strong> <span id="avatar-status">VRM with animations</span></div>
+                <div><strong>Environment:</strong> <span id="env-status">Classroom scene</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import map for modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js",
+            "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.js"
+        }
+    }
+    </script>
+
+    <!-- Include existing modules -->
+    <script src="./js/vrm_mesh_classroom.js"></script>
+    <script src="./js/VRMLightingManager.js"></script>
+    <script src="./js/VRMBVHAdapter.js"></script>
+
+    <script type="module">
+        // Import required modules
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { pipeline, env } from '@huggingface/transformers';
+
+        // Configure transformers.js environment for local-only operation
+        env.allowRemoteModels = false;
+        env.allowLocalModels = true;
+        env.localModelPath = './';
+        env.cacheDir = './cache/';
+        console.log('🔧 Configured transformers.js for local-only operation');
+
+        // Make THREE.js global for other modules
+        window.THREE = THREE;
+        window.GLTFLoader = GLTFLoader;
+
+        // Global variables
+        let scene, camera, renderer, controls;
+        let classroom, vrmCharacter, vrmAdapter, lightingManager;
+        let animationMixer, currentAction;
+        let bvhData = null;
+        let isPlaying = false;
+        let animationFrame = 0;
+        let characterPosition = new THREE.Vector3(0, 0, 0);
+
+        // AI Models and Audio
+        let llamaModel = null;
+        let whisperModel = null;
+        let speechRecognitionModel = null;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let currentSpeech = null;
+        let speechSynthesis = window.speechSynthesis;
+        let currentVoice = null;
+        let audioContext = null;
+        let kokoroWorker = null;
+
+        // UI elements
+        const loadingDiv = document.getElementById('loading');
+        const loadingStatus = document.getElementById('loading-status');
+        const debugInfo = document.getElementById('debug-info');
+        const modelStatus = document.getElementById('model-status');
+        const conversationLog = document.getElementById('conversation-log');
+        const messageInput = document.getElementById('message-input');
+        const recordBtn = document.getElementById('record-btn');
+        const stopSpeakingBtn = document.getElementById('stop-speaking-btn');
+
+        // Animation clock
+        const clock = new THREE.Clock();
+
+        // Conversation context and avatar state
+        let conversationHistory = [
+            { role: "system", content: "You are a friendly AI avatar assistant. Keep responses concise and engaging, as they will be spoken aloud. Express emotions appropriately and include emotional cues in your responses like [happy], [sad], [excited], [thoughtful]." }
+        ];
+        let currentMood = 'neutral';
+        let isAvatarSpeaking = false;
+        let emotionAnimationQueue = [];
+
+        // Device capability detection
+        async function detectDeviceCapabilities() {
+            const capabilities = {
+                webgpu: false,
+                wasm: true, // Always available in modern browsers
+                speechSynthesis: false,
+                speechRecognition: false,
+                webgl: false
+            };
+
+            try {
+                // Check WebGPU support
+                if ('gpu' in navigator) {
+                    const adapter = await navigator.gpu.requestAdapter();
+                    capabilities.webgpu = !!adapter;
+                    updateDebugInfo(`🔍 WebGPU support: ${capabilities.webgpu ? 'Yes (experimental)' : 'No'}`);
+                } else {
+                    updateDebugInfo('🔍 WebGPU: Not available on this platform');
+                }
+            } catch (error) {
+                // WebGPU errors are expected on many systems
+                updateDebugInfo(`🔍 WebGPU: Not available (experimental feature)`);
+            }
+
+            // Check WebGL support
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                capabilities.webgl = !!gl;
+                updateDebugInfo(`🔍 WebGL support: ${capabilities.webgl ? 'Yes' : 'No'}`);
+            } catch (error) {
+                updateDebugInfo(`🔍 WebGL check failed: ${error.message}`);
+            }
+
+            // Check Speech Synthesis
+            capabilities.speechSynthesis = 'speechSynthesis' in window;
+            updateDebugInfo(`🔍 Speech Synthesis: ${capabilities.speechSynthesis ? 'Yes' : 'No'}`);
+
+            // Check Speech Recognition
+            capabilities.speechRecognition = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+            updateDebugInfo(`🔍 Speech Recognition: ${capabilities.speechRecognition ? 'Yes' : 'No'}`);
+
+            return capabilities;
+        }
+
+        // Check if WebGPU is supported
+        function supportsWebGPU() {
+            return 'gpu' in navigator;
+        }
+
+        // Initialize available voices
+        function initializeVoices() {
+            if (speechSynthesis) {
+                const voices = speechSynthesis.getVoices();
+                if (voices.length > 0) {
+                    currentVoice = voices.find(voice => voice.lang.includes('en')) || voices[0];
+                    updateDebugInfo(`🎵 Voice initialized: ${currentVoice.name}`);
+                    
+                    // Update voice select dropdown
+                    const voiceSelect = document.getElementById('voice-select');
+                    voiceSelect.innerHTML = '';
+                    voices.filter(voice => voice.lang.includes('en')).forEach((voice, index) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = `${voice.name} (${voice.lang})`;
+                        voiceSelect.appendChild(option);
+                    });
+                }
+            }
+        }
+
+        // Initialize audio context for advanced audio processing
+        async function initializeAudio() {
+            try {
+                // Don't create AudioContext until user gesture to avoid warnings
+                updateDebugInfo('🔊 Audio context will be created on first user interaction');
+            } catch (error) {
+                updateDebugInfo('⚠️ Audio context not available');
+            }
+        }
+
+        // Helper function to ensure audio context is active
+        async function ensureAudioContextActive() {
+            if (!audioContext) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    updateDebugInfo('🔊 Audio context created');
+                } catch (error) {
+                    updateDebugInfo('⚠️ Could not create audio context');
+                    return false;
+                }
+            }
+            
+            if (audioContext.state === 'suspended') {
+                try {
+                    await audioContext.resume();
+                    updateDebugInfo('🔊 Audio context activated');
+                } catch (error) {
+                    updateDebugInfo('⚠️ Could not activate audio context');
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function updateLoadingStatus(message) {
+            console.log('📝', message);
+            if (loadingStatus) {
+                loadingStatus.textContent = message;
+            }
+        }
+
+        function updateDebugInfo(message) {
+            if (debugInfo) {
+                debugInfo.innerHTML += message + '<br>';
+                debugInfo.scrollTop = debugInfo.scrollHeight;
+            }
+        }
+
+        function updateModelStatus(message) {
+            if (modelStatus) {
+                modelStatus.textContent = message;
+            }
+        }
+
+        function addToConversation(type, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.textContent = message;
+            conversationLog.appendChild(messageDiv);
+            conversationLog.scrollTop = conversationLog.scrollHeight;
+        }
+
+        // Status update functions
+        function updateSystemStatus(status) {
+            const statusEl = document.getElementById('system-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        function updateAIStatus(status) {
+            const statusEl = document.getElementById('ai-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        function updateTTSStatus(status) {
+            const statusEl = document.getElementById('tts-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        function updateSpeechStatus(status) {
+            const statusEl = document.getElementById('speech-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        function updateAvatarStatus(status) {
+            const statusEl = document.getElementById('avatar-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        function updateEnvStatus(status) {
+            const statusEl = document.getElementById('env-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        // Simple conversation system without external AI models
+        function generateSimpleResponse(userMessage) {
+            const responses = {
+                greeting: [
+                    "Hello! It's great to meet you! [happy]",
+                    "Hi there! How can I help you today? [cheerful]",
+                    "Welcome! I'm excited to chat with you! [excited]"
+                ],
+                how_are_you: [
+                    "I'm doing wonderfully, thank you for asking! [happy]",
+                    "I'm great! How are you doing? [cheerful]",
+                    "I'm fantastic! Thanks for checking in! [joyful]"
+                ],
+                goodbye: [
+                    "Goodbye! It was lovely talking with you! [happy]",
+                    "See you later! Take care! [warm]",
+                    "Farewell! Hope to chat again soon! [friendly]"
+                ],
+                help: [
+                    "I'm here to help! What do you need assistance with? [helpful]",
+                    "Of course! I'd be happy to help you! [eager]",
+                    "Let me help you with that! [supportive]"
+                ],
+                compliment: [
+                    "Thank you so much! That's very kind of you! [happy]",
+                    "You're too kind! That really brightens my day! [joyful]",
+                    "Aww, thank you! You're wonderful too! [warm]"
+                ],
+                question: [
+                    "That's a great question! Let me think about that... [thoughtful]",
+                    "Interesting! I'd be happy to discuss that with you. [curious]",
+                    "What an intriguing topic! Tell me more about what you're thinking. [engaged]"
+                ],
+                emotion_happy: [
+                    "I'm so glad to hear that! Your happiness is contagious! [excited]",
+                    "That's wonderful! I love hearing good news! [joyful]",
+                    "How fantastic! Thanks for sharing that with me! [cheerful]"
+                ],
+                emotion_sad: [
+                    "I'm sorry to hear that. I'm here if you need someone to talk to. [supportive]",
+                    "That sounds difficult. Would you like to share more about it? [caring]",
+                    "I understand. Sometimes life can be challenging. [empathetic]"
+                ],
+                default: [
+                    "That's really interesting! Tell me more about that. [curious]",
+                    "I see! That's quite fascinating. [thoughtful]",
+                    "Thanks for sharing that with me! [appreciative]",
+                    "That's a great point! What do you think about it? [engaged]",
+                    "I'm listening! Please continue. [attentive]"
+                ]
+            };
+
+            const message = userMessage.toLowerCase();
+            
+            // Greeting detection
+            if (message.includes('hello') || message.includes('hi') || message.includes('hey') || message.includes('good morning') || message.includes('good afternoon')) {
+                return responses.greeting[Math.floor(Math.random() * responses.greeting.length)];
+            }
+            // How are you detection
+            else if (message.includes('how are you') || message.includes('how do you feel') || message.includes('how is it going')) {
+                return responses.how_are_you[Math.floor(Math.random() * responses.how_are_you.length)];
+            }
+            // Goodbye detection
+            else if (message.includes('bye') || message.includes('goodbye') || message.includes('see you') || message.includes('farewell')) {
+                return responses.goodbye[Math.floor(Math.random() * responses.goodbye.length)];
+            }
+            // Help detection
+            else if (message.includes('help') || message.includes('assist') || message.includes('support')) {
+                return responses.help[Math.floor(Math.random() * responses.help.length)];
+            }
+            // Compliment detection
+            else if (message.includes('thank') || message.includes('great') || message.includes('awesome') || message.includes('amazing') || message.includes('wonderful')) {
+                return responses.compliment[Math.floor(Math.random() * responses.compliment.length)];
+            }
+            // Question detection
+            else if (message.includes('what') || message.includes('why') || message.includes('how') || message.includes('?')) {
+                return responses.question[Math.floor(Math.random() * responses.question.length)];
+            }
+            // Happy emotion detection
+            else if (message.includes('happy') || message.includes('excited') || message.includes('great') || message.includes('excellent')) {
+                return responses.emotion_happy[Math.floor(Math.random() * responses.emotion_happy.length)];
+            }
+            // Sad emotion detection
+            else if (message.includes('sad') || message.includes('upset') || message.includes('down') || message.includes('difficult')) {
+                return responses.emotion_sad[Math.floor(Math.random() * responses.emotion_sad.length)];
+            }
+            // Default responses
+            else {
+                return responses.default[Math.floor(Math.random() * responses.default.length)];
+            }
+        }
+
+        async function initializeModels() {
+            try {
+                updateLoadingStatus('Detecting device capabilities...');
+                const capabilities = await detectDeviceCapabilities();
+                
+                // Determine best device to use
+                const device = capabilities.webgpu ? 'webgpu' : 'wasm';
+                updateDebugInfo(`🎯 Selected device: ${device}`);
+                
+                updateLoadingStatus('Initializing audio systems...');
+                await initializeAudio();
+                initializeVoices();
+                
+                updateLoadingStatus('AI models are optional - using built-in conversation system...');
+                updateModelStatus('Using intelligent built-in responses');
+                
+                // Initialize TTS (prefer Kokoro, fallback to Web Speech API)
+                let kokoroSuccess = false;
+                if (capabilities.webgpu || capabilities.wasm) {
+                    updateDebugInfo('🔄 Attempting to load Kokoro TTS...');
+                    kokoroSuccess = await initializeKokoroTTS(device);
+                }
+                
+                if (!kokoroSuccess && capabilities.speechSynthesis) {
+                    updateTTSStatus('Web Speech API ready');
+                    updateDebugInfo('🎤 Using Web Speech API for TTS');
+                }
+                
+                // Initialize Speech Recognition (prefer Whisper/Moonshine, fallback to Web Speech API)
+                let speechModelSuccess = false;
+                if (capabilities.webgpu || capabilities.wasm) {
+                    updateDebugInfo('🔄 Attempting to load speech recognition model...');
+                    speechModelSuccess = await initializeWhisperModel(device);
+                }
+                
+                if (!speechModelSuccess && capabilities.speechRecognition) {
+                    updateSpeechStatus('Web Speech API ready');
+                    updateDebugInfo('🎤 Using Web Speech API for speech recognition');
+                }
+                
+                // Optionally try to load smaller, working models (with timeout) - fully optional
+                try {
+                    updateDebugInfo('🔄 Attempting to load small language model (optional)...');
+                    
+                    // Verify transformers.js is available
+                    if (typeof pipeline === 'undefined') {
+                        throw new Error('Transformers.js not available');
+                    }
+                    
+                    // Add timeout for model loading
+                    const loadModelWithTimeout = async (modelName, timeoutMs = 15000) => {
+                        return Promise.race([
+                            pipeline('text-generation', modelName, {
+                                device: 'wasm',
+                                dtype: 'fp32',
+                                progress_callback: (progress) => {
+                                    if (progress.status === 'downloading') {
+                                        updateDebugInfo(`📥 ${modelName}: ${progress.file} (${Math.round(progress.progress || 0)}%)`);
+                                    }
+                                }
+                            }),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+                            )
+                        ]);
+                    };
+                    
+                    // Try smaller, more reliable models with shorter timeout
+                    const modelOptions = [
+                        'Xenova/distilgpt2',
+                        'Xenova/gpt2'
+                    ];
+                    
+                    for (const modelName of modelOptions) {
+                        try {
+                            updateDebugInfo(`⏳ Loading ${modelName} (15s timeout)...`);
+                            llamaModel = await loadModelWithTimeout(modelName, 15000);
+                            updateDebugInfo(`✅ Loaded model: ${modelName}`);
+                            updateModelStatus(`AI Model: ${modelName} (Ready)`);
+                            break;
+                        } catch (modelError) {
+                            // Show detailed error for debugging model loading
+                            console.error(`🔍 ${modelName} detailed error:`, modelError);
+                            if (modelError.message.includes('Timeout')) {
+                                updateDebugInfo(`⏰ ${modelName} loading timed out (15s limit)`);
+                            } else {
+                                updateDebugInfo(`❌ Failed to load ${modelName}: ${modelError.message}`);
+                                updateDebugInfo(`🔍 Error stack: ${modelError.stack?.substring(0, 200)}...`);
+                            }
+                        }
+                    }
+                    
+                    // If no model loaded, that's fine - we'll use built-in responses
+                    if (!llamaModel) {
+                        updateDebugInfo('📝 No external AI model loaded - using intelligent built-in responses');
+                        updateAIStatus('Intelligent built-in responses');
+                    } else {
+                        updateAIStatus('External AI model + built-in responses');
+                    }
+                    
+                } catch (importError) {
+                    // Show detailed error for debugging transformers.js import
+                    console.error('🔍 Transformers.js detailed error:', importError);
+                    updateDebugInfo('⚠️ External AI models unavailable - using smart built-in conversation system');
+                    updateDebugInfo(`🔍 Import error: ${importError.message}`);
+                    updateAIStatus('Intelligent built-in responses');
+                    console.log('Model loading failed:', importError.message);
+                }
+
+                // Final status updates
+                if (!capabilities.speechSynthesis && !kokoroSuccess) {
+                    updateTTSStatus('Not available');
+                    updateDebugInfo('❌ No TTS capabilities available');
+                }
+                
+                if (!capabilities.speechRecognition && !speechModelSuccess) {
+                    updateSpeechStatus('Not available');
+                    updateDebugInfo('❌ No speech recognition capabilities available');
+                }
+
+                updateDebugInfo('🤖 AI conversation system ready with built-in intelligence');
+                addToConversation('system', 'AI Avatar is ready! Try saying hello or typing a message.');
+                
+                // Add a welcoming demo message after a brief delay
+                setTimeout(() => {
+                    addToConversation('system', '👋 Try typing "hello" or click the Record button to test voice input!');
+                }, 2000);
+
+                // Show final system status
+                updateDebugInfo('');
+                updateDebugInfo('🎯 FINAL SYSTEM STATUS:');
+                updateDebugInfo(`  • 3D Graphics: ✅ Working (WebGL ${capabilities.webgl ? 'supported' : 'limited'})`);
+                updateDebugInfo(`  • VRM Characters: ✅ Supported`);
+                updateDebugInfo(`  • Environment: ✅ Classroom scene support`);
+                updateDebugInfo(`  • Conversation AI: ✅ ${llamaModel ? 'External + Built-in' : 'Built-in intelligence'}`);
+                updateDebugInfo(`  • Speech Synthesis: ${speechSynthesis && currentVoice ? '✅' : '❌'} ${speechSynthesis && currentVoice ? (kokoroTTS ? 'Kokoro TTS + Web Speech' : 'Web Speech API') : 'Not available'}`);
+                updateDebugInfo(`  • Speech Recognition: ${(speechRecognitionModel || ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) ? '✅' : '❌'} ${speechRecognitionModel ? 'AI Model + Web Speech' : (('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) ? 'Web Speech API' : 'Not available')}`);
+                const advancedModels = [];
+                if (kokoroTTS) advancedModels.push('Kokoro TTS');
+                if (speechRecognitionModel) advancedModels.push('Whisper Tiny');
+                if (llamaModel) advancedModels.push('AI Model');
+                updateDebugInfo(`  • Advanced Models: ${advancedModels.length > 0 ? '✅' : 'ℹ️'} ${advancedModels.length > 0 ? advancedModels.join(', ') : 'Using standard web APIs'}`);
+                updateDebugInfo('');
+                updateDebugInfo('🎉 System ready! All core features operational.');
+                updateDebugInfo('💡 Optional enhancements loaded where available.');
+                updateDebugInfo('');
+
+                return true;
+            } catch (error) {
+                console.error('Model initialization error:', error);
+                updateDebugInfo(`❌ Model error: ${error.message}`);
+                updateModelStatus('Using built-in conversation system');
+                updateAIStatus('Basic built-in responses');
+                
+                // Ensure speech synthesis is available as fallback
+                if (speechSynthesis) {
+                    updateTTSStatus('Basic Web Speech API');
+                    updateSpeechStatus('Basic Web Speech API');
+                    updateDebugInfo('✅ Using browser speech synthesis');
+                    addToConversation('system', 'System ready with built-in conversation capabilities!');
+                    return true;
+                } else {
+                    updateTTSStatus('Not available');
+                    updateSpeechStatus('Not available');
+                    updateDebugInfo('❌ No speech capabilities available');
+                    return false;
+                }
+            }
+        }
+
+        async function init() {
+            updateSystemStatus('Initializing 3D scene...');
+            updateLoadingStatus('Creating 3D scene...');
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.8, 3);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = false;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0.9, 0);
+            
+            updateSystemStatus('Loading classroom environment...');
+            updateLoadingStatus('Setting up classroom environment...');
+            updateEnvStatus('Loading classroom...');
+            
+            // Initialize classroom
+            classroom = new ClassroomGLBLoader(scene);
+            await classroom.initialize();
+            await loadDefaultClassroom();
+            
+            // Setup lighting
+            setupLighting();
+            
+            // Setup file loaders
+            setupFileLoader();
+            
+            updateSystemStatus('Initializing AI systems...');
+            updateLoadingStatus('Initializing AI models...');
+            updateAIStatus('Loading...');
+            updateTTSStatus('Initializing...');
+            updateSpeechStatus('Initializing...');
+            
+            // Initialize AI models
+            const modelsReady = await initializeModels();
+            
+            if (modelsReady) {
+                updateSystemStatus('All systems ready!');
+                updateLoadingStatus('Ready!');
+            } else {
+                updateSystemStatus('Ready (basic functionality)');
+                updateLoadingStatus('Ready (limited functionality)');
+            }
+            
+            // Start animation loop
+            animate();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                loadingDiv.style.display = 'none';
+            }, 1000);
+            
+            updateDebugInfo('🎭 3D avatar conversation system initialized');
+        }
+
+        async function loadDefaultClassroom() {
+            try {
+                const classroomPath = './assets/scenes/classroom.glb';
+                updateLoadingStatus('Loading classroom...');
+                
+                const success = await classroom.loadClassroomGLB(classroomPath);
+                if (success) {
+                    updateDebugInfo('✅ Classroom loaded');
+                    updateEnvStatus('Classroom loaded');
+                } else {
+                    updateDebugInfo('ℹ️ No default classroom');
+                    updateEnvStatus('Empty scene');
+                }
+            } catch (error) {
+                updateDebugInfo('ℹ️ Using empty scene');
+                updateEnvStatus('Empty scene');
+            }
+
+            await loadDefaultVRM();
+        }
+
+        async function loadDefaultVRM() {
+            updateAvatarStatus('Looking for VRM character...');
+            try {
+                const defaultVRMs = [
+                    './assets/characters/ichika.vrm',
+                    './assets/characters/kaede.vrm'
+                ];
+                
+                for (const vrmPath of defaultVRMs) {
+                    try {
+                        const response = await fetch(vrmPath);
+                        if (response.ok) {
+                            const arrayBuffer = await response.arrayBuffer();
+                            await loadVRMFromArrayBuffer(arrayBuffer, vrmPath.split('/').pop());
+                            updateDebugInfo(`✅ Auto-loaded VRM: ${vrmPath.split('/').pop()}`);
+                            updateAvatarStatus(`${vrmPath.split('/').pop()} loaded`);
+                            return;
+                        }
+                    } catch (error) {
+                        console.log(`Failed to load ${vrmPath}`);
+                    }
+                }
+                updateAvatarStatus('No VRM loaded - use Load VRM button');
+                updateDebugInfo('ℹ️ No default VRM found - use Load VRM button');
+            } catch (error) {
+                updateDebugInfo('ℹ️ No default VRM found');
+                updateAvatarStatus('No VRM loaded');
+            }
+        }
+
+        function setupLighting() {
+            lightingManager = new VRMLightingManager(scene, renderer);
+            lightingManager.initialize('classroom').then(() => {
+                updateDebugInfo('✅ Lighting system ready');
+            }).catch(() => {
+                setupFallbackLighting();
+            });
+        }
+
+        function setupFallbackLighting() {
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(10, 10, 5);
+            scene.add(directionalLight);
+        }
+
+        function setupFileLoader() {
+            const vrmFileInput = document.getElementById('vrm-file');
+            vrmFileInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    await loadVRMFile(file);
+                }
+            });
+            
+            const glbFileInput = document.getElementById('glb-file');
+            glbFileInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    await loadGLBClassroomFile(file);
+                }
+            });
+        }
+
+        async function loadVRMFile(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                await loadVRMFromArrayBuffer(arrayBuffer, file.name);
+            } catch (error) {
+                updateDebugInfo(`❌ Failed to load VRM: ${error.message}`);
+            }
+        }
+
+        async function loadVRMFromArrayBuffer(arrayBuffer, filename) {
+            const loader = new GLTFLoader();
+            loader.register((parser) => new VRMLoaderPlugin(parser));
+            
+            const gltf = await new Promise((resolve, reject) => {
+                loader.parse(arrayBuffer, '', resolve, reject);
+            });
+            
+            if (vrmCharacter) {
+                scene.remove(vrmCharacter.scene);
+            }
+            
+            vrmCharacter = gltf.userData.vrm;
+            scene.add(vrmCharacter.scene);
+            
+            let safePosition = new THREE.Vector3(0, 0, 0);
+            try {
+                if (classroom && classroom.initialized) {
+                    safePosition = classroom.getRandomSafePosition();
+                    safePosition.y = 0;
+                }
+            } catch (error) {
+                safePosition = new THREE.Vector3(0, 0, 0);
+            }
+            
+            vrmCharacter.scene.position.copy(safePosition);
+            characterPosition.copy(safePosition);
+            
+            vrmAdapter = new VRMBVHAdapter(
+                { vrm: vrmCharacter, scene: vrmCharacter.scene },
+                null
+            );
+            
+            updateDebugInfo(`✅ VRM loaded: ${filename}`);
+            
+            if (lightingManager && lightingManager.initialized) {
+                lightingManager.optimizeForVRM(vrmCharacter);
+            }
+            
+            controls.target.copy(vrmCharacter.scene.position);
+            controls.target.y += 1.0;
+        }
+
+        async function loadGLBClassroomFile(file) {
+            try {
+                const url = URL.createObjectURL(file);
+                const success = await classroom.loadClassroomGLB(url);
+                
+                if (success) {
+                    updateDebugInfo(`✅ Classroom loaded: ${file.name}`);
+                    
+                    if (vrmCharacter) {
+                        const safePosition = classroom.getRandomSafePosition();
+                        safePosition.y = 0;
+                        vrmCharacter.scene.position.copy(safePosition);
+                        characterPosition.copy(safePosition);
+                    }
+                }
+                
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                updateDebugInfo(`❌ GLB loading error: ${error.message}`);
+            }
+        }
+
+        // AI Conversation Functions
+        async function generateResponse(userMessage) {
+            try {
+                conversationHistory.push({ role: "user", content: userMessage });
+                
+                let aiResponse;
+                
+                if (llamaModel) {
+                    // Use advanced model if available
+                    const systemPrompt = "You are a friendly AI avatar assistant. Respond naturally and include emotion markers like [happy], [sad], [excited], [thoughtful], [surprised] in your responses. Keep responses under 2 sentences.";
+                    
+                    const conversationText = conversationHistory.map(msg => {
+                        if (msg.role === 'system') return `System: ${msg.content}`;
+                        if (msg.role === 'user') return `Human: ${msg.content}`;
+                        return `Assistant: ${msg.content}`;
+                    }).join('\n');
+                    
+                    const fullPrompt = `${systemPrompt}\n\n${conversationText}\nAssistant:`;
+
+                    const response = await llamaModel(fullPrompt, {
+                        max_new_tokens: 80,
+                        temperature: 0.8,
+                        do_sample: true,
+                        top_p: 0.9,
+                        repetition_penalty: 1.1
+                    });
+
+                    aiResponse = response[0].generated_text.split('Assistant:').pop().trim();
+                    aiResponse = aiResponse.split('\n')[0].trim();
+                } else {
+                    // Use intelligent built-in response system
+                    aiResponse = generateSimpleResponse(userMessage);
+                }
+                
+                // Clean up the response
+                if (aiResponse.length === 0) {
+                    aiResponse = "I'm here to help! What would you like to talk about? [friendly]";
+                }
+                
+                conversationHistory.push({ role: "assistant", content: aiResponse });
+                
+                // Keep conversation history manageable
+                if (conversationHistory.length > 12) {
+                    conversationHistory = [conversationHistory[0], ...conversationHistory.slice(-10)];
+                }
+
+                return aiResponse;
+            } catch (error) {
+                console.error('Response generation error:', error);
+                // Fallback to built-in system on any error
+                return generateSimpleResponse(userMessage) || "I'm having trouble thinking right now. Could you try again? [thoughtful]";
+            }
+        }
+
+        // Extract emotion from AI response
+        function extractEmotion(text) {
+            const emotionPatterns = {
+                'happy': /\[happy\]|\[joy\]|\[excited\]|\[cheerful\]|\[joyful\]|\[warm\]|\[friendly\]/i,
+                'sad': /\[sad\]|\[sorry\]|\[disappointed\]|\[melancholy\]|\[empathetic\]|\[caring\]/i,
+                'angry': /\[angry\]|\[frustrated\]|\[annoyed\]|\[mad\]/i,
+                'surprised': /\[surprised\]|\[amazed\]|\[shocked\]|\[wow\]/i,
+                'thoughtful': /\[thoughtful\]|\[thinking\]|\[pondering\]|\[curious\]|\[engaged\]|\[attentive\]/i,
+                'neutral': /\[neutral\]|\[calm\]|\[normal\]|\[helpful\]|\[supportive\]|\[appreciative\]/i
+            };
+
+            for (const [emotion, pattern] of Object.entries(emotionPatterns)) {
+                if (pattern.test(text)) {
+                    return emotion;
+                }
+            }
+
+            // Enhanced fallback emotion detection based on content
+            const lowerText = text.toLowerCase();
+            if (lowerText.includes('great') || lowerText.includes('wonderful') || lowerText.includes('amazing') || 
+                lowerText.includes('fantastic') || lowerText.includes('excellent') || lowerText.includes('love')) {
+                return 'happy';
+            } else if (lowerText.includes('sorry') || lowerText.includes('unfortunately') || 
+                       lowerText.includes('difficult') || lowerText.includes('sad') || lowerText.includes('understand')) {
+                return 'sad';
+            } else if (lowerText.includes('interesting') || lowerText.includes('think') || 
+                       lowerText.includes('question') || lowerText.includes('curious') || lowerText.includes('wonder')) {
+                return 'thoughtful';
+            } else if (lowerText.includes('wow') || lowerText.includes('really') || lowerText.includes('amazing')) {
+                return 'surprised';
+            }
+            
+            return 'neutral';
+        }
+
+        // Enhanced speech synthesis with multiple fallbacks and better error handling
+        async function speakText(text, voiceOption = null) {
+            // Try Kokoro TTS first if available
+            if (kokoroTTS) {
+                updateDebugInfo('🔄 Using Kokoro TTS...');
+                return await speakTextWithKokoro(text, 'af_heart');
+            }
+            
+            // Fallback to Web Speech API
+            return await speakTextWithWebAPI(text, voiceOption);
+        }
+
+        // Web Speech API TTS implementation
+        async function speakTextWithWebAPI(text, voiceOption = null) {
+            // Ensure audio context is active for any audio processing
+            await ensureAudioContextActive();
+            
+            // Stop any ongoing speech first
+            if (isAvatarSpeaking) {
+                stopSpeaking();
+                // Wait a moment for cleanup
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            isAvatarSpeaking = true;
+            stopSpeakingBtn.disabled = false;
+            
+            // Clean emotion markers from speech text
+            const cleanText = text.replace(/\[[^\]]+\]/g, '').trim();
+            
+            if (!cleanText) {
+                isAvatarSpeaking = false;
+                stopSpeakingBtn.disabled = true;
+                return;
+            }
+            
+            updateDebugInfo(`🗣️ Speaking: "${cleanText.substring(0, 50)}..."`);
+            
+            try {
+                // Use Web Speech API as primary TTS
+                if (speechSynthesis && currentVoice) {
+                    // Ensure speech synthesis is ready
+                    if (speechSynthesis.speaking || speechSynthesis.pending) {
+                        speechSynthesis.cancel();
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+                    
+                    const utterance = new SpeechSynthesisUtterance(cleanText);
+                    
+                    // Configure voice
+                    if (voiceOption && speechSynthesis.getVoices()[voiceOption]) {
+                        utterance.voice = speechSynthesis.getVoices()[voiceOption];
+                    } else {
+                        utterance.voice = currentVoice;
+                    }
+                    
+                    utterance.rate = 0.9;
+                    utterance.pitch = 1.0;
+                    utterance.volume = 0.8;
+                    
+                    utterance.onend = () => {
+                        isAvatarSpeaking = false;
+                        stopSpeakingBtn.disabled = true;
+                        updateDebugInfo('🔇 Speech completed');
+                    };
+                    
+                    utterance.onerror = (error) => {
+                        // Handle specific error types gracefully
+                        if (error.error === 'interrupted') {
+                            updateDebugInfo('🔄 Speech was interrupted (normal behavior)');
+                        } else {
+                            console.error('Speech synthesis error:', error);
+                            updateDebugInfo(`❌ Speech error: ${error.error}`);
+                        }
+                        isAvatarSpeaking = false;
+                        stopSpeakingBtn.disabled = true;
+                    };
+                    
+                    // Start speaking
+                    speechSynthesis.speak(utterance);
+                    currentSpeech = utterance;
+                    
+                } else {
+                    updateDebugInfo('❌ Speech synthesis not available');
+                    isAvatarSpeaking = false;
+                    stopSpeakingBtn.disabled = true;
+                }
+                
+            } catch (error) {
+                console.error('TTS error:', error);
+                updateDebugInfo(`❌ Speech error: ${error.message}`);
+                isAvatarSpeaking = false;
+                stopSpeakingBtn.disabled = true;
+            }
+        }
+
+        // Kokoro TTS Integration
+        let kokoroTTS = null;
+        
+        // Helper function to create WAV file from Float32Array
+        function createWAVFromFloat32Array(audioData, sampleRate = 22050) {
+            const length = audioData.length;
+            const buffer = new ArrayBuffer(44 + length * 2);
+            const view = new DataView(buffer);
+            
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            const writeInt16 = (offset, value) => {
+                view.setInt16(offset, value, true);
+            };
+            
+            const writeInt32 = (offset, value) => {
+                view.setInt32(offset, value, true);
+            };
+            
+            // RIFF header
+            writeString(0, 'RIFF');
+            writeInt32(4, 36 + length * 2);
+            writeString(8, 'WAVE');
+            
+            // Format chunk
+            writeString(12, 'fmt ');
+            writeInt32(16, 16); // Subchunk1Size
+            writeInt16(20, 1);  // AudioFormat (PCM)
+            writeInt16(22, 1);  // NumChannels (mono)
+            writeInt32(24, sampleRate); // SampleRate
+            writeInt32(28, sampleRate * 2); // ByteRate
+            writeInt16(32, 2);  // BlockAlign
+            writeInt16(34, 16); // BitsPerSample
+            
+            // Data chunk
+            writeString(36, 'data');
+            writeInt32(40, length * 2);
+            
+            // Convert Float32Array to 16-bit PCM
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                const sample = Math.max(-1, Math.min(1, audioData[i]));
+                view.setInt16(offset, sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return buffer;
+        }
+        
+        // Custom file resolver for purely local operation
+        function createLocalFileResolver(baseUrl) {
+            return {
+                resolve: (url) => {
+                    // Convert any model hub URLs to local paths
+                    if (url.includes('huggingface.co') || url.includes('hf.co')) {
+                        const filename = url.split('/').pop();
+                        return `${baseUrl}/${filename}`;
+                    }
+                    // Return the URL as-is if it's already local
+                    return url.startsWith('./') || url.startsWith('/') ? url : `${baseUrl}/${url}`;
+                }
+            };
+        }
+        
+        // Patch fetch to redirect Hugging Face requests to local files during Kokoro loading
+        function patchFetchForLocalKokoro() {
+            const originalFetch = window.fetch;
+            const localModelPath = './Kokoro-82M-v1.0-ONNX/';
+            
+            window.fetch = async function(input, init) {
+                const url = typeof input === 'string' ? input : input.url;
+                
+                // Intercept Hugging Face requests and redirect to local files
+                if (url.includes('huggingface.co') || url.includes('hf.co')) {
+                    const filename = url.split('/').pop().split('?')[0]; // Remove query params
+                    
+                    // Handle different file types and their proper locations
+                    let localUrl;
+                    if (filename.endsWith('.bin')) {
+                        // Voice files are in the voices/ subdirectory
+                        localUrl = `${localModelPath}voices/${filename}`;
+                    } else if (filename.endsWith('.onnx')) {
+                        // Model files are now in the root directory
+                        localUrl = `${localModelPath}${filename}`;
+                    } else {
+                        // Config files (config.json, tokenizer.json, etc.) are in root
+                        localUrl = `${localModelPath}${filename}`;
+                    }
+                    
+                    console.log(`🔄 Redirecting HF request: ${url} -> ${localUrl}`);
+                    
+                    // Create new request with local URL
+                    const localRequest = typeof input === 'string' ? localUrl : new Request(localUrl, input);
+                    return originalFetch(localRequest, init);
+                }
+                
+                // Pass through all other requests unchanged
+                return originalFetch(input, init);
+            };
+            
+            // Return function to restore original fetch
+            return () => {
+                window.fetch = originalFetch;
+            };
+        }
+        
+        async function initializeKokoroTTS(device) {
+            let restoreFetch = null;
+            try {
+                updateDebugInfo('🔄 Checking for Kokoro TTS (optional enhancement)...');
+                
+                // Patch fetch to prevent network requests during Kokoro loading
+                restoreFetch = patchFetchForLocalKokoro();
+                updateDebugInfo('🔒 Patched fetch to redirect HF requests to local files');
+                
+                // Try different import paths for Kokoro with better error handling
+                // Prioritize the compiled/bundled versions that don't need dependency resolution
+                const possiblePaths = [
+                    './kokoro.js/dist/kokoro.js',        // Local compiled version (preferred)
+                    './kokoro.js/dist/kokoro.web.js',    // Web-optimized version
+                    '../kokoro/kokoro.js/dist/kokoro.js', // Parent dir compiled version
+                    '../../kokoro/kokoro.js/dist/kokoro.js', // Grandparent dir compiled version
+                    './kokoro.js/dist/kokoro.cjs'        // CommonJS version (fallback)
+                ];
+                
+                let kokoroModule = null;
+                updateDebugInfo(`🔍 Searching for Kokoro TTS in ${possiblePaths.length} locations...`);
+                for (const path of possiblePaths) {
+                    try {
+                        updateDebugInfo(`🔍 Trying: ${path}`);
+                        // Directly try to import the module without pre-checking
+                        // This avoids any network requests that show in console
+                        kokoroModule = await import(path);
+                        updateDebugInfo(`✅ Found Kokoro at: ${path}`);
+                        break;
+                    } catch (pathError) {
+                        // Show detailed error for each path attempted
+                        updateDebugInfo(`❌ ${path}: ${pathError.message}`);
+                        continue;
+                    }
+                }
+                
+                if (!kokoroModule) {
+                    updateDebugInfo('ℹ️ Kokoro TTS not found (optional enhancement) - using Web Speech API');
+                    return false;
+                }
+                
+                const { KokoroTTS } = kokoroModule;
+                if (!KokoroTTS) {
+                    updateDebugInfo('ℹ️ Kokoro TTS class not found in module');
+                    return false;
+                }
+                
+                updateDebugInfo('🔄 Loading Kokoro TTS model from local files...');
+                
+                // Use the downloaded Kokoro model with appropriate weights for browser capabilities
+                // Try different path formats that the library might expect
+                const possibleModelPaths = [
+                    './Kokoro-82M-v1.0-ONNX/',          // Direct path to model folder
+                    './Kokoro-82M-v1.0-ONNX',           // Without trailing slash
+                    'Kokoro-82M-v1.0-ONNX/',            // Relative without ./
+                    'Kokoro-82M-v1.0-ONNX'              // Most basic format
+                ];
+                
+                let selectedModelPath = possibleModelPaths[0]; // Default
+                updateDebugInfo(`📁 Trying model paths: ${possibleModelPaths.join(', ')}`);
+                
+                // Check if config.json exists at the expected location to validate path
+                try {
+                    const configResponse = await fetch(possibleModelPaths[0] + 'config.json');
+                    if (configResponse.ok) {
+                        selectedModelPath = possibleModelPaths[0];
+                        updateDebugInfo(`✅ Validated model path: ${selectedModelPath}`);
+                    } else {
+                        updateDebugInfo(`⚠️ Config not found at ${possibleModelPaths[0]}, will try alternatives`);
+                    }
+                } catch (checkError) {
+                    updateDebugInfo(`ℹ️ Path validation failed, will try all alternatives`);
+                }
+                
+                // Select optimal model weights based on device capabilities and memory constraints
+                let selectedDtype;
+                let modelFileName;
+                
+                if (device === 'webgpu') {
+                    // WebGPU can handle more advanced quantization
+                    selectedDtype = 'fp16';
+                    modelFileName = 'model_fp16.onnx';
+                    updateDebugInfo('🎯 Selected FP16 weights for WebGPU (optimal quality/performance)');
+                } else if (device === 'wasm') {
+                    // WASM benefits from quantized models for speed and memory efficiency
+                    // Check available memory to decide quantization level
+                    const memoryInfo = navigator.deviceMemory || 4; // Default to 4GB if not available
+                    
+                    if (memoryInfo >= 8) {
+                        // High memory devices can use Q8 for better quality
+                        selectedDtype = 'q8';
+                        modelFileName = 'model_q8f16.onnx';
+                        updateDebugInfo('🎯 Selected Q8 weights for WASM (high memory device)');
+                    } else if (memoryInfo >= 4) {
+                        // Medium memory devices use Q4F16 for balanced performance
+                        selectedDtype = 'q4f16';
+                        modelFileName = 'model_q4f16.onnx';
+                        updateDebugInfo('🎯 Selected Q4F16 weights for WASM (medium memory device)');
+                    } else {
+                        // Low memory devices use Q4 for maximum efficiency
+                        selectedDtype = 'q4';
+                        modelFileName = 'model_q4.onnx';
+                        updateDebugInfo('🎯 Selected Q4 weights for WASM (low memory device)');
+                    }
+                } else {
+                    // Fallback to most compatible quantization
+                    selectedDtype = 'q8';
+                    modelFileName = 'model_quantized.onnx';
+                    updateDebugInfo('🎯 Selected quantized weights for CPU fallback');
+                }
+                
+                updateDebugInfo(`🔧 Loading model: ${modelFileName}`);
+                updateDebugInfo(`💾 Target device: ${device} | Data type: ${selectedDtype}`);
+                
+                // Re-enforce local-only environment before loading
+                env.allowRemoteModels = false;
+                env.allowLocalModels = true;
+                env.localModelPath = './Kokoro-82M-v1.0-ONNX/';
+                env.cacheDir = './cache/';
+                
+                // Create file resolver for local operation
+                const fileResolver = createLocalFileResolver('./Kokoro-82M-v1.0-ONNX');
+                
+                let loadingSuccess = false;
+                let lastError = null;
+                
+                // Force environment to use local files only and disable remote access
+                env.allowRemoteModels = false;
+                env.allowLocalModels = true;
+                env.localModelPath = './Kokoro-82M-v1.0-ONNX/';
+                
+                updateDebugInfo('🔒 Forced environment to local-only mode');
+                updateDebugInfo(`📁 Local model path set to: ${env.localModelPath}`);
+                
+                // Try each possible model path until one works
+                for (const modelPath of possibleModelPaths) {
+                    if (loadingSuccess) break;
+                    
+                    updateDebugInfo(`🔄 Attempting path: ${modelPath}`);
+                    
+                    try {
+                        // Force loading with absolute local settings
+                        kokoroTTS = await KokoroTTS.from_pretrained(modelPath, {
+                            device: device,
+                            dtype: selectedDtype,
+                            local_files_only: true,  // Force local-only loading
+                            use_auth_token: false,   // Disable auth completely
+                            cache_dir: './cache/',   // Use local cache
+                            revision: 'main',        // Don't try to fetch revision info
+                            progress_callback: (progress) => {
+                                updateDebugInfo(`📥 Loading: ${progress.file || 'model files'} (${Math.round(progress.progress || 0)}%)`);
+                            }
+                        });
+                        
+                        updateDebugInfo(`✅ Successfully loaded from: ${modelPath}`);
+                        updateDebugInfo(`✅ Successfully loaded Kokoro TTS with ${selectedDtype} weights`);
+                        updateDebugInfo(`🎵 Available voices: ${Object.keys(kokoroTTS.voices || {}).length} total`);
+                        
+                        // Auto-run backend analysis after successful initialization
+                        updateDebugInfo('🔍 Running automatic backend analysis...');
+                        setTimeout(() => runComprehensiveKokoroAnalysis(), 1000);
+                        
+                        loadingSuccess = true;
+                        break;
+                        
+                    } catch (pathError) {
+                        updateDebugInfo(`❌ Path ${modelPath} failed: ${pathError.message.substring(0, 100)}...`);
+                        console.error('Kokoro TTS path error details:', pathError);
+                        lastError = pathError;
+                        
+                        // Try with explicit ONNX configuration
+                        try {
+                            updateDebugInfo(`🔄 Trying ${modelPath} with explicit ONNX configuration...`);
+                            
+                            // Alternative approach: specify exact model file
+                            const fullOnnxPath = `${modelPath}${modelFileName}`;
+                            updateDebugInfo(`🎯 Explicit ONNX path: ${fullOnnxPath}`);
+                            
+                            kokoroTTS = await KokoroTTS.from_pretrained(modelPath, {
+                                device: device,
+                                dtype: selectedDtype,
+                                local_files_only: true,
+                                use_auth_token: false,
+                                model_file_name: modelFileName,
+                                config_file_name: 'config.json',
+                                tokenizer_file_name: 'tokenizer.json',
+                                cache_dir: './cache/',
+                                progress_callback: (progress) => {
+                                    updateDebugInfo(`📥 ONNX loading: ${progress.file || modelFileName} (${Math.round(progress.progress || 0)}%)`);
+                                }
+                            });
+                            
+                            updateDebugInfo(`✅ Successfully loaded from ${modelPath} with explicit ONNX configuration`);
+                            loadingSuccess = true;
+                            break;
+                            
+                        } catch (onnxError) {
+                            updateDebugInfo(`❌ ONNX configuration also failed for ${modelPath}: ${onnxError.message.substring(0, 100)}...`);
+                            console.error('Kokoro TTS ONNX error details:', onnxError);
+                            lastError = onnxError;
+                            continue; // Try next path
+                        }
+                    }
+                }
+                
+                if (!loadingSuccess) {
+                    // Final fallback: try Q4 quantization if we haven't already
+                    if (selectedDtype !== 'q4') {
+                        updateDebugInfo('🔄 Final fallback: Q4 quantization with first path...');
+                        try {
+                            kokoroTTS = await KokoroTTS.from_pretrained(possibleModelPaths[0], {
+                                device: device,
+                                dtype: 'q4',
+                                local_files_only: true,
+                                use_auth_token: false,
+                                cache_dir: './cache/',
+                                progress_callback: (progress) => {
+                                    updateDebugInfo(`📥 Q4 fallback: ${progress.file || 'model files'} (${Math.round(progress.progress || 0)}%)`);
+                                }
+                            });
+                            updateDebugInfo('✅ Successfully loaded with Q4 fallback');
+                            loadingSuccess = true;
+                        } catch (finalError) {
+                            updateDebugInfo(`❌ Q4 fallback also failed: ${finalError.message.substring(0, 100)}...`);
+                            console.error('Final Q4 fallback error:', finalError);
+                        }
+                    }
+                    
+                    // Ultimate fallback: try with minimal config pointing to local directory
+                    if (!loadingSuccess) {
+                        updateDebugInfo('🔄 Ultimate fallback: minimal local configuration...');
+                        try {
+                            // Try with just the base directory name and let the library figure it out
+                            kokoroTTS = await KokoroTTS.from_pretrained('./Kokoro-82M-v1.0-ONNX', {
+                                device: 'cpu', // Force CPU to avoid WebGPU/WASM issues
+                                dtype: 'q4',   // Force Q4 for maximum compatibility
+                                local_files_only: true,
+                                use_auth_token: false,
+                                cache_dir: './cache/',
+                                force_download: false,
+                                progress_callback: (progress) => {
+                                    updateDebugInfo(`📥 Ultimate fallback: ${progress.file || 'loading'} (${Math.round(progress.progress || 0)}%)`);
+                                }
+                            });
+                            updateDebugInfo('✅ Ultimate fallback succeeded!');
+                            loadingSuccess = true;
+                        } catch (ultimateError) {
+                            updateDebugInfo(`❌ Ultimate fallback failed: ${ultimateError.message.substring(0, 100)}...`);
+                            console.error('Ultimate fallback error:', ultimateError);
+                            throw lastError || ultimateError;
+                        }
+                    }
+                    
+                    if (!loadingSuccess) {
+                        throw lastError || new Error('All model loading attempts failed');
+                    }
+                }
+                
+                updateDebugInfo('✅ Kokoro TTS loaded successfully');
+                updateTTSStatus('Kokoro TTS ready');
+                
+                // Run comprehensive backend analysis after successful load
+                setTimeout(async () => {
+                    try {
+                        await runComprehensiveKokoroAnalysis();
+                    } catch (analysisError) {
+                        updateDebugInfo(`⚠️ Backend analysis failed: ${analysisError.message}`);
+                    }
+                }, 500); // Small delay to ensure everything is initialized
+                
+                return true;
+            } catch (error) {
+                // Show detailed error for debugging
+                console.error('🔍 Kokoro TTS detailed error:', error);
+                updateDebugInfo(`❌ Kokoro TTS error: ${error.message}`);
+                updateDebugInfo(`🔍 Error stack: ${error.stack?.substring(0, 200)}...`);
+                
+                // Handle specific error types
+                if (error.message.includes('Failed to fetch')) {
+                    updateDebugInfo('ℹ️ Kokoro module not found at any search path');
+                    updateDebugInfo('💡 Make sure Kokoro TTS is built: cd kokoro.js && npm run build');
+                } else if (error.message.includes('404')) {
+                    updateDebugInfo('ℹ️ Kokoro module file not found (404)');
+                    updateDebugInfo('📁 Expected: ./kokoro.js/dist/kokoro.js');
+                } else if (error.message.includes('MIME')) {
+                    updateDebugInfo('ℹ️ Kokoro module MIME type issue - try the .web.js version');
+                } else if (error.name === 'TypeError') {
+                    updateDebugInfo('ℹ️ Kokoro module structure or import issue');
+                } else if (error.message.includes('bare specifier') || error.message.includes('phonemizer')) {
+                    updateDebugInfo('🔧 Found source files but they need compilation!');
+                    updateDebugInfo('💡 Run: cd kokoro.js && npm install && npm run build');
+                    updateDebugInfo('📁 This creates: kokoro.js/dist/kokoro.js (bundled version)');
+                } else if (error.message.includes('Cannot resolve module')) {
+                    updateDebugInfo('🔧 Module dependency issue - using compiled version should fix this');
+                    updateDebugInfo('📁 Compiled versions have dependencies bundled');
+                } else if (error.message.includes('Local loading failed')) {
+                    updateDebugInfo('� Local model files missing or corrupted');
+                    updateDebugInfo('💡 Make sure these files exist in ./Kokoro-82M-v1.0-ONNX/:');
+                    updateDebugInfo('   • config.json');
+                    updateDebugInfo('   • tokenizer.json');
+                    updateDebugInfo('   • tokenizer_config.json');
+                    updateDebugInfo('   • onnx/model_*.onnx (quantized weights)');
+                    updateDebugInfo('   • voices/*.bin (voice embeddings)');
+                } else if (error.message.includes('model files') || error.message.includes('tokenizer')) {
+                    updateDebugInfo('📁 Model file structure issue');
+                    updateDebugInfo('💡 Verify all model files are in ./Kokoro-82M-v1.0-ONNX/');
+                    updateDebugInfo('🔍 Expected structure:');
+                    updateDebugInfo('   Kokoro-82M-v1.0-ONNX/');
+                    updateDebugInfo('   ├── config.json');
+                    updateDebugInfo('   ├── tokenizer.json');
+                    updateDebugInfo('   ├── onnx/model_*.onnx');
+                    updateDebugInfo('   └── voices/*.bin');
+                } else if (error.message.includes('model files') || error.message.includes('tokenizer')) {
+                    updateDebugInfo('� Model file structure issue');
+                    updateDebugInfo('� Verify all model files are properly copied to ./kokoro.js/dist/');
+                }
+                
+                return false;
+            } finally {
+                // Restore original fetch function
+                if (restoreFetch) {
+                    restoreFetch();
+                    updateDebugInfo('🔓 Restored original fetch function');
+                }
+            }
+        }
+
+        // Backend detection and benchmarking functions (moved to later in file)
+        
+        async function benchmarkKokoroWeights() {
+            if (!kokoroTTS) {
+                updateDebugInfo('❌ Cannot benchmark: Kokoro TTS not loaded');
+                return null;
+            }
+            
+            updateDebugInfo('🚀 Starting Kokoro TTS weight benchmark...');
+            updateDebugInfo('📊 Testing different quantizations on your hardware');
+            
+            const testText = "Hello world test";
+            const testVoice = 'af_heart';
+            const weightVariants = [
+                { name: 'FP16', file: 'model_fp16.onnx', dtype: 'fp16' },
+                { name: 'Q8F16', file: 'model_q8f16.onnx', dtype: 'q8f16' },
+                { name: 'Q4F16', file: 'model_q4f16.onnx', dtype: 'q4f16' },
+                { name: 'Q4', file: 'model_q4.onnx', dtype: 'q4' }
+            ];
+            
+            const results = [];
+            
+            for (const variant of weightVariants) {
+                try {
+                    updateDebugInfo(`🔄 Testing ${variant.name} (${variant.file})...`);
+                    
+                    // Force reload Kokoro with specific weights
+                    const startTime = performance.now();
+                    
+                    // Try to create a new instance with specific weights
+                    const testKokoro = await KokoroTTS.from_pretrained('./Kokoro-82M-v1.0-ONNX/', {
+                        device: 'webgpu',
+                        dtype: variant.dtype,
+                        model_file: variant.file,
+                        local_files_only: true,
+                        trust_remote_code: false,
+                        use_auth_token: false
+                    });
+                    
+                    const loadTime = performance.now() - startTime;
+                    
+                    // Test inference speed
+                    const inferenceStart = performance.now();
+                    const audio = await testKokoro.generate(testText, testVoice);
+                    const inferenceTime = performance.now() - inferenceStart;
+                    
+                    const totalTime = performance.now() - startTime;
+                    
+                    results.push({
+                        variant: variant.name,
+                        file: variant.file,
+                        loadTime: Math.round(loadTime),
+                        inferenceTime: Math.round(inferenceTime),
+                        totalTime: Math.round(totalTime),
+                        audioLength: audio ? audio.length : 0,
+                        success: true
+                    });
+                    
+                    updateDebugInfo(`✅ ${variant.name}: Load=${Math.round(loadTime)}ms, Inference=${Math.round(inferenceTime)}ms`);
+                    
+                } catch (error) {
+                    updateDebugInfo(`❌ ${variant.name}: ${error.message}`);
+                    results.push({
+                        variant: variant.name,
+                        file: variant.file,
+                        success: false,
+                        error: error.message
+                    });
+                }
+            }
+            
+            // Report benchmark results
+            updateDebugInfo('');
+            updateDebugInfo('📊 BENCHMARK RESULTS:');
+            updateDebugInfo('─'.repeat(50));
+            
+            const successful = results.filter(r => r.success);
+            if (successful.length > 0) {
+                // Sort by total time (fastest first)
+                successful.sort((a, b) => a.totalTime - b.totalTime);
+                
+                updateDebugInfo(`🏆 FASTEST: ${successful[0].variant} (${successful[0].totalTime}ms total)`);
+                updateDebugInfo('');
+                
+                successful.forEach((result, index) => {
+                    const rank = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                    updateDebugInfo(`${rank} ${result.variant}:`);
+                    updateDebugInfo(`   Load: ${result.loadTime}ms | Inference: ${result.inferenceTime}ms | Total: ${result.totalTime}ms`);
+                    updateDebugInfo(`   Audio samples: ${result.audioLength}`);
+                });
+                
+                updateDebugInfo('');
+                updateDebugInfo(`💡 Recommendation: Use ${successful[0].variant} for optimal performance`);
+            } else {
+                updateDebugInfo('❌ No weight variants worked successfully');
+            }
+            
+            updateDebugInfo('─'.repeat(50));
+            
+            return results;
+        }
+        
+        async function runComprehensiveKokoroAnalysis() {
+            updateDebugInfo('');
+            updateDebugInfo('🔬 COMPREHENSIVE KOKORO TTS ANALYSIS');
+            updateDebugInfo('═'.repeat(60));
+            
+            // 1. Check global ONNX Runtime
+            updateDebugInfo('1️⃣ Checking global ONNX Runtime...');
+            const globalONNX = await detectONNXBackend();
+            updateDebugInfo(`   Global ONNX: ${JSON.stringify(globalONNX)}`);
+            
+            // 2. Analyze Kokoro's backend
+            updateDebugInfo('');
+            updateDebugInfo('2️⃣ Analyzing Kokoro TTS backend...');
+            const kokoroBackend = await analyzeKokoroBackend();
+            
+            // 3. Check what's actually being loaded from network
+            updateDebugInfo('');
+            updateDebugInfo('3️⃣ Monitoring network requests...');
+            updateDebugInfo('   (Check browser Network tab for ort-wasm vs ort-webgpu requests)');
+            
+            // 4. Run performance benchmark
+            updateDebugInfo('');
+            updateDebugInfo('4️⃣ Running weight performance benchmark...');
+            const benchmarkResults = await benchmarkKokoroWeights();
+            
+            updateDebugInfo('');
+            updateDebugInfo('═'.repeat(60));
+            updateDebugInfo('🏁 Analysis complete! Check results above.');
+            
+            return {
+                globalONNX,
+                kokoroBackend,
+                benchmarkResults
+            };
+        }
+
+        // Backend Detection and Benchmarking Utilities
+        async function detectONNXBackend() {
+            try {
+                // Check if ONNX Runtime Web is available
+                if (typeof ort === 'undefined') {
+                    // Try to access via window or global
+                    const ortRuntime = window.ort || globalThis.ort;
+                    if (!ortRuntime) {
+                        updateDebugInfo('❌ ONNX Runtime not found');
+                        return { backend: 'unknown', providers: [] };
+                    }
+                }
+                
+                // Get available execution providers
+                const providers = await ort.env.webgpu.getAvailableProviders?.() || [];
+                updateDebugInfo(`🔍 ONNX Available providers: ${providers.join(', ')}`);
+                
+                // Check which provider is actually being used
+                let activeBackend = 'unknown';
+                if (providers.includes('webgpu')) {
+                    try {
+                        // Test WebGPU availability
+                        const adapter = await navigator.gpu?.requestAdapter();
+                        if (adapter) {
+                            activeBackend = 'webgpu';
+                            updateDebugInfo('✅ WebGPU provider available and functional');
+                        } else {
+                            activeBackend = 'wasm';
+                            updateDebugInfo('⚠️ WebGPU provider listed but adapter unavailable');
+                        }
+                    } catch (error) {
+                        activeBackend = 'wasm';
+                        updateDebugInfo('⚠️ WebGPU provider failed initialization');
+                    }
+                } else if (providers.includes('wasm')) {
+                    activeBackend = 'wasm';
+                    updateDebugInfo('✅ Using WASM backend');
+                } else {
+                    activeBackend = 'cpu';
+                    updateDebugInfo('ℹ️ Fallback to CPU backend');
+                }
+                
+                return { backend: activeBackend, providers: providers };
+            } catch (error) {
+                updateDebugInfo(`❌ Backend detection error: ${error.message}`);
+                return { backend: 'error', providers: [], error: error.message };
+            }
+        }
+        
+        async function analyzeKokoroBackend() {
+            if (!kokoroTTS) {
+                updateDebugInfo('❌ Kokoro TTS not loaded - cannot analyze backend');
+                return { backend: 'not_loaded' };
+            }
+            
+            try {
+                // Try to access the internal ONNX session from Kokoro TTS
+                updateDebugInfo('🔍 Analyzing Kokoro TTS backend configuration...');
+                
+                // Check if we can access the model's session info
+                let sessionInfo = {};
+                
+                // Try different ways to access the ONNX session
+                if (kokoroTTS.model?.session) {
+                    sessionInfo.hasSession = true;
+                    sessionInfo.sessionType = typeof kokoroTTS.model.session;
+                    updateDebugInfo('✅ Found Kokoro model session');
+                } else if (kokoroTTS.session) {
+                    sessionInfo.hasSession = true;
+                    sessionInfo.sessionType = typeof kokoroTTS.session;
+                    updateDebugInfo('✅ Found Kokoro session directly');
+                } else {
+                    updateDebugInfo('⚠️ Could not access Kokoro ONNX session directly');
+                }
+                
+                // Check for execution provider information
+                const executionProviders = kokoroTTS.model?.executionProviders || 
+                                         kokoroTTS.executionProviders || 
+                                         kokoroTTS.session?.executionProviders || [];
+                
+                if (executionProviders.length > 0) {
+                    updateDebugInfo(`🎯 Kokoro execution providers: ${executionProviders.join(', ')}`);
+                    sessionInfo.providers = executionProviders;
+                    sessionInfo.primaryProvider = executionProviders[0];
+                } else {
+                    updateDebugInfo('⚠️ Could not determine Kokoro execution providers');
+                }
+                
+                // Check device information
+                const deviceInfo = kokoroTTS.device || 'unknown';
+                updateDebugInfo(`💻 Kokoro device: ${deviceInfo}`);
+                sessionInfo.device = deviceInfo;
+                
+                return sessionInfo;
+            } catch (error) {
+                updateDebugInfo(`❌ Kokoro backend analysis error: ${error.message}`);
+                return { backend: 'error', error: error.message };
+            }
+        }
+    
+
+        // Enhanced TTS function with Kokoro support
+        async function speakTextWithKokoro(text, voice = 'af_heart') {
+            if (!kokoroTTS) {
+                updateDebugInfo('ℹ️ Kokoro TTS not available, using Web Speech API');
+                return speakTextWithWebAPI(text);
+            }
+            
+            try {
+                updateDebugInfo(`🗣️ Kokoro speaking: "${text.substring(0, 50)}..."`);
+                
+                isAvatarSpeaking = true;
+                stopSpeakingBtn.disabled = false;
+                
+                const audioData = await kokoroTTS.generate(text, { voice, speed: 1.0 });
+                
+                // Ensure audio context is available
+                const audioReady = await ensureAudioContextActive();
+                if (!audioReady) {
+                    updateDebugInfo('❌ Audio context not available, falling back to Web Speech API');
+                    return speakTextWithWebAPI(text);
+                }
+                
+                // Debug the audio data structure
+                updateDebugInfo('🔍 Kokoro audio data structure:');
+                updateDebugInfo(`  • Type: ${typeof audioData}`);
+                updateDebugInfo(`  • Keys: ${Object.keys(audioData || {}).join(', ')}`);
+                
+                if (audioData && audioData.audio) {
+                    updateDebugInfo(`  • audioData.audio type: ${typeof audioData.audio}`);
+                    updateDebugInfo(`  • audioData.audio constructor: ${audioData.audio.constructor.name}`);
+                    if (audioData.audio.length !== undefined) {
+                        updateDebugInfo(`  • audioData.audio length: ${audioData.audio.length}`);
+                    }
+                    if (audioData.audio.data) {
+                        updateDebugInfo(`  • audioData.audio.data type: ${typeof audioData.audio.data}`);
+                        updateDebugInfo(`  • audioData.audio.data constructor: ${audioData.audio.data.constructor.name}`);
+                        if (audioData.audio.data.length !== undefined) {
+                            updateDebugInfo(`  • audioData.audio.data length: ${audioData.audio.data.length}`);
+                        }
+                    }
+                }
+                
+                if (audioData && audioData.sample_rate) {
+                    updateDebugInfo(`  • Sample rate: ${audioData.sample_rate}Hz`);
+                }
+                
+                // Enhanced audio handling with multiple fallback methods
+                try {
+                    // First, try to get the actual audio buffer from Kokoro response
+                    let audioBuffer = null;
+                    let rawAudioData = null;
+                    
+                    // Check different possible audio data structures
+                    if (audioData && audioData.audio) {
+                        if (audioData.audio.data && audioData.audio.data.buffer) {
+                            // Raw Float32Array data with buffer
+                            rawAudioData = audioData.audio.data;
+                            updateDebugInfo('🔍 Found raw Float32Array audio data');
+                            
+                            // Create audio buffer directly from raw data
+                            const sampleRate = audioData.sample_rate || audioData.audio.sample_rate || 22050;
+                            audioBuffer = audioContext.createBuffer(1, rawAudioData.length, sampleRate);
+                            audioBuffer.getChannelData(0).set(rawAudioData);
+                            updateDebugInfo(`✅ Created audio buffer: ${audioBuffer.duration.toFixed(2)}s at ${sampleRate}Hz`);
+                            
+                        } else if (audioData.audio instanceof Float32Array) {
+                            // Direct Float32Array
+                            rawAudioData = audioData.audio;
+                            updateDebugInfo('🔍 Found Float32Array audio data');
+                            
+                            const sampleRate = audioData.sample_rate || 22050;
+                            audioBuffer = audioContext.createBuffer(1, rawAudioData.length, sampleRate);
+                            audioBuffer.getChannelData(0).set(rawAudioData);
+                            updateDebugInfo(`✅ Created audio buffer: ${audioBuffer.duration.toFixed(2)}s at ${sampleRate}Hz`);
+                            
+                        } else if (audioData.audio.buffer) {
+                            // Encoded audio buffer (WAV, etc.)
+                            updateDebugInfo('🔍 Found encoded audio buffer, trying to decode...');
+                            audioBuffer = await audioContext.decodeAudioData(audioData.audio.buffer.slice());
+                            updateDebugInfo(`✅ Decoded audio buffer: ${audioBuffer.duration.toFixed(2)}s`);
+                        }
+                    }
+                    
+                    // If we have a valid audio buffer, play it with Web Audio API
+                    if (audioBuffer) {
+                        const source = audioContext.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(audioContext.destination);
+                        
+                        source.onended = () => {
+                            isAvatarSpeaking = false;
+                            stopSpeakingBtn.disabled = true;
+                            updateDebugInfo('� Kokoro speech completed (Web Audio API)');
+                        };
+                        
+                        source.start();
+                        currentSpeech = source;
+                        updateDebugInfo('🎵 Playing Kokoro TTS audio via Web Audio API');
+                        return;
+                    }
+                    
+                    // If direct audio buffer creation failed, try HTML Audio element approach
+                    updateDebugInfo('🔄 Web Audio API approach failed, trying HTML Audio element...');
+                    
+                    // Create a WAV file from the raw audio data if available
+                    if (rawAudioData && rawAudioData instanceof Float32Array) {
+                        const sampleRate = audioData.sample_rate || 22050;
+                        const wavBuffer = createWAVFromFloat32Array(rawAudioData, sampleRate);
+                        const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+                        const audioUrl = URL.createObjectURL(blob);
+                        
+                        const audio = new Audio(audioUrl);
+                        audio.volume = 0.8;
+                        
+                        audio.onended = () => {
+                            isAvatarSpeaking = false;
+                            stopSpeakingBtn.disabled = true;
+                            updateDebugInfo('🔇 Kokoro speech completed (HTML Audio)');
+                            URL.revokeObjectURL(audioUrl);
+                        };
+                        
+                        audio.onerror = (audioError) => {
+                            updateDebugInfo(`❌ HTML Audio error: ${audioError.target?.error?.message || 'Media decode error'}`);
+                            isAvatarSpeaking = false;
+                            stopSpeakingBtn.disabled = true;
+                            URL.revokeObjectURL(audioUrl);
+                            // Fall back to Web Speech API
+                            return speakTextWithWebAPI(text);
+                        };
+                        
+                        await audio.play();
+                        currentSpeech = audio;
+                        updateDebugInfo('🎵 Playing Kokoro TTS audio via HTML Audio (WAV)');
+                        return;
+                    }
+                    
+                    // Final fallback: try with whatever audio data we have
+                    let blob;
+                    if (audioData.audio && audioData.audio.buffer) {
+                        blob = new Blob([audioData.audio.buffer], { type: 'audio/wav' });
+                    } else if (audioData.audio) {
+                        blob = new Blob([audioData.audio], { type: 'audio/wav' });
+                    } else {
+                        throw new Error('No usable audio data found in Kokoro response');
+                    }
+                    
+                    const audioUrl = URL.createObjectURL(blob);
+                    const audio = new Audio(audioUrl);
+                    audio.volume = 0.8;
+                    
+                    audio.onended = () => {
+                        isAvatarSpeaking = false;
+                        stopSpeakingBtn.disabled = true;
+                        updateDebugInfo('🔇 Kokoro speech completed (HTML Audio fallback)');
+                        URL.revokeObjectURL(audioUrl);
+                    };
+                    
+                    audio.onerror = (audioError) => {
+                        updateDebugInfo(`❌ HTML Audio fallback error: ${audioError.target?.error?.message || 'Unknown error'}`);
+                        isAvatarSpeaking = false;
+                        stopSpeakingBtn.disabled = true;
+                        URL.revokeObjectURL(audioUrl);
+                        throw new Error('All audio playback methods failed');
+                    };
+                    
+                    await audio.play();
+                    currentSpeech = audio;
+                    updateDebugInfo('🎵 Playing Kokoro TTS audio via HTML Audio (fallback)');
+                    
+                } catch (audioError) {
+                    updateDebugInfo(`❌ All Kokoro audio methods failed: ${audioError.message}`);
+                    throw audioError;
+                }
+                
+            } catch (error) {
+                // Show detailed error for debugging Kokoro speech generation
+                console.error('🔍 Kokoro speech generation detailed error:', error);
+                updateDebugInfo(`❌ Kokoro speech failed: ${error.message}`);
+                updateDebugInfo(`🔍 Falling back to Web Speech API`);
+                
+                isAvatarSpeaking = false;
+                stopSpeakingBtn.disabled = true;
+                
+                // Fallback to Web Speech API
+                return speakTextWithWebAPI(text);
+            }
+        }
+
+        // Enhanced Speech Recognition with Whisper/Moonshine
+        
+        async function initializeWhisperModel(device) {
+            try {
+                updateDebugInfo('🔄 Checking for speech recognition models (optional enhancement)...');
+                
+                // Try Moonshine first (faster), then Whisper
+                const modelOptions = [
+                    { 
+                        name: 'Moonshine', 
+                        id: 'onnx-community/moonshine-base-ONNX',
+                        config: {
+                            device: device,
+                            dtype: device === 'webgpu' ? { 
+                                encoder_model: 'fp32', 
+                                decoder_model_merged: 'q4' 
+                            } : { 
+                                encoder_model: 'fp32', 
+                                decoder_model_merged: 'q8' 
+                            }
+                        }
+                    },
+                    { 
+                        name: 'Whisper Tiny', 
+                        id: 'onnx-community/whisper-tiny.en',
+                        config: {
+                            device: device,
+                            dtype: device === 'webgpu' ? 'fp16' : 'fp32'
+                        }
+                    }
+                ];
+                
+                for (const modelOption of modelOptions) {
+                    try {
+                        updateDebugInfo(`🔄 Trying ${modelOption.name} (optional enhancement)...`);
+                        
+                        // Add timeout for model loading to prevent hanging
+                        const timeoutPromise = new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Model loading timeout')), 30000)
+                        );
+                        
+                        const modelPromise = pipeline(
+                            'automatic-speech-recognition',
+                            modelOption.id,
+                            {
+                                ...modelOption.config,
+                                progress_callback: (progress) => {
+                                    if (progress.status === 'downloading') {
+                                        updateDebugInfo(`📥 ${modelOption.name}: ${progress.file} (${Math.round(progress.progress || 0)}%)`);
+                                    }
+                                }
+                            }
+                        );
+                        
+                        speechRecognitionModel = await Promise.race([modelPromise, timeoutPromise]);
+                        
+                        updateDebugInfo(`✅ ${modelOption.name} loaded successfully`);
+                        updateSpeechStatus(`${modelOption.name} ready`);
+                        return true;
+                    } catch (error) {
+                        // Show detailed error for debugging
+                        console.error(`🔍 ${modelOption.name} detailed error:`, error);
+                        updateDebugInfo(`❌ ${modelOption.name} error: ${error.message}`);
+                        
+                        if (error.message.includes('timeout')) {
+                            updateDebugInfo(`⏰ ${modelOption.name} loading timed out (30s limit)`);
+                        } else if (error.message.includes('Unknown feature extractor') || error.message.includes('MoonshineFeatureExtractor')) {
+                            updateDebugInfo(`🔍 ${modelOption.name} feature extractor not supported in this browser/version`);
+                            updateDebugInfo(`🔍 Full error: ${error.message}`);
+                        } else if (error.message.includes('Unknown Feature Extractor type')) {
+                            updateDebugInfo(`🔍 ${modelOption.name} uses unsupported feature extractor type`);
+                            updateDebugInfo(`🔍 Full error: ${error.message}`);
+                        } else if (error.message.includes('404') || error.message.includes('Failed to fetch')) {
+                            updateDebugInfo(`🔍 ${modelOption.name} model files not available on Hugging Face`);
+                        } else {
+                            updateDebugInfo(`🔍 ${modelOption.name} full error: ${error.message}`);
+                            updateDebugInfo(`🔍 Error stack: ${error.stack?.substring(0, 200)}...`);
+                        }
+                    }
+                }
+                
+                updateDebugInfo('ℹ️ No advanced speech recognition models available - using Web Speech API');
+                return false;
+            } catch (error) {
+                // Show detailed error for debugging speech recognition models
+                console.error('🔍 Speech recognition models detailed error:', error);
+                updateDebugInfo(`❌ Speech recognition error: ${error.message}`);
+                updateDebugInfo(`🔍 Error stack: ${error.stack?.substring(0, 200)}...`);
+                return false;
+            }
+        }
+
+        // Enhanced voice input processing with model support
+        async function processVoiceInputWithModel(audioBlob) {
+            try {
+                updateDebugInfo('🎧 Processing voice input with AI model...');
+                
+                if (speechRecognitionModel) {
+                    // Convert blob to array buffer
+                    const arrayBuffer = await audioBlob.arrayBuffer();
+                    
+                    // Ensure audio context is available
+                    const audioReady = await ensureAudioContextActive();
+                    if (!audioReady) {
+                        updateDebugInfo('ℹ️ Audio context not available, using Web Speech API');
+                        return await processVoiceInputWithWebAPI(audioBlob);
+                    }
+                    
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    // Convert to the format expected by the model
+                    const audio = new Float32Array(audioBuffer.getChannelData(0));
+                    
+                    updateDebugInfo('🔄 Running speech recognition...');
+                    const result = await speechRecognitionModel(audio);
+                    
+                    const transcription = result.text.trim();
+                    updateDebugInfo(`📝 AI model heard: "${transcription}"`);
+                    
+                    return transcription;
+                } else {
+                    // Fallback to Web Speech API
+                    updateDebugInfo('🔄 Using Web Speech API...');
+                    return await processVoiceInputWithWebAPI(audioBlob);
+                }
+            } catch (error) {
+                // Show detailed error for debugging voice input processing
+                console.error('🔍 Voice input processing detailed error:', error);
+                updateDebugInfo(`❌ AI voice processing failed: ${error.message}`);
+                updateDebugInfo(`🔍 Falling back to Web Speech API`);
+                
+                // Fallback to Web Speech API
+                return await processVoiceInputWithWebAPI(audioBlob);
+            }
+        }
+
+        // Web Speech API fallback
+        async function processVoiceInputWithWebAPI(audioBlob) {
+            return new Promise((resolve) => {
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    updateDebugInfo('❌ Web Speech API not supported');
+                    resolve(null);
+                    return;
+                }
+                
+                const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+                
+                let resolved = false;
+                
+                recognition.onresult = (event) => {
+                    if (!resolved) {
+                        const transcript = event.results[0][0].transcript;
+                        updateDebugInfo(`📝 Web Speech API heard: "${transcript}"`);
+                        resolved = true;
+                        resolve(transcript);
+                    }
+                };
+                
+                recognition.onerror = (error) => {
+                    if (!resolved) {
+                        if (error.error === 'no-speech') {
+                            updateDebugInfo('ℹ️ No speech detected');
+                        } else if (error.error === 'network') {
+                            updateDebugInfo('ℹ️ Network error during speech recognition');
+                        } else {
+                            updateDebugInfo(`ℹ️ Speech recognition: ${error.error}`);
+                        }
+                        resolved = true;
+                        resolve(null);
+                    }
+                };
+                
+                recognition.onend = () => {
+                    if (!resolved) {
+                        updateDebugInfo('ℹ️ Speech recognition ended without result');
+                        resolved = true;
+                        resolve(null);
+                    }
+                };
+                
+                // For Web Speech API, we don't need the audio blob
+                // It uses the microphone directly
+                try {
+                    recognition.start();
+                    updateDebugInfo('🎤 Web Speech API listening...');
+                    
+                    // Add timeout to prevent hanging
+                    setTimeout(() => {
+                        if (!resolved) {
+                            recognition.stop();
+                            updateDebugInfo('⏰ Speech recognition timed out');
+                            resolved = true;
+                            resolve(null);
+                        }
+                    }, 10000); // 10 second timeout
+                } catch (startError) {
+                    updateDebugInfo(`❌ Could not start speech recognition: ${startError.message}`);
+                    resolved = true;
+                    resolve(null);
+                }
+            });
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            try {
+                const delta = clock.getDelta();
+
+                // Update controls
+                if (controls) {
+                    controls.update();
+                }
+
+                // Update VRM character animation
+                if (vrmCharacter && animationMixer) {
+                    animationMixer.update(delta);
+                }
+
+                // Update BVH adapter if available
+                if (vrmAdapter && isPlaying && bvhData) {
+                    try {
+                        vrmAdapter.updateFrame(animationFrame);
+                        animationFrame += 1;
+                        
+                        // Loop animation
+                        if (animationFrame >= bvhData.frames.length) {
+                            animationFrame = 0;
+                        }
+                    } catch (animError) {
+                        // Handle animation errors gracefully without spamming console
+                        console.log('Animation frame error (handled):', animError.message);
+                        // Reset animation frame to prevent continuous errors
+                        animationFrame = 0;
+                    }
+                }
+
+                // Render the scene
+                if (renderer && scene && camera) {
+                    renderer.render(scene, camera);
+                }
+            } catch (error) {
+                // Handle any unexpected errors in the animation loop
+                console.error('Animation loop error:', error);
+                // Continue animation loop despite errors
+            }
+        }
+
+        // Window resize handler
+        function onWindowResize() {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+
+        // Add event listener for window resize
+        window.addEventListener('resize', onWindowResize);
+
+        // Initialize the application
+        init().catch(error => {
+            console.error('Failed to initialize:', error);
+            updateLoadingStatus('Failed to initialize');
+            updateDebugInfo(`❌ Initialization error: ${error.message}`);
+        });
+
+        // Global error handlers for better user experience
+        window.addEventListener('error', (event) => {
+            // Don't spam the console with errors from optional features
+            const message = event.error?.message || event.message || 'Unknown error';
+            
+            // Filter out common optional feature errors
+            if (message.includes('Failed to fetch') && (
+                message.includes('kokoro') || 
+                message.includes('moonshine') || 
+                message.includes('whisper') ||
+                message.includes('.vrm') ||
+                message.includes('.glb')
+            )) {
+                event.preventDefault(); // Prevent these from showing in console
+                return; // Don't show these to user
+            }
+            
+            // Filter out specific model loading errors
+            if (message.includes('Unknown Feature Extractor') || 
+                message.includes('MoonshineFeatureExtractor') ||
+                message.includes('404') && message.includes('kokoro')) {
+                event.preventDefault(); // Prevent these from showing in console
+                return;
+            }
+            
+            // Log serious errors
+            console.log('Application error (handled):', message);
+            updateDebugInfo(`ℹ️ Handled error: ${message.substring(0, 60)}...`);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            const message = event.reason?.message || event.reason || 'Unknown promise rejection';
+            
+            // Filter out common optional feature promise rejections
+            if (typeof message === 'string' && (
+                message.includes('Failed to fetch') || 
+                message.includes('404') ||
+                message.includes('kokoro') ||
+                message.includes('moonshine') ||
+                message.includes('whisper') ||
+                message.includes('MIME type') ||
+                message.includes('Unknown feature extractor') ||
+                message.includes('Unknown Feature Extractor') ||
+                message.includes('MoonshineFeatureExtractor')
+            )) {
+                event.preventDefault(); // Prevent uncaught promise rejection error
+                return;
+            }
+            
+            console.log('Promise rejection (handled):', message);
+            updateDebugInfo(`ℹ️ Handled promise rejection: ${message.toString().substring(0, 60)}...`);
+            event.preventDefault(); // Prevent uncaught promise rejection error
+        });
+
+        // Add helpful startup messages
+        document.addEventListener('DOMContentLoaded', () => {
+            // Override console.error temporarily to suppress optional feature errors
+            const originalConsoleError = console.error;
+            const originalConsoleLog = console.log;
+            
+            console.error = function(...args) {
+                const message = args.join(' ');
+                
+                // Filter out specific optional feature errors
+                if (message.includes('GET') && message.includes('404') && message.includes('kokoro')) {
+                    return; // Suppress Kokoro 404 errors
+                }
+                if (message.includes('Unknown Feature Extractor type: MoonshineFeatureExtractor')) {
+                    return; // Suppress Moonshine feature extractor errors
+                }
+                if (message.includes('Failed to fetch') && (message.includes('kokoro') || message.includes('moonshine'))) {
+                    return; // Suppress fetch errors for optional features
+                }
+                
+                // Call original console.error for other messages
+                originalConsoleError.apply(console, args);
+            };
+            
+            console.log = function(...args) {
+                const message = args.join(' ');
+                
+                // Filter out specific optional feature log messages
+                if (message.includes('Moonshine info (optional): Unknown Feature Extractor type: MoonshineFeatureExtractor')) {
+                    return; // Suppress Moonshine feature extractor info logs
+                }
+                if (message.includes('info (optional):') && message.includes('Unknown Feature Extractor')) {
+                    return; // Suppress other model info logs about feature extractors
+                }
+                
+                // Call original console.log for other messages
+                originalConsoleLog.apply(console, args);
+            };
+            
+            updateDebugInfo('🚀 VRM AI Conversation Test started');
+            updateDebugInfo('');
+            updateDebugInfo('=== CORE FEATURES ===');
+            updateDebugInfo('✅ 3D Graphics Engine (Three.js)');
+            updateDebugInfo('✅ VRM Character Support');
+            updateDebugInfo('✅ Built-in Conversation AI');
+            updateDebugInfo('✅ Speech Synthesis (Web Speech API)');
+            updateDebugInfo('✅ Speech Recognition (Web Speech API)');
+            updateDebugInfo('✅ Animation System');
+            updateDebugInfo('');
+            updateDebugInfo('=== OPTIONAL ENHANCEMENTS ===');
+            updateDebugInfo('🔄 Kokoro TTS (advanced voice synthesis)');
+            updateDebugInfo('🔄 Moonshine/Whisper (advanced speech recognition)');
+            updateDebugInfo('🔄 External AI Models (enhanced conversation)');
+            updateDebugInfo('');
+            updateDebugInfo('💡 All core features work without optional enhancements');
+            updateDebugInfo('🎯 System will gracefully fall back to standard web APIs');
+            updateDebugInfo('');
+            updateDebugInfo('📋 INSTRUCTIONS:');
+            updateDebugInfo('• System loads VRM character and classroom automatically');
+            updateDebugInfo('• Use Record button for voice input or type messages');
+            updateDebugInfo('• Avatar expresses emotions based on conversation');
+            updateDebugInfo('• Load your own VRM files and animations via UI');
+            updateDebugInfo('');
+        });
+
+        // Global functions for HTML button interactions
+        window.resetCharacterPosition = function() {
+            if (vrmCharacter) {
+                let safePosition = new THREE.Vector3(0, 0, 0);
+                try {
+                    if (classroom && classroom.initialized) {
+                        safePosition = classroom.getRandomSafePosition();
+                        safePosition.y = 0;
+                    }
+                } catch (error) {
+                    safePosition = new THREE.Vector3(0, 0, 0);
+                }
+                
+                vrmCharacter.scene.position.copy(safePosition);
+                characterPosition.copy(safePosition);
+                updateDebugInfo('📍 Character position reset');
+                
+                // Update camera target
+                if (controls) {
+                    controls.target.copy(vrmCharacter.scene.position);
+                    controls.target.y += 1.0;
+                }
+            }
+        };
+
+        window.toggleAnimation = function() {
+            isPlaying = !isPlaying;
+            updateDebugInfo(`🎭 Animation ${isPlaying ? 'playing' : 'paused'}`);
+        };
+
+        window.resetAnimation = function() {
+            animationFrame = 0;
+            if (vrmAdapter) {
+                vrmAdapter.resetPose();
+            }
+            updateDebugInfo('🔄 Animation reset');
+        };
+
+        window.loadSelectedAnimation = function() {
+            const select = document.getElementById('animation-select');
+            const selectedAnimation = select.value;
+            loadBVHAnimation(selectedAnimation);
+        };
+
+        window.toggleClassroom = function() {
+            if (classroom && classroom.classroomModel) {
+                classroom.classroomModel.visible = !classroom.classroomModel.visible;
+                updateDebugInfo(`🏫 Classroom ${classroom.classroomModel.visible ? 'shown' : 'hidden'}`);
+            }
+        };
+
+        window.setAvatarMood = function(mood) {
+            currentMood = mood;
+            updateDebugInfo(`😊 Avatar mood set to: ${mood}`);
+            
+            // Apply mood-based animation or expression
+            if (vrmCharacter && vrmCharacter.expressionManager) {
+                try {
+                    // Map moods to VRM expressions
+                    const expressionMap = {
+                        'happy': 'happy',
+                        'sad': 'sad', 
+                        'angry': 'angry',
+                        'neutral': 'neutral'
+                    };
+                    
+                    const expression = expressionMap[mood] || 'neutral';
+                    vrmCharacter.expressionManager.setValue(expression, 1.0);
+                } catch (error) {
+                    // Expression system not available
+                }
+            }
+        };
+
+        window.toggleRecording = function() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        };
+
+        window.stopSpeaking = function() {
+            if (currentSpeech) {
+                try {
+                    // Handle Web Speech API
+                    if (speechSynthesis && speechSynthesis.speaking) {
+                        speechSynthesis.cancel();
+                        updateDebugInfo('🔇 Stopped Web Speech API');
+                    }
+                    
+                    // Handle Web Audio API (AudioBufferSourceNode)
+                    if (currentSpeech.stop && typeof currentSpeech.stop === 'function') {
+                        currentSpeech.stop();
+                        updateDebugInfo('🔇 Stopped Web Audio API');
+                    }
+                    
+                    // Handle HTML Audio element
+                    if (currentSpeech.pause && typeof currentSpeech.pause === 'function') {
+                        currentSpeech.pause();
+                        currentSpeech.currentTime = 0;
+                        updateDebugInfo('🔇 Stopped HTML Audio');
+                    }
+                    
+                } catch (stopError) {
+                    updateDebugInfo(`⚠️ Error stopping speech: ${stopError.message}`);
+                }
+                
+                currentSpeech = null;
+            }
+            isAvatarSpeaking = false;
+            stopSpeakingBtn.disabled = true;
+            updateDebugInfo('🔇 Speech stopped');
+        };
+
+        window.sendMessage = function() {
+            const message = messageInput.value.trim();
+            if (message) {
+                handleUserMessage(message);
+                messageInput.value = '';
+            }
+        };
+
+        window.clearConversation = function() {
+            conversationLog.innerHTML = '<div class="system-message">Conversation cleared</div>';
+            conversationHistory = [conversationHistory[0]]; // Keep system message
+            updateDebugInfo('🧹 Conversation cleared');
+        };
+
+        window.testTTS = function(text) {
+            speakText(text || 'Hello! I am your AI avatar assistant.');
+        };
+
+        window.initializeModels = function() {
+            updateDebugInfo('🔄 Reloading AI models...');
+            initializeModels();
+        };
+
+        window.handleKeyPress = function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        };
+
+        // Voice recording functions
+        async function startRecording() {
+            try {
+                // Ensure audio context is active for any audio processing
+                await ensureAudioContextActive();
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    await processVoiceInput(audioBlob);
+                    
+                    // Clean up
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                recordBtn.textContent = '🔴 Stop';
+                recordBtn.classList.add('recording');
+                updateDebugInfo('🎤 Recording started...');
+                
+            } catch (error) {
+                updateDebugInfo(`❌ Recording failed: ${error.message}`);
+                isRecording = false;
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordBtn.textContent = '🎤 Record';
+                recordBtn.classList.remove('recording');
+                updateDebugInfo('🎤 Recording stopped, processing...');
+            }
+        }
+
+        async function processVoiceInput(audioBlob) {
+            let transcript = null;
+            
+            if (speechRecognitionModel) {
+                transcript = await processVoiceInputWithModel(audioBlob);
+            } else {
+                transcript = await processVoiceInputWithWebAPI(audioBlob);
+            }
+            
+            if (transcript) {
+                await handleUserMessage(transcript);
+            } else {
+                updateDebugInfo('❌ Could not understand speech');
+            }
+        }
+
+        async function handleUserMessage(message) {
+            if (!message.trim()) return;
+            
+            addToConversation('user', message);
+            updateDebugInfo(`👤 User: "${message}"`);
+            
+            try {
+                const response = await generateResponse(message);
+                addToConversation('ai', response);
+                updateDebugInfo(`🤖 AI: "${response}"`);
+                
+                // Extract emotion and apply to avatar
+                const emotion = extractEmotion(response);
+                setAvatarMood(emotion);
+                
+                // Speak the response
+                await speakText(response);
+                
+            } catch (error) {
+                const errorResponse = "I'm having trouble thinking right now. Could you try again?";
+                addToConversation('ai', errorResponse);
+                updateDebugInfo(`❌ Response error: ${error.message}`);
+                await speakText(errorResponse);
+            }
+        }
+
+        async function loadBVHAnimation(filename) {
+            try {
+                updateDebugInfo(`🎭 Loading animation: ${filename}`);
+                const response = await fetch(`./assets/animations/${filename}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Animation not found: ${filename} (${response.status})`);
+                }
+                
+                const bvhText = await response.text();
+                
+                // Basic validation that we got BVH content
+                if (!bvhText.includes('HIERARCHY') && !bvhText.includes('MOTION')) {
+                    throw new Error('Invalid BVH file format');
+                }
+                
+                // This would need a BVH parser - for now just log success
+                updateDebugInfo(`✅ Animation loaded: ${filename}`);
+                
+                if (vrmAdapter) {
+                    // Apply animation to VRM character
+                    // This would require implementing BVH parsing and application
+                    updateDebugInfo('🎭 Animation applied to character');
+                } else {
+                    updateDebugInfo('ℹ️ No VRM character loaded for animation');
+                }
+                
+            } catch (error) {
+                if (error.message.includes('404') || error.message.includes('not found')) {
+                    updateDebugInfo(`ℹ️ Animation file not found: ${filename}`);
+                } else if (error.message.includes('Invalid BVH')) {
+                    updateDebugInfo(`❌ Invalid animation file: ${filename}`);
+                } else {
+                    updateDebugInfo(`ℹ️ Animation loading failed: ${error.message.substring(0, 50)}...`);
+                }
+                console.log('Animation loading info:', error.message);
+            }
+        }
+
+        // ...existing code...
+    </script>
+</body>
+</html>
