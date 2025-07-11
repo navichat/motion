@@ -20,143 +20,6 @@
             height: 100vh;
         }
         
-        #ui-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-            backdrop-filter: blur(10px);
-            z-index: 100;
-            max-width: 400px;
-        }
-        
-        .title {
-            color: #00d4ff;
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-        
-        .control-section {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .control-section h3 {
-            margin: 0 0 10px 0;
-            color: #64b5f6;
-            font-size: 14px;
-            text-transform: uppercase;
-        }
-        
-        .controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
-        }
-        
-        button {
-            background: linear-gradient(45deg, #00d4ff, #0084ff);
-            border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 12px;
-            transition: all 0.3s ease;
-        }
-        
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 212, 255, 0.3);
-        }
-        
-        button:disabled {
-            background: #666;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .success-button {
-            background: linear-gradient(45deg, #4caf50, #45a049) !important;
-        }
-        
-        .warning-button {
-            background: linear-gradient(45deg, #ff9800, #f57c00) !important;
-        }
-        
-        .danger-button {
-            background: linear-gradient(45deg, #f44336, #d32f2f) !important;
-        }
-        
-        select, input[type="range"] {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 4px;
-            color: white;
-            padding: 5px 8px;
-            font-size: 12px;
-        }
-        
-        .status {
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            color: #81c784;
-            margin-top: 10px;
-            font-family: 'Courier New', monospace;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-        
-        .error {
-            color: #f44336;
-        }
-        
-        .info-panel {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 10px;
-            backdrop-filter: blur(10px);
-            z-index: 100;
-        }
-        
-        #loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 1000;
-        }
-        
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #00d4ff;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
         
         @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -196,112 +59,6 @@
     </div>
     
     <div id="container">
-        <div id="ui-panel">
-            <div class="title">🏫 VRM Classroom Test</div>
-            
-            <div class="control-section">
-                <h3>🎭 Character Controls</h3>
-                <div class="controls">
-                    <input type="file" id="vrm-file" accept=".vrm" style="display: none;">
-                    <button onclick="document.getElementById('vrm-file').click()">Load VRM</button>
-                    <button onclick="resetCharacterPosition()">Reset Position</button>
-                    <button onclick="randomizePosition()">Random Position</button>
-                </div>
-                <div class="controls">
-                    <button onclick="toggleAnimation()">Play/Pause</button>
-                    <button onclick="resetAnimation()">Reset Animation</button>
-                    <button onclick="loadSelectedAnimation()">Load Animation</button>
-                </div>
-                <div class="controls">
-                    <select id="animation-select">
-                        <option value="neutral_reference.bvh">Neutral Reference</option>
-                        <option value="angry_reference.bvh">Angry Reference</option>
-                        <option value="elated_reference.bvh">Elated Reference</option>
-                        <option value="depressed_reference.bvh">Depressed Reference</option>
-                        <option value="proud_reference.bvh">Proud Reference</option>
-                        <option value="robot_reference.bvh">Robot Reference</option>
-                        <option value="rushed_reference.bvh">Rushed Reference</option>
-                        <option value="strutting_reference.bvh">Strutting Reference</option>
-                        <option value="neutral_walking.bvh">Neutral Walking</option>
-                        <option value="dramatic_walking.bvh">Dramatic Walking</option>
-                        <option value="emotional_journey_transitions.bvh">Emotional Journey</option>
-                        <option value="movement_energy_transitions.bvh">Movement Energy</option>
-                        <option value="character_styles_transitions.bvh">Character Styles</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="control-section">
-                <h3>🏫 Classroom Environment</h3>
-                <div class="controls">
-                    <input type="file" id="glb-file" accept=".glb,.gltf" style="display: none;">
-                    <button onclick="document.getElementById('glb-file').click()">Load GLB</button>
-                    <button onclick="toggleClassroom()">Toggle Classroom</button>
-                </div>
-                <div class="controls">
-                    <button onclick="toggleCollisionDebug()">Debug Collision</button>
-                    <button onclick="showCollisionBounds()">Show Bounds</button>
-                    <button onclick="testCollisionSystem()">Test Collision</button>
-                </div>
-            </div>
-            
-            <div class="control-section">
-                <h3>💡 Lighting Controls</h3>
-                <div class="controls">
-                    <button onclick="toggleLighting()">Toggle Lighting</button>
-                    <button onclick="adjustBrightness(1.5)">Brighter</button>
-                    <button onclick="adjustBrightness(0.7)">Dimmer</button>
-                    <button onclick="resetLighting()">Reset</button>
-                </div>
-                <div class="controls">
-                    <button onclick="setLightingPreset('studio')">Studio</button>
-                    <button onclick="setLightingPreset('dramatic')">Dramatic</button>
-                    <button onclick="setLightingPreset('soft')">Soft</button>
-                    <button onclick="analyzeLighting()">Analyze</button>
-                </div>
-            </div>
-            
-            <div class="control-section">
-                <h3>🎮 Movement Controls</h3>
-                <div class="controls">
-                    <button onclick="moveCharacter('forward')">Forward</button>
-                    <button onclick="moveCharacter('backward')">Backward</button>
-                    <button onclick="moveCharacter('left')">Left</button>
-                    <button onclick="moveCharacter('right')">Right</button>
-                </div>
-                <div style="margin-top: 10px;">
-                    <label>Move Speed: </label>
-                    <input type="range" id="move-speed" min="0.1" max="2.0" step="0.1" value="0.5" onchange="updateMoveSpeed()">
-                    <span id="speed-value">0.5</span>
-                </div>
-            </div>
-            
-            <div class="control-section">
-                <h3>📊 Debug Info</h3>
-                <div class="controls">
-                    <button onclick="debugCharacterPosition()">Log Position</button>
-                    <button onclick="debugCollisions()">Debug Collisions</button>
-                    <button onclick="fixHeadOrientation()">Fix Head Down</button>
-                    <button onclick="resetHeadToNeutral()">Reset Head</button>
-                </div>
-                
-                <div class="status" id="debug-info">
-                    Waiting for VRM character and classroom...
-                </div>
-            </div>
-        </div>
-        
-        <div class="info-panel">
-            <div id="scene-info">
-                <div><strong>Controls:</strong> Use WASD or arrow keys to move, mouse to look around</div>
-                <div><strong>Collision:</strong> Character will stop at walls and furniture</div>
-                <div><strong>Animation:</strong> Load BVH files to animate the character</div>
-            </div>
-        </div>
-        
-        <div class="collision-indicator" id="collision-indicator">
-            Collision Detected!
-        </div>
     </div>
 
     <!-- Import map for THREE.js modules -->
@@ -342,12 +99,6 @@
         let collisionDebug = false;
         let collisionBounds = [];
 
-        // UI elements
-        const loadingDiv = document.getElementById('loading');
-        const loadingStatus = document.getElementById('loading-status');
-        const debugInfo = document.getElementById('debug-info');
-        const collisionIndicator = document.getElementById('collision-indicator');
-
         // Make THREE and GLTFLoader global for classroom module
         window.THREE = THREE;
         window.GLTFLoader = GLTFLoader;
@@ -355,27 +106,24 @@
         // Animation clock
         const clock = new THREE.Clock();
 
+        // Function to send messages to the parent window (UI)
+        function sendMessageToParent(type, payload) {
+            if (window.parent) {
+                window.parent.postMessage({ type, ...payload }, '*');
+            }
+        }
+
         function updateLoadingStatus(message) {
             console.log('📝', message);
-            if (loadingStatus) {
-                loadingStatus.textContent = message;
-            }
+            sendMessageToParent('updateUI', { elementId: 'loading-status', content: message, append: false });
         }
 
         function updateDebugInfo(message) {
-            if (debugInfo) {
-                debugInfo.innerHTML += message + '<br>';
-                debugInfo.scrollTop = debugInfo.scrollHeight;
-            }
+            sendMessageToParent('updateUI', { elementId: 'debug-info', content: message, append: true });
         }
 
         function showCollisionIndicator() {
-            if (collisionIndicator) {
-                collisionIndicator.classList.add('show');
-                setTimeout(() => {
-                    collisionIndicator.classList.remove('show');
-                }, 1000);
-            }
+            sendMessageToParent('showCollisionIndicator');
         }
 
         async function init() {
@@ -421,9 +169,6 @@
             // Setup keyboard controls
             setupKeyboardControls();
             
-            // Setup file loader
-            setupFileLoader();
-            
             updateLoadingStatus('Ready!');
             
             // Start animation loop
@@ -431,13 +176,161 @@
             
             // Hide loading screen
             setTimeout(() => {
-                loadingDiv.style.display = 'none';
+                document.getElementById('loading').style.display = 'none';
             }, 500);
             
             updateDebugInfo('🏫 Classroom GLB loader initialized');
             updateDebugInfo('📝 Load a VRM file to begin testing');
             updateDebugInfo('🏗️ Add a classroom.glb file to load environment');
         }
+
+        // Expose functions to be called from the parent window (UI)
+        window.sceneAPI = {
+            loadVRMFile: async (file, filename) => {
+                updateLoadingStatus('Loading VRM file...');
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    await loadVRMFromArrayBuffer(arrayBuffer, filename);
+                } catch (error) {
+                    console.error('Failed to load VRM:', error);
+                    updateDebugInfo(`❌ Failed to load VRM: ${error.message}`);
+                }
+            },
+            loadGLBClassroomFile: async (file, filename) => {
+                updateLoadingStatus('Loading classroom GLB...');
+                try {
+                    const url = URL.createObjectURL(file);
+                    const success = await classroom.loadClassroomGLB(url);
+                    if (success) {
+                        const info = classroom.getClassroomInfo();
+                        updateDebugInfo(`✅ Classroom GLB loaded: ${filename}`);
+                        updateDebugInfo(`📊 Collision meshes: ${info.collisionMeshCount}`);
+                        updateDebugInfo(`📐 Floor bounds: ${JSON.stringify(info.floorBounds)}`);
+                        if (vrmCharacter) {
+                            const safePosition = classroom.getRandomSafePosition();
+                            safePosition.y = 0;
+                            vrmCharacter.scene.position.copy(safePosition);
+                            characterPosition.copy(safePosition);
+                            updateDebugInfo(`🎭 Character repositioned to safe location (on ground)`);
+                        }
+                        if (lightingManager && lightingManager.initialized) {
+                            lightingManager.optimizeForClassroom(classroom.classroomModel);
+                            updateDebugInfo('💡 Lighting optimized for classroom');
+                        }
+                    } else {
+                        updateDebugInfo(`❌ Failed to load classroom GLB: ${filename}`);
+                    }
+                    URL.revokeObjectURL(url);
+                } catch (error) {
+                    console.error('Failed to load classroom GLB:', error);
+                    updateDebugInfo(`❌ GLB loading error: ${error.message}`);
+                }
+            },
+            resetCharacterPosition: window.resetCharacterPosition,
+            randomizePosition: window.randomizePosition,
+            toggleAnimation: window.toggleAnimation,
+            resetAnimation: window.resetAnimation,
+            loadSelectedAnimation: async (value) => {
+                const filename = value;
+                try {
+                    const response = await fetch(`./${filename}`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const bvhText = await response.text();
+                    await loadBVHFromText(bvhText, filename);
+                } catch (error) {
+                    updateDebugInfo(`❌ Failed to load ${filename}: ${error.message}`);
+                }
+            },
+            toggleClassroom: window.toggleClassroom,
+            toggleCollisionDebug: window.toggleCollisionDebug,
+            showCollisionBounds: window.showCollisionBounds,
+            testCollisionSystem: window.testCollisionSystem,
+            toggleLighting: window.toggleLighting,
+            adjustBrightness: window.adjustBrightness,
+            setLightingPreset: window.setLightingPreset,
+            resetLighting: window.resetLighting,
+            analyzeLighting: window.analyzeLighting,
+            moveCharacter: window.moveCharacter,
+            updateMoveSpeed: (value) => {
+                moveSpeed = parseFloat(value);
+                updateDebugInfo(`🏃‍♂️ Move Speed: ${moveSpeed.toFixed(1)}`);
+            },
+            debugCharacterPosition: window.debugCharacterPosition,
+            debugCollisions: window.debugCollisions,
+            fixHeadOrientation: window.fixHeadOrientation,
+            resetHeadToNeutral: window.resetHeadToNeutral,
+
+            // New functions for VRMConversationInterface
+            setCharacterEmotion: (emotion, options) => {
+                if (!vrmCharacter || !vrmCharacter.expressionManager) {
+                    updateDebugInfo(`❌ Cannot set emotion: VRM character or expression manager not ready.`);
+                    return;
+                }
+                // Example: Set a specific emotion blend shape weight
+                // This is a placeholder and needs actual blend shape names from the VRM model
+                const emotionMap = {
+                    'happy': 'joy',
+                    'sad': 'sorrow',
+                    'angry': 'angry',
+                    'surprised': 'surprised',
+                    'neutral': 'neutral'
+                };
+                const vrmEmotion = emotionMap[emotion] || 'neutral';
+                vrmCharacter.expressionManager.setWeight(vrmEmotion, 1.0);
+                updateDebugInfo(`🎭 Set emotion: ${emotion}`);
+                // If temporary, reset after a delay
+                if (options && options.temporary) {
+                    setTimeout(() => {
+                        vrmCharacter.expressionManager.setWeight(vrmEmotion, 0.0);
+                        updateDebugInfo(`🎭 Reset emotion: ${emotion}`);
+                    }, options.duration || 1000);
+                }
+            },
+            addGestureToQueue: (gesture, options) => {
+                if (!vrmAdapter) {
+                    updateDebugInfo(`❌ Cannot play gesture: VRM adapter not ready.`);
+                    return;
+                }
+                // This is a placeholder. Actual gesture implementation depends on BVH/animation system.
+                updateDebugInfo(`🎬 Added gesture to queue: ${gesture} (implementation pending)`);
+                // Example: vrmAdapter.playGesture(gesture);
+            },
+            setCharacterPose: (pose) => {
+                if (!vrmAdapter) {
+                    updateDebugInfo(`❌ Cannot set pose: VRM adapter not ready.`);
+                    return;
+                }
+                // This is a placeholder. Actual pose implementation depends on BVH/animation system.
+                updateDebugInfo(`🧍 Set character pose: ${pose} (implementation pending)`);
+                if (pose === 'idle') {
+                    vrmAdapter.resetToTPose(); // Assuming idle means T-pose or similar neutral pose
+                }
+            },
+            setLightingManager: (manager) => {
+                lightingManager = manager;
+                updateDebugInfo(`💡 Lighting manager set by UI`);
+            }
+        };
+
+        // Listen for messages from the parent window (UI)
+        window.addEventListener('message', async (event) => {
+            if (event.data && event.data.type === 'callFunction') {
+                const { function: functionName, args } = event.data;
+                if (window.sceneAPI[functionName]) {
+                    if (args.file && args.filename) {
+                        // Handle file transfer
+                        await window.sceneAPI[functionName](args.file, args.filename);
+                    } else {
+                        await window.sceneAPI[functionName](...Object.values(args));
+                    }
+                } else {
+                    console.warn(`Function ${functionName} not found in sceneAPI.`);
+                }
+            } else if (event.data && event.data.type === 'vrmLoaded') {
+                // This message is sent from the scene to the parent, not received by the scene.
+                // This block should not be here.
+            }
+        });
 
         async function loadDefaultClassroom() {
             try {
@@ -599,36 +492,6 @@
             };
         }
 
-        function setupFileLoader() {
-            const vrmFileInput = document.getElementById('vrm-file');
-            vrmFileInput.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (file) {
-                    await loadVRMFile(file);
-                }
-            });
-            
-            const glbFileInput = document.getElementById('glb-file');
-            glbFileInput.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (file) {
-                    await loadGLBClassroomFile(file);
-                }
-            });
-        }
-
-        async function loadVRMFile(file) {
-            updateLoadingStatus('Loading VRM file...');
-            
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                await loadVRMFromArrayBuffer(arrayBuffer, file.name);
-            } catch (error) {
-                console.error('Failed to load VRM:', error);
-                updateDebugInfo(`❌ Failed to load VRM: ${error.message}`);
-            }
-        }
-
         async function loadVRMFromArrayBuffer(arrayBuffer, filename) {
             const loader = new GLTFLoader();
             loader.register((parser) => new VRMLoaderPlugin(parser));
@@ -677,6 +540,9 @@
             // Focus camera on character at ground level for full body view
             controls.target.copy(vrmCharacter.scene.position);
             controls.target.y += 1.0; // Target center area for full body visibility at ground level
+
+            // Notify parent that VRM is loaded and pass the character/adapter
+            sendMessageToParent('vrmLoaded', { vrmCharacter: vrmCharacter, vrmAdapter: vrmAdapter });
         }
 
         async function loadBVHFromText(bvhText, filename) {
@@ -757,48 +623,6 @@
             }
         }
 
-        async function loadGLBClassroomFile(file) {
-            updateLoadingStatus('Loading classroom GLB...');
-            
-            try {
-                // Create object URL for the uploaded file
-                const url = URL.createObjectURL(file);
-                
-                // Load the GLB file using the classroom loader
-                const success = await classroom.loadClassroomGLB(url);
-                
-                if (success) {
-                    const info = classroom.getClassroomInfo();
-                    updateDebugInfo(`✅ Classroom GLB loaded: ${file.name}`);
-                    updateDebugInfo(`📊 Collision meshes: ${info.collisionMeshCount}`);
-                    updateDebugInfo(`📐 Floor bounds: ${JSON.stringify(info.floorBounds)}`);
-                    
-                    // Reposition character to safe location if loaded (on ground level)
-                    if (vrmCharacter) {
-                        const safePosition = classroom.getRandomSafePosition();
-                        safePosition.y = 0; // Place character on ground level
-                        vrmCharacter.scene.position.copy(safePosition);
-                        characterPosition.copy(safePosition);
-                        updateDebugInfo(`🎭 Character repositioned to safe location (on ground)`);
-                    }
-                    
-                    // Optimize lighting for the classroom
-                    if (lightingManager && lightingManager.initialized) {
-                        lightingManager.optimizeForClassroom(classroom.classroomModel);
-                        updateDebugInfo('💡 Lighting optimized for classroom');
-                    }
-                } else {
-                    updateDebugInfo(`❌ Failed to load classroom GLB: ${file.name}`);
-                }
-                
-                // Clean up object URL
-                URL.revokeObjectURL(url);
-                
-            } catch (error) {
-                console.error('Failed to load classroom GLB:', error);
-                updateDebugInfo(`❌ GLB loading error: ${error.message}`);
-            }
-        }
 
         function moveCharacterWithCollision(movement) {
             if (!vrmCharacter) return;
@@ -837,19 +661,15 @@
             }
         }
 
-        // Global functions for UI controls
         window.resetCharacterPosition = function() {
             if (!vrmCharacter) return;
-            
-            let safePosition = new THREE.Vector3(0, 0, 0); // Default at ground level
+            let safePosition = new THREE.Vector3(0, 0, 0);
             if (classroom && classroom.initialized && classroom.getRandomSafePosition) {
                 safePosition = classroom.getRandomSafePosition();
-                safePosition.y = 0; // Place exactly on ground
+                safePosition.y = 0;
             }
-            
             vrmCharacter.scene.position.copy(safePosition);
             characterPosition.copy(safePosition);
-            
             updateDebugInfo(`🔄 Reset to: (${safePosition.x.toFixed(2)}, ${safePosition.y.toFixed(2)}, ${safePosition.z.toFixed(2)})`);
         };
 
@@ -859,25 +679,15 @@
 
         window.moveCharacter = function(direction) {
             if (!vrmCharacter) return;
-            
             const movement = new THREE.Vector3();
             const speed = moveSpeed * 0.1;
-            
             switch (direction) {
                 case 'forward': movement.z = -speed; break;
                 case 'backward': movement.z = speed; break;
                 case 'left': movement.x = -speed; break;
                 case 'right': movement.x = speed; break;
             }
-            
             moveCharacterWithCollision(movement);
-        };
-
-        window.updateMoveSpeed = function() {
-            const slider = document.getElementById('move-speed');
-            const speedValue = document.getElementById('speed-value');
-            moveSpeed = parseFloat(slider.value);
-            speedValue.textContent = moveSpeed.toFixed(1);
         };
 
         window.toggleClassroom = function() {
@@ -892,7 +702,6 @@
                 const isOn = lightingManager.toggleLighting();
                 updateDebugInfo(`💡 Lighting ${isOn ? 'brightened' : 'dimmed'}`);
             } else {
-                // Fallback for basic lighting
                 scene.traverse((object) => {
                     if (object.type === 'PointLight' || object.type === 'DirectionalLight') {
                         object.intensity = object.intensity > 0.5 ? 0.2 : 1.0;
@@ -915,8 +724,6 @@
             if (lightingManager && lightingManager.initialized) {
                 lightingManager.setPreset(preset);
                 updateDebugInfo(`🎨 Switched to ${preset} lighting preset`);
-                
-                // Re-optimize for current scene
                 if (vrmCharacter) {
                     lightingManager.optimizeForVRM(vrmCharacter);
                 }
@@ -944,14 +751,11 @@
                 updateDebugInfo(`  Lights: ${info.lightCount}`);
                 updateDebugInfo(`  Shadows: ${info.shadowsEnabled ? 'Enabled' : 'Disabled'}`);
                 updateDebugInfo(`  Exposure: ${info.toneMappingExposure.toFixed(2)}`);
-                
                 info.lights.forEach(light => {
                     if (light.position) {
                         updateDebugInfo(`  ${light.name}: ${light.type} (${light.intensity.toFixed(2)})`);
                     }
                 });
-                
-                // Also log to console for detailed view
                 lightingManager.analyzeLighting();
             } else {
                 updateDebugInfo('❌ Lighting manager not available');
@@ -960,28 +764,22 @@
 
         window.toggleCollisionDebug = function() {
             collisionDebug = !collisionDebug;
-            
             if (collisionDebug) {
                 showCollisionBounds();
             } else {
                 hideCollisionBounds();
             }
-            
             updateDebugInfo(`🔍 Collision debug ${collisionDebug ? 'enabled' : 'disabled'}`);
         };
 
         window.showCollisionBounds = function() {
-            // Remove existing bounds
             hideCollisionBounds();
-            
             if (!classroom || !classroom.collisionMeshes) return;
-            
             classroom.collisionMeshes.forEach((mesh) => {
                 if (mesh.userData.collision && mesh.userData.boundingBox) {
                     const box = mesh.userData.boundingBox;
                     const size = box.getSize(new THREE.Vector3());
                     const center = box.getCenter(new THREE.Vector3());
-                    
                     const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
                     const material = new THREE.MeshBasicMaterial({
                         color: 0xff0000,
@@ -989,16 +787,13 @@
                         transparent: true,
                         opacity: 0.5
                     });
-                    
                     const boundsMesh = new THREE.Mesh(geometry, material);
                     boundsMesh.position.copy(center);
                     boundsMesh.userData.isCollisionBounds = true;
-                    
                     scene.add(boundsMesh);
                     collisionBounds.push(boundsMesh);
                 }
             });
-            
             updateDebugInfo(`📦 Showing ${collisionBounds.length} collision bounds`);
         };
 
@@ -1012,22 +807,17 @@
                 updateDebugInfo('❌ No classroom loaded for collision testing');
                 return;
             }
-            
             if (!vrmCharacter) {
                 updateDebugInfo('❌ No VRM character loaded for collision testing');
                 return;
             }
-            
             updateDebugInfo('🧪 Testing collision system...');
-            
-            // Test multiple positions
             const testPositions = [
-                new THREE.Vector3(0, 0, 0),      // Center
-                new THREE.Vector3(3, 0, 3),      // Near furniture
-                new THREE.Vector3(-4, 0, -4),    // Near wall
-                new THREE.Vector3(10, 0, 10),    // Outside bounds
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(3, 0, 3),
+                new THREE.Vector3(-4, 0, -4),
+                new THREE.Vector3(10, 0, 10),
             ];
-            
             testPositions.forEach((pos, index) => {
                 const collision = classroom.checkCollision(pos);
                 if (collision) {
@@ -1043,10 +833,8 @@
                 updateDebugInfo('❌ No VRM character loaded');
                 return;
             }
-            
             const pos = vrmCharacter.scene.position;
             updateDebugInfo(`📍 Character: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})`);
-            
             if (classroom && classroom.checkCollision) {
                 const collision = classroom.checkCollision(pos);
                 if (collision) {
@@ -1064,14 +852,12 @@
                 updateDebugInfo('❌ No classroom loaded for collision debugging');
                 return;
             }
-            
             updateDebugInfo('🔍 Collision system status:');
             updateDebugInfo(`  Collision meshes: ${classroom.collisionMeshes.length}`);
             updateDebugInfo(`  Floor bounds: ${JSON.stringify(classroom.floorBounds || 'none')}`);
             updateDebugInfo(`  Wall bounds: ${classroom.wallBounds ? classroom.wallBounds.length : 0} walls`);
         };
 
-        // Animation controls
         window.toggleAnimation = function() {
             isPlaying = !isPlaying;
             updateDebugInfo(`🎬 Animation ${isPlaying ? 'playing' : 'paused'}`);
@@ -1085,25 +871,6 @@
             updateDebugInfo('⏮️ Animation reset');
         };
 
-        window.loadSelectedAnimation = function() {
-            const select = document.getElementById('animation-select');
-            const filename = select.value;
-            
-            // Try to load the selected BVH file
-            fetch(`./${filename}`)
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    return response.text();
-                })
-                .then(bvhText => {
-                    loadBVHFromText(bvhText, filename);
-                })
-                .catch(error => {
-                    updateDebugInfo(`❌ Failed to load ${filename}: ${error.message}`);
-                });
-        };
-
-        // Head orientation fixes (from VRMBVHAdapter)
         window.fixHeadOrientation = function() {
             if (vrmAdapter && vrmAdapter.fixHeadOrientation) {
                 vrmAdapter.fixHeadOrientation();

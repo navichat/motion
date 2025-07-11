@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Compatibility Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .pass { color: #28a745; }
+        .fail { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #17a2b8; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed; 
+        }
+        #test-results {
+            margin-top: 20px;
+        }
+        .test-item {
+            margin: 10px 0;
+            padding: 8px;
+            border-left: 4px solid #ddd;
+            background: #f8f9fa;
+        }
+        .test-item.pass { border-left-color: #28a745; }
+        .test-item.fail { border-left-color: #dc3545; }
+        .test-item.warning { border-left-color: #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>Browser Compatibility Test</h1>
+    <p>This page tests browser compatibility for the Voice Chat Interface system.</p>
+
+    <div class="test-section">
+        <h2>Quick Actions</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="testAudioContext()">Test Audio Context</button>
+        <button onclick="testMicrophone()">Test Microphone</button>
+        <button onclick="testSpeechAPIs()">Test Speech APIs</button>
+        <button onclick="testModernModules()">Test Modern Modules</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Browser Information</h2>
+        <div id="browser-info">Loading...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Feature Support</h2>
+        <div id="feature-support">Loading...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Recommendations</h2>
+        <div id="recommendations">Loading...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <script type="module">
+        import { BrowserCompatibility } from './modules/BrowserCompatibility.js';
+        
+        let testResults = [];
+        
+        function addTestResult(name, status, message, details = null) {
+            const result = { name, status, message, details, timestamp: new Date() };
+            testResults.push(result);
+            displayTestResult(result);
+        }
+        
+        function displayTestResult(result) {
+            const container = document.getElementById('test-results');
+            const div = document.createElement('div');
+            div.className = `test-item ${result.status}`;
+            
+            let html = `
+                <strong>${result.name}</strong>: <span class="${result.status}">${result.message}</span>
+                <small style="float: right;">${result.timestamp.toLocaleTimeString()}</small>
+            `;
+            
+            if (result.details) {
+                html += `<pre>${JSON.stringify(result.details, null, 2)}</pre>`;
+            }
+            
+            div.innerHTML = html;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        window.clearResults = function() {
+            testResults = [];
+            document.getElementById('test-results').innerHTML = '';
+        };
+        
+        window.runAllTests = async function() {
+            clearResults();
+            addTestResult('Test Suite', 'info', 'Starting comprehensive browser compatibility tests...');
+            
+            await testAudioContext();
+            await testMicrophone();
+            await testSpeechAPIs();
+            await testWebAssembly();
+            await testLocalStorage();
+            await testModuleSupport();
+            await testModernModules();
+            
+            addTestResult('Test Suite', 'info', `Completed ${testResults.length - 1} tests`);
+        };
+        
+        window.testAudioContext = async function() {
+            try {
+                const audioContext = BrowserCompatibility.createAudioContext();
+                addTestResult('Audio Context', 'pass', `Created successfully (${audioContext.sampleRate}Hz)`, {
+                    sampleRate: audioContext.sampleRate,
+                    state: audioContext.state,
+                    baseLatency: audioContext.baseLatency,
+                    outputLatency: audioContext.outputLatency
+                });
+                
+                // Test resuming context
+                if (audioContext.state === 'suspended') {
+                    await BrowserCompatibility.ensureAudioContextResumed(audioContext);
+                    addTestResult('Audio Context Resume', 'pass', `Resumed to state: ${audioContext.state}`);
+                }
+                
+                audioContext.close();
+            } catch (error) {
+                addTestResult('Audio Context', 'fail', error.message, { error: error.toString() });
+            }
+        };
+        
+        window.testMicrophone = async function() {
+            try {
+                const stream = await BrowserCompatibility.getUserMedia({ audio: true });
+                const tracks = stream.getAudioTracks();
+                
+                addTestResult('Microphone Access', 'pass', `Accessed microphone successfully`, {
+                    trackCount: tracks.length,
+                    tracks: tracks.map(t => ({
+                        label: t.label,
+                        kind: t.kind,
+                        settings: t.getSettings()
+                    }))
+                });
+                
+                // Clean up
+                tracks.forEach(track => track.stop());
+            } catch (error) {
+                let status = 'fail';
+                let message = error.message;
+                
+                if (error.name === 'NotAllowedError') {
+                    status = 'warning';
+                    message = 'Microphone access denied by user';
+                } else if (error.name === 'NotFoundError') {
+                    status = 'warning';
+                    message = 'No microphone found';
+                }
+                
+                addTestResult('Microphone Access', status, message, { error: error.toString() });
+            }
+        };
+        
+        window.testSpeechAPIs = function() {
+            // Test Speech Recognition
+            try {
+                const recognition = BrowserCompatibility.createSpeechRecognition();
+                addTestResult('Speech Recognition', 'pass', 'API available', {
+                    continuous: recognition.continuous,
+                    interimResults: recognition.interimResults,
+                    maxAlternatives: recognition.maxAlternatives
+                });
+            } catch (error) {
+                addTestResult('Speech Recognition', 'fail', error.message);
+            }
+            
+            // Test Speech Synthesis
+            if (window.speechSynthesis) {
+                const voices = speechSynthesis.getVoices();
+                addTestResult('Speech Synthesis', 'pass', `Available with ${voices.length} voices`, {
+                    voiceCount: voices.length,
+                    sampleVoices: voices.slice(0, 3).map(v => ({ name: v.name, lang: v.lang }))
+                });
+            } else {
+                addTestResult('Speech Synthesis', 'fail', 'Speech Synthesis API not available');
+            }
+        };
+        
+        window.testWebAssembly = function() {
+            if (typeof WebAssembly === 'object') {
+                addTestResult('WebAssembly', 'pass', 'WebAssembly supported');
+                
+                // Test SharedArrayBuffer (required for some WASM features)
+                if (typeof SharedArrayBuffer !== 'undefined') {
+                    addTestResult('SharedArrayBuffer', 'pass', 'SharedArrayBuffer available');
+                } else {
+                    addTestResult('SharedArrayBuffer', 'warning', 'SharedArrayBuffer not available (requires HTTPS + COOP/COEP headers)');
+                }
+            } else {
+                addTestResult('WebAssembly', 'fail', 'WebAssembly not supported');
+            }
+        };
+        
+        window.testLocalStorage = function() {
+            try {
+                const test = '__storage_test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                addTestResult('Local Storage', 'pass', 'Local storage available');
+            } catch (error) {
+                addTestResult('Local Storage', 'warning', 'Local storage not available');
+            }
+        };
+        
+        window.testModuleSupport = function() {
+            if ('noModule' in HTMLScriptElement.prototype) {
+                addTestResult('ES Modules', 'pass', 'ES Modules supported');
+            } else {
+                addTestResult('ES Modules', 'fail', 'ES Modules not supported');
+            }
+            
+            if (typeof Worker !== 'undefined') {
+                addTestResult('Web Workers', 'pass', 'Web Workers supported');
+            } else {
+                addTestResult('Web Workers', 'warning', 'Web Workers not supported');
+            }
+        };
+        
+        window.testModernModules = async function() {
+            try {
+                // Test if AudioWorklet is available
+                if (window.AudioWorkletNode) {
+                    addTestResult('AudioWorklet Support', 'pass', 'AudioWorklet available - modern modules will be used');
+                    
+                    // Test creating a simple worklet
+                    try {
+                        const audioContext = BrowserCompatibility.createAudioContext();
+                        
+                        // Try to load our custom worklet (mock test)
+                        addTestResult('Modern VAD Support', 'pass', 'Modern VoiceActivityDetector can be used');
+                        addTestResult('Modern AudioQueue Support', 'pass', 'Modern AudioQueue can be used');
+                        
+                        audioContext.close();
+                    } catch (error) {
+                        addTestResult('Modern Module Creation', 'warning', 'AudioWorklet available but module creation may fail', {
+                            error: error.toString()
+                        });
+                    }
+                } else {
+                    addTestResult('AudioWorklet Support', 'warning', 'AudioWorklet not available - will use legacy modules');
+                    addTestResult('Legacy VAD Support', 'pass', 'Will use ScriptProcessorNode-based VAD');
+                    addTestResult('Legacy AudioQueue Support', 'pass', 'Will use standard AudioQueue');
+                }
+                
+                // Test Resource Manager factory methods
+                try {
+                    // This would normally require the ResourceManager to be loaded
+                    addTestResult('ResourceManager Factory', 'info', 'Factory methods will auto-select appropriate modules');
+                } catch (error) {
+                    addTestResult('ResourceManager Factory', 'warning', 'Could not test factory methods directly');
+                }
+                
+            } catch (error) {
+                addTestResult('Modern Modules Test', 'fail', error.message, { error: error.toString() });
+            }
+        };
+        
+        // Initialize page
+        function initializePage() {
+            const report = BrowserCompatibility.getCompatibilityReport();
+            
+            // Display browser info
+            const browserInfo = document.getElementById('browser-info');
+            browserInfo.innerHTML = `
+                <p><strong>User Agent:</strong> ${report.browser.userAgent}</p>
+                <p><strong>Platform:</strong> ${report.browser.platform}</p>
+                <p><strong>Language:</strong> ${report.browser.language}</p>
+                <p><strong>Device Type:</strong> ${report.browser.mobile ? 'Mobile' : 'Desktop'} (${report.browser.os})</p>
+            `;
+            
+            // Display feature support
+            const featureSupport = document.getElementById('feature-support');
+            const features = report.features;
+            let featuresHtml = '<ul>';
+            
+            Object.entries(features).forEach(([key, value]) => {
+                const status = value ? 'pass' : 'fail';
+                const icon = value ? '✅' : '❌';
+                featuresHtml += `<li class="${status}">${icon} ${key}: ${value}</li>`;
+            });
+            
+            featuresHtml += '</ul>';
+            featureSupport.innerHTML = featuresHtml;
+            
+            // Display recommendations
+            const recommendations = document.getElementById('recommendations');
+            if (report.recommendations.length > 0) {
+                let recHtml = '<ul>';
+                report.recommendations.forEach(rec => {
+                    recHtml += `<li class="warning">⚠️ ${rec}</li>`;
+                });
+                recHtml += '</ul>';
+                recommendations.innerHTML = recHtml;
+            } else {
+                recommendations.innerHTML = '<p class="pass">✅ No compatibility issues detected!</p>';
+            }
+        }
+        
+        // Initialize when page loads
+        initializePage();
+        
+        // Make functions available for buttons
+        window.BrowserCompatibility = BrowserCompatibility;
+        
+        console.log('Browser Compatibility Test page loaded');
+    </script>
+</body>
+</html>

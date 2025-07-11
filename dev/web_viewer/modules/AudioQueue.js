@@ -1,7 +1,9 @@
 /**
- * AudioQueue - Manages audio playback queue for TTS
- * Handles seamless playback of audio chunks
+ * AudioQueue - Manages audio playback queue for voice synthesis
+ * Supports dependency injection of audio context from ResourceManager
  */
+
+import { BrowserCompatibility } from './BrowserCompatibility.js';
 
 export class AudioQueue extends EventTarget {
     constructor(options = {}) {
@@ -14,7 +16,10 @@ export class AudioQueue extends EventTarget {
             ...options
         };
 
-        this.audioContext = null;
+        // Use injected audio context if available, otherwise create new one
+        this.audioContext = options.audioContext || null;
+        this.needsOwnContext = !this.audioContext;
+        
         this.queue = [];
         this.isPlaying = false;
         this.currentSource = null;
@@ -27,10 +32,17 @@ export class AudioQueue extends EventTarget {
      */
     async initialize() {
         try {
-            // Create audio context
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                sampleRate: this.options.sampleRate
-            });
+            // Use injected audio context if available
+            if (!this.audioContext) {
+                console.log('🎵 AudioQueue: Creating new audio context');
+                this.audioContext = BrowserCompatibility.createAudioContext({
+                    sampleRate: this.options.sampleRate
+                });
+                this.needsOwnContext = true;
+            } else {
+                console.log('🎵 AudioQueue: Using injected audio context');
+                this.needsOwnContext = false;
+            }
 
             // Create gain node for volume control and crossfading
             this.gainNode = this.audioContext.createGain();
@@ -94,7 +106,7 @@ export class AudioQueue extends EventTarget {
         try {
             // Resume audio context if suspended
             if (this.audioContext.state === 'suspended') {
-                await this.audioContext.resume();
+                await BrowserCompatibility.ensureAudioContextResumed(this.audioContext);
             }
 
             this.isPlaying = true;
@@ -235,10 +247,13 @@ export class AudioQueue extends EventTarget {
      * Create AudioBuffer from Float32Array
      */
     createAudioBuffer(audioData) {
+        // Use the actual audio context sample rate instead of the configured one
+        const actualSampleRate = this.audioContext.sampleRate;
+        
         const audioBuffer = this.audioContext.createBuffer(
             1, // mono
             audioData.length,
-            this.options.sampleRate
+            actualSampleRate
         );
 
         const channelData = audioBuffer.getChannelData(0);
@@ -302,8 +317,12 @@ export class AudioQueue extends EventTarget {
             this.gainNode = null;
         }
 
-        if (this.audioContext) {
+        // Only close audio context if we created it ourselves
+        if (this.audioContext && this.needsOwnContext) {
             this.audioContext.close();
+            this.audioContext = null;
+        } else if (this.audioContext) {
+            // If using injected context, just clear our reference
             this.audioContext = null;
         }
     }

@@ -1,11 +1,14 @@
 /**
  * KokoroModule - Text-to-speech using Kokoro TTS
  * Supports model loading/unloading for memory management
+ * Uses dependency injection for audio context and resource management
  */
 
-export class KokoroModule extends EventTarget {
+import { BaseModel } from './ResourceManager.js';
+
+export class KokoroModule extends BaseModel {
     constructor(options = {}) {
-        super();
+        super(options);
         
         this.options = {
             modelPath: options.kokoroModelPath || './Kokoro-82M-v1.0-ONNX/',
@@ -15,8 +18,6 @@ export class KokoroModule extends EventTarget {
         };
 
         this.tts = null;
-        this.isModelLoaded = false;
-        this.loadingPromise = null;
     }
 
     /**
@@ -39,8 +40,20 @@ export class KokoroModule extends EventTarget {
         try {
             this.emit('loading', { module: 'kokoro', status: 'starting' });
 
-            // Import Kokoro TTS
-            const { KokoroTTS } = await import('../kokoro.web.js');
+            // Use global Kokoro TTS if available
+            let KokoroTTS;
+            if (window.KokoroTTS) {
+                KokoroTTS = window.KokoroTTS;
+            } else {
+                // Try to import from existing kokoro.web.js
+                try {
+                    const kokoroModule = await import('../kokoro.web.js');
+                    KokoroTTS = kokoroModule.KokoroTTS;
+                } catch (importError) {
+                    // Fallback to Web Speech API
+                    throw new Error(`Kokoro TTS not available: ${importError.message}`);
+                }
+            }
             
             this.emit('loading', { module: 'kokoro', status: 'initializing' });
 

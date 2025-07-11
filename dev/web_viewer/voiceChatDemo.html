@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modular Voice Chat Interface Demo</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%234A90E2'/><circle cx='16' cy='16' r='8' fill='white'/></svg>" type="image/svg+xml">
+    <script type="importmap">
+        {
+            "imports": {
+                "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js"
+            }
+        }
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -224,6 +233,10 @@
                     <span id="system-status" class="status-inactive">Initializing...</span>
                 </div>
                 <div class="status-item">
+                    <span>Models:</span>
+                    <span id="model-status" class="status-inactive">Loading...</span>
+                </div>
+                <div class="status-item">
                     <span>Voice Chat:</span>
                     <span id="listening-indicator" class="status-inactive">🔇 Not listening</span>
                 </div>
@@ -256,12 +269,12 @@
         </div>
         
         <div class="controls">
-            <button id="start-voice-btn" onclick="startVoiceChat()">👂 Start Listening</button>
-            <button id="stop-voice-btn" onclick="stopVoiceChat()" disabled>🔇 Stop Listening</button>
+            <button id="start-voice-btn" onclick="startListening()">👂 Start Listening</button>
+            <button id="stop-voice-btn" onclick="stopListening()" disabled>🔇 Stop Listening</button>
             <button onclick="testTTS()">🔊 Test Voice</button>
             <button onclick="testTTS('This is a longer test message to demonstrate chunked audio synthesis with multiple parts.')" title="Test longer message">🔊 Test Long Message</button>
-            <button onclick="showStatus()" class="info">📊 Show Status</button>
-            <button onclick="clearConversation()" class="danger">🗑️ Clear Chat</button>
+            <button onclick="getVoiceChatStatus()" class="info">📊 Show Status</button>
+            <button onclick="resetConversation()" class="danger">🗑️ Clear Chat</button>
         </div>
         
         <div class="chat-interface">
@@ -288,8 +301,55 @@
     </div>
 
     <script type="module">
-        // Import the voice chat example
-        import './voiceChatExample.js';
+        // Make sure transformers.js is available globally if possible
+        let pipeline, env;
+        try {
+            // Try to import from CDN or existing setup
+            const transformers = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js');
+            pipeline = transformers.pipeline;
+            env = transformers.env;
+            window.transformers = { pipeline, env };
+            console.log('✅ Transformers.js loaded from CDN');
+        } catch (error) {
+            console.log('⚠️ Transformers.js not available:', error.message);
+            // Create dummy functions to prevent errors
+            window.transformers = {
+                pipeline: null,
+                env: { allowRemoteModels: false, allowLocalModels: true }
+            };
+        }
+        
+        // Import browser compatibility and worker-based voice chat module
+        Promise.all([
+            import('./modules/BrowserCompatibility.js'),
+            import('./workerVoiceChatExample.js')
+        ]).then(([compatModule, voiceChatModule]) => {
+            console.log('✅ Worker-based voice chat demo loaded successfully');
+            
+            // Display browser compatibility info
+            const report = compatModule.BrowserCompatibility.getCompatibilityReport();
+            console.log('🌐 Browser compatibility report:', report);
+            updateDebugInfo(`🌐 Browser: ${report.browser.os} ${report.browser.mobile ? '(Mobile)' : '(Desktop)'}`);
+            updateDebugInfo(`🔧 Using Web Worker for ML processing (like conversational-webgpu)`);
+            
+            // Show any important warnings
+            if (report.recommendations.length > 0) {
+                console.warn('⚠️ Browser recommendations:', report.recommendations);
+                report.recommendations.forEach(rec => {
+                    updateDebugInfo(`💡 ${rec}`);
+                });
+            }
+            
+            // Show supported features
+            const features = report.features;
+            updateDebugInfo(`🎵 Audio: ${features.audioContext ? '✅' : '❌'} | 🎤 Microphone: ${features.mediaDevices ? '✅' : '❌'} | 🗣️ Speech: ${features.speechRecognition ? '✅' : '❌'}`);
+            updateDebugInfo(`🔧 AudioWorklet: ${features.audioWorklet ? '✅ (Modern)' : '❌ (Legacy)'} | 👷 Web Workers: ${features.webWorkers ? '✅' : '❌'}`);
+            
+        }).catch(error => {
+            console.error('Failed to load worker-based voice chat module:', error);
+            updateDebugInfo('❌ Failed to load worker-based voice chat module: ' + error.message);
+            updateDebugInfo('💡 Check if all model files are present in ./models/ directory');
+        });
         
         // Global utility functions
         window.handleKeyPress = function(event) {

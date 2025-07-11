@@ -75,6 +75,66 @@ export class LlamaModule extends BaseModel {
             throw error;
         }
     }
+            this.loadingPromise = null;
+            
+            this.emit('loaded', { 
+                module: 'llama',
+                model: this.options.modelName,
+                device: this.options.device,
+                quantized: this.options.quantized
+            });
+
+            return true;
+        } catch (error) {
+            this.isModelLoaded = false;
+            this.loadingPromise = null;
+            
+            // Try fallback models only if we have pipeline available
+            if (window.transformers && window.transformers.pipeline) {
+                const pipeline = window.transformers.pipeline;
+                const fallbackModels = [
+                    'Xenova/TinyLlama-1.1B-Chat-v1.0',
+                    'Xenova/phi-1_5',
+                    'HuggingFaceTB/SmolLM-135M-Instruct'
+                ];
+
+                for (const fallbackModel of fallbackModels) {
+                    if (fallbackModel !== this.options.modelName) {
+                        try {
+                            this.emit('loading', { 
+                                module: 'llama', 
+                                status: 'trying_fallback', 
+                                model: fallbackModel 
+                            });
+
+                            // Use the same pipeline reference
+                            this.model = await pipeline('text-generation', fallbackModel, {
+                                device: 'wasm', // Use WASM for fallback
+                                dtype: 'q8'
+                            });
+
+                            this.isModelLoaded = true;
+                            this.options.modelName = fallbackModel;
+                            
+                            this.emit('loaded', { 
+                                module: 'llama',
+                                model: fallbackModel,
+                                device: 'wasm',
+                                fallback: true
+                            });
+
+                            return true;
+                        } catch (fallbackError) {
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            this.emit('error', { module: 'llama', error });
+            throw error;
+        }
+    }
 
     /**
      * Unload the model to free memory
@@ -88,9 +148,7 @@ export class LlamaModule extends BaseModel {
             // Clear model references
             this.model = null;
             this.tokenizer = null;
-            
-            // Call base class unload
-            await super.unload();
+            this.isModelLoaded = false;
 
             // Force garbage collection if available
             if (global.gc) {
@@ -115,18 +173,36 @@ export class LlamaModule extends BaseModel {
             // Build prompt from conversation history
             const prompt = this._buildPrompt(conversationHistory);
             
+            this.emit('generating', { 
+                module: 'llama',
+                prompt: prompt.substring(0, 100) + '...'
+            });
+
             // Generate response
             const result = await this.model(prompt, {
                 max_new_tokens: this.options.maxTokens,
                 temperature: this.options.temperature,
                 top_p: this.options.topP,
                 do_sample: true,
-                pad_token_id: 50256 // Common pad token
+                repetition_penalty: 1.1,
+                pad_token_id: 50256,
+                eos_token_id: 50256
             });
 
-            // Extract and clean response
-            const rawResponse = result[0].generated_text;
-            const response = this._cleanResponse(rawResponse.replace(prompt, ''));
+            // Extract the generated text
+            let response = result[0].generated_text;
+            
+            // Remove the prompt from the response
+            response = response.replace(prompt, '').trim();
+            
+            // Clean up the response
+            response = this._cleanResponse(response);
+
+            this.emit('generated', { 
+                module: 'llama',
+                input: conversationHistory[conversationHistory.length - 1]?.content || '',
+                output: response
+            });
 
             return response;
         } catch (error) {
@@ -147,8 +223,11 @@ export class LlamaModule extends BaseModel {
         const recentHistory = conversationHistory.slice(-6); // Keep last 6 messages
         
         for (const message of recentHistory) {
-            const role = message.role === 'user' ? 'Human' : 'Assistant';
-            prompt += `${role}: ${message.content}\n`;
+            if (message.role === 'user') {
+                prompt += `Human: ${message.content}\n`;
+            } else if (message.role === 'assistant') {
+                prompt += `Assistant: ${message.content}\n`;
+            }
         }
         
         prompt += 'Assistant:';
@@ -166,15 +245,24 @@ export class LlamaModule extends BaseModel {
         for (const line of lines) {
             const trimmed = line.trim();
             if (trimmed && !trimmed.startsWith('Human:') && !trimmed.startsWith('Assistant:')) {
-                cleanedResponse += trimmed + ' ';
+                cleanedResponse += (cleanedResponse ? ' ' : '') + trimmed;
             }
         }
         
-        cleanedResponse = cleanedResponse.trim();
-        
         // Ensure response ends properly
         if (cleanedResponse && !cleanedResponse.match(/[.!?]$/)) {
-            cleanedResponse += '.';
+            // Find the last complete sentence
+            const lastSentence = cleanedResponse.lastIndexOf('.');
+            const lastExclamation = cleanedResponse.lastIndexOf('!');
+            const lastQuestion = cleanedResponse.lastIndexOf('?');
+            
+            const lastPunctuation = Math.max(lastSentence, lastExclamation, lastQuestion);
+            
+            if (lastPunctuation > cleanedResponse.length / 2) {
+                cleanedResponse = cleanedResponse.substring(0, lastPunctuation + 1);
+            } else {
+                cleanedResponse += '.';
+            }
         }
         
         // Limit response length
@@ -202,15 +290,22 @@ export class LlamaModule extends BaseModel {
         
         // Simple keyword-based responses
         if (lastMessage.includes('hello') || lastMessage.includes('hi')) {
-            return "Hello! It's great to chat with you! How are you doing today? [friendly]";
-        } else if (lastMessage.includes('help')) {
-            return "I'm here to help! What can I assist you with? [helpful]";
-        } else if (lastMessage.includes('thank')) {
-            return "You're very welcome! I'm glad I could help. [warm]";
+            return "Hello! It's great to chat with you! [happy]";
+        } else if (lastMessage.includes('how are you')) {
+            return "I'm doing wonderful, thank you for asking! [cheerful]";
+        } else if (lastMessage.includes('bye') || lastMessage.includes('goodbye')) {
+            return "Goodbye! It was lovely chatting with you! [warm]";
         }
         
         // Random fallback
         return fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+    }
+
+    /**
+     * Check if model is loaded
+     */
+    isLoaded() {
+        return this.isModelLoaded;
     }
 
     /**
@@ -232,5 +327,12 @@ export class LlamaModule extends BaseModel {
      */
     updateParameters(params) {
         this.options = { ...this.options, ...params };
+    }
+
+    /**
+     * Emit custom events
+     */
+    emit(eventType, detail = {}) {
+        this.dispatchEvent(new CustomEvent(eventType, { detail }));
     }
 }

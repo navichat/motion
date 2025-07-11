@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dependency Injection Demo - GPU/Audio Context Management</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-section {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        
+        .control-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        
+        .control-buttons button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            flex: 1;
+            min-width: 80px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: black;
+        }
+        
+        .model-status {
+            margin: 8px 0;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-loaded {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-unloaded {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .resource-monitor {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .resource-section {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        
+        .resource-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .resource-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .demo-section {
+            margin-bottom: 30px;
+        }
+        
+        .demo-output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+        }
+        
+        .log-info {
+            color: #0066cc;
+        }
+        
+        .log-success {
+            color: #28a745;
+        }
+        
+        .log-warning {
+            color: #ffc107;
+        }
+        
+        .log-error {
+            color: #dc3545;
+        }
+        
+        .injection-info {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .injection-info h4 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        
+        .code-example {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Dependency Injection Demo</h1>
+            <p>Centralized GPU/Audio Context Management with Individual Module Loading</p>
+        </div>
+        
+        <div class="injection-info">
+            <h4>🏗️ Dependency Injection Architecture</h4>
+            <p>This demo shows how the ResourceManager provides centralized context management:</p>
+            <ul>
+                <li><strong>GPU Context:</strong> Shared transformers.js environment and pipeline caching</li>
+                <li><strong>Audio Context:</strong> Shared audio context for TTS and VAD</li>
+                <li><strong>Memory Management:</strong> Automatic model loading/unloading based on usage</li>
+                <li><strong>Resource Monitoring:</strong> Real-time tracking of loaded models and memory usage</li>
+            </ul>
+        </div>
+        
+        <div class="controls-grid">
+            <div class="control-section">
+                <h3>🧠 Whisper Module</h3>
+                <div id="whisper-status" class="model-status status-unloaded">UNLOADED</div>
+                <div class="control-buttons">
+                    <button class="btn-primary" onclick="loadModel('whisper')">Load</button>
+                    <button class="btn-secondary" onclick="unloadModel('whisper')">Unload</button>
+                    <button class="btn-success" onclick="testWhisper()">Test</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>🤖 Llama Module</h3>
+                <div id="llama-status" class="model-status status-unloaded">UNLOADED</div>
+                <div class="control-buttons">
+                    <button class="btn-primary" onclick="loadModel('llama')">Load</button>
+                    <button class="btn-secondary" onclick="unloadModel('llama')">Unload</button>
+                    <button class="btn-success" onclick="testLlama()">Test</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>🎤 Kokoro Module</h3>
+                <div id="kokoro-status" class="model-status status-unloaded">UNLOADED</div>
+                <div class="control-buttons">
+                    <button class="btn-primary" onclick="loadModel('kokoro')">Load</button>
+                    <button class="btn-secondary" onclick="unloadModel('kokoro')">Unload</button>
+                    <button class="btn-success" onclick="testKokoro()">Test</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="resource-monitor">
+            <div class="resource-section">
+                <h3>📊 Resource Manager Status</h3>
+                <div class="resource-item">
+                    <span>Audio Context:</span>
+                    <span id="audio-context-status">Not initialized</span>
+                </div>
+                <div class="resource-item">
+                    <span>ML Context:</span>
+                    <span id="ml-context-status">Not initialized</span>
+                </div>
+                <div class="resource-item">
+                    <span>Loaded Models:</span>
+                    <span id="loaded-models-count">0</span>
+                </div>
+                <div class="resource-item">
+                    <span>Memory Usage:</span>
+                    <span id="memory-usage">0 MB</span>
+                </div>
+                <div class="resource-item">
+                    <span>Pipeline Cache:</span>
+                    <span id="pipeline-cache-count">0</span>
+                </div>
+            </div>
+            
+            <div class="resource-section">
+                <h3>🔧 System Controls</h3>
+                <div class="control-buttons">
+                    <button class="btn-primary" onclick="initializeResourceManager()">Initialize</button>
+                    <button class="btn-warning" onclick="loadAllModels()">Load All</button>
+                    <button class="btn-secondary" onclick="unloadAllModels()">Unload All</button>
+                    <button class="btn-danger" onclick="cleanupResourceManager()">Cleanup</button>
+                </div>
+                <div class="control-buttons">
+                    <button class="btn-success" onclick="showResourceStatus()">Show Status</button>
+                    <button class="btn-secondary" onclick="clearLog()">Clear Log</button>
+                    <button class="btn-warning" onclick="simulateMemoryPressure()">Memory Test</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h3>📝 Activity Log</h3>
+            <div id="demo-log" class="demo-output">
+                <div class="log-entry log-info">🚀 Dependency Injection Demo Ready</div>
+                <div class="log-entry log-info">💡 Click "Initialize" to start the ResourceManager</div>
+                <div class="log-entry log-info">🔧 Use Load/Unload buttons to manage individual modules</div>
+                <div class="log-entry log-info">📊 Watch resource usage update in real-time</div>
+            </div>
+        </div>
+        
+        <div class="code-example">
+            <h4>Example: How Dependency Injection Works</h4>
+            <pre>
+// 1. ResourceManager provides shared contexts
+const resourceManager = new ResourceManager();
+await resourceManager.initialize();
+
+// 2. Modules receive injected dependencies
+const whisperModule = new WhisperModule({
+    audioContext: resourceManager.audioContext,
+    transformersEnv: resourceManager.transformersEnv,
+    resourceManager: resourceManager
+});
+
+// 3. Models use shared resources
+const pipeline = await whisperModule.getPipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+            </pre>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ResourceManager } from './modules/ResourceManager.js';
+        import { WhisperModule } from './modules/WhisperModule.js';
+        import { LlamaModule } from './modules/LlamaModule.js';
+        import { KokoroModule } from './modules/KokoroModule.js';
+        import { AudioQueue } from './modules/AudioQueue.js';
+        import { VoiceActivityDetector } from './modules/VoiceActivityDetector.js';
+
+        // Global state
+        let resourceManager = null;
+        let audioQueue = null;
+        let vad = null;
+        let updateInterval = null;
+
+        // Initialize transformers.js globally
+        try {
+            const transformers = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js');
+            window.transformers = transformers;
+            logMessage('✅ Transformers.js loaded successfully', 'success');
+        } catch (error) {
+            logMessage('⚠️ Transformers.js not available: ' + error.message, 'warning');
+            window.transformers = { pipeline: null, env: { allowRemoteModels: false } };
+        }
+
+        // Global functions
+        window.initializeResourceManager = async function() {
+            try {
+                logMessage('🚀 Initializing ResourceManager...', 'info');
+                
+                resourceManager = new ResourceManager({
+                    device: 'wasm',
+                    memoryThresholdMB: 256,
+                    maxConcurrentModels: 2,
+                    modelCacheTimeout: 10000 // 10 seconds for demo
+                });
+
+                // Set up event listeners
+                resourceManager.addEventListener('initialized', (event) => {
+                    logMessage('✅ ResourceManager initialized', 'success');
+                    updateResourceStatus();
+                });
+
+                resourceManager.addEventListener('modelLoaded', (event) => {
+                    logMessage(`📦 Model loaded: ${event.detail.modelId}`, 'success');
+                    updateModelStatus(event.detail.modelId, 'loaded');
+                    updateResourceStatus();
+                });
+
+                resourceManager.addEventListener('modelUnloaded', (event) => {
+                    logMessage(`📤 Model unloaded: ${event.detail.modelId}`, 'info');
+                    updateModelStatus(event.detail.modelId, 'unloaded');
+                    updateResourceStatus();
+                });
+
+                resourceManager.addEventListener('modelEvicted', (event) => {
+                    logMessage(`🗑️ Model evicted: ${event.detail.modelId} (${event.detail.reason || 'memory pressure'})`, 'warning');
+                    updateModelStatus(event.detail.modelId, 'unloaded');
+                    updateResourceStatus();
+                });
+
+                resourceManager.addEventListener('memoryPressure', (event) => {
+                    logMessage(`⚠️ Memory pressure: ${event.detail.usedMB}MB / ${event.detail.threshold}MB`, 'warning');
+                });
+
+                // Register models
+                resourceManager.registerModel('whisper', WhisperModule, { whisperModel: 'tiny' });
+                resourceManager.registerModel('llama', LlamaModule, { llamaModel: 'Xenova/TinyLlama-1.1B-Chat-v0.4' });
+                resourceManager.registerModel('kokoro', KokoroModule, { kokoroModelPath: './Kokoro-82M-v1.0-ONNX/' });
+
+                // Initialize audio queue with injected context
+                audioQueue = new AudioQueue({
+                    audioContext: resourceManager.audioContext,
+                    audioSampleRate: 22050
+                });
+                await audioQueue.initialize();
+
+                // Initialize VAD with injected context
+                vad = new VoiceActivityDetector({
+                    audioContext: resourceManager.audioContext,
+                    vadSensitivity: 0.5
+                });
+
+                // Start status updates
+                startStatusUpdates();
+
+                logMessage('🎉 ResourceManager ready!', 'success');
+                
+            } catch (error) {
+                logMessage('❌ ResourceManager initialization failed: ' + error.message, 'error');
+                console.error(error);
+            }
+        };
+
+        window.loadModel = async function(modelId) {
+            if (!resourceManager) {
+                logMessage('❌ ResourceManager not initialized', 'error');
+                return;
+            }
+
+            try {
+                logMessage(`🔄 Loading ${modelId} model...`, 'info');
+                updateModelStatus(modelId, 'loading');
+                
+                const model = await resourceManager.getModel(modelId);
+                logMessage(`✅ ${modelId} model loaded successfully`, 'success');
+                
+            } catch (error) {
+                logMessage(`❌ Failed to load ${modelId}: ${error.message}`, 'error');
+                updateModelStatus(modelId, 'error');
+            }
+        };
+
+        window.unloadModel = async function(modelId) {
+            if (!resourceManager) {
+                logMessage('❌ ResourceManager not initialized', 'error');
+                return;
+            }
+
+            try {
+                logMessage(`🔄 Unloading ${modelId} model...`, 'info');
+                await resourceManager.unloadModel(modelId);
+                logMessage(`✅ ${modelId} model unloaded`, 'success');
+                
+            } catch (error) {
+                logMessage(`❌ Failed to unload ${modelId}: ${error.message}`, 'error');
+            }
+        };
+
+        window.testWhisper = async function() {
+            if (!resourceManager) {
+                logMessage('❌ ResourceManager not initialized', 'error');
+                return;
+            }
+
+            try {
+                const model = await resourceManager.getModel('whisper');
+                logMessage('🎤 Testing Whisper transcription (simulated)...', 'info');
+                
+                // Simulate audio data
+                const dummyAudio = new Float32Array(16000); // 1 second of silence
+                const result = await model.transcribe(dummyAudio);
+                
+                logMessage(`🎯 Whisper result: "${result.text || 'No speech detected'}"`, 'success');
+                
+            } catch (error) {
+                logMessage(`❌ Whisper test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testLlama = async function() {
+            if (!resourceManager) {
+                logMessage('❌ ResourceManager not initialized', 'error');
+                return;
+            }
+
+            try {
+                const model = await resourceManager.getModel('llama');
+                logMessage('🤖 Testing Llama text generation...', 'info');
+                
+                const conversation = [
+                    { role: 'user', content: 'Hello! How are you?' }
+                ];
+                
+                const response = await model.generateResponse(conversation);
+                logMessage(`🎯 Llama response: "${response}"`, 'success');
+                
+            } catch (error) {
+                logMessage(`❌ Llama test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testKokoro = async function() {
+            if (!resourceManager) {
+                logMessage('❌ ResourceManager not initialized', 'error');
+                return;
+            }
+
+            try {
+                const model = await resourceManager.getModel('kokoro');
+                logMessage('🎤 Testing Kokoro TTS...', 'info');
+                
+                const audioData = await model.synthesize('Hello, this is a test of the Kokoro text-to-speech system.');
+                logMessage(`🎯 Kokoro generated ${audioData.length} audio samples`, 'success');
+                
+                // Queue the audio for playback
+                if (audioQueue) {
+                    await audioQueue.enqueue(audioData);
+                    await audioQueue.play();
+                    logMessage('🔊 Audio queued for playback', 'info');
+                }
+                
+            } catch (error) {
+                logMessage(`❌ Kokoro test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.loadAllModels = async function() {
+            logMessage('🔄 Loading all models...', 'info');
+            await Promise.all([
+                loadModel('whisper'),
+                loadModel('llama'),
+                loadModel('kokoro')
+            ]);
+        };
+
+        window.unloadAllModels = async function() {
+            logMessage('🔄 Unloading all models...', 'info');
+            await Promise.all([
+                unloadModel('whisper'),
+                unloadModel('llama'),
+                unloadModel('kokoro')
+            ]);
+        };
+
+        window.cleanupResourceManager = async function() {
+            if (resourceManager) {
+                logMessage('🧹 Cleaning up ResourceManager...', 'info');
+                await resourceManager.cleanup();
+                resourceManager = null;
+                stopStatusUpdates();
+                logMessage('✅ ResourceManager cleaned up', 'success');
+                updateResourceStatus();
+            }
+        };
+
+        window.showResourceStatus = function() {
+            if (!resourceManager) {
+                logMessage('❌ ResourceManager not initialized', 'error');
+                return;
+            }
+
+            const status = resourceManager.getStatus();
+            logMessage('📊 Resource Status:', 'info');
+            logMessage(`  Audio Context: ${status.audioContext ? 'Available' : 'Not available'}`, 'info');
+            logMessage(`  ML Context: ${status.mlContext ? 'Available' : 'Not available'}`, 'info');
+            logMessage(`  Loaded Models: ${status.loadedModels.join(', ') || 'None'}`, 'info');
+            logMessage(`  Memory Usage: ${status.memoryUsage} MB / ${status.memoryThreshold} MB`, 'info');
+            logMessage(`  Preferred Device: ${status.preferredDevice}`, 'info');
+        };
+
+        window.simulateMemoryPressure = async function() {
+            if (!resourceManager) {
+                logMessage('❌ ResourceManager not initialized', 'error');
+                return;
+            }
+
+            logMessage('⚠️ Simulating memory pressure...', 'warning');
+            
+            // Load all models to trigger memory pressure
+            await loadAllModels();
+            
+            // Simulate high memory usage
+            resourceManager.memoryUsage = 300; // Above threshold
+            await resourceManager.checkMemoryAndEvict('test-model');
+            
+            logMessage('✅ Memory pressure simulation complete', 'success');
+        };
+
+        window.clearLog = function() {
+            const logElement = document.getElementById('demo-log');
+            logElement.innerHTML = '<div class="log-entry log-info">📝 Log cleared</div>';
+        };
+
+        // Helper functions
+        function logMessage(message, level = 'info') {
+            const logElement = document.getElementById('demo-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${level}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateModelStatus(modelId, status) {
+            const statusElement = document.getElementById(`${modelId}-status`);
+            if (statusElement) {
+                statusElement.textContent = status.toUpperCase();
+                statusElement.className = `model-status status-${status}`;
+            }
+        }
+
+        function updateResourceStatus() {
+            if (!resourceManager) {
+                document.getElementById('audio-context-status').textContent = 'Not initialized';
+                document.getElementById('ml-context-status').textContent = 'Not initialized';
+                document.getElementById('loaded-models-count').textContent = '0';
+                document.getElementById('memory-usage').textContent = '0 MB';
+                document.getElementById('pipeline-cache-count').textContent = '0';
+                return;
+            }
+
+            const status = resourceManager.getStatus();
+            document.getElementById('audio-context-status').textContent = status.audioContext ? 'Available' : 'Not available';
+            document.getElementById('ml-context-status').textContent = status.mlContext ? 'Available' : 'Not available';
+            document.getElementById('loaded-models-count').textContent = status.loadedModels.length;
+            document.getElementById('memory-usage').textContent = `${status.memoryUsage} MB`;
+            document.getElementById('pipeline-cache-count').textContent = resourceManager.pipelineCache.size;
+        }
+
+        function startStatusUpdates() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            updateInterval = setInterval(updateResourceStatus, 1000);
+        }
+
+        function stopStatusUpdates() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        }
+
+        // Initialize on page load
+        logMessage('🚀 Dependency Injection Demo loaded', 'success');
+        logMessage('💡 Click "Initialize" to start the ResourceManager', 'info');
+    </script>
+</body>
+</html>

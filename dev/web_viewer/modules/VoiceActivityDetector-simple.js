@@ -2,10 +2,7 @@
  * VoiceActivityDetector - Simple voice activity detection using Web Audio API
  * Triggers speech start/end events for the voice chat interface
  * Uses ScriptProcessorNode with deprecation warning (AudioWorklet requires separate processor file)
- * Supports dependency injection for audio context
  */
-
-import { BrowserCompatibility } from './BrowserCompatibility.js';
 
 export class VoiceActivityDetector extends EventTarget {
     constructor(options = {}) {
@@ -21,10 +18,7 @@ export class VoiceActivityDetector extends EventTarget {
             ...options
         };
 
-        // Use injected audio context if available, otherwise create new one
-        this.audioContext = options.audioContext || null;
-        this.needsOwnContext = !this.audioContext;
-        
+        this.audioContext = null;
         this.mediaStream = null;
         this.processor = null;
         this.analyser = null;
@@ -44,29 +38,18 @@ export class VoiceActivityDetector extends EventTarget {
      */
     async initialize() {
         try {
-            // Use injected audio context if available
-            if (!this.audioContext) {
-                console.log('🎤 VAD: Creating new audio context');
-                this.audioContext = BrowserCompatibility.createAudioContext();
-                this.needsOwnContext = true;
-            } else {
-                console.log('🎤 VAD: Using injected audio context');
-                this.needsOwnContext = false;
-            }
+            // Create audio context first (let it use default sample rate)
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Note: AudioContext will be in 'suspended' state until user interaction
-            // This is normal browser behavior and will be resumed when startListening() is called
-            
-            // Get optimal audio settings for this browser
-            const audioSettings = BrowserCompatibility.getOptimalAudioSettings();
-            
-            // Request microphone access with browser-optimized constraints
-            this.mediaStream = await BrowserCompatibility.getUserMedia({
+            // Request microphone access without forcing a specific sample rate
+            // to avoid conflicts with the AudioContext sample rate
+            this.mediaStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
-                    channelCount: audioSettings.channelCount,
-                    echoCancellation: audioSettings.echoCancellation,
-                    noiseSuppression: audioSettings.noiseSuppression,
-                    autoGainControl: audioSettings.autoGainControl
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                    // Note: Removed sampleRate constraint to prevent mismatch
                 }
             });
 
@@ -75,10 +58,6 @@ export class VoiceActivityDetector extends EventTarget {
             
             // Log the actual sample rate for debugging
             console.log(`🎤 VAD initialized with sample rate: ${this.audioContext.sampleRate}Hz`);
-            console.log(`🎤 MediaStream tracks:`, this.mediaStream.getAudioTracks().map(t => ({
-                label: t.label,
-                sampleRate: t.getSettings().sampleRate || 'auto'
-            })));
 
             // Create audio processing nodes
             const source = this.audioContext.createMediaStreamSource(this.mediaStream);
@@ -127,8 +106,10 @@ export class VoiceActivityDetector extends EventTarget {
         }
 
         try {
-            // Ensure audio context is resumed (required for mobile browsers)
-            await BrowserCompatibility.ensureAudioContextResumed(this.audioContext);
+            // Resume audio context if suspended
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
 
             this.isListening = true;
             this.audioBuffer = [];
@@ -342,15 +323,11 @@ export class VoiceActivityDetector extends EventTarget {
     /**
      * Cleanup resources
      */
-    /**
-     * Cleanup resources
-     */
     cleanup() {
         this.stopListening();
 
         if (this.processor) {
             this.processor.disconnect();
-            this.processor.onaudioprocess = null;
             this.processor = null;
         }
 
@@ -359,12 +336,8 @@ export class VoiceActivityDetector extends EventTarget {
             this.analyser = null;
         }
 
-        // Only close audio context if we created it ourselves
-        if (this.audioContext && this.needsOwnContext) {
+        if (this.audioContext) {
             this.audioContext.close();
-            this.audioContext = null;
-        } else if (this.audioContext) {
-            // If using injected context, just clear our reference
             this.audioContext = null;
         }
 

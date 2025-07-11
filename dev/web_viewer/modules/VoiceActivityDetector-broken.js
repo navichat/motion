@@ -1,18 +1,15 @@
 /**
  * VoiceActivityDetector - Simple voice activity detection using Web Audio API
  * Triggers speech start/end events for the voice chat interface
- * Uses ScriptProcessorNode with deprecation warning (AudioWorklet requires separate processor file)
- * Supports dependency injection for audio context
+ * Uses AudioWorkletNode with fallback to deprecated ScriptProcessorNode
  */
-
-import { BrowserCompatibility } from './BrowserCompatibility.js';
 
 export class VoiceActivityDetector extends EventTarget {
     constructor(options = {}) {
         super();
         
         this.options = {
-            sampleRate: options.sampleRate || options.audioSampleRate || 16000,
+            sampleRate: options.sampleRate || 16000,
             sensitivity: options.vadSensitivity || 0.5,
             minSpeechDuration: options.minSpeechDuration || 300, // ms
             maxSpeechDuration: options.maxSpeechDuration || 8000, // ms
@@ -21,13 +18,11 @@ export class VoiceActivityDetector extends EventTarget {
             ...options
         };
 
-        // Use injected audio context if available, otherwise create new one
-        this.audioContext = options.audioContext || null;
-        this.needsOwnContext = !this.audioContext;
-        
+        this.audioContext = null;
         this.mediaStream = null;
         this.processor = null;
         this.analyser = null;
+        this.workletNode = null;
         
         this.isListening = false;
         this.isSpeechActive = false;
@@ -44,41 +39,119 @@ export class VoiceActivityDetector extends EventTarget {
      */
     async initialize() {
         try {
-            // Use injected audio context if available
-            if (!this.audioContext) {
-                console.log('🎤 VAD: Creating new audio context');
-                this.audioContext = BrowserCompatibility.createAudioContext();
-                this.needsOwnContext = true;
-            } else {
-                console.log('🎤 VAD: Using injected audio context');
-                this.needsOwnContext = false;
-            }
-            
-            // Note: AudioContext will be in 'suspended' state until user interaction
-            // This is normal browser behavior and will be resumed when startListening() is called
-            
-            // Get optimal audio settings for this browser
-            const audioSettings = BrowserCompatibility.getOptimalAudioSettings();
-            
-            // Request microphone access with browser-optimized constraints
-            this.mediaStream = await BrowserCompatibility.getUserMedia({
+            // Request microphone access
+            this.mediaStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
-                    channelCount: audioSettings.channelCount,
-                    echoCancellation: audioSettings.echoCancellation,
-                    noiseSuppression: audioSettings.noiseSuppression,
-                    autoGainControl: audioSettings.autoGainControl
+                    sampleRate: this.options.sampleRate,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
                 }
             });
 
-            // Update our sample rate to match the actual AudioContext sample rate
-            this.options.sampleRate = this.audioContext.sampleRate;
-            
-            // Log the actual sample rate for debugging
-            console.log(`🎤 VAD initialized with sample rate: ${this.audioContext.sampleRate}Hz`);
-            console.log(`🎤 MediaStream tracks:`, this.mediaStream.getAudioTracks().map(t => ({
-                label: t.label,
-                sampleRate: t.getSettings().sampleRate || 'auto'
-            })));
+            // Create audio context
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                sampleRate: this.options.sampleRate
+            });
+
+            // Try AudioWorklet first, fall back to ScriptProcessor
+            try {
+                await this.initializeWithAudioWorklet();
+            } catch (workletError) {
+                console.warn('AudioWorklet not supported, falling back to ScriptProcessorNode');
+                await this.initializeWithScriptProcessor();
+            }
+
+            this.emit('initialized');
+            return true;
+        } catch (error) {
+            this.emit('error', { type: 'initialization', error });
+            throw error;
+        }
+    }
+
+    /**
+     * Initialize with AudioWorklet (preferred method)
+     */
+    async initializeWithAudioWorklet() {
+        // Load AudioWorklet processor
+        const workletUrl = new URL('./vad-processor.js', import.meta.url);
+        await this.audioContext.audioWorklet.addModule(workletUrl);
+
+        // Create audio processing nodes
+        const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+        
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 256;
+        this.analyser.smoothingTimeConstant = 0.3;
+
+        // Create AudioWorkletNode for real-time analysis
+        this.workletNode = new AudioWorkletNode(this.audioContext, 'vad-processor');
+        
+        // Set up message handling from worklet
+        this.workletNode.port.onmessage = (event) => {
+            if (event.data.type === 'audioData') {
+                this.processAudioData(event.data.audioData);
+            }
+        };
+
+        // Connect audio graph
+        source.connect(this.analyser);
+        this.analyser.connect(this.workletNode);
+        this.workletNode.connect(this.audioContext.destination);
+    }
+
+    /**
+     * Fallback initialization using deprecated ScriptProcessorNode
+     */
+    async initializeWithScriptProcessor() {
+        // Create audio processing nodes
+        const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+        
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 256;
+        this.analyser.smoothingTimeConstant = 0.3;
+
+        // Create script processor for real-time analysis (deprecated but fallback)
+        this.processor = this.audioContext.createScriptProcessor(1024, 1, 1);
+        
+        // Connect audio graph
+        source.connect(this.analyser);
+        this.analyser.connect(this.processor);
+        this.processor.connect(this.audioContext.destination);
+
+        // Set up audio processing
+        this.processor.onaudioprocess = (event) => {
+            const inputBuffer = event.inputBuffer.getChannelData(0);
+            this.processAudioData(inputBuffer);
+        };
+    }
+
+    /**
+     * Fallback initialization using deprecated ScriptProcessorNode
+     */
+    async initializeWithScriptProcessor() {
+        try {
+            // Request microphone access (if not already done)
+            if (!this.mediaStream) {
+                this.mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: this.options.sampleRate,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+            }
+
+            // Create audio context (if not already done)
+            if (!this.audioContext) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: this.options.sampleRate
+                });
+            }
 
             // Create audio processing nodes
             const source = this.audioContext.createMediaStreamSource(this.mediaStream);
@@ -87,8 +160,7 @@ export class VoiceActivityDetector extends EventTarget {
             this.analyser.fftSize = 256;
             this.analyser.smoothingTimeConstant = 0.3;
 
-            // Use ScriptProcessor (deprecated but widely supported)
-            // Note: This will show a deprecation warning but provides better compatibility
+            // Create script processor for real-time analysis (deprecated but fallback)
             this.processor = this.audioContext.createScriptProcessor(1024, 1, 1);
             
             // Connect audio graph
@@ -98,20 +170,17 @@ export class VoiceActivityDetector extends EventTarget {
 
             // Set up audio processing
             this.processor.onaudioprocess = (event) => {
-                this.processAudioData(event);
+                const inputBuffer = event.inputBuffer.getChannelData(0);
+                this.processAudioData(inputBuffer);
             };
 
             this.emit('initialized');
             return true;
         } catch (error) {
-            // Provide more specific error information for debugging
-            if (error.name === 'DOMException' && error.message.includes('sample-rate')) {
-                console.error('🔧 Sample rate mismatch detected. AudioContext sample rate:', this.audioContext?.sampleRate);
-                console.error('🔧 Try refreshing the page or using a different browser');
-            }
             this.emit('error', { type: 'initialization', error });
             throw error;
         }
+    }
     }
 
     /**
@@ -127,8 +196,10 @@ export class VoiceActivityDetector extends EventTarget {
         }
 
         try {
-            // Ensure audio context is resumed (required for mobile browsers)
-            await BrowserCompatibility.ensureAudioContextResumed(this.audioContext);
+            // Resume audio context if suspended
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
 
             this.isListening = true;
             this.audioBuffer = [];
@@ -173,12 +244,25 @@ export class VoiceActivityDetector extends EventTarget {
     /**
      * Process audio data for voice activity detection
      */
-    processAudioData(audioEvent) {
+    processAudioData(audioData) {
         if (!this.isListening) {
             return;
         }
 
-        const inputBuffer = audioEvent.inputBuffer.getChannelData(0);
+        let inputBuffer;
+        
+        // Handle both AudioWorklet data (Float32Array) and ScriptProcessor data
+        if (audioData instanceof Float32Array) {
+            // AudioWorklet data
+            inputBuffer = audioData;
+        } else if (audioData && audioData.inputBuffer) {
+            // Legacy ScriptProcessor data
+            inputBuffer = audioData.inputBuffer.getChannelData(0);
+        } else {
+            // Direct Float32Array
+            inputBuffer = audioData;
+        }
+
         const bufferLength = inputBuffer.length;
         
         // Store audio data for speech recognition
@@ -342,15 +426,16 @@ export class VoiceActivityDetector extends EventTarget {
     /**
      * Cleanup resources
      */
-    /**
-     * Cleanup resources
-     */
     cleanup() {
         this.stopListening();
 
+        if (this.workletNode) {
+            this.workletNode.disconnect();
+            this.workletNode = null;
+        }
+
         if (this.processor) {
             this.processor.disconnect();
-            this.processor.onaudioprocess = null;
             this.processor = null;
         }
 
@@ -359,12 +444,8 @@ export class VoiceActivityDetector extends EventTarget {
             this.analyser = null;
         }
 
-        // Only close audio context if we created it ourselves
-        if (this.audioContext && this.needsOwnContext) {
+        if (this.audioContext) {
             this.audioContext.close();
-            this.audioContext = null;
-        } else if (this.audioContext) {
-            // If using injected context, just clear our reference
             this.audioContext = null;
         }
 
