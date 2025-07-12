@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module Test</title>
+</head>
+<body>
+    <div id="output"></div>
+    
+    <script type="module">
+        // Test the modules directly to see what's happening
+        const output = document.getElementById('output');
+        
+        function log(message) {
+            output.innerHTML += message + '<br>';
+            console.log(message);
+        }
+        
+        try {
+            // Check if transformers.js is available globally
+            if (window.transformers) {
+                log('✅ window.transformers is available');
+                log(`Pipeline: ${typeof window.transformers.pipeline}`);
+            } else {
+                log('❌ window.transformers is not available');
+                
+                // Try to load it from CDN
+                try {
+                    const transformers = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js');
+                    window.transformers = { 
+                        pipeline: transformers.pipeline, 
+                        env: transformers.env 
+                    };
+                    log('✅ Loaded transformers.js from CDN');
+                } catch (error) {
+                    log('⚠️ Could not load transformers.js: ' + error.message);
+                    window.transformers = {
+                        pipeline: null,
+                        env: { allowRemoteModels: false, allowLocalModels: true }
+                    };
+                }
+            }
+            
+            // Test importing WhisperModule
+            log('Testing WhisperModule import...');
+            const { WhisperModule } = await import('./modules/WhisperModule.js');
+            log('✅ WhisperModule imported successfully');
+            
+            // Test creating instance
+            const whisper = new WhisperModule();
+            log('✅ WhisperModule instance created');
+            
+            // Test loading (should fail gracefully)
+            try {
+                await whisper.load();
+                log('✅ WhisperModule loaded successfully');
+            } catch (error) {
+                log('⚠️ WhisperModule load failed (expected): ' + error.message);
+            }
+            
+        } catch (error) {
+            log('❌ Error: ' + error.message);
+            log('Stack: ' + error.stack);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{
+  "name": "web-porting-poc",
+  "version": "1.0.0",
+  "description": "Proof of concept for porting AI models (FaceFormer, Audio2Gesture) to web deployment using ONNX Runtime Web, WebNN, and WebGPU.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:faceformer": "cd faceformer && node faceformer_simple_generator.js",
+    "test:audio2gesture": "cd audio2gesture && node test_model_simple.js",
+    "validate:faceformer": "cd faceformer && python test_onnx_model.py",
+    "validate:audio2gesture": "cd audio2gesture && npm test"
+  },
+  "keywords": [
+    "onnx",
+    "webnn", 
+    "webgpu",
+    "audio2gesture",
+    "faceformer",
+    "audio-to-face",
+    "audio-to-motion",
+    "web-ai",
+    "real-time-animation"
+  ],
+  "author": "NaviChat Motion Team",
+  "license": "MIT",
+  "dependencies": {
+    "onnxruntime-web": "^1.22.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "workspaces": [
+    "faceformer",
+    "audio2gesture"
+  ]
+}

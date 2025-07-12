@@ -1351,6 +1351,66 @@ class VRMBVHAdapter {
             return false;
         }
     }
+
+    /**
+     * Enable or disable speech synchronization for VRM animations
+     * @param {boolean} enabled - Whether to enable speech sync
+     */
+    enableSpeechSync(enabled) {
+        this.speechSyncEnabled = enabled;
+        console.log(`🎤 Speech sync ${enabled ? 'enabled' : 'disabled'} for VRM adapter`);
+        
+        if (enabled && this.vrmModel && this.vrmModel.expressionManager) {
+            // Set up speech-reactive expressions
+            try {
+                const expressions = this.vrmModel.expressionManager;
+                if (expressions.setValue) {
+                    // Add subtle mouth movement for speech
+                    expressions.setValue('aa', 0.1);
+                    expressions.setValue('happy', 0.2);
+                }
+                console.log('✅ Speech sync expressions initialized');
+            } catch (error) {
+                console.warn('⚠️ Failed to set up speech sync expressions:', error);
+            }
+        }
+        
+        return this.speechSyncEnabled;
+    }
+
+    /**
+     * Reset animation state
+     */
+    resetAnimation() {
+        if (this.vrmModel && this.vrmModel.expressionManager) {
+            try {
+                const expressions = this.vrmModel.expressionManager;
+                
+                // Reset all expressions to neutral
+                if (expressions.setValue) {
+                    ['happy', 'sad', 'angry', 'surprised', 'aa', 'ih', 'ou', 'ee', 'oh'].forEach(expr => {
+                        try {
+                            expressions.setValue(expr, 0);
+                        } catch (e) {
+                            // Ignore if expression doesn't exist
+                        }
+                    });
+                    
+                    // Set neutral expression
+                    expressions.setValue('neutral', 1.0);
+                }
+                
+                console.log('🔄 VRM expressions reset to neutral');
+            } catch (error) {
+                console.warn('⚠️ Failed to reset VRM expressions:', error);
+            }
+        }
+        
+        // Reset speech sync
+        this.speechSyncEnabled = false;
+        
+        return true;
+    }
 }
 
     // Export for use in other modules

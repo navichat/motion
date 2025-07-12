@@ -42,6 +42,26 @@ async function initializeVoiceChat() {
     try {
         updateDebugInfo('🚀 Initializing modular voice chat interface...');
         
+        // Make transformers.js globally available if possible
+        try {
+            if (typeof pipeline !== 'undefined' && typeof env !== 'undefined') {
+                window.transformers = { pipeline, env };
+                updateDebugInfo('✅ Transformers.js made globally available');
+            }
+        } catch (error) {
+            updateDebugInfo('⚠️ Transformers.js not available - models will use fallbacks');
+        }
+        
+        // Make Kokoro TTS globally available if possible
+        try {
+            if (window.kokoroTTS) {
+                window.KokoroTTS = { from_pretrained: () => window.kokoroTTS };
+                updateDebugInfo('✅ Kokoro TTS made globally available');
+            }
+        } catch (error) {
+            updateDebugInfo('⚠️ Kokoro TTS not available - will use Web Speech API');
+        }
+        
         // Create voice chat instance
         voiceChat = new VoiceChatInterface(voiceChatOptions);
         
@@ -151,19 +171,36 @@ function setupVoiceChatEvents() {
     // Error events
     voiceChat.addEventListener('error', (event) => {
         const { type, error } = event.detail;
-        console.error(`Voice chat error (${type}):`, error);
-        updateDebugInfo(`❌ Error in ${type}: ${error.message}`);
+        
+        // Don't log as error if it's an expected fallback scenario
+        if (error.message && (error.message.includes('Transformers.js not available') || 
+                              error.message.includes('Pipeline function not available'))) {
+            console.info(`Voice chat using fallback for ${type}:`, error.message);
+            updateDebugInfo(`ℹ️ Using fallback for ${type}: ${error.message}`);
+        } else {
+            console.error(`Voice chat error (${type}):`, error);
+            updateDebugInfo(`❌ Error in ${type}: ${error.message}`);
+        }
+    });
+    
+    // Info events for fallback scenarios
+    voiceChat.addEventListener('info', (event) => {
+        const { type, message } = event.detail;
+        console.info(`Voice chat info (${type}):`, message);
+        updateDebugInfo(`ℹ️ ${message}`);
+    });
+    
+    // Warning events
+    voiceChat.addEventListener('warning', (event) => {
+        const { type, message } = event.detail;
+        console.warn(`Voice chat warning (${type}):`, message);
+        updateDebugInfo(`⚠️ ${message}`);
     });
     
     // Memory management events
     voiceChat.addEventListener('memoryPressure', (event) => {
         const { usedMB, threshold } = event.detail;
         updateDebugInfo(`⚠️ Memory pressure: ${usedMB.toFixed(1)}MB (threshold: ${threshold}MB)`);
-    });
-    
-    // Warning events
-    voiceChat.addEventListener('warning', (event) => {
-        updateDebugInfo(`⚠️ ${event.detail.message}`);
     });
 }
 

@@ -1,0 +1,8 @@
+# Large ONNX model files - use chunked versions instead
+*.onnx.backup
+motion_generator.onnx
+audio2gesture_step_fixed.onnx
+
+# Temporary test files
+test_model.*
+*.test_backup

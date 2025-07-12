@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Context Sample Rate Test</title>
+</head>
+<body>
+    <h1>Audio Context Sample Rate Test</h1>
+    <button id="testBtn">Test Audio Context & MediaStream</button>
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                // Test 1: Create AudioContext without sample rate constraint
+                console.log('🧪 Test 1: Creating AudioContext with default sample rate');
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log('✅ AudioContext created with sample rate:', audioContext.sampleRate);
+                
+                // Test 2: Get MediaStream without sample rate constraint
+                console.log('🧪 Test 2: Getting MediaStream without sample rate constraint');
+                const mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                console.log('✅ MediaStream obtained');
+                
+                // Test 3: Try to connect them
+                console.log('🧪 Test 3: Connecting MediaStream to AudioContext');
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                console.log('✅ MediaStreamSource created successfully!');
+                
+                // Test 4: Create complete audio graph
+                console.log('🧪 Test 4: Creating complete audio processing graph');
+                const analyser = audioContext.createAnalyser();
+                const processor = audioContext.createScriptProcessor(1024, 1, 1);
+                
+                source.connect(analyser);
+                analyser.connect(processor);
+                processor.connect(audioContext.destination);
+                
+                console.log('✅ Complete audio graph created successfully!');
+                
+                results.innerHTML = `
+                    <h3>✅ All tests passed!</h3>
+                    <p><strong>AudioContext Sample Rate:</strong> ${audioContext.sampleRate}Hz</p>
+                    <p><strong>MediaStream:</strong> Connected successfully</p>
+                    <p><strong>Audio Graph:</strong> Connected successfully</p>
+                    <p>The sample rate mismatch issue has been resolved!</p>
+                `;
+                
+                // Clean up
+                mediaStream.getTracks().forEach(track => track.stop());
+                audioContext.close();
+                
+            } catch (error) {
+                console.error('❌ Test failed:', error);
+                results.innerHTML = `
+                    <h3>❌ Test failed</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p>The sample rate mismatch issue may still exist.</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

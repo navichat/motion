@@ -1,27 +1,28 @@
 /**
  * WhisperModule - Speech-to-text using Whisper models
  * Supports model loading/unloading for memory management
+ * Uses dependency injection for GPU context and resource management
  */
 
-export class WhisperModule extends EventTarget {
+import { BaseModel } from './ResourceManager.js';
+
+export class WhisperModule extends BaseModel {
     constructor(options = {}) {
-        super();
+        super(options);
         
         this.options = {
             modelSize: options.whisperModel || 'tiny',
-            device: options.device || 'webgpu',
+            device: options.device || 'wasm',
             quantized: options.quantized || true,
             ...options
         };
 
         this.model = null;
         this.processor = null;
-        this.isModelLoaded = false;
-        this.loadingPromise = null;
     }
 
     /**
-     * Load the Whisper model
+     * Load the Whisper model using dependency injection
      */
     async load() {
         if (this.isModelLoaded) {
@@ -40,20 +41,12 @@ export class WhisperModule extends EventTarget {
         try {
             this.emit('loading', { module: 'whisper', status: 'starting' });
 
-            // Import transformers.js
-            const { pipeline, env } = await import('@huggingface/transformers');
-            
-            // Configure for local models
-            env.allowRemoteModels = false;
-            env.allowLocalModels = true;
-            env.localModelPath = './models/';
-
             const modelName = this._getModelName();
             
             this.emit('loading', { module: 'whisper', status: 'downloading', model: modelName });
 
-            // Create speech recognition pipeline
-            this.model = await pipeline('automatic-speech-recognition', modelName, {
+            // Use shared pipeline from resource manager
+            this.model = await this.getPipeline('automatic-speech-recognition', modelName, {
                 device: this.options.device,
                 dtype: this.options.quantized ? 'q8' : 'fp16'
             });
@@ -88,7 +81,9 @@ export class WhisperModule extends EventTarget {
             // Clear model references
             this.model = null;
             this.processor = null;
-            this.isModelLoaded = false;
+            
+            // Call base class unload
+            await super.unload();
 
             // Force garbage collection if available
             if (global.gc) {
@@ -114,11 +109,21 @@ export class WhisperModule extends EventTarget {
             const processedAudio = this._preprocessAudio(audioData);
             
             // Run transcription
-            const result = await this.model(processedAudio, {
-                task: 'transcribe',
-                language: 'english', // Can be made configurable
+            const modelName = this._getModelName();
+            const isEnglishOnly = modelName.includes('.en');
+            
+            // Configure transcription options based on model type
+            const transcriptionOptions = {
                 return_timestamps: false
-            });
+            };
+            
+            // Only set task/language for multilingual models
+            if (!isEnglishOnly) {
+                transcriptionOptions.task = 'transcribe';
+                transcriptionOptions.language = 'english';
+            }
+            
+            const result = await this.model(processedAudio, transcriptionOptions);
 
             return {
                 text: result.text || '',
