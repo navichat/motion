@@ -1,5 +1,5 @@
-const ort = require('onnxruntime-web');
-const fs = require('fs');
+// Browser-compatible Audio2Gesture Web Generator
+// Note: This assumes onnxruntime-web is available globally via CDN
 
 class Audio2GestureWebGenerator {
     constructor(modelPath) {
@@ -11,8 +11,14 @@ class Audio2GestureWebGenerator {
     async initialize() {
         try {
             console.log('🎭 Initializing Audio2Gesture Web Generator...');
+            
+            // Check if onnxruntime is available
+            if (typeof ort === 'undefined') {
+                throw new Error('ONNXRuntime not available. Please include onnxruntime-web.');
+            }
+            
             this.session = await ort.InferenceSession.create(this.modelPath, {
-                executionProviders: ['cpu']
+                executionProviders: ['wasm'] // Use WebAssembly backend for browsers
             });
             this.initialized = true;
             console.log('✅ Audio2Gesture generator initialized successfully');
@@ -215,8 +221,13 @@ async function demoAudio2GestureGeneration() {
             timestamp: new Date().toISOString()
         };
         
-        fs.writeFileSync('audio2gesture_demo_results.json', JSON.stringify(demoResults, null, 2));
-        console.log('\n💾 Demo results saved to audio2gesture_demo_results.json');
+        // Save results to browser local storage or just log
+        try {
+            localStorage.setItem('audio2gesture_demo_results', JSON.stringify(demoResults, null, 2));
+            console.log('\n💾 Demo results saved to local storage');
+        } catch (e) {
+            console.log('\n💾 Demo results (local storage not available):', demoResults);
+        }
         
         console.log('\n🎉 Audio2Gesture Web Generator Demo Complete!');
         console.log('✅ Multi-step autoregressive generation working');
@@ -227,9 +238,13 @@ async function demoAudio2GestureGeneration() {
     }
 }
 
-// Run demo if called directly
-if (require.main === module) {
-    demoAudio2GestureGeneration();
+// Export for use in other modules (Node.js)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { Audio2GestureWebGenerator };
 }
 
-module.exports = { Audio2GestureWebGenerator };
+// Make available globally for web use
+if (typeof window !== 'undefined') {
+    window.Audio2GestureWebGenerator = Audio2GestureWebGenerator;
+    window.demoAudio2GestureGeneration = demoAudio2GestureGeneration;
+}
