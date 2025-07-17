@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FaceFormer Quick Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; margin: 10px; cursor: pointer; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #log { background: #1a1a1a; color: #00ff00; font-family: monospace; padding: 20px; height: 400px; overflow-y: auto; border-radius: 5px; margin-top: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; background: #f0f0f0; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>🎭 FaceFormer Quick Test</h1>
+    
+    <div id="status" class="status">Ready to test...</div>
+    
+    <button onclick="quickTest()" id="test-btn">🚀 Run Quick Test</button>
+    <button onclick="fullTest()" id="full-btn" disabled>🎭 Run Full Test</button>
+    
+    <div id="log"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    <script src="./full_faceformer_web.js"></script>
+
+    <script>
+        let faceFormer = null;
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${isError ? 'error' : 'success'}`;
+        }
+
+        async function quickTest() {
+            try {
+                document.getElementById('test-btn').disabled = true;
+                updateStatus('Running quick test...');
+                
+                log('🚀 Starting quick ONNX test...');
+                
+                // Test direct ONNX model loading
+                const session = await ort.InferenceSession.create('./models/faceformer_vocaset_full.onnx');
+                log('✅ ONNX model loaded successfully');
+                log(`📥 Inputs: ${session.inputNames.join(', ')}`);
+                log(`📤 Outputs: ${session.outputNames.join(', ')}`);
+                
+                // Create test data
+                const batchSize = 1;
+                const seqLen = 25;
+                const audioDim = 768;
+                const vertexDim = 15069;
+                
+                const audioData = new Float32Array(batchSize * seqLen * audioDim);
+                for (let i = 0; i < audioData.length; i++) {
+                    audioData[i] = Math.random() * 0.1 - 0.05;
+                }
+                
+                const templateData = new Float32Array(batchSize * vertexDim);
+                for (let i = 0; i < templateData.length; i++) {
+                    templateData[i] = Math.random() * 0.01 - 0.005;
+                }
+                
+                const subjectData = new BigInt64Array([BigInt(0)]);
+                
+                const feeds = {
+                    audio_features: new ort.Tensor('float32', audioData, [batchSize, seqLen, audioDim]),
+                    template: new ort.Tensor('float32', templateData, [batchSize, vertexDim]),
+                    subject_id: new ort.Tensor('int64', subjectData, [1])
+                };
+                
+                log(`🎯 Running inference with shapes: audio[${feeds.audio_features.dims}], template[${feeds.template.dims}], subject[${feeds.subject_id.dims}]`);
+                
+                const start = performance.now();
+                const results = await session.run(feeds);
+                const time = performance.now() - start;
+                
+                log(`✅ Inference successful! Time: ${time.toFixed(2)}ms`);
+                log(`📏 Output shape: [${results.vertices.dims}]`);
+                log(`📊 Output type: ${results.vertices.type}`);
+                
+                updateStatus('✅ Quick test successful!');
+                document.getElementById('full-btn').disabled = false;
+                
+            } catch (error) {
+                log(`❌ Quick test failed: ${error.message}`);
+                updateStatus('❌ Quick test failed', true);
+            } finally {
+                document.getElementById('test-btn').disabled = false;
+            }
+        }
+
+        async function fullTest() {
+            try {
+                document.getElementById('full-btn').disabled = true;
+                updateStatus('Running full pipeline test...');
+                
+                log('🎭 Starting full FaceFormer test...');
+                
+                // Initialize FaceFormer
+                faceFormer = new FullFaceFormerWeb();
+                const success = await faceFormer.initialize('vocaset', 'auto');
+                
+                if (!success) {
+                    throw new Error('FaceFormer initialization failed');
+                }
+                
+                const info = faceFormer.getSystemInfo();
+                log(`✅ FaceFormer initialized: backend=${info.activeBackend}, dataset=${info.dataset}`);
+                
+                // Create test audio (1 second at 16kHz)
+                const sampleRate = 16000;
+                const duration = 1.0;
+                const audioSamples = new Float32Array(sampleRate * duration);
+                
+                // Generate a sine wave
+                for (let i = 0; i < audioSamples.length; i++) {
+                    audioSamples[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate) * 0.1;
+                }
+                
+                // Create template
+                const template = new Float32Array(15069);
+                for (let i = 0; i < template.length; i++) {
+                    template[i] = Math.random() * 0.01 - 0.005;
+                }
+                
+                log(`🎵 Processing ${audioSamples.length} audio samples...`);
+                
+                const start = performance.now();
+                const result = await faceFormer.processAudioToAnimation(audioSamples, template, 0);
+                const totalTime = performance.now() - start;
+                
+                log(`🎉 Full pipeline successful!`);
+                log(`  Generated frames: ${result.frames}`);
+                log(`  Audio processing: ${result.audioProcessingTime.toFixed(2)}ms`);
+                log(`  Transformer inference: ${result.inferenceTime.toFixed(2)}ms`);
+                log(`  Total time: ${totalTime.toFixed(2)}ms`);
+                log(`  Backend: ${result.backend}`);
+                log(`  Throughput: ${(result.frames / (totalTime / 1000)).toFixed(1)} FPS`);
+                
+                updateStatus('🎉 Full test successful!');
+                
+            } catch (error) {
+                log(`❌ Full test failed: ${error.message}`);
+                log(`❌ Stack: ${error.stack}`);
+                updateStatus('❌ Full test failed', true);
+            } finally {
+                document.getElementById('full-btn').disabled = false;
+            }
+        }
+
+        log('🎭 Quick test page ready');
+        log('👆 Click "Run Quick Test" to verify ONNX model');
+    </script>
+</body>
+</html>

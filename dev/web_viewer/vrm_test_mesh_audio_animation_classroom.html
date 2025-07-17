@@ -297,7 +297,7 @@
     
     <!-- Include audio processing modules -->
     <script src="./audio2gesture/audio2gesture_web_generator.js"></script>
-    <script src="./faceformer/faceformer_web_generator.js"></script>
+    <script src="./faceformer/faceformer_web_generator_minimal.js"></script>
     
     <!-- Audio processing utilities -->
     <script src="./js/AudioProcessor.js"></script>
@@ -434,7 +434,7 @@
             updateDebugInfo('🔍 System check at startup:');
             updateDebugInfo(`  ONNX Runtime: ${typeof ort !== 'undefined' ? '✅ Available' : '❌ Not available'}`);
             updateDebugInfo(`  Audio2Gesture: ${typeof Audio2GestureWebGenerator !== 'undefined' ? '✅ Available' : '❌ Not available'}`);
-            updateDebugInfo(`  FaceFormer: ${typeof FaceFormerWebGenerator !== 'undefined' ? '✅ Available' : '❌ Not available'}`);
+            updateDebugInfo(`  FaceFormer: ${typeof FaceFormerWebGeneratorFixed !== 'undefined' ? '✅ Available' : '❌ Not available'}`);
             
             // Create scene
             scene = new THREE.Scene();
@@ -543,10 +543,10 @@
                 updateStatusIndicator('face-status', 'loading');
                 updateDebugInfo('😊 Loading FaceFormer model...');
                 
-                // Check if the FaceFormerWebGenerator is available
-                if (typeof FaceFormerWebGenerator !== 'undefined') {
+                // Check if the FaceFormerWebGeneratorFixed is available
+                if (typeof FaceFormerWebGeneratorFixed !== 'undefined') {
                     try {
-                        faceFormerGenerator = new FaceFormerWebGenerator('./faceformer/faceformer_core_step.onnx');
+                        faceFormerGenerator = new FaceFormerWebGeneratorFixed('./faceformer/faceformer_minimal.onnx');
                         await faceFormerGenerator.initialize();
                         
                         updateStatusIndicator('face-status', 'ready');

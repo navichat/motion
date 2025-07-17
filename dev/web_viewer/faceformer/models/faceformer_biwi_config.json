@@ -1,0 +1,11 @@
+{
+  "dataset": "BIWI",
+  "feature_dim": 256,
+  "audio_input_dim": 768,
+  "vertice_dim": 70110,
+  "num_subjects": 6,
+  "num_heads": 8,
+  "num_layers": 6,
+  "max_seq_length": 600,
+  "dropout": 0.1
+}

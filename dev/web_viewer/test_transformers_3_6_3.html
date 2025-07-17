@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformers.js 3.6.3 + ONNX Runtime Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .info {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        .test-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #e9ecef;
+        }
+        .button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+        .button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .log-area {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 15px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .version-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Transformers.js 3.6.3 + ONNX Runtime Test</h1>
+        
+        <div class="info">
+            <strong>Purpose:</strong> Test the latest transformers.js version (3.6.3) with ONNX Runtime Web support.
+            <br><br>
+            <strong>Tests:</strong>
+            <ul>
+                <li>Library loading and version detection</li>
+                <li>ONNX Runtime Web compatibility</li>
+                <li>Local Kokoro model loading (IR version 9 support)</li>
+                <li>SpeechT5 model loading</li>
+                <li>Performance benchmarks</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>Test Controls</h3>
+            <button class="button" onclick="testLibraryVersions()">Test Library Versions</button>
+            <button class="button" onclick="testOnnxRuntime()">Test ONNX Runtime</button>
+            <button class="button" onclick="testKokoroModel()">Test Kokoro Model</button>
+            <button class="button" onclick="testSpeechT5Model()">Test SpeechT5 Model</button>
+            <button class="button" onclick="clearLog()">Clear Log</button>
+            
+            <div id="statusArea"></div>
+            <div id="versionResults"></div>
+        </div>
+
+        <div class="log-area" id="logArea">
+            [Log will appear here...]
+        </div>
+    </div>
+
+    <script>
+        let transformers = null;
+
+        // Enhanced logging
+        function log(level, message, data = null) {
+            const timestamp = new Date().toISOString();
+            const logMsg = `[${timestamp}] [${level}] ${message}`;
+            
+            console.log(logMsg, data || '');
+            
+            const logArea = document.getElementById('logArea');
+            logArea.textContent += logMsg + '\n';
+            if (data) {
+                logArea.textContent += JSON.stringify(data, null, 2) + '\n';
+            }
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusArea = document.getElementById('statusArea');
+            statusArea.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function addResult(title, content, type = 'info') {
+            const versionResults = document.getElementById('versionResults');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'version-info';
+            if (type === 'success') {
+                resultDiv.style.backgroundColor = '#d4edda';
+                resultDiv.style.borderColor = '#c3e6cb';
+            } else if (type === 'error') {
+                resultDiv.style.backgroundColor = '#f8d7da';
+                resultDiv.style.borderColor = '#f5c6cb';
+            }
+            resultDiv.innerHTML = `<strong>${title}</strong><br>${content}`;
+            versionResults.appendChild(resultDiv);
+        }
+
+        function clearLog() {
+            document.getElementById('logArea').textContent = '[Log cleared...]\n';
+            document.getElementById('statusArea').innerHTML = '';
+            document.getElementById('versionResults').innerHTML = '';
+        }
+
+        async function testLibraryVersions() {
+            try {
+                log('INFO', 'Testing library versions and compatibility');
+                showStatus('Loading transformers.js 3.6.3...', 'info');
+                
+                // Load transformers.js 3.6.3
+                transformers = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3');
+                
+                log('INFO', '✅ Transformers.js 3.6.3 loaded successfully');
+                
+                // Check available exports
+                const exports = Object.keys(transformers);
+                log('INFO', 'Available exports', exports);
+                
+                // Check for ONNX Runtime Web
+                let onnxRuntimeInfo = 'Unknown';
+                if (transformers.env && transformers.env.backends) {
+                    onnxRuntimeInfo = JSON.stringify(transformers.env.backends);
+                }
+                
+                // Check environment configuration
+                const envInfo = {
+                    allowLocalModels: transformers.env?.allowLocalModels,
+                    allowRemoteModels: transformers.env?.allowRemoteModels,
+                    localModelPath: transformers.env?.localModelPath,
+                    backends: transformers.env?.backends,
+                    onnxruntimeWebPath: transformers.env?.onnxruntimeWebPath
+                };
+                
+                log('INFO', 'Environment configuration', envInfo);
+                
+                // Configure for local models
+                if (transformers.env) {
+                    transformers.env.allowLocalModels = true;
+                    transformers.env.allowRemoteModels = true;
+                    transformers.env.localModelPath = './';
+                    log('INFO', 'Environment configured for local models');
+                }
+                
+                addResult('✅ Library Loading', `
+                    Transformers.js version: 3.6.3<br>
+                    Available exports: ${exports.length}<br>
+                    ONNX Runtime info: ${onnxRuntimeInfo}<br>
+                    Environment configured: ${!!transformers.env}
+                `, 'success');
+                
+                showStatus('✅ Library versions tested successfully', 'success');
+                
+            } catch (error) {
+                log('ERROR', `Library version test failed: ${error.message}`);
+                showStatus(`❌ Library test failed: ${error.message}`, 'error');
+                addResult('❌ Library Loading', error.message, 'error');
+            }
+        }
+
+        async function testOnnxRuntime() {
+            try {
+                if (!transformers) {
+                    await testLibraryVersions();
+                }
+                
+                log('INFO', 'Testing ONNX Runtime Web compatibility');
+                showStatus('Testing ONNX Runtime Web...', 'info');
+                
+                // Try to get ONNX Runtime information
+                let onnxInfo = {};
+                
+                // Check if we can access ONNX Runtime directly
+                if (window.ort) {
+                    onnxInfo.available = true;
+                    onnxInfo.version = window.ort.version || 'Unknown';
+                    log('INFO', 'ONNX Runtime available globally', onnxInfo);
+                } else {
+                    log('INFO', 'ONNX Runtime not available globally');
+                }
+                
+                // Test with a simple model creation
+                try {
+                    const testTensor = new transformers.Tensor('float32', [1, 2, 3, 4], [2, 2]);
+                    log('INFO', 'Test tensor created successfully', {
+                        shape: testTensor.dims,
+                        data: testTensor.data
+                    });
+                    onnxInfo.tensorSupport = true;
+                } catch (tensorError) {
+                    log('WARN', 'Tensor creation failed', tensorError.message);
+                    onnxInfo.tensorSupport = false;
+                }
+                
+                addResult('✅ ONNX Runtime Test', `
+                    Globally available: ${onnxInfo.available || false}<br>
+                    Version: ${onnxInfo.version || 'Unknown'}<br>
+                    Tensor support: ${onnxInfo.tensorSupport}
+                `, 'success');
+                
+                showStatus('✅ ONNX Runtime test completed', 'success');
+                
+            } catch (error) {
+                log('ERROR', `ONNX Runtime test failed: ${error.message}`);
+                showStatus(`❌ ONNX Runtime test failed: ${error.message}`, 'error');
+                addResult('❌ ONNX Runtime Test', error.message, 'error');
+            }
+        }
+
+        async function testKokoroModel() {
+            try {
+                if (!transformers) {
+                    await testLibraryVersions();
+                }
+                
+                log('INFO', 'Testing Kokoro model loading with IR version 9 support');
+                showStatus('Testing Kokoro model...', 'info');
+                
+                const startTime = performance.now();
+                
+                // Try to load the Kokoro model
+                const model = await transformers.AutoModel.from_pretrained('models/Kokoro-82M-v1.0-ONNX', {
+                    dtype: 'fp32'
+                });
+                
+                const loadTime = performance.now() - startTime;
+                log('INFO', '✅ Kokoro model loaded successfully!', {
+                    loadTime: `${loadTime.toFixed(2)}ms`,
+                    modelType: typeof model
+                });
+                
+                // Try to load tokenizer
+                const tokenizer = await transformers.AutoTokenizer.from_pretrained('models/Kokoro-82M-v1.0-ONNX');
+                log('INFO', '✅ Kokoro tokenizer loaded successfully');
+                
+                // Test tokenization and inference
+                const testText = "Hello, this is a test.";
+                const inputs = tokenizer(testText);
+                log('INFO', `✅ Tokenized "${testText}" successfully`, {
+                    tokenCount: inputs.input_ids.dims[1]
+                });
+                
+                // Test BigInt conversion (the fix we applied)
+                const tokenIds = Array.from(inputs.input_ids.data).map(id => Number(id));
+                log('INFO', `✅ Token IDs converted from BigInt to Number: ${tokenIds.length} tokens`);
+                
+                // Load voice data
+                const voiceResponse = await fetch('models/Kokoro-82M-v1.0-ONNX/voices/af_heart.bin');
+                const voiceBuffer = await voiceResponse.arrayBuffer();
+                const voiceData = new Float32Array(voiceBuffer);
+                log('INFO', `✅ Voice data loaded: ${voiceData.length} floats`);
+                
+                addResult('✅ Kokoro Model Test', `
+                    Model loaded: Yes<br>
+                    Load time: ${loadTime.toFixed(2)}ms<br>
+                    Tokenizer loaded: Yes<br>
+                    BigInt conversion: Fixed<br>
+                    Voice data loaded: Yes<br>
+                    IR version 9 support: ✅
+                `, 'success');
+                
+                showStatus('✅ Kokoro model test passed!', 'success');
+                
+            } catch (error) {
+                log('ERROR', `Kokoro model test failed: ${error.message}`);
+                
+                // Check if it's still an IR version error
+                const isIRError = error.message.includes('IR version');
+                const isBigIntError = error.message.includes('BigInt');
+                
+                addResult(isIRError ? '⚠️ Kokoro Model Test' : '❌ Kokoro Model Test', `
+                    Error: ${error.message}<br>
+                    IR version issue: ${isIRError ? 'Yes' : 'No'}<br>
+                    BigInt issue: ${isBigIntError ? 'Yes (needs fix)' : 'No'}
+                `, 'error');
+                
+                showStatus(`❌ Kokoro model test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSpeechT5Model() {
+            try {
+                if (!transformers) {
+                    await testLibraryVersions();
+                }
+                
+                log('INFO', 'Testing SpeechT5 model loading');
+                showStatus('Testing SpeechT5 model...', 'info');
+                
+                const startTime = performance.now();
+                
+                // Try to load SpeechT5 model and tokenizer directly (avoid vocoder issues)
+                const model = await transformers.AutoModel.from_pretrained('models/speecht5_tts', {
+                    dtype: 'fp32'
+                });
+                
+                const tokenizer = await transformers.AutoTokenizer.from_pretrained('models/speecht5_tts');
+                
+                const loadTime = performance.now() - startTime;
+                log('INFO', '✅ SpeechT5 model and tokenizer loaded successfully!', {
+                    loadTime: `${loadTime.toFixed(2)}ms`,
+                    modelType: typeof model,
+                    tokenizerType: typeof tokenizer
+                });
+                
+                // Test tokenization
+                const testText = "Hello world test";
+                const inputs = tokenizer(testText);
+                log('INFO', `✅ Tokenized "${testText}" successfully`, {
+                    tokenCount: inputs.input_ids.dims[1]
+                });
+                
+                // Create speaker embeddings for SpeechT5
+                const speakerEmbeddings = new Float32Array(512);
+                for (let i = 0; i < speakerEmbeddings.length; i++) {
+                    speakerEmbeddings[i] = (Math.random() - 0.5) * 0.1;
+                }
+                log('INFO', '✅ Speaker embeddings created: 512 dimensions');
+                
+                addResult('✅ SpeechT5 Model Test', `
+                    Model loaded: Yes<br>
+                    Load time: ${loadTime.toFixed(2)}ms<br>
+                    Tokenizer loaded: Yes<br>
+                    Speaker embeddings: Created<br>
+                    Loading method: Direct (no vocoder issues)
+                `, 'success');
+                
+                showStatus('✅ SpeechT5 model test passed!', 'success');
+                
+            } catch (error) {
+                log('ERROR', `SpeechT5 model test failed: ${error.message}`);
+                
+                const isVocoderError = error.message.includes('vocoder') || error.message.includes('Speaker embeddings');
+                
+                addResult('❌ SpeechT5 Model Test', `
+                    Error: ${error.message}<br>
+                    Vocoder issue: ${isVocoderError ? 'Yes (expected with pipeline)' : 'No'}
+                `, 'error');
+                
+                showStatus(`❌ SpeechT5 model test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize
+        log('INFO', 'Transformers.js 3.6.3 + ONNX Runtime Test initialized');
+        log('INFO', 'This test verifies the latest transformers.js version and ONNX Runtime Web compatibility');
+        log('INFO', 'Click the test buttons to verify different components');
+    </script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Worker Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffeeee; color: red; }
+        .success { background: #eeffee; color: green; }
+        button { padding: 10px 20px; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Worker Test</h1>
+    <button onclick="testWorker()">Test Worker</button>
+    <button onclick="clearLog()">Clear Log</button>
+    <div id="log"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `[${new Date().toISOString()}] ${message}`;
+            document.getElementById('log').appendChild(div);
+            console.log(message);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function testWorker() {
+            try {
+                log('Creating worker...');
+                const worker = new Worker('js/conversationWorkerWorking.js');
+                
+                worker.onmessage = function(event) {
+                    log(`Worker message: ${event.data.type} - ${event.data.message || JSON.stringify(event.data)}`, 'success');
+                };
+                
+                worker.onerror = function(error) {
+                    log(`Worker error: ${error.message}`, 'error');
+                };
+                
+                worker.postMessage({ type: 'test_phonemizer', text: 'Hello world' });
+                log('Worker created and test sent');
+                
+            } catch (error) {
+                log(`Failed to create worker: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

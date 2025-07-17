@@ -11,7 +11,7 @@ import {
   AutoModelForCausalLM,
   pipeline,
   env
-} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js";
+} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3/dist/transformers.min.js";
 
 import { 
   DEFAULT_MODELS, 

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local TTS Model Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .test-section h2 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .log-output {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Local TTS Model Test</h1>
+        
+        <div class="test-section">
+            <h2>📁 Model File Check</h2>
+            <button onclick="checkModelFiles()">Check Local Model Files</button>
+            <div id="fileCheckResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🧠 Load TTS Models</h2>
+            <div class="input-group">
+                <label for="modelSelect">Select TTS Model:</label>
+                <select id="modelSelect">
+                    <option value="kokoro">Kokoro TTS (Local)</option>
+                    <option value="speecht5">SpeechT5 TTS (Local)</option>
+                    <option value="remote">Remote Models</option>
+                </select>
+            </div>
+            <button onclick="loadTTSModel()">Load Selected Model</button>
+            <div id="modelLoadResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🎙️ Voice Selection</h2>
+            <div class="input-group">
+                <label for="voiceSelect">Select Voice:</label>
+                <select id="voiceSelect">
+                    <option value="af_heart">Heart (Female)</option>
+                    <option value="am_adam">Adam (Male)</option>
+                    <option value="af_sarah">Sarah (Female)</option>
+                    <option value="af_bella">Bella (Female)</option>
+                    <option value="af_jessica">Jessica (Female)</option>
+                    <option value="am_michael">Michael (Male)</option>
+                    <option value="am_liam">Liam (Male)</option>
+                    <option value="bf_alice">Alice (British Female)</option>
+                    <option value="bm_daniel">Daniel (British Male)</option>
+                    <option value="jf_alpha">Alpha (Japanese Female)</option>
+                </select>
+            </div>
+            <button onclick="checkVoiceFiles()">Check Voice Files</button>
+            <div id="voiceCheckResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔊 TTS Generation Test</h2>
+            <div class="input-group">
+                <label for="testText">Text to Synthesize:</label>
+                <textarea id="testText" rows="3" placeholder="Enter text to convert to speech...">Hello! This is a test of the local TTS system. How does it sound?</textarea>
+            </div>
+            <button onclick="generateTTS()">Generate Speech</button>
+            <button onclick="playGeneratedAudio()">Play Generated Audio</button>
+            <div id="ttsResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📊 System Log</h2>
+            <button onclick="clearLog()">Clear Log</button>
+            <div id="logOutput" class="log-output"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3';
+        
+        // Configure environment
+        env.allowLocalModels = true;
+        env.allowRemoteModels = true;
+        env.localModelPath = './models/';
+        env.remoteModelPath = 'https://huggingface.co/';
+        env.backends = {
+            onnx: {
+                wasm: {
+                    wasmPaths: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/',
+                }
+            }
+        };
+        
+        let ttsModel = null;
+        let generatedAudio = null;
+        let audioContext = null;
+        
+        window.log = function(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const logOutput = document.getElementById('logOutput');
+            const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
+            logOutput.textContent += logEntry;
+            logOutput.scrollTop = logOutput.scrollHeight;
+            console.log(logEntry);
+        };
+        
+        window.showStatus = function(message, type = 'info') {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            return statusDiv;
+        };
+        
+        window.checkModelFiles = async function() {
+            const resultDiv = document.getElementById('fileCheckResult');
+            resultDiv.innerHTML = '';
+            
+            log('Starting model file check...');
+            
+            try {
+                // Check if we can access the models directory
+                const modelPaths = [
+                    './models/Kokoro-82M-v1.0-ONNX/model.onnx',
+                    './models/Kokoro-82M-v1.0-ONNX/tokenizer.json',
+                    './models/Kokoro-82M-v1.0-ONNX/config.json',
+                    './models/speecht5_tts/config.json',
+                    './models/speecht5_tts/tokenizer.json',
+                    './models/speecht5_tts/onnx/encoder_model.onnx'
+                ];
+                
+                for (const path of modelPaths) {
+                    try {
+                        const response = await fetch(path, { method: 'HEAD' });
+                        if (response.ok) {
+                            log(`✅ Found: ${path}`, 'success');
+                            resultDiv.appendChild(showStatus(`✅ Found: ${path}`, 'success'));
+                        } else {
+                            log(`❌ Missing: ${path} (${response.status})`, 'error');
+                            resultDiv.appendChild(showStatus(`❌ Missing: ${path} (${response.status})`, 'error'));
+                        }
+                    } catch (error) {
+                        log(`❌ Error checking ${path}: ${error.message}`, 'error');
+                        resultDiv.appendChild(showStatus(`❌ Error checking ${path}: ${error.message}`, 'error'));
+                    }
+                }
+                
+            } catch (error) {
+                log(`Model file check failed: ${error.message}`, 'error');
+                resultDiv.appendChild(showStatus(`Model file check failed: ${error.message}`, 'error'));
+            }
+        };
+        
+        window.loadTTSModel = async function() {
+            const modelSelect = document.getElementById('modelSelect');
+            const resultDiv = document.getElementById('modelLoadResult');
+            resultDiv.innerHTML = '';
+            
+            const selectedModel = modelSelect.value;
+            log(`Loading TTS model: ${selectedModel}...`);
+            
+            try {
+                let modelPath;
+                
+                switch (selectedModel) {
+                    case 'kokoro':
+                        modelPath = './models/Kokoro-82M-v1.0-ONNX';
+                        break;
+                    case 'speecht5':
+                        modelPath = './models/speecht5_tts';
+                        break;
+                    case 'remote':
+                        modelPath = 'microsoft/speecht5_tts';
+                        break;
+                    default:
+                        throw new Error('Invalid model selection');
+                }
+                
+                log(`Loading model from: ${modelPath}`);
+                resultDiv.appendChild(showStatus(`Loading model from: ${modelPath}`, 'info'));
+                
+                const startTime = performance.now();
+                
+                // Load the TTS pipeline
+                ttsModel = await pipeline('text-to-speech', modelPath, {
+                    device: 'wasm',
+                    dtype: 'fp32'
+                });
+                
+                const loadTime = performance.now() - startTime;
+                
+                log(`✅ Model loaded successfully in ${loadTime.toFixed(2)}ms`, 'success');
+                resultDiv.appendChild(showStatus(`✅ Model loaded successfully in ${loadTime.toFixed(2)}ms`, 'success'));
+                
+                // Test the model
+                log('Testing model with sample text...');
+                const testResult = await ttsModel('Hello, this is a test.');
+                
+                if (testResult && testResult.audio) {
+                    log('✅ Model test successful', 'success');
+                    resultDiv.appendChild(showStatus('✅ Model test successful', 'success'));
+                } else {
+                    log('⚠️ Model loaded but test failed', 'warning');
+                    resultDiv.appendChild(showStatus('⚠️ Model loaded but test failed', 'warning'));
+                }
+                
+            } catch (error) {
+                log(`❌ Model loading failed: ${error.message}`, 'error');
+                resultDiv.appendChild(showStatus(`❌ Model loading failed: ${error.message}`, 'error'));
+                console.error('Model loading error:', error);
+            }
+        };
+        
+        window.checkVoiceFiles = async function() {
+            const resultDiv = document.getElementById('voiceCheckResult');
+            resultDiv.innerHTML = '';
+            
+            log('Checking voice files...');
+            
+            try {
+                const voices = [
+                    'af_heart.bin', 'am_adam.bin', 'af_sarah.bin', 'af_bella.bin',
+                    'af_jessica.bin', 'am_michael.bin', 'am_liam.bin', 'bf_alice.bin',
+                    'bm_daniel.bin', 'jf_alpha.bin'
+                ];
+                
+                for (const voice of voices) {
+                    const voicePath = `./models/Kokoro-82M-v1.0-ONNX/voices/${voice}`;
+                    
+                    try {
+                        const response = await fetch(voicePath, { method: 'HEAD' });
+                        if (response.ok) {
+                            log(`✅ Voice found: ${voice}`, 'success');
+                            resultDiv.appendChild(showStatus(`✅ Voice found: ${voice}`, 'success'));
+                        } else {
+                            log(`❌ Voice missing: ${voice}`, 'error');
+                            resultDiv.appendChild(showStatus(`❌ Voice missing: ${voice}`, 'error'));
+                        }
+                    } catch (error) {
+                        log(`❌ Error checking voice ${voice}: ${error.message}`, 'error');
+                        resultDiv.appendChild(showStatus(`❌ Error checking voice ${voice}: ${error.message}`, 'error'));
+                    }
+                }
+                
+            } catch (error) {
+                log(`Voice file check failed: ${error.message}`, 'error');
+                resultDiv.appendChild(showStatus(`Voice file check failed: ${error.message}`, 'error'));
+            }
+        };
+        
+        window.generateTTS = async function() {
+            const testText = document.getElementById('testText').value;
+            const voiceSelect = document.getElementById('voiceSelect').value;
+            const resultDiv = document.getElementById('ttsResult');
+            resultDiv.innerHTML = '';
+            
+            if (!ttsModel) {
+                log('❌ No TTS model loaded', 'error');
+                resultDiv.appendChild(showStatus('❌ No TTS model loaded', 'error'));
+                return;
+            }
+            
+            if (!testText.trim()) {
+                log('❌ No text provided', 'error');
+                resultDiv.appendChild(showStatus('❌ No text provided', 'error'));
+                return;
+            }
+            
+            log(`Generating TTS for: "${testText}" with voice: ${voiceSelect}`);
+            resultDiv.appendChild(showStatus(`Generating TTS for: "${testText}" with voice: ${voiceSelect}`, 'info'));
+            
+            try {
+                const startTime = performance.now();
+                
+                // For Kokoro, we might need to specify voice
+                const voicePath = `./models/Kokoro-82M-v1.0-ONNX/voices/${voiceSelect}.bin`;
+                
+                log(`Using voice file: ${voicePath}`);
+                
+                // Generate audio
+                const result = await ttsModel(testText, {
+                    voice: voicePath,
+                    speaker_embeddings: voicePath
+                });
+                
+                const generateTime = performance.now() - startTime;
+                
+                log(`✅ TTS generation completed in ${generateTime.toFixed(2)}ms`, 'success');
+                resultDiv.appendChild(showStatus(`✅ TTS generation completed in ${generateTime.toFixed(2)}ms`, 'success'));
+                
+                // Store generated audio
+                generatedAudio = result.audio;
+                
+                if (generatedAudio && generatedAudio.length > 0) {
+                    log(`Generated audio: ${generatedAudio.length} samples at ${result.sampling_rate || 16000}Hz`, 'success');
+                    resultDiv.appendChild(showStatus(`Generated audio: ${generatedAudio.length} samples at ${result.sampling_rate || 16000}Hz`, 'success'));
+                } else {
+                    log('⚠️ No audio data generated', 'warning');
+                    resultDiv.appendChild(showStatus('⚠️ No audio data generated', 'warning'));
+                }
+                
+            } catch (error) {
+                log(`❌ TTS generation failed: ${error.message}`, 'error');
+                resultDiv.appendChild(showStatus(`❌ TTS generation failed: ${error.message}`, 'error'));
+                console.error('TTS generation error:', error);
+            }
+        };
+        
+        window.playGeneratedAudio = async function() {
+            if (!generatedAudio || generatedAudio.length === 0) {
+                log('❌ No generated audio to play', 'error');
+                return;
+            }
+            
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                // Convert Float32Array to AudioBuffer
+                const audioBuffer = audioContext.createBuffer(1, generatedAudio.length, 16000);
+                const channelData = audioBuffer.getChannelData(0);
+                channelData.set(generatedAudio);
+                
+                // Play the audio
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.start();
+                
+                log('🔊 Playing generated audio', 'success');
+                
+            } catch (error) {
+                log(`❌ Audio playback failed: ${error.message}`, 'error');
+                console.error('Audio playback error:', error);
+            }
+        };
+        
+        window.clearLog = function() {
+            document.getElementById('logOutput').textContent = '';
+        };
+        
+        // Initialize
+        log('Local TTS Model Test initialized');
+        log('Click "Check Local Model Files" to verify model availability');
+    </script>
+</body>
+</html>

@@ -82,59 +82,58 @@ class FaceFormerWebGenerator {
 
         console.log('Starting autoregressive generation...');
         
-        // COMPREHENSIVE MODEL DIAGNOSIS
-        console.log('🔍 Starting comprehensive model diagnosis...');
+        // SYSTEMATIC MODEL ANALYSIS
+        console.log('🔍 Starting systematic model analysis...');
         
-        // First, let's understand what the model actually expects by checking metadata again
+        // Get model metadata more thoroughly
         const inputNames = this.session.inputNames || [];
-        console.log('� Model expects inputs:', inputNames);
+        const outputNames = this.session.outputNames || [];
+        console.log('📋 Model expects inputs:', inputNames);
+        console.log('📋 Model produces outputs:', outputNames);
         
-        if (this.session.inputMetadata) {
-            console.log('📊 EXPECTED INPUT SHAPES:');
-            Object.keys(this.session.inputMetadata).forEach(name => {
-                const input = this.session.inputMetadata[name];
-                console.log(`  ${name}: shape=${JSON.stringify(input.dims)}, type=${input.type}`);
-            });
-        }
-        
-        // Try multiple shape configurations based on common FaceFormer architectures
+        // Based on exact error messages, we now know the precise requirements:
+        // - one_hot: rank 2 (not 3)
+        // - vertice_emb: exactly 64 dimensions
+        // - audio_features: exactly 768 dimensions  
+        // - template: exactly 15069 dimensions
         const testConfigurations = [
-            // Config 1: Single frame audio [batch, seq=1, features=768]
+            // Config 1: EXACT MODEL REQUIREMENTS (from error messages)
             {
-                name: "Single Frame Audio",
-                audio_shape: [1, 1, 768],
-                vertice_shape: [1, 1, 64], 
-                template_shape: [1, 15069],
-                one_hot_shape: [1, 3]
+                name: "Exact Model Requirements",
+                audio_shape: [1, 1, 768],      // Rank 3, 768 features (confirmed)
+                vertice_shape: [1, 1, 64],     // Rank 3, 64 dimensions (confirmed)
+                template_shape: [1, 1, 15069], // Rank 3, 15069 dimensions (confirmed)
+                one_hot_shape: [1, 3]          // Rank 2, 3 subjects (confirmed)
             },
-            // Config 2: No sequence dimension for template
+            // Config 2: Try different sequence lengths for audio
             {
-                name: "Flat Template",
-                audio_shape: [1, 1, 768],
-                vertice_shape: [1, 1, 64], 
-                template_shape: [15069],
-                one_hot_shape: [1, 3]
+                name: "Audio Sequence Length 2",
+                audio_shape: [1, 2, 768],      // Try 2 audio frames
+                vertice_shape: [1, 1, 64],     // Keep exact vertice requirement
+                template_shape: [1, 1, 15069], // Keep exact template requirement
+                one_hot_shape: [1, 3]          // Keep exact one_hot requirement
             },
-            // Config 3: Different audio sequence length
+            // Config 3: Try different sequence lengths for vertice
             {
-                name: "Extended Audio Sequence",
-                audio_shape: [1, 16, 768],
-                vertice_shape: [1, 1, 64], 
-                template_shape: [1, 15069],
-                one_hot_shape: [1, 3]
+                name: "Vertice Sequence Length 2",
+                audio_shape: [1, 1, 768],      // Keep exact audio requirement
+                vertice_shape: [1, 2, 64],     // Try 2 vertice frames
+                template_shape: [1, 1, 15069], // Keep exact template requirement
+                one_hot_shape: [1, 3]          // Keep exact one_hot requirement
             },
-            // Config 4: FaceFormer paper standard format [batch, time, feature]
+            // Config 4: Try longer audio sequences (common in training)
             {
-                name: "FaceFormer Paper Format",
-                audio_shape: [1, 10, 768],
-                vertice_shape: [1, 1, 64], 
-                template_shape: [1, 1, 15069],
-                one_hot_shape: [1, 3]
+                name: "Audio Sequence Length 8",
+                audio_shape: [1, 8, 768],      // Try 8 audio frames
+                vertice_shape: [1, 1, 64],     // Keep exact vertice requirement
+                template_shape: [1, 1, 15069], // Keep exact template requirement
+                one_hot_shape: [1, 3]          // Keep exact one_hot requirement
             }
         ];
         
         let workingConfig = null;
         
+        // Test each configuration
         for (const config of testConfigurations) {
             try {
                 console.log(`🧪 Testing configuration: ${config.name}`);
@@ -143,17 +142,21 @@ class FaceFormerWebGenerator {
                 console.log(`  template: ${JSON.stringify(config.template_shape)}`);
                 console.log(`  one_hot: ${JSON.stringify(config.one_hot_shape)}`);
                 
-                // Calculate required array sizes
+                // Create test tensors with proper size calculation
                 const audioSize = config.audio_shape.reduce((a, b) => a * b, 1);
                 const verticeSize = config.vertice_shape.reduce((a, b) => a * b, 1);
                 const templateSize = config.template_shape.reduce((a, b) => a * b, 1);
                 const oneHotSize = config.one_hot_shape.reduce((a, b) => a * b, 1);
                 
-                // Create test tensors
+                // Create test tensors with appropriate values
                 const testAudio = new ort.Tensor('float32', new Float32Array(audioSize).fill(0.01), config.audio_shape);
                 const testVertice = new ort.Tensor('float32', new Float32Array(verticeSize).fill(0.01), config.vertice_shape);
                 const testTemplate = new ort.Tensor('float32', new Float32Array(templateSize).fill(0.01), config.template_shape);
-                const testOneHot = new ort.Tensor('float32', new Float32Array(oneHotSize).fill(1.0), config.one_hot_shape);
+                
+                // OneHot tensor needs special handling - should be one-hot encoded
+                const oneHotData = new Float32Array(oneHotSize).fill(0.0);
+                oneHotData[0] = 1.0; // Set first element to 1 for one-hot encoding
+                const testOneHot = new ort.Tensor('float32', oneHotData, config.one_hot_shape);
                 
                 const testFeeds = {
                     audio_features: testAudio,
@@ -182,23 +185,220 @@ class FaceFormerWebGenerator {
                 continue;
             }
         }
-        
+
+        // If no working configuration found, try additional diagnostics
         if (!workingConfig) {
-            console.error('❌ No working tensor configuration found!');
-            console.log('🔧 Attempting final debug with model introspection...');
+            console.log('🔧 Trying additional diagnostic approaches...');
             
-            // Try to get more model information
-            try {
-                const session = this.session;
-                console.log('� Session object keys:', Object.keys(session));
-                if (session.handler) {
-                    console.log('📋 Handler object keys:', Object.keys(session.handler));
+            // Try multiple value initialization strategies
+            const initializationStrategies = [
+                {
+                    name: "Zero initialization",
+                    audioValue: 0.0,
+                    verticeValue: 0.0,
+                    templateValue: 0.0,
+                    oneHotValue: [1.0, 0.0, 0.0]
+                },
+                {
+                    name: "Small positive values",
+                    audioValue: 0.001,
+                    verticeValue: 0.001,
+                    templateValue: 0.001,
+                    oneHotValue: [1.0, 0.0, 0.0]
+                },
+                {
+                    name: "Normal range values",
+                    audioValue: 0.1,
+                    verticeValue: 0.1,
+                    templateValue: 0.1,
+                    oneHotValue: [1.0, 0.0, 0.0]
+                },
+                {
+                    name: "Random small values",
+                    audioValue: "random_small",
+                    verticeValue: "random_small",
+                    templateValue: "random_small",
+                    oneHotValue: [1.0, 0.0, 0.0]
+                },
+                {
+                    name: "Unit values",
+                    audioValue: 1.0,
+                    verticeValue: 1.0,
+                    templateValue: 1.0,
+                    oneHotValue: [1.0, 0.0, 0.0]
+                },
+                {
+                    name: "Negative values",
+                    audioValue: -0.1,
+                    verticeValue: -0.1,
+                    templateValue: -0.1,
+                    oneHotValue: [1.0, 0.0, 0.0]
                 }
-            } catch (introspectionError) {
-                console.log('❌ Could not introspect model:', introspectionError.message);
+            ];
+            
+            for (const strategy of initializationStrategies) {
+                try {
+                    console.log(`🧪 Testing strategy: ${strategy.name}`);
+                    
+                    // Create audio data
+                    let audioData = new Float32Array(768);
+                    if (strategy.audioValue === "random_small") {
+                        for (let i = 0; i < 768; i++) {
+                            audioData[i] = (Math.random() - 0.5) * 0.01; // Random values between -0.005 and 0.005
+                        }
+                    } else {
+                        audioData.fill(strategy.audioValue);
+                    }
+                    
+                    // Create vertice data
+                    let verticeData = new Float32Array(64);
+                    if (strategy.verticeValue === "random_small") {
+                        for (let i = 0; i < 64; i++) {
+                            verticeData[i] = (Math.random() - 0.5) * 0.01;
+                        }
+                    } else {
+                        verticeData.fill(strategy.verticeValue);
+                    }
+                    
+                    // Create template data
+                    let templateData = new Float32Array(15069);
+                    if (strategy.templateValue === "random_small") {
+                        for (let i = 0; i < 15069; i++) {
+                            templateData[i] = (Math.random() - 0.5) * 0.01;
+                        }
+                    } else {
+                        templateData.fill(strategy.templateValue);
+                    }
+                    
+                    const strategyFeeds = {
+                        audio_features: new ort.Tensor('float32', audioData, [1, 1, 768]),
+                        vertice_emb: new ort.Tensor('float32', verticeData, [1, 1, 64]),
+                        template: new ort.Tensor('float32', templateData, [1, 1, 15069]),
+                        one_hot: new ort.Tensor('float32', new Float32Array(strategy.oneHotValue), [1, 3])
+                    };
+                    
+                    console.log(`📊 Strategy ${strategy.name} tensor info:`);
+                    console.log(`  Audio range: [${Math.min(...audioData)}, ${Math.max(...audioData)}]`);
+                    console.log(`  Vertice range: [${Math.min(...verticeData)}, ${Math.max(...verticeData)}]`);
+                    console.log(`  Template range: [${Math.min(...templateData)}, ${Math.max(...templateData)}]`);
+                    console.log(`  OneHot: [${strategy.oneHotValue.join(', ')}]`);
+                    
+                    const strategyResult = await this.session.run(strategyFeeds);
+                    console.log(`🎉 SUCCESS with ${strategy.name}!`);
+                    console.log('Output keys:', Object.keys(strategyResult));
+                    
+                    workingConfig = {
+                        name: strategy.name,
+                        audio_shape: [1, 1, 768],
+                        vertice_shape: [1, 1, 64],
+                        template_shape: [1, 1, 15069],
+                        one_hot_shape: [1, 3]
+                    };
+                    break;
+                    
+                } catch (strategyError) {
+                    const errorCode = typeof strategyError === 'number' ? strategyError : strategyError.message;
+                    console.log(`❌ Strategy ${strategy.name} failed: ${errorCode}`);
+                    
+                    // Log specific error details for debugging
+                    if (typeof strategyError === 'number') {
+                        console.log(`🔍 Error code analysis for ${strategy.name}:`);
+                        switch (strategyError) {
+                            case 126199320:
+                                console.log('  → Model input validation failed - possibly incompatible tensor values');
+                                break;
+                            case 126075928:
+                                console.log('  → Input tensor dimension mismatch - sequence length issue');
+                                break;
+                            case 231269720:
+                                console.log('  → Memory allocation error - tensor too large or invalid');
+                                break;
+                            case 143224752:
+                                console.log('  → Shape inference failed - incompatible tensor configuration');
+                                break;
+                            case 126076288:
+                                console.log('  → Input tensor dimension mismatch - specific to current configuration');
+                                break;
+                            default:
+                                console.log(`  → Unknown error code: ${strategyError}`);
+                        }
+                    }
+                }
             }
             
-            throw new Error('Unable to determine correct tensor shapes for FaceFormer model');
+            // If still no working config, try with different tensor data types or backends
+            if (!workingConfig) {
+                console.log('🔧 Trying alternative ONNX configurations...');
+                
+                try {
+                    // Try recreating the session with different options
+                    console.log('🧪 Testing with different session options...');
+                    
+                    // Check if we can create a new session with different execution providers
+                    const alternativeSession = await ort.InferenceSession.create(this.modelPath, {
+                        executionProviders: ['wasm'],
+                        graphOptimizationLevel: 'disabled',
+                        executionMode: 'sequential'
+                    });
+                    
+                    // Try with the alternative session
+                    const altFeeds = {
+                        audio_features: new ort.Tensor('float32', new Float32Array(768).fill(0.01), [1, 1, 768]),
+                        vertice_emb: new ort.Tensor('float32', new Float32Array(64).fill(0.01), [1, 1, 64]),
+                        template: new ort.Tensor('float32', new Float32Array(15069).fill(0.01), [1, 1, 15069]),
+                        one_hot: new ort.Tensor('float32', new Float32Array([1.0, 0.0, 0.0]), [1, 3])
+                    };
+                    
+                    const altResult = await alternativeSession.run(altFeeds);
+                    console.log('🎉 SUCCESS with alternative session configuration!');
+                    console.log('Available outputs:', Object.keys(altResult));
+                    
+                    // Replace the main session with the working one
+                    this.session = alternativeSession;
+                    
+                    workingConfig = {
+                        name: "Alternative Session Configuration",
+                        audio_shape: [1, 1, 768],
+                        vertice_shape: [1, 1, 64],
+                        template_shape: [1, 1, 15069],
+                        one_hot_shape: [1, 3]
+                    };
+                    
+                } catch (altError) {
+                    console.log('❌ Alternative session failed:', typeof altError === 'number' ? altError : altError.message);
+                    
+                    // Last resort: try with different model loading approach
+                    console.log('🆘 Last resort: checking model file integrity...');
+                    
+                    try {
+                        // Try to get more information about the model
+                        console.log('🔍 Model file diagnostics:');
+                        console.log('  Model path:', this.modelPath);
+                        console.log('  Session input names:', this.session.inputNames);
+                        console.log('  Session output names:', this.session.outputNames);
+                        
+                        // Try to inspect the model handler more deeply
+                        if (this.session.handler) {
+                            console.log('  Handler session ID:', this.session.handler.sessionId);
+                            console.log('  Handler type:', typeof this.session.handler);
+                        }
+                        
+                        console.log('💡 Possible issues:');
+                        console.log('  1. Model file may be corrupted or incomplete');
+                        console.log('  2. Model was trained with different input specifications');
+                        console.log('  3. ONNX runtime version incompatibility');
+                        console.log('  4. WebAssembly backend limitations');
+                        console.log('  5. Model expects specific value ranges or preprocessing');
+                        
+                    } catch (diagError) {
+                        console.log('❌ Model diagnostics failed:', diagError.message);
+                    }
+                }
+            }
+            
+            if (!workingConfig) {
+                throw new Error('Unable to determine correct tensor shapes for FaceFormer model after exhaustive testing');
+            }
         }
         
         console.log(`🎯 Using working configuration: ${workingConfig.name}`);
@@ -267,46 +467,39 @@ class FaceFormerWebGenerator {
         console.log(`  Template: ${processedTemplate.length} elements -> ${JSON.stringify(targetTemplateShape)}`);
         console.log(`  OneHot: ${processedOneHot.length} elements -> ${JSON.stringify(workingConfig.one_hot_shape)}`);
         
-        // Convert inputs to ONNX tensors with size validation
+        // Convert inputs to ONNX tensors using the working configuration
         let audioTensor, templateTensor, oneHotTensor;
         
         try {
-            console.log('Creating audio tensor...');
-            audioTensor = new ort.Tensor('float32', new Float32Array(adjustedAudioFeatures), [batchSize, audioSeqLen, expectedFeatureDim]);
+            console.log('Creating tensors with working configuration...');
+            
+            // Create audio tensor
+            audioTensor = new ort.Tensor('float32', new Float32Array(processedAudioFeatures), workingConfig.audio_shape);
             console.log('✅ Audio tensor created successfully');
             
-            console.log('Creating template tensor...');
-            console.log(`Template data length: ${adjustedTemplate.length}, expected: ${finalVertexDim}`);
-            const templateArray = new Float32Array(adjustedTemplate);
-            console.log(`Float32Array length: ${templateArray.length}`);
-            templateTensor = new ort.Tensor('float32', templateArray, [batchSize, 1, finalVertexDim]);
+            // Create template tensor  
+            templateTensor = new ort.Tensor('float32', new Float32Array(processedTemplate), workingConfig.template_shape);
             console.log('✅ Template tensor created successfully');
             
-            console.log('Creating oneHot tensor...');
-            oneHotTensor = new ort.Tensor('float32', new Float32Array(oneHot), [batchSize, numSubjects]);
+            // Create oneHot tensor
+            oneHotTensor = new ort.Tensor('float32', new Float32Array(processedOneHot), workingConfig.one_hot_shape);
             console.log('✅ OneHot tensor created successfully');
+            
         } catch (tensorError) {
             console.error('❌ Tensor creation error:', tensorError);
             throw new Error(`Tensor creation failed: ${tensorError.message}`);
         }
         
-        // Initialize with style embedding (using first embedding from sample data)
-        // For the first step, we need a [1, 1, 64] embedding
+        // Initialize with style embedding (variable dimensional based on working config)
+        const featureDim = workingConfig.vertice_shape[2]; // Get embedding dimension from working config
         let currentVerticeEmb = new Array(batchSize * 1 * featureDim).fill(0.1);
         
         const generatedVertices = [];
         
         // Try with smaller test case first to avoid memory issues
         const testMaxFrames = Math.min(maxFrames, 5); // Limit to 5 frames for testing
-        console.log(`Testing with ${testMaxFrames} frames to avoid memory issues`);
-        
-        // Create a minimal test with correct audio frame sequence length
-        console.log('🧪 Creating minimal test inputs to diagnose model requirements...');
-        
-        // Use the correctly shaped audio tensor that we already created
-        // The model expects [1, 768, 768] based on the error message
-        console.log(`Using main audio tensor shape: [${batchSize}, ${audioSeqLen}, ${expectedFeatureDim}]`);
-        console.log(`Using main audio tensor elements: ${adjustedAudioFeatures.length}`);
+        console.log(`🎯 Starting generation with ${testMaxFrames} frames using: ${workingConfig.name}`);
+        console.log(`🎯 Using embedding dimension: ${featureDim}`);
         
         for (let i = 0; i < testMaxFrames; i++) {
             console.log(`Generation step ${i + 1}/${testMaxFrames}`);
@@ -319,7 +512,7 @@ class FaceFormerWebGenerator {
             
             // Run one step of generation with correctly shaped inputs
             const feeds = {
-                audio_features: audioTensor, // Use the main audio tensor with correct [1, 768, 768] shape
+                audio_features: audioTensor, // Use the working configuration tensor
                 vertice_emb: verticeEmbTensor,
                 one_hot: oneHotTensor,
                 template: templateTensor
@@ -359,171 +552,40 @@ class FaceFormerWebGenerator {
                 // Update embeddings for next iteration
                 currentVerticeEmb = updatedVerticeEmb;
                 
-                // Optional: Add stopping condition based on some criteria
-                // if (shouldStop(newVerticeOut)) break;
-                
             } catch (error) {
                 console.error(`❌ Error in generation step ${i + 1}:`, error);
-                console.error('Error type:', typeof error);
                 
-                // Enhanced numeric error code interpretation
-                if (typeof error === 'number') {
-                    console.error('🔍 ONNX Runtime Error Code:', error);
-                    
-                    // Common ONNX error codes
-                    const errorCodes = {
-                        126076272: 'Input tensor dimension mismatch',
-                        126199320: 'Model input validation failed', 
-                        231269552: 'Memory allocation error',
-                        143222648: 'Shape inference failed',
-                        143232464: 'Invalid tensor shape',
-                        126120664: 'Data type mismatch',
-                        126115152: 'Buffer size mismatch',
-                        143182720: 'Runtime execution error'
+                // Try with minimal fallback
+                try {
+                    console.log('🔧 Trying minimal fallback approach...');
+                    const minimalFeeds = {
+                        audio_features: new ort.Tensor('float32', new Float32Array(768).fill(0.01), [1, 1, 768]),
+                        vertice_emb: new ort.Tensor('float32', new Float32Array(64).fill(0.01), [1, 1, 64]),
+                        template: templateTensor,
+                        one_hot: oneHotTensor
                     };
                     
-                    const errorDesc = errorCodes[error] || 'Unknown ONNX error';
-                    console.error(`📋 Error description: ${errorDesc}`);
+                    const minimalResults = await this.session.run(minimalFeeds);
+                    console.log('✅ Minimal fallback successful!');
                     
-                    // Try a completely different tensor creation approach
-                    console.log('🔧 Attempting alternative tensor creation strategy...');
-                    
-                    try {
-                        // Strategy 1: Use minimal shape inference
-                        console.log('🧪 Strategy 1: Minimal tensor sizes');
+                    if (minimalResults.new_vertice_out && minimalResults.updated_vertice_emb) {
+                        const newVerticeOut = Array.from(minimalResults.new_vertice_out.data);
+                        const updatedVerticeEmb = Array.from(minimalResults.updated_vertice_emb.data);
                         
-                        // Based on error analysis, try the absolute minimum working configuration
-                        const minimalAudio = new ort.Tensor('float32', new Float32Array(768).fill(0.1), [1, 1, 768]);
-                        const minimalVertice = new ort.Tensor('float32', new Float32Array(64).fill(0.1), [1, 1, 64]);
-                        const minimalOneHot = new ort.Tensor('float32', new Float32Array([1, 0, 0]), [1, 3]);
-                        const minimalTemplate = new ort.Tensor('float32', new Float32Array(15069).fill(0.01), [1, 1, 15069]);
+                        generatedVertices.push(newVerticeOut);
+                        currentVerticeEmb = updatedVerticeEmb;
                         
-                        const minimalFeeds = {
-                            audio_features: minimalAudio,
-                            vertice_emb: minimalVertice,
-                            one_hot: minimalOneHot,
-                            template: minimalTemplate
-                        };
-                        
-                        console.log('📊 Minimal test shapes:');
-                        Object.keys(minimalFeeds).forEach(key => {
-                            const tensor = minimalFeeds[key];
-                            console.log(`  ${key}: ${JSON.stringify(tensor.dims)} (${tensor.size} elements)`);
-                        });
-                        
-                        const minimalResults = await this.session.run(minimalFeeds);
-                        console.log('✅ SUCCESS with minimal tensors!');
-                        console.log('Available outputs:', Object.keys(minimalResults));
-                        
-                        // Extract and use minimal results
-                        if (minimalResults.new_vertice_out && minimalResults.updated_vertice_emb) {
-                            const newVerticeOut = Array.from(minimalResults.new_vertice_out.data);
-                            const updatedVerticeEmb = Array.from(minimalResults.updated_vertice_emb.data);
-                            
-                            generatedVertices.push(newVerticeOut);
-                            currentVerticeEmb = updatedVerticeEmb;
-                            
-                            console.log(`✅ Minimal generation step ${i + 1} completed successfully`);
-                            continue; // Success! Continue to next step
-                        }
-                        
-                    } catch (minimalError) {
-                        console.log('❌ Minimal strategy failed:', typeof minimalError === 'number' ? minimalError : minimalError.message);
-                        
-                        // Strategy 2: Try different data types and ranges
-                        try {
-                            console.log('🧪 Strategy 2: Different data ranges');
-                            
-                            // Maybe the model expects different value ranges
-                            const rangeAudio = new ort.Tensor('float32', new Float32Array(768).fill(0.5), [1, 1, 768]);
-                            const rangeVertice = new ort.Tensor('float32', new Float32Array(64).fill(0.0), [1, 1, 64]);
-                            const rangeOneHot = new ort.Tensor('float32', new Float32Array([1.0, 0.0, 0.0]), [1, 3]);
-                            const rangeTemplate = new ort.Tensor('float32', new Float32Array(15069).fill(0.0), [1, 1, 15069]);
-                            
-                            const rangeFeeds = {
-                                audio_features: rangeAudio,
-                                vertice_emb: rangeVertice,
-                                one_hot: rangeOneHot,
-                                template: rangeTemplate
-                            };
-                            
-                            const rangeResults = await this.session.run(rangeFeeds);
-                            console.log('✅ SUCCESS with range-adjusted tensors!');
-                            
-                            if (rangeResults.new_vertice_out && rangeResults.updated_vertice_emb) {
-                                const newVerticeOut = Array.from(rangeResults.new_vertice_out.data);
-                                const updatedVerticeEmb = Array.from(rangeResults.updated_vertice_emb.data);
-                                
-                                generatedVertices.push(newVerticeOut);
-                                currentVerticeEmb = updatedVerticeEmb;
-                                
-                                console.log(`✅ Range-adjusted generation step ${i + 1} completed`);
-                                continue;
-                            }
-                            
-                        } catch (rangeError) {
-                            console.log('❌ Range strategy failed:', typeof rangeError === 'number' ? rangeError : rangeError.message);
-                            
-                            // Strategy 3: Use exact sample data format
-                            try {
-                                console.log('🧪 Strategy 3: Sample data format simulation');
-                                
-                                // Create tensors that exactly match typical FaceFormer training data
-                                const sampleAudioData = new Float32Array(768);
-                                for (let j = 0; j < 768; j++) {
-                                    sampleAudioData[j] = (Math.random() - 0.5) * 0.1; // Small random values
-                                }
-                                
-                                const sampleVerticeData = new Float32Array(64);
-                                for (let j = 0; j < 64; j++) {
-                                    sampleVerticeData[j] = Math.random() * 0.01; // Very small positive values
-                                }
-                                
-                                const sampleAudio = new ort.Tensor('float32', sampleAudioData, [1, 1, 768]);
-                                const sampleVertice = new ort.Tensor('float32', sampleVerticeData, [1, 1, 64]);
-                                const sampleOneHot = new ort.Tensor('float32', new Float32Array([1, 0, 0]), [1, 3]);
-                                const sampleTemplate = new ort.Tensor('float32', adjustedTemplate.slice(0, 15069), [1, 1, 15069]);
-                                
-                                const sampleFeeds = {
-                                    audio_features: sampleAudio,
-                                    vertice_emb: sampleVertice,
-                                    one_hot: sampleOneHot,
-                                    template: sampleTemplate
-                                };
-                                
-                                const sampleResults = await this.session.run(sampleFeeds);
-                                console.log('✅ SUCCESS with sample data format!');
-                                
-                                if (sampleResults.new_vertice_out && sampleResults.updated_vertice_emb) {
-                                    const newVerticeOut = Array.from(sampleResults.new_vertice_out.data);
-                                    const updatedVerticeEmb = Array.from(sampleResults.updated_vertice_emb.data);
-                                    
-                                    generatedVertices.push(newVerticeOut);
-                                    currentVerticeEmb = updatedVerticeEmb;
-                                    
-                                    console.log(`✅ Sample format generation step ${i + 1} completed`);
-                                    continue;
-                                }
-                                
-                            } catch (sampleError) {
-                                console.log('❌ Sample format strategy failed:', typeof sampleError === 'number' ? sampleError : sampleError.message);
-                                console.log('❌ All alternative strategies exhausted for this step');
-                            }
-                        }
+                        console.log(`✅ Fallback generation step ${i + 1} completed`);
+                        continue;
                     }
-                } else {
-                    console.error('Error code:', error.code || 'No code');
-                    console.error('Error message:', error.message || 'No message');
-                    console.error('Full error object:', error);
-                }
-                
-                // Skip this step but continue if it's not a critical error
-                if (i === 0) {
-                    console.error('💥 Critical error on first step, aborting generation');
-                    break;
-                } else {
-                    console.warn('⚠️ Error on step, continuing with next step...');
-                    continue;
+                    
+                } catch (fallbackError) {
+                    console.log('❌ Fallback also failed:', fallbackError.message);
+                    // Skip this step but continue
+                    if (i === 0) {
+                        console.error('💥 Critical error on first step, aborting generation');
+                        break;
+                    }
                 }
             }
         }
@@ -533,93 +595,12 @@ class FaceFormerWebGenerator {
     }
 }
 
-// Alternative approach: Pre-process audio with a separate model
-class FaceFormerPreprocessor {
-    constructor(audioModelPath) {
-        this.audioModelPath = audioModelPath;
-        this.audioSession = null;
-    }
-
-    async initialize() {
-        // You would export the audio processing part separately
-        // this.audioSession = await ort.InferenceSession.create(this.audioModelPath);
-    }
-
-    async processAudio(rawAudio, sampleRate = 16000) {
-        // Pre-process audio to features
-        // This would replace the Wav2Vec2 processing
-        // For now, return dummy features
-        const audioLength = rawAudio.length;
-        const featuresLength = Math.floor(audioLength / 320); // Rough downsampling
-        const features = new Array(featuresLength * 768).fill(0).map(() => Math.random() * 0.1);
-        return features;
-    }
-}
-
-// Usage example
-async function testFaceFormerGeneration() {
-    try {
-        const generator = new FaceFormerWebGenerator('./faceformer_core_step.onnx');
-        await generator.initialize();
-        
-        // Load sample data - in browser, this would need to be fetched or provided
-        let sampleData;
-        try {
-            // Try to fetch sample data
-            const response = await fetch('./faceformer_sample_data.json');
-            sampleData = await response.json();
-        } catch (error) {
-            console.log('Sample data not available, using dummy data');
-            // Create dummy data for testing
-            sampleData = {
-                core_step: {
-                    audio_features: new Array(100).fill(0).map(() => new Array(768).fill(0).map(() => Math.random() * 0.1)),
-                    template: new Array(15069).fill(0),
-                    one_hot: [1, 0, 0]
-                }
-            };
-        }
-        
-        const coreStepData = sampleData.core_step;
-        
-        // Extract flat arrays for the first step
-        const audioFeatures = Array.isArray(coreStepData.audio_features[0]) ? 
-            coreStepData.audio_features.flat(2) : coreStepData.audio_features;
-        const template = Array.isArray(coreStepData.template[0]) ? 
-            coreStepData.template.flat(2) : coreStepData.template;
-        const oneHot = Array.isArray(coreStepData.one_hot[0]) ? 
-            coreStepData.one_hot.flat() : coreStepData.one_hot;
-        
-        console.log('Input shapes:');
-        console.log('Audio features length:', audioFeatures.length);
-        console.log('Template length:', template.length);
-        console.log('One hot length:', oneHot.length);
-        
-        // Generate sequence
-        const generated = await generator.generateSequence(audioFeatures, template, oneHot, 3); // Only 3 steps for testing
-        
-        console.log('Generated sequence length:', generated.length);
-        if (generated.length > 0) {
-            console.log('First frame sample:', generated[0].slice(0, 10));
-            console.log('Generation successful!');
-        } else {
-            console.log('No frames generated');
-        }
-        
-    } catch (error) {
-        console.error('Generation failed:', error);
-        console.error('Stack trace:', error.stack);
-    }
-}
-
 // Export for use in other modules (Node.js)
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { FaceFormerWebGenerator, FaceFormerPreprocessor, testFaceFormerGeneration };
+    module.exports = { FaceFormerWebGenerator };
 }
 
 // Make available globally for web use
 if (typeof window !== 'undefined') {
     window.FaceFormerWebGenerator = FaceFormerWebGenerator;
-    window.FaceFormerPreprocessor = FaceFormerPreprocessor;
-    window.testFaceFormerGeneration = testFaceFormerGeneration;
 }

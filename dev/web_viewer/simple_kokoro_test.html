@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Kokoro Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffeeee; color: red; }
+        .success { background: #eeffee; color: green; }
+        button { padding: 10px 20px; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Simple Kokoro TTS Test</h1>
+    <button onclick="testWorker()">Test Worker</button>
+    <button onclick="testKokoro()">Test Kokoro</button>
+    <button onclick="clearLog()">Clear Log</button>
+    
+    <div style="margin: 20px 0;">
+        <h3>Audio Output</h3>
+        <audio id="audioPlayer" controls style="width: 100%; margin: 10px 0;"></audio>
+        <div id="audioInfo" style="font-size: 12px; color: #666;"></div>
+    </div>
+    
+    <div id="log"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `[${new Date().toISOString()}] ${message}`;
+            document.getElementById('log').appendChild(div);
+            console.log(message);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        let worker = null;
+        let audioContext = null;
+
+        // Initialize audio context
+        async function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+        }
+
+        // Play audio from Float32Array
+        async function playAudio(audioData, sampleRate = 24000, metadata = {}) {
+            try {
+                await initAudioContext();
+                
+                const audioArray = new Float32Array(audioData);
+                const duration = audioArray.length / sampleRate;
+                
+                log(`Playing audio: ${audioArray.length} samples, ${sampleRate}Hz, ${duration.toFixed(2)}s`, 'success');
+                
+                // Create audio buffer
+                const audioBuffer = audioContext.createBuffer(1, audioArray.length, sampleRate);
+                const channelData = audioBuffer.getChannelData(0);
+                channelData.set(audioArray);
+                
+                // Play audio
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.start();
+                
+                // Create downloadable audio file
+                const wavBlob = audioBufferToWav(audioBuffer);
+                const audioUrl = URL.createObjectURL(wavBlob);
+                const audioPlayer = document.getElementById('audioPlayer');
+                audioPlayer.src = audioUrl;
+                
+                // Display info
+                const audioInfo = document.getElementById('audioInfo');
+                audioInfo.innerHTML = `
+                    Audio: ${audioArray.length} samples, ${sampleRate}Hz, ${duration.toFixed(2)}s<br>
+                    ${metadata.voice ? `Voice: ${metadata.voice}` : ''}
+                    ${metadata.tokenCount ? `, Tokens: ${metadata.tokenCount}` : ''}
+                    ${metadata.inferenceTime ? `, Inference: ${metadata.inferenceTime}ms` : ''}
+                `;
+                
+            } catch (error) {
+                log(`Audio playback error: ${error.message}`, 'error');
+            }
+        }
+
+        // Convert AudioBuffer to WAV blob
+        function audioBufferToWav(buffer) {
+            const length = buffer.length;
+            const arrayBuffer = new ArrayBuffer(44 + length * 2);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, buffer.sampleRate, true);
+            view.setUint32(28, buffer.sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, length * 2, true);
+            
+            // Convert float32 to int16
+            const channelData = buffer.getChannelData(0);
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                const sample = Math.max(-1, Math.min(1, channelData[i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        function testWorker() {
+            try {
+                log('Creating worker...');
+                worker = new Worker('js/conversationWorkerWorking.js');
+                
+                worker.onmessage = function(event) {
+                    log(`Worker message: ${event.data.type} - ${event.data.message || JSON.stringify(event.data)}`, 'success');
+                    
+                    // Handle TTS audio output
+                    if (event.data.type === 'output' && event.data.result && event.data.result.audio) {
+                        const audioData = event.data.result.audio;
+                        
+                        // Check if it's actual audio data (not Web Speech API fallback)
+                        if (audioData.data && audioData.data.length > 0) {
+                            playAudio(audioData.data, audioData.sampleRate || 24000, audioData.metadata);
+                        } else if (audioData.audio && audioData.audio.length > 0) {
+                            // Handle fallback TTS format
+                            playAudio(audioData.audio, audioData.sampling_rate || 16000, audioData.metadata);
+                        } else if (audioData.useWebSpeech) {
+                            log('Received Web Speech API fallback (no audio data to play)', 'warning');
+                        }
+                    }
+                };
+                
+                worker.onerror = function(error) {
+                    log(`Worker error: ${error.message}`, 'error');
+                };
+                
+                worker.postMessage({ type: 'init' });
+                log('Worker created and initialized');
+                
+            } catch (error) {
+                log(`Failed to create worker: ${error.message}`, 'error');
+            }
+        }
+
+        function testKokoro() {
+            if (!worker) {
+                log('Worker not initialized. Test worker first.', 'error');
+                return;
+            }
+            
+            log('Testing Kokoro TTS...');
+            
+            // Set voice first
+            worker.postMessage({
+                type: 'set_voice',
+                voice: 'af_heart'
+            });
+            
+            // Then test TTS
+            worker.postMessage({
+                type: 'test_tts',
+                text: 'Hello world! This is a test of Kokoro TTS with proper phonemization.'
+            });
+        }
+    </script>
+</body>
+</html>

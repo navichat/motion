@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversation Worker Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .debug-section h3 {
+            margin-top: 0;
+            color: #666;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .log-output {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            resize: vertical;
+        }
+        
+        .error-details {
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐛 Conversation Worker Debug Test</h1>
+        
+        <div class="debug-section">
+            <h3>Worker Status</h3>
+            <div id="workerStatus" class="status info">Initializing...</div>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value" id="messagesReceived">0</div>
+                    <div class="metric-label">Messages Received</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="errorsCount">0</div>
+                    <div class="metric-label">Errors</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="ttsGenerations">0</div>
+                    <div class="metric-label">TTS Generations</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="workerUptime">0s</div>
+                    <div class="metric-label">Worker Uptime</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>Test Controls</h3>
+            <div class="controls">
+                <button id="testPhonemizerBtn">Test Phonemizer</button>
+                <button id="testTTSBtn">Test TTS</button>
+                <button id="testModelLoadBtn">Test Model Load</button>
+                <button id="simulateAudioBtn">Simulate Audio Input</button>
+                <button id="testKokoroBtn">Test Kokoro Direct</button>
+                <button id="clearLogBtn">Clear Log</button>
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <label for="testText">Test Text:</label>
+                <textarea id="testText" placeholder="Enter text to test with TTS...">Hello world! This is a test of the improved conversation worker with better error handling and phonemization.</textarea>
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <label for="voiceSelect">Voice:</label>
+                <select id="voiceSelect">
+                    <option value="af_heart">Heart (Female)</option>
+                    <option value="am_adam">Adam (Male)</option>
+                    <option value="af_sarah">Sarah (Female)</option>
+                    <option value="af_bella">Bella (Female)</option>
+                    <option value="af_jessica">Jessica (Female)</option>
+                    <option value="am_michael">Michael (Male)</option>
+                    <option value="am_liam">Liam (Male)</option>
+                    <option value="bf_alice">Alice (British Female)</option>
+                    <option value="bm_daniel">Daniel (British Male)</option>
+                    <option value="jf_alpha">Alpha (Japanese Female)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>Audio Output</h3>
+            <audio id="audioPlayer" controls style="width: 100%; margin: 10px 0;"></audio>
+            <div id="audioInfo" style="font-size: 12px; color: #666;"></div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>Error Analysis</h3>
+            <div id="errorDetails"></div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>Debug Log</h3>
+            <div class="log-output" id="logOutput"></div>
+        </div>
+    </div>
+
+    <script>
+        let worker = null;
+        let startTime = Date.now();
+        let messagesReceived = 0;
+        let errorsCount = 0;
+        let ttsGenerations = 0;
+        let lastError = null;
+        
+        // UI elements
+        const workerStatus = document.getElementById('workerStatus');
+        const logOutput = document.getElementById('logOutput');
+        const errorDetails = document.getElementById('errorDetails');
+        const testText = document.getElementById('testText');
+        const voiceSelect = document.getElementById('voiceSelect');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const audioInfo = document.getElementById('audioInfo');
+        
+        // Metrics
+        const messagesReceivedEl = document.getElementById('messagesReceived');
+        const errorsCountEl = document.getElementById('errorsCount');
+        const ttsGenerationsEl = document.getElementById('ttsGenerations');
+        const workerUptimeEl = document.getElementById('workerUptime');
+        
+        // Audio context for playback
+        let audioContext = null;
+        
+        // Initialize audio context
+        async function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+        }
+        
+        // Play audio data
+        async function playAudio(audioData) {
+            try {
+                await initAudioContext();
+                
+                if (audioData.useWebSpeech) {
+                    // Use Web Speech API
+                    const utterance = new SpeechSynthesisUtterance(audioData.text);
+                    utterance.rate = 1.0;
+                    utterance.pitch = 1.0;
+                    utterance.volume = 1.0;
+                    
+                    utterance.onstart = () => {
+                        worker.postMessage({ type: 'playback_started' });
+                        audioInfo.textContent = `Playing via Web Speech API: "${audioData.text}"`;
+                    };
+                    
+                    utterance.onend = () => {
+                        worker.postMessage({ type: 'playback_ended' });
+                        audioInfo.textContent = 'Playback completed';
+                    };
+                    
+                    speechSynthesis.speak(utterance);
+                } else if (audioData.data) {
+                    // Use generated audio data
+                    const audioBuffer = audioContext.createBuffer(1, audioData.data.length, audioData.sampleRate || 16000);
+                    const channelData = audioBuffer.getChannelData(0);
+                    channelData.set(audioData.data);
+                    
+                    const source = audioContext.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(audioContext.destination);
+                    
+                    source.onended = () => {
+                        worker.postMessage({ type: 'playback_ended' });
+                        audioInfo.textContent = 'Generated audio playback completed';
+                    };
+                    
+                    worker.postMessage({ type: 'playback_started' });
+                    source.start();
+                    
+                    // Also create a blob URL for the audio player
+                    const wavBlob = audioBufferToWav(audioBuffer);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    audioPlayer.src = audioUrl;
+                    
+                    // Update audio info
+                    const duration = audioData.data.length / (audioData.sampleRate || 16000);
+                    audioInfo.innerHTML = `
+                        Generated Audio: ${audioData.data.length} samples, ${audioData.sampleRate || 16000}Hz, ${duration.toFixed(2)}s
+                        ${audioData.metadata ? `<br>Voice: ${audioData.metadata.voice}, Tokens: ${audioData.metadata.tokenCount}` : ''}
+                    `;
+                } else {
+                    log('No audio data to play', 'warn');
+                }
+                
+            } catch (error) {
+                log(`Audio playback error: ${error.message}`, 'error');
+                worker.postMessage({ type: 'playback_ended' });
+            }
+        }
+        
+        // Convert AudioBuffer to WAV blob
+        function audioBufferToWav(buffer) {
+            const length = buffer.length;
+            const arrayBuffer = new ArrayBuffer(44 + length * 2);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, buffer.sampleRate, true);
+            view.setUint32(28, buffer.sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, length * 2, true);
+            
+            // Convert float32 to int16
+            const channelData = buffer.getChannelData(0);
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                const sample = Math.max(-1, Math.min(1, channelData[i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+        
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+        
+        // Update metrics
+        function updateMetrics() {
+            messagesReceivedEl.textContent = messagesReceived;
+            errorsCountEl.textContent = errorsCount;
+            ttsGenerationsEl.textContent = ttsGenerations;
+            workerUptimeEl.textContent = `${Math.floor((Date.now() - startTime) / 1000)}s`;
+        }
+        
+        // Update metrics every second
+        setInterval(updateMetrics, 1000);
+        
+        // Logging
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
+            logOutput.textContent += logEntry;
+            logOutput.scrollTop = logOutput.scrollHeight;
+            console.log(logEntry);
+        }
+        
+        function showStatus(message, type = 'info') {
+            workerStatus.className = `status ${type}`;
+            workerStatus.textContent = message;
+        }
+        
+        function showError(error) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-details';
+            errorDiv.innerHTML = `
+                <strong>Error:</strong> ${error.message || error}<br>
+                <strong>Type:</strong> ${error.name || 'Unknown'}<br>
+                <strong>Time:</strong> ${new Date().toISOString()}<br>
+                ${error.stack ? `<strong>Stack:</strong><br>${error.stack}` : ''}
+            `;
+            errorDetails.appendChild(errorDiv);
+            
+            // Remove old errors (keep only last 3)
+            while (errorDetails.children.length > 3) {
+                errorDetails.removeChild(errorDetails.firstChild);
+            }
+        }
+        
+        // Initialize worker
+        async function initWorker() {
+            try {
+                worker = new Worker('js/conversationWorkerWorking.js', { type: 'module' });
+                
+                worker.onmessage = function(event) {
+                    messagesReceived++;
+                    const { type, data } = event.data;
+                    
+                    switch (type) {
+                        case 'status':
+                            showStatus(event.data.message, event.data.status === 'ready' ? 'success' : 'info');
+                            break;
+                            
+                        case 'info':
+                            log(event.data.message, 'info');
+                            break;
+                            
+                        case 'debug_log':
+                            log(event.data.message, event.data.level.toLowerCase());
+                            break;
+                            
+                        case 'transcript':
+                            log(`User: ${event.data.text}`, 'user');
+                            break;
+                            
+                        case 'response':
+                            log(`AI: ${event.data.text}`, 'ai');
+                            break;
+                            
+                        case 'output':
+                            log(`TTS: ${event.data.text}`, 'tts');
+                            ttsGenerations++;
+                            
+                            // Play the audio
+                            if (event.data.result && event.data.result.audio) {
+                                playAudio(event.data.result.audio);
+                            }
+                            
+                            // Log TTS metadata
+                            if (event.data.result && event.data.result.audio && event.data.result.audio.metadata) {
+                                const meta = event.data.result.audio.metadata;
+                                log(`TTS Metadata: Voice=${meta.voice}, Tokens=${meta.tokenCount}, Inference=${meta.inferenceTime}ms`, 'info');
+                            }
+                            break;
+                            
+                        case 'error':
+                            const error = event.data.error || event.data.message;
+                            log(`Error: ${error}`, 'error');
+                            errorsCount++;
+                            lastError = error;
+                            showError({ message: error, name: 'WorkerError' });
+                            showStatus(`Error: ${error}`, 'error');
+                            break;
+                    }
+                };
+                
+                worker.onerror = function(error) {
+                    log(`Worker error: ${error.message}`, 'error');
+                    errorsCount++;
+                    showError(error);
+                    showStatus(`Worker error: ${error.message}`, 'error');
+                };
+                
+                log('Worker initialized successfully');
+                showStatus('Worker initialized successfully', 'success');
+                
+            } catch (error) {
+                log(`Failed to initialize worker: ${error.message}`, 'error');
+                showError(error);
+                showStatus(`Failed to initialize worker: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test functions
+        document.getElementById('testPhonemizerBtn').addEventListener('click', () => {
+            const text = testText.value || 'Hello world! This costs $12.34.';
+            log(`Testing phonemizer with: "${text}"`, 'test');
+            
+            if (worker) {
+                worker.postMessage({
+                    type: 'test_phonemizer',
+                    text: text
+                });
+            }
+        });
+        
+        document.getElementById('testTTSBtn').addEventListener('click', () => {
+            const text = testText.value || 'Hello world! This is a test of the conversation worker.';
+            log(`Testing TTS with: "${text}"`, 'test');
+            
+            if (worker) {
+                worker.postMessage({
+                    type: 'test_tts',
+                    text: text
+                });
+            }
+        });
+        
+        document.getElementById('testModelLoadBtn').addEventListener('click', () => {
+            log('Testing model load capabilities', 'test');
+            
+            if (worker) {
+                worker.postMessage({
+                    type: 'test_models'
+                });
+            }
+        });
+        
+        document.getElementById('testKokoroBtn').addEventListener('click', () => {
+            const text = testText.value || 'Testing Kokoro TTS direct generation.';
+            log(`Testing Kokoro TTS directly with: "${text}"`, 'test');
+            
+            if (worker) {
+                // Set voice first
+                worker.postMessage({
+                    type: 'set_voice',
+                    voice: voiceSelect.value
+                });
+                
+                // Then test TTS
+                worker.postMessage({
+                    type: 'test_tts',
+                    text: text
+                });
+            }
+        });
+        
+        document.getElementById('simulateAudioBtn').addEventListener('click', () => {
+            log('Simulating audio input stream', 'test');
+            
+            if (worker) {
+                // Start a call first
+                worker.postMessage({ type: 'start_call' });
+                
+                // Simulate continuous audio input
+                for (let i = 0; i < 10; i++) {
+                    setTimeout(() => {
+                        const audioData = new Float32Array(4096);
+                        for (let j = 0; j < audioData.length; j++) {
+                            audioData[j] = Math.sin(j * 0.01) * 0.1; // Sine wave
+                        }
+                        
+                        worker.postMessage({
+                            type: 'audio',
+                            data: audioData
+                        });
+                    }, i * 100);
+                }
+                
+                // End call after audio stream
+                setTimeout(() => {
+                    worker.postMessage({ type: 'end_call' });
+                }, 2000);
+            }
+        });
+        
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            logOutput.textContent = '';
+            errorDetails.innerHTML = '';
+            audioInfo.textContent = '';
+        });
+        
+        // Voice selection handler
+        voiceSelect.addEventListener('change', () => {
+            if (worker) {
+                worker.postMessage({
+                    type: 'set_voice',
+                    voice: voiceSelect.value
+                });
+                log(`Voice changed to: ${voiceSelect.value}`, 'info');
+            }
+        });
+        
+        // Initialize everything
+        log('Initializing Conversation Worker Debug Test');
+        initWorker();
+    </script>
+</body>
+</html>

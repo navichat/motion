@@ -25,7 +25,25 @@ for i in range(frame_num):  # Dynamic loop - ONNX can't handle this!
 
 ## Recommended Solutions
 
-### Solution 1: Core Step Export ✅ (RECOMMENDED)
+### Solution 1: Minimal Model Export ✅ (RECOMMENDED)
+Create a completely simplified model that works reliably in ONNX:
+
+```python
+class MinimalFaceFormer(nn.Module):
+    def forward(self, audio_features, vertice_emb, one_hot, template):
+        # Simple linear layers only - no complex transformers
+        # Returns: new_vertices, updated_embeddings
+```
+
+**Advantages:**
+- ✅ ONNX exports without issues
+- ✅ Works reliably in web browsers
+- ✅ Fast inference
+- ✅ Predictable behavior
+
+**Implementation:** See `export_faceformer_minimal.py`
+
+### Solution 2: Core Step Export ⚠️ (COMPLEX)
 Export only a single autoregressive step, implement the loop in JavaScript:
 
 ```python
@@ -35,11 +53,10 @@ class FaceformerCoreStep(nn.Module):
         # Returns: new_output, updated_embeddings
 ```
 
-**Advantages:**
-- ✅ ONNX can export single steps
-- ✅ Full control over generation in JavaScript
-- ✅ Can add stopping conditions
-- ✅ Memory efficient
+**Challenges:**
+- ⚠️ Complex transformer operations may fail in ONNX
+- ⚠️ Dynamic shapes can cause issues
+- ⚠️ Attention mechanisms are problematic
 
 **Implementation:** See `export_faceformer_fixed.py`
 
@@ -66,20 +83,32 @@ Separate audio processing from generation:
 
 ## Web Implementation Strategy
 
-### Phase 1: Core Step Approach
-1. **Export Core Step Model**
+### Phase 1: Minimal Model Approach
+1. **Export Minimal Model**
    ```bash
-   python export_faceformer_fixed.py
+   python export_faceformer_minimal.py
    ```
 
 2. **Implement JavaScript Generator**
    ```javascript
-   // See faceformer_web_generator.js
-   const generator = new FaceFormerWebGenerator('faceformer_core_step.onnx');
+   // See faceformer_web_generator_minimal.js
+   const generator = new FaceFormerWebGeneratorFixed('./faceformer_minimal.onnx');
    const vertices = await generator.generateSequence(audioFeatures, template, oneHot);
    ```
 
-3. **Handle Audio Processing**
+3. **Test the Model**
+   ```bash
+   # Open test_minimal.html in browser
+   # Run full test to verify functionality
+   ```
+
+### Phase 2: Integration
+1. **Update Main Application**
+   - Replace `FaceFormerWebGenerator` with `FaceFormerWebGeneratorFixed`
+   - Update model path to `faceformer_minimal.onnx`
+   - Test with real audio data
+
+2. **Handle Audio Processing**
    - Use Web Audio API for feature extraction
    - Or pre-process on server and send features
 
@@ -128,21 +157,24 @@ for (let i = 0; i < maxFrames; i++) {
 
 ## Testing the Fix
 
-1. **Run the Fixed Export:**
+1. **Test the Minimal Model:**
    ```bash
-   cd /home/barberb/motion/engine/web_porting_poc
-   python export_faceformer_fixed.py
+   cd /home/barberb/motion/dev/web_viewer/faceformer
+   python export_faceformer_minimal.py
    ```
 
-2. **Test Core Step Model:**
+2. **Test Web Integration:**
    ```bash
-   node faceformer_web_generator.js
+   # Open test_minimal.html in browser
+   # Click "Run Full Test" button
+   # Verify all tests pass
    ```
 
-3. **Verify ONNX Model:**
+3. **Test in Main Application:**
    ```bash
-   # Check if model loads without hanging
-   python -c "import onnx; model = onnx.load('faceformer_core_step.onnx'); print('Model loaded successfully')"
+   # Open vrm_test_mesh_audio_animation_classroom.html
+   # Record audio and test facial generation
+   # Should now work without errors
    ```
 
 ## Expected Outcomes
@@ -152,11 +184,13 @@ for (let i = 0; i < maxFrames; i++) {
 - ONNX model loads in JavaScript
 - Can generate sequences step by step
 - Memory usage remains controlled
+- No more error codes (126199320, etc.)
 
 ❌ **If Still Issues:**
-- Simplify further by removing complex attention
-- Use teacher-forcing approach instead
-- Pre-compute more components offline
+- Check browser console for detailed errors
+- Verify ONNX Runtime Web is loading properly
+- Ensure model file paths are correct
+- Test with simplified audio input first
 
 ## Next Steps
 
