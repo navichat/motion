@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Conversation Worker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .control-group {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #fafafa;
+        }
+        .control-group h3 {
+            margin-top: 0;
+            color: #555;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        select, input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .status.success { background-color: #d4edda; color: #155724; }
+        .status.error { background-color: #f8d7da; color: #721c24; }
+        .status.info { background-color: #d1ecf1; color: #0c5460; }
+        .output-section {
+            margin-top: 30px;
+        }
+        #output {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+        .audio-controls {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+            border: 1px solid #b0d4f1;
+        }
+        audio {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .test-text {
+            width: 100%;
+            height: 80px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Debug Conversation Worker</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h3>🔧 Worker Control</h3>
+                <button id="initWorker">Initialize Worker</button>
+                <button id="testModels" disabled>Test Models</button>
+                <div id="workerStatus" class="status info">Worker not initialized</div>
+            </div>
+            
+            <div class="control-group">
+                <h3>🗣️ Voice Settings</h3>
+                <select id="voiceSelect">
+                    <option value="af_heart">Heart (Female)</option>
+                    <option value="am_adam">Adam (Male)</option>
+                    <option value="af_sarah">Sarah (Female)</option>
+                    <option value="af_bella">Bella (Female)</option>
+                    <option value="af_jessica">Jessica (Female)</option>
+                </select>
+                <button id="setVoice" disabled>Set Voice</button>
+            </div>
+            
+            <div class="control-group">
+                <h3>🧪 Testing</h3>
+                <button id="testPhonemizer" disabled>Test Phonemizer</button>
+                <button id="testTTS" disabled>Test TTS</button>
+                <button id="quickTest" disabled>Quick Test</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3>🎵 TTS Text Input</h3>
+            <textarea id="ttsText" class="test-text" placeholder="Enter text to synthesize...">Hello world! This is a comprehensive test of the Kokoro TTS system with proper phonemization and audio generation capabilities.</textarea>
+            <button id="synthesize" disabled>Synthesize Speech</button>
+        </div>
+        
+        <div class="audio-controls">
+            <h3>🔊 Audio Output</h3>
+            <div id="audioContainer">
+                <p>No audio generated yet. Test TTS to hear output.</p>
+            </div>
+        </div>
+        
+        <div class="output-section">
+            <h3>📋 Debug Output</h3>
+            <button onclick="clearOutput()">Clear Output</button>
+            <div id="output">Debug output will appear here...\n</div>
+        </div>
+    </div>
+
+    <script>
+        let worker = null;
+        let workerInitialized = false;
+
+        // DOM elements
+        const elements = {
+            output: document.getElementById('output'),
+            workerStatus: document.getElementById('workerStatus'),
+            initWorker: document.getElementById('initWorker'),
+            testModels: document.getElementById('testModels'),
+            voiceSelect: document.getElementById('voiceSelect'),
+            setVoice: document.getElementById('setVoice'),
+            testPhonemizer: document.getElementById('testPhonemizer'),
+            testTTS: document.getElementById('testTTS'),
+            quickTest: document.getElementById('quickTest'),
+            ttsText: document.getElementById('ttsText'),
+            synthesize: document.getElementById('synthesize'),
+            audioContainer: document.getElementById('audioContainer')
+        };
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+            const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
+            elements.output.textContent += logEntry;
+            elements.output.scrollTop = elements.output.scrollHeight;
+            console.log(logEntry.trim());
+        }
+
+        function updateStatus(message, type = 'info') {
+            elements.workerStatus.textContent = message;
+            elements.workerStatus.className = `status ${type}`;
+        }
+
+        function enableControls(enabled) {
+            const controls = ['testModels', 'setVoice', 'testPhonemizer', 'testTTS', 'quickTest', 'synthesize'];
+            controls.forEach(id => {
+                elements[id].disabled = !enabled;
+            });
+        }
+
+        function clearOutput() {
+            elements.output.textContent = 'Debug output cleared...\n';
+        }
+
+        function createWaveFileBlob(audioData, sampleRate) {
+            const length = audioData.length;
+            const buffer = new ArrayBuffer(44 + length * 2);
+            const view = new DataView(buffer);
+            
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, length * 2, true);
+            
+            // Convert float samples to 16-bit PCM
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                const sample = Math.max(-1, Math.min(1, audioData[i]));
+                view.setInt16(offset, sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        function playAudio(audioData, sampleRate = 22050) {
+            try {
+                log(`Playing audio: ${audioData.length} samples at ${sampleRate}Hz`);
+                
+                // Create audio context and play immediately
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const buffer = audioContext.createBuffer(1, audioData.length, sampleRate);
+                const channelData = buffer.getChannelData(0);
+                
+                for (let i = 0; i < audioData.length; i++) {
+                    channelData[i] = audioData[i];
+                }
+                
+                const source = audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioContext.destination);
+                source.start();
+                
+                // Create downloadable audio element
+                const audioElement = document.createElement('audio');
+                audioElement.controls = true;
+                audioElement.style.width = '100%';
+                audioElement.style.margin = '10px 0';
+                
+                const wavBlob = createWaveFileBlob(audioData, sampleRate);
+                const audioUrl = URL.createObjectURL(wavBlob);
+                audioElement.src = audioUrl;
+                
+                // Add download link
+                const downloadLink = document.createElement('a');
+                downloadLink.href = audioUrl;
+                downloadLink.download = `kokoro_tts_${Date.now()}.wav`;
+                downloadLink.textContent = '💾 Download Audio';
+                downloadLink.style.display = 'block';
+                downloadLink.style.margin = '10px 0';
+                downloadLink.style.color = '#007cba';
+                downloadLink.style.textDecoration = 'none';
+                
+                elements.audioContainer.innerHTML = '';
+                elements.audioContainer.appendChild(audioElement);
+                elements.audioContainer.appendChild(downloadLink);
+                
+                log('Audio playback started successfully');
+                
+            } catch (error) {
+                log(`Audio playback failed: ${error.message}`, 'error');
+            }
+        }
+
+        function initializeWorker() {
+            if (worker) {
+                worker.terminate();
+            }
+
+            log('Creating conversation worker...');
+            updateStatus('Initializing worker...', 'info');
+            
+            worker = new Worker('js/conversationWorkerWorking.js');
+            
+            worker.onmessage = function(event) {
+                const { type, message, result, error, level } = event.data;
+                
+                switch (type) {
+                    case 'debug_log':
+                        log(message, level?.toLowerCase() || 'debug');
+                        break;
+                    case 'info':
+                        log(`INFO: ${message}`);
+                        break;
+                    case 'status':
+                        log(`STATUS: ${message}`);
+                        updateStatus(message, message.includes('ready') ? 'success' : 'info');
+                        if (message.includes('ready')) {
+                            enableControls(true);
+                            workerInitialized = true;
+                        }
+                        break;
+                    case 'output':
+                        log(`OUTPUT: ${JSON.stringify(event.data, null, 2)}`);
+                        
+                        // Handle audio output
+                        if (result && result.audio) {
+                            let audioData;
+                            if (result.audio instanceof Float32Array) {
+                                audioData = result.audio;
+                            } else if (Array.isArray(result.audio)) {
+                                audioData = new Float32Array(result.audio);
+                            }
+                            
+                            if (audioData && audioData.length > 0) {
+                                playAudio(audioData, result.sampleRate || 22050);
+                            }
+                        }
+                        break;
+                    case 'error':
+                        log(`ERROR: ${error}`, 'error');
+                        updateStatus(`Error: ${error}`, 'error');
+                        break;
+                    default:
+                        log(`WORKER: [${type}] ${message || JSON.stringify(event.data)}`);
+                }
+            };
+
+            worker.onerror = function(error) {
+                log(`Worker error: ${error.message}`, 'error');
+                updateStatus(`Worker error: ${error.message}`, 'error');
+            };
+
+            log('Worker created, waiting for initialization...');
+        }
+
+        // Event listeners
+        elements.initWorker.addEventListener('click', initializeWorker);
+
+        elements.testModels.addEventListener('click', () => {
+            if (worker && workerInitialized) {
+                log('Testing model status...');
+                worker.postMessage({ type: 'test_models' });
+            }
+        });
+
+        elements.setVoice.addEventListener('click', () => {
+            if (worker && workerInitialized) {
+                const voice = elements.voiceSelect.value;
+                log(`Setting voice to: ${voice}`);
+                worker.postMessage({ type: 'set_voice', voice });
+            }
+        });
+
+        elements.testPhonemizer.addEventListener('click', () => {
+            if (worker && workerInitialized) {
+                log('Testing phonemizer...');
+                worker.postMessage({ type: 'test_phonemizer' });
+            }
+        });
+
+        elements.testTTS.addEventListener('click', () => {
+            if (worker && workerInitialized) {
+                log('Testing TTS with default text...');
+                worker.postMessage({ 
+                    type: 'test_tts', 
+                    text: 'Hello! This is a test of the Kokoro TTS system.' 
+                });
+            }
+        });
+
+        elements.quickTest.addEventListener('click', () => {
+            if (worker && workerInitialized) {
+                log('Running quick test sequence...');
+                worker.postMessage({ type: 'test_phonemizer' });
+                setTimeout(() => {
+                    worker.postMessage({ type: 'test_models' });
+                }, 1000);
+                setTimeout(() => {
+                    worker.postMessage({ 
+                        type: 'test_tts', 
+                        text: 'Quick test complete!' 
+                    });
+                }, 2000);
+            }
+        });
+
+        elements.synthesize.addEventListener('click', () => {
+            if (worker && workerInitialized) {
+                const text = elements.ttsText.value.trim();
+                if (text) {
+                    log(`Synthesizing custom text: "${text.substring(0, 50)}..."`);
+                    worker.postMessage({ type: 'test_tts', text });
+                } else {
+                    log('No text entered for synthesis', 'warn');
+                }
+            }
+        });
+
+        // Initialize page
+        log('Debug interface initialized');
+        updateStatus('Ready to initialize worker', 'info');
+    </script>
+</body>
+</html>
