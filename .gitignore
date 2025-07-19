@@ -16,6 +16,8 @@ pip-wheel-metadata/
 *.manifest
 *.spec
 *.log
+*.onnx
+*.pth
 
 # Virtual environments
 env/
