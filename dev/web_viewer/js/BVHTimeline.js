@@ -17,10 +17,24 @@ import smartTransition           from './smartTransition.js';
 // now BVHTimeline can bind to them
 
 class BVHTimeline {
-    constructor(options = {}) {
+    // Now accept an array of animations plus options
+    constructor(animations = [], options = {}) {
         this.framerate = options.framerate || 30; // FPS
         this.frameTime = 1.0 / this.framerate; // seconds per frame
-        
+
+        // —— NEW: build a Map of your animations, index them for searching, and bind your helpers ——
+        this.animations    = new Map( animations.map(a=>[a.animationId, a]) );
+        this.searchEngine  = new SimplePoseSearchEngine();
+        this.searchEngine.indexAnimations(animations);
+        this.getCurrentPose  = getCurrentPose.bind(this);
+        this.smartTransition = smartTransition.bind(this);
+
+        // transition‐state defaults
+        this.isTransitioning   = false;
+        this.transitionTarget  = { pose: null };
+        this.transitionProgress= 0;
+        this.similarityThreshold = options.similarityThreshold ?? 0.5;
+
         // Timeline tracks for different animation sources
         this.tracks = {
             base: new BVHTrack('base', { priority: 0 }), // Base body animations
@@ -470,6 +484,13 @@ class BVHTimeline {
       // [ newAnimId, bestFrameIndex, distance, fullResults ]
       const [ newId, frameIndex, distance, results ] =
         await this.smartTransition(targetAnimationId);
+
+      // flip our state over to transitioning
+      this.isTransitioning    = true;
+      this.transitionProgress = 0;
+      this.transitionTarget   = {
+        pose: this.animations.get(newId).poses[frameIndex]
+      };
 
       this.currentAnimationId = newId;
       this.currentFrame       = frameIndex;
@@ -1491,11 +1512,6 @@ class BVHFrameBuffer {
 }
 
 // Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { BVHTimeline, BVHTrack, BVHClip, BVHFrameBuffer };
-} else {
-    window.BVHTimeline = BVHTimeline;
-    window.BVHTrack = BVHTrack;
-    window.BVHClip = BVHClip;
-    window.BVHFrameBuffer = BVHFrameBuffer;
-}
+// — ESM exports ——
+export default BVHTimeline;
+export { BVHTrack, BVHClip, BVHFrameBuffer };
