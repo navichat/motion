@@ -9,6 +9,13 @@
  * - Real-time composition and blending
  */
 
+// 1) Pull in our three helpers as ES modules
+import SimplePoseSearchEngine from './SimplePoseSearchEngine.js';
+import getCurrentPose            from './getCurrentPose.js';
+import smartTransition           from './smartTransition.js';
+
+// now BVHTimeline can bind to them
+
 class BVHTimeline {
     constructor(options = {}) {
         this.framerate = options.framerate || 30; // FPS
@@ -455,6 +462,21 @@ class BVHTimeline {
         return influences[trackName] || new Set();
     }
     
+    /**
+     * Example: kick off a smart transition into a new animation
+     */
+    async transitionTo(targetAnimationId) {
+      // the smartTransition helper returns
+      // [ newAnimId, bestFrameIndex, distance, fullResults ]
+      const [ newId, frameIndex, distance, results ] =
+        await this.smartTransition(targetAnimationId);
+
+      this.currentAnimationId = newId;
+      this.currentFrame       = frameIndex;
+      console.log(`↳ blended in at frame ${frameIndex} (dist ${distance.toFixed(3)})`);
+      return results;
+    }
+
     /**
      * Start timeline playback
      */
