@@ -50,81 +50,43 @@ class DeepMimicTimelineIntegration {
     /**
      * Initialize and load DeepMimic model
      */
-    async initializeDeepMimic(modelPath) {
-        this.log('Initializing DeepMimic model with policy loader...', { modelPath });
-        
+    async initializeDeepMimic(modelPath, options = {}) {
         try {
-            // Initialize the policy loader
-            this.policyLoader = new DeepMimicPolicyLoader({
-                policiesPath: './DeepMimic/data/policies',
-                charactersPath: './DeepMimic/data/characters',
-                motionsPath: './DeepMimic/data/motions',
-                argsPath: './DeepMimic/args',
-                useMockPolicies: true, // Set to false when TensorFlow.js integration is ready
-                frameRate: this.converter.frameRate
-            });
+            console.log('[DeepMimic Timeline] Loading DeepMimic model...');
             
-            // Initialize policies and character data
-            const initResult = await this.policyLoader.initialize();
-            
-            // Create enhanced model interface
-            this.deepMimicModel = {
-                type: 'policy_loader',
-                modelPath,
-                isLoaded: true,
-                policyLoader: this.policyLoader,
-                availableSkills: initResult.availableSkills,
-                loadedPolicies: initResult.loadedPolicies,
-                characters: initResult.characters,
-                
-                predict: async (observation, options = {}) => {
-                    const { characterType = 'humanoid3d', skill = 'walk' } = options;
-                    const policy = this.policyLoader.getPolicy(characterType, skill);
-                    
-                    if (policy) {
-                        return await policy.predict(observation, options);
-                    } else {
-                        // Fallback to basic mock
-                        const actionDim = 42;
-                        const action = new Float32Array(actionDim);
-                        for (let i = 0; i < actionDim; i++) {
-                            action[i] = (Math.random() - 0.5) * 0.2;
-                        }
-                        return {
-                            action,
-                            value: Math.random(),
-                            logProb: Math.random() * -2
-                        };
-                    }
-                },
-                
-                // Get available skills for a character
-                getAvailableSkills: (characterType = 'humanoid3d') => {
-                    return this.policyLoader.availableSkills[characterType] || [];
-                },
-                
-                // Generate BVH sequence using specific policy
-                generateBVHSequence: async (characterType, skill, options) => {
-                    return await this.policyLoader.generateBVHSequence(characterType, skill, options);
-                },
-                
-                // Get reference motion
-                getReferenceMotion: (characterType, skill, time) => {
-                    const policy = this.policyLoader.getPolicy(characterType, skill);
-                    return policy ? policy.getReferenceMotion(time) : null;
+            // Check if DeepMimic is available in global scope
+            if (typeof window !== 'undefined' && window.DeepMimic) {
+                this.deepMimicModel = new window.DeepMimic(modelPath, options);
+            } else if (typeof global !== 'undefined' && global.DeepMimic) {
+                this.deepMimicModel = new global.DeepMimic(modelPath, options);
+            } else {
+                // Try to load via dynamic import or create mock
+                try {
+                    const DeepMimicModule = await import(modelPath);
+                    this.deepMimicModel = new DeepMimicModule.default(options);
+                } catch (importError) {
+                    console.warn('[DeepMimic Timeline] DeepMimic not found, creating mock model');
+                    this.deepMimicModel = this.createMockDeepMimic();
                 }
-            };
+            }
             
-            this.log('DeepMimic model initialized with policy loader', { 
-                type: this.deepMimicModel.type,
-                isLoaded: this.deepMimicModel.isLoaded,
-                availableSkills: this.deepMimicModel.availableSkills,
-                loadedPolicies: this.deepMimicModel.loadedPolicies.length
-            });
+            // Initialize the model
+            if (this.deepMimicModel.initialize) {
+                await this.deepMimicModel.initialize();
+            }
+            
+            this.isModelLoaded = true;
+            console.log('[DeepMimic Timeline] DeepMimic model loaded successfully');
             
             return true;
+            
         } catch (error) {
-            this.log('DeepMimic model initialization failed', { error: error.message }, 'error');
+            console.error('[DeepMimic Timeline] Failed to load DeepMimic model:', error);
+            
+            // Create mock model for development/testing
+            this.deepMimicModel = this.createMockDeepMimic();
+            this.isModelLoaded = true;
+            
             return false;
         }
     }
@@ -177,110 +139,23 @@ class DeepMimicTimelineIntegration {
     }
     
     /**
-     * Parse goal description to determine motion type and skill
+     * Parse goal description to determine motion type
      */
     parseGoalMotionType(goal) {
         const goalLower = goal.toLowerCase();
         
-        // Enhanced goal parsing with DeepMimic skill recognition
-        const skillMappings = {
-            // Locomotion skills
-            'walk': { skill: 'walk', type: 'walking', confidence: 0.9 },
-            'walking': { skill: 'walk', type: 'walking', confidence: 0.9 },
-            'step': { skill: 'walk', type: 'walking', confidence: 0.8 },
-            'run': { skill: 'run', type: 'running', confidence: 0.9 },
-            'running': { skill: 'run', type: 'running', confidence: 0.9 },
-            'jog': { skill: 'run', type: 'running', confidence: 0.8 },
-            'sprint': { skill: 'run', type: 'running', confidence: 0.7 },
-            
-            // Athletic skills
-            'jump': { skill: 'jump', type: 'jumping', confidence: 0.9 },
-            'jumping': { skill: 'jump', type: 'jumping', confidence: 0.9 },
-            'leap': { skill: 'jump', type: 'jumping', confidence: 0.8 },
-            'hop': { skill: 'jump', type: 'jumping', confidence: 0.7 },
-            'backflip': { skill: 'backflip', type: 'backflip', confidence: 0.95 },
-            'flip': { skill: 'backflip', type: 'backflip', confidence: 0.8 },
-            'cartwheel': { skill: 'cartwheel', type: 'cartwheel', confidence: 0.95 },
-            'roll': { skill: 'roll', type: 'rolling', confidence: 0.9 },
-            'rolling': { skill: 'roll', type: 'rolling', confidence: 0.9 },
-            'spin': { skill: 'spin', type: 'spinning', confidence: 0.9 },
-            'spinning': { skill: 'spin', type: 'spinning', confidence: 0.9 },
-            'turn': { skill: 'spin', type: 'spinning', confidence: 0.7 },
-            
-            // Combat skills
-            'kick': { skill: 'kick', type: 'kicking', confidence: 0.9 },
-            'kicking': { skill: 'kick', type: 'kicking', confidence: 0.9 },
-            'punch': { skill: 'punch', type: 'punching', confidence: 0.9 },
-            'punching': { skill: 'punch', type: 'punching', confidence: 0.9 },
-            'strike': { skill: 'punch', type: 'punching', confidence: 0.8 },
-            'spinkick': { skill: 'spinkick', type: 'spinkick', confidence: 0.9 },
-            'roundhouse': { skill: 'spinkick', type: 'spinkick', confidence: 0.8 },
-            
-            // Dance skills
-            'dance': { skill: 'dance_a', type: 'dancing', confidence: 0.9 },
-            'dancing': { skill: 'dance_a', type: 'dancing', confidence: 0.9 },
-            'groove': { skill: 'dance_b', type: 'dancing', confidence: 0.8 },
-            'move': { skill: 'dance_a', type: 'dancing', confidence: 0.6 },
-            'rhythm': { skill: 'dance_b', type: 'dancing', confidence: 0.7 },
-            
-            // Recovery skills
-            'getup': { skill: 'getup_facedown', type: 'getting_up', confidence: 0.8 },
-            'standup': { skill: 'getup_facedown', type: 'getting_up', confidence: 0.8 },
-            'recover': { skill: 'getup_facedown', type: 'getting_up', confidence: 0.7 },
-            'up': { skill: 'getup_facedown', type: 'getting_up', confidence: 0.6 },
-            
-            // Ground movement
-            'crawl': { skill: 'crawl', type: 'crawling', confidence: 0.9 },
-            'crawling': { skill: 'crawl', type: 'crawling', confidence: 0.9 },
-            
-            // Legacy mappings for backward compatibility
-            'reach': { skill: 'walk', type: 'reaching', confidence: 0.6 },
-            'grab': { skill: 'walk', type: 'reaching', confidence: 0.6 },
-            'throw': { skill: 'punch', type: 'throwing', confidence: 0.7 },
-            'toss': { skill: 'punch', type: 'throwing', confidence: 0.7 },
-            'balance': { skill: 'walk', type: 'balancing', confidence: 0.7 },
-            'stand': { skill: 'walk', type: 'balancing', confidence: 0.7 },
-            'sit': { skill: 'crawl', type: 'sitting', confidence: 0.6 },
-            'crouch': { skill: 'crawl', type: 'sitting', confidence: 0.6 },
-            'wave': { skill: 'dance_a', type: 'gesturing', confidence: 0.7 },
-            'gesture': { skill: 'dance_a', type: 'gesturing', confidence: 0.7 }
-        };
+        if (goalLower.includes('walk') || goalLower.includes('step')) return 'walking';
+        if (goalLower.includes('run') || goalLower.includes('jog')) return 'running';
+        if (goalLower.includes('jump') || goalLower.includes('leap')) return 'jumping';
+        if (goalLower.includes('dance') || goalLower.includes('rhythm')) return 'dancing';
+        if (goalLower.includes('reach') || goalLower.includes('grab')) return 'reaching';
+        if (goalLower.includes('kick') || goalLower.includes('strike')) return 'kicking';
+        if (goalLower.includes('throw') || goalLower.includes('toss')) return 'throwing';
+        if (goalLower.includes('balance') || goalLower.includes('stand')) return 'balancing';
+        if (goalLower.includes('sit') || goalLower.includes('crouch')) return 'sitting';
+        if (goalLower.includes('wave') || goalLower.includes('gesture')) return 'gesturing';
         
-        // Find best skill match
-        let bestMatch = { skill: 'walk', type: 'idle', confidence: 0.5 };
-        let highestConfidence = 0;
-        
-        for (const [keyword, mapping] of Object.entries(skillMappings)) {
-            if (goalLower.includes(keyword)) {
-                if (mapping.confidence > highestConfidence) {
-                    bestMatch = mapping;
-                    highestConfidence = mapping.confidence;
-                }
-            }
-        }
-        
-        // Store skill information for DeepMimic processing
-        if (!this.currentGoalInfo) {
-            this.currentGoalInfo = {};
-        }
-        
-        this.currentGoalInfo.skill = bestMatch.skill;
-        this.currentGoalInfo.characterType = goalLower.includes('dog') ? 'dog3d' : 'humanoid3d';
-        this.currentGoalInfo.confidence = bestMatch.confidence;
-        
-        // Validate skill availability
-        if (this.deepMimicModel && this.deepMimicModel.availableSkills) {
-            const availableSkills = this.deepMimicModel.availableSkills[this.currentGoalInfo.characterType] || [];
-            if (!availableSkills.includes(this.currentGoalInfo.skill)) {
-                // Fall back to walk if skill not available
-                this.currentGoalInfo.skill = 'walk';
-                this.currentGoalInfo.confidence *= 0.7;
-                return 'walking';
-            }
-        }
-        
-        this.log('Parsed goal with DeepMimic skill', this.currentGoalInfo);
-        return bestMatch.type;
+        return 'idle';
     }
     
     /**
