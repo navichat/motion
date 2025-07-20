@@ -9,11 +9,32 @@
  * - Real-time composition and blending
  */
 
+// 1) Pull in our three helpers as ES modules
+import SimplePoseSearchEngine from './SimplePoseSearchEngine.js';
+import getCurrentPose            from './getCurrentPose.js';
+import smartTransition           from './smartTransition.js';
+
+// now BVHTimeline can bind to them
+
 class BVHTimeline {
-    constructor(options = {}) {
+    // Now accept an array of animations plus options
+    constructor(animations = [], options = {}) {
         this.framerate = options.framerate || 30; // FPS
         this.frameTime = 1.0 / this.framerate; // seconds per frame
-        
+
+        // —— NEW: build a Map of your animations, index them for searching, and bind your helpers ——
+        this.animations    = new Map( animations.map(a=>[a.animationId, a]) );
+        this.searchEngine  = new SimplePoseSearchEngine();
+        this.searchEngine.indexAnimations(animations);
+        this.getCurrentPose  = getCurrentPose.bind(this);
+        this.smartTransition = smartTransition.bind(this);
+
+        // transition‐state defaults
+        this.isTransitioning   = false;
+        this.transitionTarget  = { pose: null };
+        this.transitionProgress= 0;
+        this.similarityThreshold = options.similarityThreshold ?? 0.5;
+
         // Timeline tracks for different animation sources
         this.tracks = {
             base: new BVHTrack('base', { priority: 0 }), // Base body animations
@@ -455,6 +476,28 @@ class BVHTimeline {
         return influences[trackName] || new Set();
     }
     
+    /**
+     * Example: kick off a smart transition into a new animation
+     */
+    async transitionTo(targetAnimationId) {
+      // the smartTransition helper returns
+      // [ newAnimId, bestFrameIndex, distance, fullResults ]
+      const [ newId, frameIndex, distance, results ] =
+        await this.smartTransition(targetAnimationId);
+
+      // flip our state over to transitioning
+      this.isTransitioning    = true;
+      this.transitionProgress = 0;
+      this.transitionTarget   = {
+        pose: this.animations.get(newId).poses[frameIndex]
+      };
+
+      this.currentAnimationId = newId;
+      this.currentFrame       = frameIndex;
+      console.log(`↳ blended in at frame ${frameIndex} (dist ${distance.toFixed(3)})`);
+      return results;
+    }
+
     /**
      * Start timeline playback
      */
@@ -1469,11 +1512,6 @@ class BVHFrameBuffer {
 }
 
 // Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { BVHTimeline, BVHTrack, BVHClip, BVHFrameBuffer };
-} else {
-    window.BVHTimeline = BVHTimeline;
-    window.BVHTrack = BVHTrack;
-    window.BVHClip = BVHClip;
-    window.BVHFrameBuffer = BVHFrameBuffer;
-}
+// — ESM exports ——
+export default BVHTimeline;
+export { BVHTrack, BVHClip, BVHFrameBuffer };
