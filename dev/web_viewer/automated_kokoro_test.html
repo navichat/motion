@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Kokoro TTS, Whisper ASR, and VAD Test</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        h1 { color: #0056b3; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .test-case { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+        .test-case.success { background-color: #e6ffe6; border-color: #4CAF50; }
+        .test-case.failure { background-color: #ffe6e6; border-color: #f44336; }
+        .status-message { font-weight: bold; margin-bottom: 10px; }
+        .loading { color: #ff9800; }
+        .ready { color: #4CAF50; }
+        .error { color: #f44336; }
+        pre { background-color: #eee; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Automated Kokoro TTS, Whisper ASR, and VAD Test</h1>
+        <div id="overallStatus" class="status-message loading">Loading models... Please wait.</div>
+        <div id="testResults"></div>
+    </div>
+
+    <script type="module">
+        import { AutoModel, pipeline, Tensor } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/+esm";
+        import { KokoroTTS, TextSplitterStream } from "./kokoro.js/dist/kokoro.web.js";
+
+        // --- Constants (copied from conversational-webgpu/src/constants.js for self-containment) ---
+        const INPUT_SAMPLE_RATE = 16000; // Sample rate for input audio (VAD, Whisper)
+        const SPEECH_THRESHOLD = 0.5;    // VAD speech probability threshold
+        const EXIT_THRESHOLD = 0.1;      // VAD exit threshold (for continuous speech)
+        // --- End Constants ---
+
+        const overallStatusDiv = document.getElementById('overallStatus');
+        const testResultsDiv = document.getElementById('testResults');
+
+        let tts;
+        let silero_vad;
+        let transcriber;
+
+        const testPhrases = [
+            "Hello, this is a test of Kokoro speech synthesis.",
+            "The quick brown fox jumps over the lazy dog.",
+            "How are you doing today?",
+            "This is a short sentence.",
+            "Testing numbers: one, two, three, four, five.",
+            "A longer paragraph to test the system. This should provide enough context for both the speech synthesis and the transcription model to work effectively. We are hoping for accurate results.",
+        ];
+
+        async function initializeModels() {
+            overallStatusDiv.textContent = "Loading KokoroTTS model...";
+            try {
+                tts = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+                    dtype: "fp32",
+                    device: "webgpu",
+                });
+                overallStatusDiv.textContent = "Loading Silero VAD model...";
+                silero_vad = await AutoModel.from_pretrained(
+                    "onnx-community/silero-vad",
+                    {
+                        config: { model_type: "custom" },
+                        dtype: "fp32",
+                    },
+                );
+                overallStatusDiv.textContent = "Loading Whisper ASR model...";
+                transcriber = await pipeline(
+                    "automatic-speech-recognition",
+                    "onnx-community/whisper-base",
+                    {
+                        device: "webgpu",
+                        dtype: {
+                            encoder_model: "fp32",
+                            decoder_model_merged: "fp32",
+                        },
+                    },
+                );
+                // Compile shaders by running a dummy inference
+                await transcriber(new Float32Array(INPUT_SAMPLE_RATE));
+
+                overallStatusDiv.textContent = "All models loaded. Running tests...";
+                overallStatusDiv.classList.remove('loading');
+                overallStatusDiv.classList.add('ready');
+                return true;
+            } catch (error) {
+                overallStatusDiv.textContent = `Error loading models: ${error.message}`;
+                overallStatusDiv.classList.remove('loading');
+                overallStatusDiv.classList.add('error');
+                console.error("Model loading error:", error);
+                return false;
+            }
+        }
+
+        async function runVAD(audioBuffer) {
+            // VAD state needs to be reset for each new audio buffer for accurate results
+            let vadState = new Tensor("float32", new Float32Array(2 * 1 * 128), [2, 1, 128]);
+            const sr = new Tensor("int64", [INPUT_SAMPLE_RATE], []);
+
+            const input = new Tensor("float32", audioBuffer, [1, audioBuffer.length]);
+            const { stateN, output } = await silero_vad({ input, sr, state: vadState });
+            // For a single buffer, we just check the output directly.
+            // For continuous VAD, stateN would be passed to the next call.
+            return output.data[0] > SPEECH_THRESHOLD;
+        }
+
+        async function runTest(originalText, testIndex) {
+            const testCaseDiv = document.createElement('div');
+            testCaseDiv.className = 'test-case';
+            testCaseDiv.innerHTML = `<h3>Test Case ${testIndex + 1}:</h3>
+                                      <p><strong>Original Text:</strong> "${originalText}"</p>
+                                      <p><strong>Status:</strong> <span id="status-${testIndex}">Synthesizing...</span></p>
+                                      <p><strong>Whisper Transcription:</strong> <span id="transcription-${testIndex}"></span></p>
+                                      <p><strong>VAD Result:</strong> <span id="vad-${testIndex}"></span></p>
+                                      <p><strong>Comparison:</strong> <span id="comparison-${testIndex}"></span></p>`;
+            testResultsDiv.appendChild(testCaseDiv);
+
+            const statusSpan = document.getElementById(`status-${testIndex}`);
+            const transcriptionSpan = document.getElementById(`transcription-${testIndex}`);
+            const vadSpan = document.getElementById(`vad-${testIndex}`);
+            const comparisonSpan = document.getElementById(`comparison-${testIndex}`);
+
+            let success = true;
+            let audioBuffer = null;
+
+            try {
+                // 1. Synthesize audio using KokoroTTS
+                const audioChunks = [];
+                // Use a default voice, assuming 'af_heart' is available and suitable
+                const stream = tts.stream(new TextSplitterStream(), { voice: "af_heart" });
+                for await (const { audio } of stream) {
+                    if (audio && audio.audio instanceof Float32Array) {
+                        audioChunks.push(audio.audio);
+                    } else {
+                        throw new Error("KokoroTTS did not return valid audio data.");
+                    }
+                }
+
+                if (audioChunks.length === 0) {
+                    throw new Error("KokoroTTS produced no audio chunks.");
+                }
+
+                // Concatenate all audio chunks into a single Float32Array
+                const totalLength = audioChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+                audioBuffer = new Float32Array(totalLength);
+                let offset = 0;
+                for (const chunk of audioChunks) {
+                    audioBuffer.set(chunk, offset);
+                    offset += chunk.length;
+                }
+
+                if (audioBuffer.length === 0) {
+                    throw new Error("Synthesized audio buffer is empty.");
+                }
+
+                statusSpan.textContent = "Transcribing with Whisper...";
+                // 2. Transcribe the generated audio using Whisper
+                const { text: transcribedText } = await transcriber(audioBuffer);
+                transcriptionSpan.textContent = `"${transcribedText}"`;
+
+                statusSpan.textContent = "Running VAD...";
+                // 3. Perform VAD on the generated audio
+                const isSpeechDetected = await runVAD(audioBuffer);
+                vadSpan.textContent = isSpeechDetected ? 'Speech Detected' : 'No Speech Detected';
+
+                // 4. Compare transcription and check VAD result
+                const transcriptionMatch = transcribedText.toLowerCase().includes(originalText.toLowerCase());
+                const vadPassed = isSpeechDetected;
+
+                if (transcriptionMatch && vadPassed) {
+                    comparisonSpan.textContent = "Transcription matches & Speech detected.";
+                    comparisonSpan.style.color = 'green';
+                    statusSpan.textContent = "PASSED";
+                    statusSpan.style.color = 'green';
+                    testCaseDiv.classList.add('success');
+                } else {
+                    success = false;
+                    let failureReason = [];
+                    if (!transcriptionMatch) {
+                        failureReason.push("Transcription mismatch.");
+                    }
+                    if (!vadPassed) {
+                        failureReason.push("No speech detected by VAD.");
+                    }
+                    comparisonSpan.textContent = `FAILED: ${failureReason.join(' ')}`;
+                    comparisonSpan.style.color = 'red';
+                    statusSpan.textContent = "FAILED";
+                    statusSpan.style.color = 'red';
+                    testCaseDiv.classList.add('failure');
+                }
+
+            } catch (error) {
+                success = false;
+                statusSpan.textContent = "ERROR";
+                statusSpan.style.color = 'red';
+                comparisonSpan.textContent = `Test failed due to error: ${error.message}`;
+                comparisonSpan.style.color = 'red';
+                testCaseDiv.classList.add('failure');
+                console.error(`Test Case ${testIndex + 1} Error:`, error);
+            }
+
+            console.log(`--- Test Case ${testIndex + 1} ---`);
+            console.log("Original Text:", originalText);
+            console.log("Synthesized Audio Length (samples):", audioBuffer ? audioBuffer.length : 'N/A');
+            console.log("Whisper Transcription:", transcriptionSpan.textContent);
+            console.log("VAD Result:", vadSpan.textContent);
+            console.log("Test Result:", success ? "PASSED" : "FAILED");
+            console.log("--------------------------");
+
+            return success;
+        }
+
+        async function runAllTests() {
+            const modelsReady = await initializeModels();
+            if (!modelsReady) {
+                return;
+            }
+
+            let allTestsPassed = true;
+            for (let i = 0; i < testPhrases.length; i++) {
+                const passed = await runTest(testPhrases[i], i);
+                if (!passed) {
+                    allTestsPassed = false;
+                }
+            }
+
+            if (allTestsPassed) {
+                overallStatusDiv.textContent = "All automated tests PASSED!";
+                overallStatusDiv.classList.remove('loading', 'error');
+                overallStatusDiv.classList.add('ready');
+            } else {
+                overallStatusDiv.textContent = "Some automated tests FAILED. Check individual results above and console for details.";
+                overallStatusDiv.classList.remove('loading', 'ready');
+                overallStatusDiv.classList.add('error');
+            }
+        }
+
+        runAllTests();
+    </script>
+</body>
+</html>

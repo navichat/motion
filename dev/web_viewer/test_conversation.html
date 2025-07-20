@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRM AI Conversation Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0052a3;
+        }
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            background-color: #333;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .conversation {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .user-message {
+            color: #66ff66;
+            margin-bottom: 5px;
+        }
+        .ai-message {
+            color: #6666ff;
+            margin-bottom: 5px;
+        }
+        .error {
+            color: #ff6666;
+        }
+        .success {
+            color: #66ff66;
+        }
+        .warning {
+            color: #ffff66;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .test-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 VRM AI Conversation Test Interface</h1>
+        
+        <div class="section">
+            <h2>System Status</h2>
+            <div id="system-status" class="status">Initializing...</div>
+            <div class="controls">
+                <button id="init-btn">Initialize Models</button>
+                <button id="start-call-btn" disabled>Start Call</button>
+                <button id="end-call-btn" disabled>End Call</button>
+                <button id="test-audio-btn">Test Audio Input</button>
+                <button id="test-tts-btn">Test TTS</button>
+            </div>
+        </div>
+
+        <div class="test-grid">
+            <div class="section">
+                <h2>Conversation</h2>
+                <div id="conversation" class="conversation">
+                    <div class="ai-message">AI: Ready to chat! Say something...</div>
+                </div>
+                <div class="controls">
+                    <button id="simulate-speech-btn">Simulate Speech</button>
+                    <button id="clear-conversation-btn">Clear</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Audio Status</h2>
+                <div id="audio-status" class="status">
+                    <div>Microphone: <span id="mic-status">Unknown</span></div>
+                    <div>VAD: <span id="vad-status">Not loaded</span></div>
+                    <div>STT: <span id="stt-status">Not loaded</span></div>
+                    <div>LLM: <span id="llm-status">Not loaded</span></div>
+                    <div>TTS: <span id="tts-status">Web Speech API</span></div>
+                </div>
+                <div>
+                    <canvas id="audio-visualizer" width="300" height="100" style="background: #000; border-radius: 4px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Debug Log</h2>
+            <button onclick="clearLog()">Clear Log</button>
+            <div id="debug-log" class="log">System starting...\n</div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let worker = null;
+        let audioContext = null;
+        let mediaStream = null;
+        let isCallActive = false;
+        let audioWorkletNode = null;
+
+        // DOM elements
+        const systemStatus = document.getElementById('system-status');
+        const conversation = document.getElementById('conversation');
+        const debugLog = document.getElementById('debug-log');
+        const micStatus = document.getElementById('mic-status');
+        const vadStatus = document.getElementById('vad-status');
+        const sttStatus = document.getElementById('stt-status');
+        const llmStatus = document.getElementById('llm-status');
+        const ttsStatus = document.getElementById('tts-status');
+
+        // Buttons
+        const initBtn = document.getElementById('init-btn');
+        const startCallBtn = document.getElementById('start-call-btn');
+        const endCallBtn = document.getElementById('end-call-btn');
+        const testAudioBtn = document.getElementById('test-audio-btn');
+        const testTtsBtn = document.getElementById('test-tts-btn');
+        const simulateSpeechBtn = document.getElementById('simulate-speech-btn');
+
+        // Logging function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            debugLog.innerHTML += `[${timestamp}] ${message}\n`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+            
+            if (type === 'error') {
+                console.error(message);
+            } else {
+                console.log(message);
+            }
+        }
+
+        function clearLog() {
+            debugLog.innerHTML = '';
+        }
+
+        // Initialize worker
+        async function initializeWorker() {
+            try {
+                log('Starting conversation worker...', 'info');
+                worker = new Worker('./js/conversationWorkerWorking.js');
+                
+                worker.onmessage = (event) => {
+                    const { type, message, text, error, status, result } = event.data;
+                    
+                    switch (type) {
+                        case 'info':
+                            log(`Worker: ${message}`, 'info');
+                            
+                            // Update model status based on messages
+                            if (message.includes('VAD loaded')) {
+                                vadStatus.textContent = 'Loaded ✅';
+                                vadStatus.className = 'success';
+                            } else if (message.includes('Whisper loaded')) {
+                                sttStatus.textContent = 'Loaded ✅';
+                                sttStatus.className = 'success';
+                            } else if (message.includes('Language model loaded')) {
+                                llmStatus.textContent = 'Loaded ✅';
+                                llmStatus.className = 'success';
+                            }
+                            break;
+                            
+                        case 'error':
+                            log(`Error: ${error || message}`, 'error');
+                            break;
+                            
+                        case 'status':
+                            systemStatus.textContent = message;
+                            log(`Status: ${message}`, 'info');
+                            break;
+                            
+                        case 'transcript':
+                            addToConversation(`User: ${text}`, 'user-message');
+                            break;
+                            
+                        case 'response':
+                            addToConversation(`AI: ${text}`, 'ai-message');
+                            break;
+                            
+                        case 'output':
+                            if (result?.audio) {
+                                handleTTS(text, result.audio);
+                            }
+                            break;
+                            
+                        default:
+                            log(`Unknown message type: ${type}`, 'warning');
+                    }
+                };
+                
+                worker.onerror = (error) => {
+                    log(`Worker error: ${error.message}`, 'error');
+                };
+                
+                log('Worker initialized successfully', 'success');
+                initBtn.disabled = true;
+                startCallBtn.disabled = false;
+                
+            } catch (error) {
+                log(`Failed to initialize worker: ${error.message}`, 'error');
+            }
+        }
+
+        // Add message to conversation
+        function addToConversation(message, className) {
+            const div = document.createElement('div');
+            div.className = className;
+            div.textContent = message;
+            conversation.appendChild(div);
+            conversation.scrollTop = conversation.scrollHeight;
+        }
+
+        // Handle TTS
+        function handleTTS(text, audioConfig) {
+            if (audioConfig.useWebSpeech) {
+                log(`Speaking with Web Speech API: "${text}"`, 'info');
+                
+                if ('speechSynthesis' in window) {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 0.9;
+                    utterance.pitch = 1.0;
+                    utterance.volume = 0.8;
+                    
+                    utterance.onstart = () => {
+                        log('TTS started', 'info');
+                        if (worker) worker.postMessage({ type: 'playback_started' });
+                    };
+                    
+                    utterance.onend = () => {
+                        log('TTS finished', 'info');
+                        if (worker) worker.postMessage({ type: 'playback_ended' });
+                    };
+                    
+                    utterance.onerror = (error) => {
+                        log(`TTS error: ${error.error}`, 'error');
+                        if (worker) worker.postMessage({ type: 'playback_ended' });
+                    };
+                    
+                    speechSynthesis.speak(utterance);
+                } else {
+                    log('Speech synthesis not supported', 'error');
+                }
+            } else if (audioConfig.data) {
+                log('Playing custom TTS audio', 'info');
+                // TODO: Handle custom audio data
+            }
+        }
+
+        // Setup audio input
+        async function setupAudioInput() {
+            try {
+                log('Requesting microphone access...', 'info');
+                
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                    }
+                });
+                
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 16000,
+                });
+                
+                log('Loading audio worklet...', 'info');
+                await audioContext.audioWorklet.addModule('./js/audioProcessor.js');
+                
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                audioWorkletNode = new AudioWorkletNode(audioContext, 'audio-processor');
+                
+                audioWorkletNode.port.onmessage = (event) => {
+                    if (event.data.type === 'audio' && worker && isCallActive) {
+                        worker.postMessage({
+                            type: 'audio',
+                            data: event.data.data
+                        });
+                    }
+                };
+                
+                source.connect(audioWorkletNode);
+                
+                micStatus.textContent = 'Active ✅';
+                micStatus.className = 'success';
+                log('Audio input setup complete', 'success');
+                
+            } catch (error) {
+                log(`Audio setup failed: ${error.message}`, 'error');
+                micStatus.textContent = 'Failed ❌';
+                micStatus.className = 'error';
+            }
+        }
+
+        // Start call
+        async function startCall() {
+            try {
+                if (!audioContext) {
+                    await setupAudioInput();
+                }
+                
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                
+                isCallActive = true;
+                startCallBtn.disabled = true;
+                endCallBtn.disabled = false;
+                
+                if (worker) {
+                    worker.postMessage({ type: 'start_call' });
+                }
+                
+                log('Call started', 'success');
+                systemStatus.textContent = 'Call active - Listening...';
+                
+            } catch (error) {
+                log(`Failed to start call: ${error.message}`, 'error');
+            }
+        }
+
+        // End call
+        function endCall() {
+            isCallActive = false;
+            startCallBtn.disabled = false;
+            endCallBtn.disabled = true;
+            
+            if (worker) {
+                worker.postMessage({ type: 'end_call' });
+            }
+            
+            log('Call ended', 'info');
+            systemStatus.textContent = 'Call ended';
+        }
+
+        // Test audio input
+        async function testAudioInput() {
+            try {
+                await setupAudioInput();
+                log('Audio input test completed', 'success');
+            } catch (error) {
+                log(`Audio input test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Test TTS
+        function testTTS() {
+            const testText = "This is a test of the text-to-speech system. Can you hear me clearly?";
+            handleTTS(testText, { useWebSpeech: true });
+        }
+
+        // Simulate speech detection
+        function simulateSpeech() {
+            if (!isCallActive) {
+                log('Call not active - start call first', 'warning');
+                return;
+            }
+            
+            const testPhrases = [
+                "Hello there!",
+                "How are you doing today?",
+                "What's the weather like?",
+                "Tell me a joke",
+                "What can you help me with?"
+            ];
+            
+            const phrase = testPhrases[Math.floor(Math.random() * testPhrases.length)];
+            addToConversation(`User: ${phrase}`, 'user-message');
+            
+            if (worker) {
+                // Simulate audio data for testing
+                const fakeAudioData = new Float32Array(1024).map(() => Math.random() * 0.1);
+                worker.postMessage({
+                    type: 'audio',
+                    data: fakeAudioData
+                });
+            }
+            
+            log(`Simulated speech: "${phrase}"`, 'info');
+        }
+
+        // Clear conversation
+        function clearConversation() {
+            conversation.innerHTML = '<div class="ai-message">AI: Ready to chat! Say something...</div>';
+        }
+
+        // Event listeners
+        initBtn.addEventListener('click', initializeWorker);
+        startCallBtn.addEventListener('click', startCall);
+        endCallBtn.addEventListener('click', endCall);
+        testAudioBtn.addEventListener('click', testAudioInput);
+        testTtsBtn.addEventListener('click', testTTS);
+        simulateSpeechBtn.addEventListener('click', simulateSpeech);
+        document.getElementById('clear-conversation-btn').addEventListener('click', clearConversation);
+
+        // Add comprehensive test button
+        const comprehensiveTestBtn = document.createElement('button');
+        comprehensiveTestBtn.textContent = 'Run Full Test Suite';
+        comprehensiveTestBtn.style.backgroundColor = '#ff6600';
+        comprehensiveTestBtn.addEventListener('click', () => {
+            if (window.VRMTestSuite) {
+                window.VRMTestSuite.runComprehensiveTest();
+            } else {
+                log('Test suite not loaded', 'error');
+            }
+        });
+        document.querySelector('.controls').appendChild(comprehensiveTestBtn);
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            log('Test interface loaded', 'success');
+            log('Click "Initialize Models" to start loading AI models', 'info');
+            
+            // Load test suite
+            if (!window.testSuiteLoaded) {
+                const script = document.createElement('script');
+                script.src = './js/testSuite.js';
+                script.onload = () => {
+                    window.testSuiteLoaded = true;
+                    log('Test suite loaded - use "Run Full Test Suite" for comprehensive testing', 'success');
+                };
+                script.onerror = () => {
+                    log('Failed to load test suite', 'error');
+                };
+                document.head.appendChild(script);
+            } else {
+                log('Test suite already loaded', 'info');
+            }
+        });
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            if (worker) {
+                worker.terminate();
+            }
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

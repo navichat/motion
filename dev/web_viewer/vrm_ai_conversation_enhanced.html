@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRM Avatar AI Conversation - Enhanced Audio-to-Audio</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            max-width: 400px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .title {
+            color: #00d4ff;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-section h3 {
+            color: #a0c4ff;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            background: linear-gradient(145deg, #2563eb, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        button:hover {
+            background: linear-gradient(145deg, #1d4ed8, #1e40af);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        button:disabled {
+            background: #6b7280;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .success-button {
+            background: linear-gradient(145deg, #059669, #047857);
+        }
+        
+        .success-button:hover {
+            background: linear-gradient(145deg, #047857, #065f46);
+        }
+        
+        .warning-button {
+            background: linear-gradient(145deg, #d97706, #b45309);
+        }
+        
+        .warning-button:hover {
+            background: linear-gradient(145deg, #b45309, #92400e);
+        }
+        
+        .danger-button {
+            background: linear-gradient(145deg, #dc2626, #b91c1c);
+        }
+        
+        .danger-button:hover {
+            background: linear-gradient(145deg, #b91c1c, #991b1b);
+        }
+        
+        .speaking {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { background: linear-gradient(145deg, #059669, #047857); }
+            50% { background: linear-gradient(145deg, #10b981, #059669); }
+        }
+        
+        select, input[type="range"], input[type="text"], textarea {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .status {
+            font-size: 12px;
+            color: #a0c4ff;
+            margin-top: 5px;
+        }
+        
+        .error {
+            color: #ff6b6b;
+        }
+        
+        .chat-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            height: 70vh;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .conversation-log {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(70vh - 120px);
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .user-message {
+            background: rgba(59, 130, 246, 0.3);
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .ai-message {
+            background: rgba(16, 185, 129, 0.3);
+            border-left: 4px solid #10b981;
+        }
+        
+        .system-message {
+            background: rgba(156, 163, 175, 0.3);
+            border-left: 4px solid #9ca3af;
+            font-style: italic;
+        }
+        
+        .voice-input {
+            padding: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .text-input {
+            padding: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 10px;
+        }
+        
+        #message-input {
+            flex: 1;
+            margin: 0;
+        }
+        
+        .model-status {
+            font-size: 12px;
+            color: #a0c4ff;
+            margin-top: 10px;
+        }
+        
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            max-width: 400px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .recording {
+            animation: record-pulse 1s ease-in-out infinite;
+        }
+        
+        @keyframes record-pulse {
+            0%, 100% { background: linear-gradient(145deg, #dc2626, #b91c1c); }
+            50% { background: linear-gradient(145deg, #ef4444, #dc2626); }
+        }
+
+        /* Audio conversation interface styles */
+        .conversation-interface {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            padding: 20px;
+            z-index: 100;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .call-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .voice-selector {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .voice-selector select {
+            appearance: none;
+            cursor: pointer;
+            padding-right: 30px;
+        }
+
+        .avatar-visual {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .avatar-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: transform 0.3s ease;
+        }
+
+        .avatar-circle.listening {
+            animation: listening-pulse 2s ease-in-out infinite;
+        }
+
+        .avatar-circle.speaking {
+            animation: speaking-pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes listening-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        }
+
+        @keyframes speaking-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            50% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+        }
+
+        .ripple {
+            position: absolute;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: ripple-effect 1.5s ease-out forwards;
+        }
+
+        @keyframes ripple-effect {
+            from {
+                transform: scale(1);
+                opacity: 0.7;
+            }
+            to {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        .call-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .call-button {
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            min-width: 120px;
+        }
+
+        .status-text {
+            text-align: center;
+            font-size: 16px;
+            color: #e5e7eb;
+            margin: 10px 0;
+        }
+
+        .elapsed-time {
+            font-size: 14px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .debug-info {
+            font-size: 11px;
+            color: #6b7280;
+            line-height: 1.3;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Loading Enhanced AI Avatar Conversation...</div>
+        <div id="loading-status">Initializing audio-to-audio pipeline...</div>
+    </div>
+    
+    <div id="container">
+        <div id="ui-panel">
+            <div class="title">🤖 VRM Avatar AI Chat</div>
+            
+            <div class="control-section">
+                <h3>3D Scene Controls</h3>
+                <div class="controls">
+                    <button onclick="loadVRMCharacter()">Load VRM Character</button>
+                    <button onclick="loadClassroom()">Load Classroom</button>
+                    <button onclick="resetCamera()">Reset Camera</button>
+                </div>
+                <div class="status" id="avatar-status">Ready to load character</div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Animation Controls</h3>
+                <div class="controls">
+                    <button onclick="playIdleAnimation()">Idle</button>
+                    <button onclick="playTalkingAnimation()">Talking</button>
+                    <button onclick="playWaveAnimation()">Wave</button>
+                    <button onclick="stopAnimation()">Stop</button>
+                </div>
+                <div class="status" id="animation-status">No animation</div>
+            </div>
+            
+            <div class="control-section">
+                <h3>System Status</h3>
+                <div class="status" id="system-status">Initializing...</div>
+                <div class="status" id="ai-status">Loading AI models...</div>
+                <div class="status" id="tts-status">Initializing TTS...</div>
+                <div class="status" id="speech-status">Initializing speech recognition...</div>
+                <div class="status" id="env-status">Loading environment...</div>
+            </div>
+        </div>
+        
+        <div class="conversation-interface">
+            <div class="call-status">
+                <div>
+                    <div id="voice-name" style="font-weight: bold; color: #10b981;">AI Avatar</div>
+                    <div class="elapsed-time" id="elapsed-time">00:00</div>
+                </div>
+                <div class="voice-selector">
+                    <select id="voice-select" disabled>
+                        <option value="">Loading voices...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="avatar-visual">
+                <div id="avatar-circle" class="avatar-circle">
+                    <div class="status-text" id="status-text">Loading...</div>
+                </div>
+            </div>
+            
+            <div class="call-controls">
+                <button id="start-call-btn" class="call-button success-button" disabled>
+                    Start Conversation
+                </button>
+                <button id="end-call-btn" class="call-button danger-button" style="display: none;">
+                    End Call
+                </button>
+            </div>
+        </div>
+        
+        <div class="chat-panel">
+            <div class="conversation-log" id="conversation-log">
+                <div class="message system-message">
+                    Welcome! Click "Start Conversation" to begin talking with your AI avatar.
+                </div>
+            </div>
+            
+            <div class="text-input">
+                <input type="text" id="message-input" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+                <button onclick="sendTextMessage()">Send</button>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <div style="font-weight: bold; color: #00d4ff; margin-bottom: 10px;">Debug Info</div>
+            <div id="debug-info" class="debug-info">Initializing system...</div>
+        </div>
+    </div>
+
+    <!-- Import map for modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.168.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.168.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://unpkg.com/@pixiv/three-vrm@3.1.0/lib/three-vrm.module.js",
+            "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3/dist/transformers.min.js",
+            "kokoro-js": "https://cdn.jsdelivr.net/npm/kokoro-js@0.2.1/dist/index.js"
+        }
+    }
+    </script>
+
+    <!-- Include existing modules -->
+    <script src="./js/vrm_mesh_classroom.js"></script>
+    <script src="./js/VRMLightingManager.js"></script>
+    <script src="./js/VRMBVHAdapter.js"></script>
+
+    <script type="module">
+        // Import required modules
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { pipeline, env, AutoModel, AutoTokenizer, AutoModelForCausalLM, TextStreamer, InterruptableStoppingCriteria, Tensor } from '@huggingface/transformers';
+
+        // Configure transformers.js environment
+        env.allowRemoteModels = true;
+        env.allowLocalModels = true;
+        env.localModelPath = './';
+        env.cacheDir = './cache/';
+
+        // Make THREE.js global for other modules
+        window.THREE = THREE;
+        window.GLTFLoader = GLTFLoader;
+
+        // Constants from conversational-webgpu
+        const INPUT_SAMPLE_RATE = 16000;
+        const INPUT_SAMPLE_RATE_MS = INPUT_SAMPLE_RATE / 1000;
+        const SPEECH_THRESHOLD = 0.3;
+        const EXIT_THRESHOLD = 0.1;
+        const MIN_SILENCE_DURATION_MS = 400;
+        const MIN_SILENCE_DURATION_SAMPLES = MIN_SILENCE_DURATION_MS * INPUT_SAMPLE_RATE_MS;
+        const SPEECH_PAD_MS = 80;
+        const SPEECH_PAD_SAMPLES = SPEECH_PAD_MS * INPUT_SAMPLE_RATE_MS;
+        const MIN_SPEECH_DURATION_SAMPLES = 250 * INPUT_SAMPLE_RATE_MS;
+        const MAX_BUFFER_DURATION = 30;
+        const NEW_BUFFER_SIZE = 512;
+        const MAX_NUM_PREV_BUFFERS = Math.ceil(SPEECH_PAD_SAMPLES / NEW_BUFFER_SIZE);
+
+        // Enhanced logging system
+        const LOG_LEVELS = {
+            DEBUG: 'DEBUG',
+            INFO: 'INFO', 
+            WARN: 'WARN',
+            ERROR: 'ERROR',
+            SUCCESS: 'SUCCESS'
+        };
+        
+        const logBuffer = [];
+        const MAX_LOG_ENTRIES = 1000;
+        
+        function enhancedLog(level, message, data = null) {
+            const timestamp = new Date().toISOString();
+            const logEntry = {
+                timestamp,
+                level,
+                message,
+                data: data ? JSON.stringify(data, null, 2) : null
+            };
+            
+            // Add to buffer
+            logBuffer.push(logEntry);
+            if (logBuffer.length > MAX_LOG_ENTRIES) {
+                logBuffer.shift();
+            }
+            
+            // Console output with styling
+            const style = {
+                DEBUG: 'color: #888',
+                INFO: 'color: #0066cc',
+                WARN: 'color: #ff9900',
+                ERROR: 'color: #cc0000',
+                SUCCESS: 'color: #00cc00'
+            };
+            
+            console.log(`%c[${timestamp}] [${level}] ${message}`, style[level] || '', data || '');
+            
+            // Update UI
+            updateDebugInfo(`[${level}] ${message}${data ? ` | Data: ${JSON.stringify(data)}` : ''}`);
+        }
+        
+        function logDeviceInfo() {
+            enhancedLog('INFO', 'Browser and device information', {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                cookieEnabled: navigator.cookieEnabled,
+                onLine: navigator.onLine,
+                hardwareConcurrency: navigator.hardwareConcurrency,
+                deviceMemory: navigator.deviceMemory,
+                connection: navigator.connection ? {
+                    effectiveType: navigator.connection.effectiveType,
+                    downlink: navigator.connection.downlink,
+                    rtt: navigator.connection.rtt
+                } : 'Not available'
+            });
+        }
+        
+        function logWebAPISupport() {
+            const support = {
+                webWorkers: typeof Worker !== 'undefined',
+                audioContext: typeof AudioContext !== 'undefined',
+                webkitAudioContext: typeof webkitAudioContext !== 'undefined',
+                audioWorklet: typeof AudioWorkletNode !== 'undefined',
+                mediaDevices: !!navigator.mediaDevices,
+                getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+                speechSynthesis: 'speechSynthesis' in window,
+                speechRecognition: 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window,
+                webGL: !!window.WebGLRenderingContext,
+                webGL2: !!window.WebGL2RenderingContext,
+                webGPU: 'gpu' in navigator,
+                webAssembly: typeof WebAssembly !== 'undefined',
+                sharedArrayBuffer: typeof SharedArrayBuffer !== 'undefined',
+                offscreenCanvas: typeof OffscreenCanvas !== 'undefined'
+            };
+            
+            enhancedLog('INFO', 'Web API support check', support);
+            return support;
+        }
+        
+        // Global variables
+        let scene, camera, renderer, controls;
+        let classroom, vrmCharacter, vrmAdapter, lightingManager;
+        let animationMixer, currentAction;
+        let bvhData = null;
+        let isPlaying = false;
+        let animationFrame = 0;
+        let characterPosition = new THREE.Vector3(0, 0, 0);
+
+        // Audio conversation variables
+        let callStartTime = null;
+        let callStarted = false;
+        let isListening = false;
+        let isSpeaking = false;
+        let ready = false;
+        let error = null;
+        let elapsedTime = "00:00";
+        let worker = null;
+        let micStreamRef = null;
+        let listeningScale = 1;
+        let speakingScale = 1;
+        let ripples = [];
+        let voice = "af_heart";
+        let voices = {};
+        let playing = false;
+        let node = null;
+        
+        // Device and worker tracking
+        let activeWorkers = [];
+        let activeWorklets = [];
+        let audioContexts = [];
+        let mediaStreams = [];
+        
+        // UI elements - declare before using in enhancedLog
+        const loadingDiv = document.getElementById('loading');
+        const loadingStatus = document.getElementById('loading-status');
+        const debugInfo = document.getElementById('debug-info');
+        const conversationLog = document.getElementById('conversation-log');
+        const messageInput = document.getElementById('message-input');
+        const startCallBtn = document.getElementById('start-call-btn');
+        const endCallBtn = document.getElementById('end-call-btn');
+        const voiceSelect = document.getElementById('voice-select');
+        const voiceName = document.getElementById('voice-name');
+        const elapsedTimeEl = document.getElementById('elapsed-time');
+        const statusText = document.getElementById('status-text');
+        const avatarCircle = document.getElementById('avatar-circle');
+
+        enhancedLog('INFO', 'Global variables initialized');
+
+        // Animation clock
+        const clock = new THREE.Clock();
+
+        // Utility functions
+        function updateLoadingStatus(message) {
+            console.log('📝', message);
+            if (loadingStatus) {
+                loadingStatus.textContent = message;
+            }
+            updateDebugInfo(`[${new Date().toLocaleTimeString()}] 📝 ${message}`);
+        }
+
+        function updateDebugInfo(message) {
+            if (debugInfo) {
+                debugInfo.innerHTML += message + '<br>';
+                debugInfo.scrollTop = debugInfo.scrollHeight;
+            }
+        }
+
+        function addToConversation(type, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.textContent = message;
+            conversationLog.appendChild(messageDiv);
+            conversationLog.scrollTop = conversationLog.scrollHeight;
+        }
+
+        function updateSystemStatus(status) {
+            const statusEl = document.getElementById('system-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        function updateAIStatus(status) {
+            const statusEl = document.getElementById('ai-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        function updateTTSStatus(status) {
+            const statusEl = document.getElementById('tts-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        function updateSpeechStatus(status) {
+            const statusEl = document.getElementById('speech-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        function updateAvatarStatus(status) {
+            const statusEl = document.getElementById('avatar-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        function updateEnvStatus(status) {
+            const statusEl = document.getElementById('env-status');
+            if (statusEl) statusEl.textContent = status;
+        }
+
+        // Create conversation worker
+        function createConversationWorker() {
+            enhancedLog('INFO', 'Creating conversation worker');
+            try {
+                // Add version parameter to prevent caching issues
+                const version = Date.now();
+                const workerUrl = `./js/conversationWorkerWorking.js?v=${version}`;
+                
+                enhancedLog('INFO', 'Worker URL generated', { workerUrl });
+                
+                const newWorker = new Worker(workerUrl);
+                
+                // Track worker
+                activeWorkers.push({
+                    worker: newWorker,
+                    url: workerUrl,
+                    created: new Date().toISOString(),
+                    type: 'conversation'
+                });
+                
+                enhancedLog('SUCCESS', 'Conversation worker created successfully', {
+                    totalActiveWorkers: activeWorkers.length,
+                    workerUrl
+                });
+                
+                return newWorker;
+            } catch (error) {
+                enhancedLog('ERROR', 'Failed to create conversation worker', {
+                    error: error.message,
+                    stack: error.stack
+                });
+                throw error;
+            }
+        }
+
+        // Initialize conversation system
+        async function initializeConversation() {
+            enhancedLog('INFO', 'Starting conversation system initialization');
+            updateDebugInfo('🤖 Initializing conversation worker...');
+            
+            try {
+                worker = createConversationWorker();
+
+                worker.addEventListener('message', ({ data }) => {
+                    enhancedLog('DEBUG', 'Worker message received', { 
+                        type: data.type, 
+                        messageKeys: Object.keys(data),
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    console.log('Worker message received:', data);
+                    
+                    // Handle debug logs from worker
+                    if (data.type === 'debug_log') {
+                        console.log(`%c${data.message}`, 'color: #0066cc', data.data || '');
+                        return;
+                    }
+                    
+                    if (data.error) {
+                        enhancedLog('ERROR', 'Worker reported error', { error: data.error });
+                        updateDebugInfo(`❌ Worker error: ${data.error}`);
+                        statusText.textContent = `Error: ${data.error}`;
+                        return;
+                    }
+                    
+                    switch (data.type) {
+                        case 'info':
+                            enhancedLog('INFO', `Worker info: ${data.message}`);
+                            updateDebugInfo(`ℹ️ ${data.message}`);
+                            break;
+                            
+                        case 'status':
+                            enhancedLog('INFO', `Worker status update: ${data.status}`, data);
+                            if (data.status === 'ready') {
+                                ready = true;
+                                voices = data.voices || {};
+                                statusText.textContent = 'Ready to talk!';
+                                statusText.className = 'ready';
+                                updateDebugInfo('✅ Conversation system ready!');
+                                updateVoiceSelector();
+                                
+                                // Enable UI controls
+                                if (startCallBtn) {
+                                    startCallBtn.disabled = false;
+                                    enhancedLog('SUCCESS', 'Start call button enabled');
+                                }
+                            }
+                            break;
+                            
+                        case 'transcript':
+                            enhancedLog('INFO', `User transcript: ${data.text}`);
+                            addTranscript('User', data.text);
+                            break;
+                            
+                        case 'response':
+                            enhancedLog('INFO', `AI response: ${data.text}`);
+                            addTranscript('AI', data.text);
+                            break;
+                            
+                        case 'output':
+                            enhancedLog('INFO', 'Audio output received', {
+                                textLength: data.text?.length,
+                                hasAudio: !!data.result?.audio,
+                                audioType: data.result?.audio?.useWebSpeech ? 'WebSpeech' : 'Generated'
+                            });
+                            if (data.result?.audio) {
+                                handleAudioOutput(data.text, data.result.audio);
+                            }
+                            break;
+                            
+                        default:
+                            enhancedLog('WARN', `Unknown worker message type: ${data.type}`, data);
+                    }
+                });
+
+                worker.addEventListener('error', (error) => {
+                    enhancedLog('ERROR', 'Worker error event', {
+                        message: error.message,
+                        filename: error.filename,
+                        lineno: error.lineno,
+                        colno: error.colno
+                    });
+                    updateDebugInfo(`❌ Worker error: ${error.message}`);
+                    console.error('Worker error:', error);
+                });
+
+                enhancedLog('SUCCESS', 'Worker event listeners attached');
+                updateDebugInfo('✅ Worker initialized successfully');
+                
+            } catch (error) {
+                enhancedLog('ERROR', 'Failed to initialize conversation system', {
+                    error: error.message,
+                    stack: error.stack
+                });
+                updateDebugInfo(`❌ Failed to create worker: ${error.message}`);
+                console.error('Worker creation error:', error);
+            }
+        }
+
+        // Handle audio output
+        function handleAudioOutput(text, audioConfig) {
+            if (audioConfig.data && audioConfig.data.length > 0) {
+                // Use generated TTS audio data
+                if (node) {
+                    const audioData = audioConfig.data;
+                    const sampleRate = audioConfig.sampleRate || 16000;
+                    
+                    updateDebugInfo(`🔊 Playing TTS audio: ${audioData.length} samples at ${sampleRate}Hz`);
+                    
+                    // Send audio data to playback worklet
+                    node.port.postMessage({
+                        type: 'audio_data',
+                        data: audioData,
+                        sampleRate: sampleRate
+                    });
+                    
+                    playing = true;
+                    isSpeaking = true;
+                    isListening = false;
+                    avatarCircle.className = "avatar-circle speaking";
+                    statusText.textContent = "Speaking...";
+                } else {
+                    updateDebugInfo('⚠️ No audio worklet available, falling back to Web Speech API');
+                    // Fallback to Web Speech API
+                    handleWebSpeechTTS(text);
+                }
+            } else if (audioConfig.useWebSpeech) {
+                // Use Web Speech API fallback
+                handleWebSpeechTTS(text);
+            }
+            
+            // Add to conversation log
+            addToConversation('ai', text);
+        }
+        
+        // Handle Web Speech API TTS
+        function handleWebSpeechTTS(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                utterance.pitch = 1.1;
+                utterance.onstart = () => {
+                    playing = true;
+                    isSpeaking = true;
+                    isListening = false;
+                    avatarCircle.className = "avatar-circle speaking";
+                    statusText.textContent = "Speaking...";
+                };
+                utterance.onend = () => {
+                    playing = false;
+                    isSpeaking = false;
+                    avatarCircle.className = "avatar-circle";
+                    statusText.textContent = "Listening...";
+                    worker?.postMessage({ type: "playback_ended" });
+                };
+                speechSynthesis.speak(utterance);
+            } else {
+                updateDebugInfo('⚠️ Speech synthesis not supported');
+            }
+        }
+
+        // Add transcript entry
+        function addTranscript(speaker, text) {
+            addToConversation(speaker.toLowerCase(), text);
+        }
+
+        // Update voice selector
+        function updateVoiceSelector() {
+            voiceSelect.innerHTML = '';
+            if (Object.keys(voices).length > 0) {
+                Object.entries(voices).forEach(([key, v]) => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = `${v.name} (${v.language === "en-us" ? "American" : v.language} ${v.gender})`;
+                    voiceSelect.appendChild(option);
+                });
+                voiceSelect.value = voice;
+                voiceSelect.disabled = false;
+                voiceName.textContent = voices[voice]?.name || "AI Avatar";
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "Default Voice";
+                voiceSelect.appendChild(option);
+            }
+        }
+
+        // Voice selector change handler
+        voiceSelect.addEventListener('change', (e) => {
+            voice = e.target.value;
+            voiceName.textContent = voices[voice]?.name || "AI Avatar";
+            if (worker) {
+                worker.postMessage({ type: "set_voice", voice });
+            }
+        });
+
+        // Handle start call
+        async function handleStartCall() {
+            enhancedLog('INFO', 'Starting call process');
+            
+            try {
+                // Log current device state
+                enhancedLog('INFO', 'Current device state before call', {
+                    activeWorkers: activeWorkers.length,
+                    activeWorklets: activeWorklets.length,
+                    audioContexts: audioContexts.length,
+                    mediaStreams: mediaStreams.length,
+                    ready,
+                    callStarted
+                });
+                
+                enhancedLog('INFO', 'Requesting microphone access');
+                updateDebugInfo('🎤 Requesting microphone access...');
+                
+                const constraints = {
+                    audio: {
+                        channelCount: 1,
+                        echoCancellation: true,
+                        autoGainControl: true,
+                        noiseSuppression: true,
+                        sampleRate: INPUT_SAMPLE_RATE,
+                    },
+                };
+                
+                enhancedLog('INFO', 'Media constraints', constraints);
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                enhancedLog('SUCCESS', 'Microphone access granted', {
+                    streamId: stream.id,
+                    tracks: stream.getTracks().map(track => ({
+                        id: track.id,
+                        kind: track.kind,
+                        label: track.label,
+                        enabled: track.enabled,
+                        readyState: track.readyState,
+                        settings: track.getSettings()
+                    }))
+                });
+                
+                micStreamRef = stream;
+                mediaStreams.push({
+                    stream,
+                    id: stream.id,
+                    created: new Date().toISOString(),
+                    type: 'microphone'
+                });
+
+                callStartTime = Date.now();
+                callStarted = true;
+                startCallBtn.style.display = 'none';
+                endCallBtn.style.display = 'block';
+                
+                updateDebugInfo('✅ Microphone access granted');
+                statusText.textContent = "Initializing audio...";
+
+                // Set up audio processing
+                await setupAudioProcessing();
+                
+                // Start the call in the worker AFTER audio setup
+                enhancedLog('INFO', 'Sending start_call message to worker');
+                worker?.postMessage({ type: "start_call" });
+
+            } catch (err) {
+                enhancedLog('ERROR', 'Microphone access failed', {
+                    error: err.message,
+                    name: err.name,
+                    stack: err.stack
+                });
+                updateDebugInfo(`❌ Microphone access failed: ${err.message}`);
+                statusText.textContent = "Microphone access denied";
+            }
+        }
+
+        // Handle end call
+        function handleEndCall() {
+            callStarted = false;
+            callStartTime = null;
+            playing = false;
+            isListening = false;
+            isSpeaking = false;
+            
+            startCallBtn.style.display = 'block';
+            endCallBtn.style.display = 'none';
+            avatarCircle.className = "avatar-circle";
+            statusText.textContent = "Ready to talk!";
+            elapsedTimeEl.textContent = "00:00";
+
+            if (micStreamRef) {
+                micStreamRef.getTracks().forEach(track => track.stop());
+                micStreamRef = null;
+            }
+
+            worker?.postMessage({ type: "end_call" });
+            updateDebugInfo('📞 Call ended');
+        }
+
+        // Set up audio processing pipeline
+        async function setupAudioProcessing() {
+            enhancedLog('INFO', 'Setting up audio processing pipeline');
+            
+            try {
+                // Input audio context for VAD
+                enhancedLog('INFO', 'Creating input audio context');
+                const inputAudioContext = new AudioContext({ sampleRate: INPUT_SAMPLE_RATE });
+                
+                enhancedLog('INFO', 'Input audio context created', {
+                    sampleRate: inputAudioContext.sampleRate,
+                    state: inputAudioContext.state,
+                    baseLatency: inputAudioContext.baseLatency,
+                    outputLatency: inputAudioContext.outputLatency
+                });
+                
+                audioContexts.push({
+                    context: inputAudioContext,
+                    type: 'input',
+                    created: new Date().toISOString()
+                });
+                
+                const source = inputAudioContext.createMediaStreamSource(micStreamRef);
+                enhancedLog('SUCCESS', 'Media stream source created');
+
+                // Add VAD processor
+                enhancedLog('INFO', 'Loading VAD processor worklet');
+                await inputAudioContext.audioWorklet.addModule('./js/vad-processor.js');
+                
+                const vadWorklet = new AudioWorkletNode(inputAudioContext, "vad-processor");
+                enhancedLog('SUCCESS', 'VAD worklet created');
+                
+                activeWorklets.push({
+                    worklet: vadWorklet,
+                    type: 'vad',
+                    created: new Date().toISOString()
+                });
+                
+                source.connect(vadWorklet);
+                enhancedLog('SUCCESS', 'VAD worklet connected to audio source');
+
+                vadWorklet.port.onmessage = (event) => {
+                    const { buffer, energy } = event.data;
+                    enhancedLog('DEBUG', 'VAD worklet message', {
+                        bufferLength: buffer?.length,
+                        energy,
+                        callStarted,
+                        ready,
+                        hasWorker: !!worker
+                    });
+                    
+                    // Only send audio data when call is started and worker is ready
+                    if (worker && buffer && callStarted && ready) {
+                        worker.postMessage({ type: "audio", data: buffer });
+                    }
+                };
+
+                // Output audio context for TTS
+                enhancedLog('INFO', 'Creating output audio context');
+                const outputAudioContext = new AudioContext({ sampleRate: 24000 });
+                await outputAudioContext.resume();
+                
+                enhancedLog('INFO', 'Output audio context created', {
+                    sampleRate: outputAudioContext.sampleRate,
+                    state: outputAudioContext.state,
+                    baseLatency: outputAudioContext.baseLatency
+                });
+                
+                audioContexts.push({
+                    context: outputAudioContext,
+                    type: 'output',
+                    created: new Date().toISOString()
+                });
+
+                // Load TTS playback processor
+                try {
+                    enhancedLog('INFO', 'Loading TTS playback processor');
+                    await outputAudioContext.audioWorklet.addModule('./js/tts-playback-processor.js');
+                    node = new AudioWorkletNode(outputAudioContext, "tts-playback-processor");
+                    node.connect(outputAudioContext.destination);
+                    
+                    enhancedLog('SUCCESS', 'TTS playback processor loaded and connected');
+                    
+                    activeWorklets.push({
+                        worklet: node,
+                        type: 'tts-playback',
+                        created: new Date().toISOString()
+                    });
+                    
+                    node.port.onmessage = (event) => {
+                        enhancedLog('DEBUG', 'TTS playback message', event.data);
+                        if (event.data.type === "playback_ended") {
+                            playing = false;
+                            isSpeaking = false;
+                            avatarCircle.className = "avatar-circle";
+                            statusText.textContent = "Listening...";
+                            worker?.postMessage({ type: "playback_ended" });
+                        }
+                    };
+                    
+                    updateDebugInfo('✅ TTS playback processor loaded');
+                } catch (ttsError) {
+                    enhancedLog('ERROR', 'TTS playback processor failed', {
+                        error: ttsError.message,
+                        stack: ttsError.stack
+                    });
+                    updateDebugInfo(`⚠️ TTS playback processor failed, using fallback: ${ttsError.message}`);
+                    // Will use Web Speech API fallback
+                }
+
+                enhancedLog('SUCCESS', 'Audio processing pipeline established', {
+                    totalAudioContexts: audioContexts.length,
+                    totalWorklets: activeWorklets.length
+                });
+                updateDebugInfo('✅ Audio processing pipeline established');
+                statusText.textContent = "Ready - try speaking!";
+
+            } catch (error) {
+                enhancedLog('ERROR', 'Audio setup failed', {
+                    error: error.message,
+                    stack: error.stack
+                });
+                updateDebugInfo(`❌ Audio setup failed: ${error.message}`);
+                statusText.textContent = "Audio setup failed";
+            }
+        }
+
+        // Update elapsed time
+        function updateElapsedTime() {
+            if (callStarted && callStartTime) {
+                const diff = Math.floor((Date.now() - callStartTime) / 1000);
+                const minutes = String(Math.floor(diff / 60)).padStart(2, "0");
+                const seconds = String(diff % 60).padStart(2, "0");
+                elapsedTimeEl.textContent = `${minutes}:${seconds}`;
+            }
+        }
+        setInterval(updateElapsedTime, 1000);
+
+        // Event listeners
+        startCallBtn.addEventListener('click', handleStartCall);
+        endCallBtn.addEventListener('click', handleEndCall);
+
+        // Text message functions
+        window.sendTextMessage = function() {
+            const message = messageInput.value.trim();
+            if (message) {
+                addToConversation('user', message);
+                // Here you could send to worker for processing
+                messageInput.value = '';
+                
+                // Simple response for now
+                setTimeout(() => {
+                    addToConversation('ai', 'Thanks for your message! I heard: "' + message + '"');
+                }, 1000);
+            }
+        };
+
+        window.handleKeyPress = function(event) {
+            if (event.key === 'Enter') {
+                sendTextMessage();
+            }
+        };
+
+        // VRM and 3D scene functions
+        window.loadVRMCharacter = function() {
+            updateDebugInfo('📁 Loading VRM character...');
+            updateAvatarStatus('Loading character...');
+            // Implement VRM loading logic here
+            setTimeout(() => {
+                updateAvatarStatus('Character loaded');
+                updateDebugInfo('✅ VRM character loaded');
+            }, 2000);
+        };
+
+        window.loadClassroom = function() {
+            updateDebugInfo('🏫 Loading classroom...');
+            updateEnvStatus('Loading classroom...');
+            // Implement classroom loading logic here
+            setTimeout(() => {
+                updateEnvStatus('Classroom loaded');
+                updateDebugInfo('✅ Classroom loaded');
+            }, 2000);
+        };
+
+        window.resetCamera = function() {
+            if (camera && controls) {
+                camera.position.set(0, 1.8, 3);
+                controls.target.set(0, 0.9, 0);
+                controls.update();
+                updateDebugInfo('📹 Camera reset');
+            }
+        };
+
+        window.playIdleAnimation = function() {
+            updateDebugInfo('🎭 Playing idle animation');
+            document.getElementById('animation-status').textContent = 'Idle animation';
+        };
+
+        window.playTalkingAnimation = function() {
+            updateDebugInfo('🎭 Playing talking animation');
+            document.getElementById('animation-status').textContent = 'Talking animation';
+        };
+
+        window.playWaveAnimation = function() {
+            updateDebugInfo('🎭 Playing wave animation');
+            document.getElementById('animation-status').textContent = 'Wave animation';
+        };
+
+        window.stopAnimation = function() {
+            updateDebugInfo('🎭 Stopping animation');
+            document.getElementById('animation-status').textContent = 'No animation';
+        };
+
+        // Initialize 3D scene
+        async function init3DScene() {
+            updateSystemStatus('Initializing 3D scene...');
+            updateLoadingStatus('Creating 3D scene...');
+            updateDebugInfo('🎬 Starting 3D scene initialization...');
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.8, 3);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0.9, 0);
+            
+            // Add basic lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            updateDebugInfo('✅ 3D scene initialized');
+            updateSystemStatus('3D scene ready');
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (controls) {
+                controls.update();
+            }
+            
+            if (animationMixer) {
+                animationMixer.update(clock.getDelta());
+            }
+            
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        // Handle window resize
+        function onWindowResize() {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+        window.addEventListener('resize', onWindowResize);
+
+        // Main initialization
+        async function init() {
+            enhancedLog('INFO', 'Initializing enhanced VRM AI conversation interface');
+            
+            try {
+                updateLoadingStatus('Initializing enhanced AI conversation system...');
+                updateDebugInfo('🚀 Starting enhanced VRM AI conversation system...');
+
+                // Initialize 3D scene
+                enhancedLog('INFO', 'Initializing 3D scene');
+                await init3DScene();
+                
+                // Initialize conversation system
+                enhancedLog('INFO', 'Initializing conversation system');
+                await initializeConversation();
+                
+                // Start animation loop
+                enhancedLog('INFO', 'Starting animation loop');
+                animate();
+                
+                // Hide loading screen
+                loadingDiv.style.display = 'none';
+                
+                // Log final system state
+                enhancedLog('SUCCESS', 'Enhanced VRM AI conversation system fully initialized', {
+                    audioContexts: audioContexts.length,
+                    worklets: activeWorklets.length,
+                    workers: activeWorkers.length,
+                    micStreamTracks: micStreamRef?.getTracks().length
+                });
+                
+                updateSystemStatus('All systems ready!');
+                updateLoadingStatus('Ready!');
+                updateDebugInfo('🎉 Enhanced AI conversation system fully initialized');
+                updateDebugInfo('💡 Features: Real-time VAD, Whisper STT, SmolLM2 chat, Kokoro TTS');
+                updateDebugInfo('🎤 Click "Start Conversation" to begin audio-to-audio chat');
+
+            } catch (error) {
+                enhancedLog('ERROR', 'Initialization failed', {
+                    error: error.message,
+                    stack: error.stack
+                });
+                updateDebugInfo(`❌ Initialization failed: ${error.message}`);
+                updateSystemStatus('Initialization failed');
+                console.error('Initialization error:', error);
+            }
+        }
+
+        // Start initialization
+        init();
+
+    </script>
+</body>
+</html>

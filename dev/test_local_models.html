@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Model Loading Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid #4CAF50;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success { background: rgba(76, 175, 80, 0.2); border: 1px solid #4CAF50; }
+        .warning { background: rgba(255, 152, 0, 0.2); border: 1px solid #FF9800; }
+        .error { background: rgba(244, 67, 54, 0.2); border: 1px solid #F44336; }
+        .info { background: rgba(33, 150, 243, 0.2); border: 1px solid #2196F3; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover { background: #5a6fd8; }
+        #log {
+            background: #333;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 Local Model Loading Test</h1>
+        <p>Testing that the conversation worker properly loads models from the local models directory instead of CDN.</p>
+        
+        <div class="test-section">
+            <h3>📂 Available Local Models</h3>
+            <div id="modelStatus">Checking local models...</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🤖 Worker Model Loading Test</h3>
+            <button onclick="testWorkerModelLoading()">Test Worker Model Loading</button>
+            <button onclick="clearLog()">Clear Log</button>
+            <div id="workerStatus" class="status info">Ready to test</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 Debug Log</h3>
+            <div id="log">Ready to start testing...\n</div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            logDiv.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('workerStatus');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+        
+        async function checkLocalModels() {
+            const modelPaths = [
+                './models/DialoGPT-medium/',
+                './models/Kokoro-82M-v1.0-ONNX/',
+                './models/kokoro-v0_19/',
+                './models/speecht5_tts/',
+                './models/TinyLlama-1.1B-Chat-v1.0/'
+            ];
+            
+            const modelStatus = document.getElementById('modelStatus');
+            let statusHtml = '<strong>Local Model Check:</strong><br>';
+            
+            for (const path of modelPaths) {
+                try {
+                    const response = await fetch(path, { method: 'HEAD' });
+                    if (response.ok) {
+                        statusHtml += `✅ ${path} - Available<br>`;
+                        log(`Local model found: ${path}`, 'success');
+                    } else {
+                        statusHtml += `❌ ${path} - Not accessible<br>`;
+                        log(`Local model not accessible: ${path}`, 'warning');
+                    }
+                } catch (error) {
+                    statusHtml += `❌ ${path} - Error: ${error.message}<br>`;
+                    log(`Local model error: ${path} - ${error.message}`, 'error');
+                }
+            }
+            
+            modelStatus.innerHTML = statusHtml;
+        }
+        
+        async function testWorkerModelLoading() {
+            updateStatus('Creating conversation worker...', 'warning');
+            log('Starting worker model loading test...', 'info');
+            
+            try {
+                const worker = new Worker('./js/conversationWorkerWorking.js');
+                let loadingResults = {
+                    vad: false,
+                    transcriber: false,
+                    llm: false,
+                    kokoro: false
+                };
+                
+                worker.onmessage = function(e) {
+                    const { type, message, result, level } = e.data;
+                    
+                    // Log all worker messages
+                    if (type === 'debug_log') {
+                        log(`[WORKER] ${message}`, level?.toLowerCase() || 'info');
+                    } else if (type === 'info') {
+                        log(`[WORKER INFO] ${message}`, 'info');
+                        
+                        // Track successful model loads
+                        if (message.includes('VAD loaded')) {
+                            loadingResults.vad = true;
+                        } else if (message.includes('Whisper loaded')) {
+                            loadingResults.transcriber = true;
+                        } else if (message.includes('Language model loaded')) {
+                            loadingResults.llm = true;
+                        } else if (message.includes('Kokoro TTS')) {
+                            loadingResults.kokoro = true;
+                        }
+                        
+                        // Check for local model usage
+                        if (message.includes('./models/')) {
+                            log(`🏠 LOCAL MODEL USED: ${message}`, 'success');
+                        }
+                    } else if (type === 'output' && result && result.models) {
+                        // Final model status
+                        const models = result.models;
+                        log('Final model loading results:', 'info');
+                        log(`  VAD: ${models.vad ? '✅' : '❌'}`, models.vad ? 'success' : 'error');
+                        log(`  Transcriber: ${models.transcriber ? '✅' : '❌'}`, models.transcriber ? 'success' : 'error');
+                        log(`  LLM: ${models.llm ? '✅' : '❌'}`, models.llm ? 'success' : 'error');
+                        log(`  Kokoro: ${models.kokoro ? '✅' : '❌'}`, models.kokoro ? 'success' : 'error');
+                        
+                        const successCount = Object.values(models).filter(Boolean).length;
+                        const totalCount = Object.keys(models).length;
+                        
+                        if (successCount === totalCount) {
+                            updateStatus(`🎉 All ${totalCount} models loaded successfully!`, 'success');
+                        } else if (successCount > 0) {
+                            updateStatus(`⚠️ ${successCount}/${totalCount} models loaded`, 'warning');
+                        } else {
+                            updateStatus('❌ No models loaded successfully', 'error');
+                        }
+                        
+                        worker.terminate();
+                    } else if (type === 'error') {
+                        log(`[WORKER ERROR] ${message}`, 'error');
+                        updateStatus('❌ Worker error occurred', 'error');
+                        worker.terminate();
+                    }
+                };
+                
+                worker.onerror = function(error) {
+                    log(`Worker failed to load: ${error.message}`, 'error');
+                    updateStatus('❌ Worker failed to load', 'error');
+                };
+                
+                // Initialize the worker
+                log('Initializing worker...', 'info');
+                worker.postMessage({ type: 'init' });
+                
+                // Test model status after initialization
+                setTimeout(() => {
+                    log('Requesting model status...', 'info');
+                    worker.postMessage({ type: 'test_models' });
+                }, 8000); // Wait 8 seconds for models to load
+                
+            } catch (error) {
+                log(`Test failed: ${error.message}`, 'error');
+                updateStatus('❌ Test failed', 'error');
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').textContent = 'Log cleared.\n';
+        }
+        
+        // Check local models on page load
+        window.addEventListener('load', () => {
+            log('Page loaded, checking local models...', 'info');
+            checkLocalModels();
+        });
+    </script>
+</body>
+</html>

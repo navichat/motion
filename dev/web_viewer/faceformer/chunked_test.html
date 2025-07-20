@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunked Processing Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .status {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .progress {
+            background: #333;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            background: #4CAF50;
+            height: 20px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Chunked Processing Test</h1>
+        <p>Test the full FaceFormer with chunked processing for long sequences</p>
+        
+        <button onclick="testShortSequence()">Test Short Sequence (100 frames)</button>
+        <button onclick="testLongSequence()">Test Long Sequence (600 frames)</button>
+        <button onclick="testVeryLongSequence()">Test Very Long Sequence (1000 frames)</button>
+        
+        <div class="progress">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+        
+        <div id="status" class="status">
+            Ready to test chunked processing...
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
+    <script src="full_faceformer_web.js"></script>
+    <script>
+        let faceformer = null;
+        
+        function log(message) {
+            const status = document.getElementById('status');
+            const timestamp = new Date().toLocaleTimeString();
+            status.innerHTML += `[${timestamp}] ${message}\n`;
+            status.scrollTop = status.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateProgress(percent, message) {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = percent + '%';
+            if (message) {
+                log(`Progress: ${message} (${percent}%)`);
+            }
+        }
+        
+        async function initializeFaceFormer() {
+            if (faceformer && faceformer.initialized) {
+                return faceformer;
+            }
+            
+            log('🚀 Initializing Full FaceFormer...');
+            updateProgress(10, 'Initializing');
+            
+            faceformer = new FullFaceFormer();
+            
+            // Set progress callback
+            faceformer.setProgressCallback = function(callback) {
+                faceformer.onProgress = callback;
+            };
+            
+            try {
+                await faceformer.initialize('vocaset', 'auto');
+                log('✅ FaceFormer initialized successfully!');
+                updateProgress(100, 'Ready');
+                return faceformer;
+            } catch (error) {
+                log(`❌ Initialization failed: ${error.message}`);
+                throw error;
+            }
+        }
+        
+        function generateMockAudioFeatures(numFrames) {
+            log(`🎵 Generating mock audio features: ${numFrames} frames`);
+            const features = [];
+            for (let i = 0; i < numFrames; i++) {
+                const frame = new Array(768).fill(0).map(() => Math.random() * 0.1);
+                features.push(frame);
+            }
+            return features;
+        }
+        
+        function generateMockTemplate() {
+            return new Array(15069).fill(0).map(() => Math.random() * 0.01);
+        }
+        
+        async function testSequence(numFrames, description) {
+            log(`\n🔄 Starting ${description}...`);
+            updateProgress(0, 'Starting test');
+            
+            try {
+                const fm = await initializeFaceFormer();
+                updateProgress(20, 'Generating test data');
+                
+                const audioFeatures = generateMockAudioFeatures(numFrames);
+                const template = generateMockTemplate();
+                const subjectId = 0;
+                
+                updateProgress(30, 'Processing audio');
+                log(`📊 Input: ${numFrames} frames, template: ${template.length} vertices`);
+                
+                // Set up progress tracking
+                let chunkProgress = 0;
+                fm.onProgress = (message) => {
+                    log(`Progress: ${message}`);
+                    if (message.includes('chunk')) {
+                        chunkProgress += 5;
+                        updateProgress(30 + Math.min(chunkProgress, 60), message);
+                    }
+                };
+                
+                const startTime = performance.now();
+                const result = await fm.generateVerticesWithTransformer(audioFeatures, template, subjectId);
+                const totalTime = performance.now() - startTime;
+                
+                updateProgress(100, 'Complete');
+                
+                log(`✅ ${description} completed!`);
+                log(`📈 Results:`);
+                log(`   - Backend: ${result.backend}`);
+                log(`   - Inference time: ${result.inferenceTime.toFixed(2)}ms`);
+                log(`   - Total time: ${totalTime.toFixed(2)}ms`);
+                log(`   - Output frames: ${result.vertices.length}`);
+                
+                if (result.chunksProcessed) {
+                    log(`   - Chunks processed: ${result.chunksProcessed}`);
+                    log(`   - Avg time per chunk: ${result.avgTimePerChunk.toFixed(2)}ms`);
+                }
+                
+                const fps = (result.vertices.length / (totalTime / 1000)).toFixed(1);
+                log(`   - Throughput: ${fps} FPS`);
+                
+            } catch (error) {
+                log(`❌ ${description} failed: ${error.message}`);
+                updateProgress(0, 'Failed');
+            }
+        }
+        
+        async function testShortSequence() {
+            await testSequence(100, 'Short Sequence Test');
+        }
+        
+        async function testLongSequence() {
+            await testSequence(600, 'Long Sequence Test (Chunked)');
+        }
+        
+        async function testVeryLongSequence() {
+            await testSequence(1000, 'Very Long Sequence Test (Chunked)');
+        }
+        
+        // Initialize on page load
+        window.addEventListener('load', async () => {
+            log('🔧 Page loaded, ready for testing...');
+            log('💡 Click a test button to start!');
+        });
+    </script>
+</body>
+</html>

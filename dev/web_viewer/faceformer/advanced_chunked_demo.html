@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Chunked Processing Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #fff;
+            line-height: 1.6;
+        }
+        .container {
+            background: rgba(42, 42, 42, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 8px 5px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .status {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+        .progress-container {
+            margin: 15px 0;
+        }
+        .progress-bar {
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 25px;
+            position: relative;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 12px;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .metric {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #444;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .metric-label {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        .test-config {
+            background: #2a2a3a;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .config-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .config-item label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #ddd;
+        }
+        .config-item select, .config-item input {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background: #444;
+            color: #fff;
+        }
+        .highlight {
+            background: #4CAF50;
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .warning {
+            background: #ff9800;
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .error {
+            background: #f44336;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Advanced Chunked Processing Demo</h1>
+        <p>Test the Full FaceFormer with intelligent chunked processing for sequences of any length</p>
+        
+        <div class="test-config">
+            <h3>🎛️ Test Configuration</h3>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label>Sequence Length (frames)</label>
+                    <select id="sequenceLength">
+                        <option value="50">50 frames (1 sec)</option>
+                        <option value="150">150 frames (3 sec)</option>
+                        <option value="300" selected>300 frames (6 sec)</option>
+                        <option value="600">600 frames (12 sec)</option>
+                        <option value="1000">1000 frames (20 sec)</option>
+                        <option value="1500">1500 frames (30 sec)</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label>Chunk Size (frames)</label>
+                    <select id="chunkSize">
+                        <option value="100">100 frames</option>
+                        <option value="150">150 frames</option>
+                        <option value="200" selected>200 frames</option>
+                        <option value="250">250 frames</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label>Backend</label>
+                    <select id="backend">
+                        <option value="auto" selected>Auto-detect</option>
+                        <option value="webgpu">WebGPU</option>
+                        <option value="onnxruntime-web">ONNX Runtime Web</option>
+                        <option value="wasm">WebAssembly</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="container">
+            <h3>🎯 Quick Tests</h3>
+            <button onclick="runQuickTest('short')">Short Sequence (150 frames)</button>
+            <button onclick="runQuickTest('medium')">Medium Sequence (300 frames)</button>
+            <button onclick="runQuickTest('long')">Long Sequence (600 frames)</button>
+            <button onclick="runQuickTest('verylong')">Very Long (1000 frames)</button>
+            <br><br>
+            <button onclick="runCustomTest()" style="background: linear-gradient(45deg, #2196F3, #1976D2);">🔧 Custom Test</button>
+            <button onclick="runBenchmark()" style="background: linear-gradient(45deg, #FF9800, #F57C00);">📊 Benchmark Suite</button>
+        </div>
+
+        <div class="container">
+            <h3>📊 Performance Metrics</h3>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value" id="totalFrames">0</div>
+                    <div class="metric-label">Total Frames</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="chunksProcessed">0</div>
+                    <div class="metric-label">Chunks</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="throughputFPS">0</div>
+                    <div class="metric-label">Throughput (FPS)</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="avgChunkTime">0</div>
+                    <div class="metric-label">Avg Chunk (ms)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h3>📈 Progress</h3>
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+                <div id="progressText" class="progress-text">Ready</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h3>📝 Processing Log</h3>
+        <div id="status" class="status">
+            Ready for advanced chunked processing tests...
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
+    <script src="full_faceformer_web.js"></script>
+    <script>
+        let faceformer = null;
+        let currentTest = null;
+        
+        function log(message, type = 'info') {
+            const status = document.getElementById('status');
+            const timestamp = new Date().toLocaleTimeString();
+            let styledMessage = message;
+            
+            if (type === 'success') {
+                styledMessage = `<span class="highlight">${message}</span>`;
+            } else if (type === 'warning') {
+                styledMessage = `<span class="warning">${message}</span>`;
+            } else if (type === 'error') {
+                styledMessage = `<span class="error">${message}</span>`;
+            }
+            
+            status.innerHTML += `[${timestamp}] ${styledMessage}\n`;
+            status.scrollTop = status.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateProgress(percent, message) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            progressFill.style.width = percent + '%';
+            progressText.textContent = message || `${percent}%`;
+        }
+        
+        function updateMetrics(result) {
+            document.getElementById('totalFrames').textContent = result.totalFrames || result.frames || 0;
+            document.getElementById('chunksProcessed').textContent = result.chunksProcessed || 1;
+            document.getElementById('throughputFPS').textContent = (result.throughputFPS || 0).toFixed(1);
+            document.getElementById('avgChunkTime').textContent = (result.avgTimePerChunk || 0).toFixed(1);
+        }
+        
+        async function initializeFaceFormer() {
+            if (faceformer && faceformer.initialized) {
+                return faceformer;
+            }
+            
+            log('🚀 Initializing Full FaceFormer...', 'info');
+            updateProgress(10, 'Initializing');
+            
+            faceformer = new FullFaceFormerWeb();
+            
+            // Set progress callback
+            faceformer.setProgressCallback((message) => {
+                log(`Progress: ${message}`, 'info');
+                updateProgress(Math.min(90, Math.random() * 50 + 30), message);
+            });
+            
+            try {
+                const backend = document.getElementById('backend').value;
+                await faceformer.initialize('vocaset', backend);
+                log('✅ FaceFormer initialized successfully!', 'success');
+                updateProgress(100, 'Ready');
+                return faceformer;
+            } catch (error) {
+                log(`❌ Initialization failed: ${error.message}`, 'error');
+                updateProgress(0, 'Failed');
+                throw error;
+            }
+        }
+        
+        function generateMockAudioFeatures(numFrames) {
+            log(`🎵 Generating mock audio features: ${numFrames} frames`, 'info');
+            const features = [];
+            for (let i = 0; i < numFrames; i++) {
+                const frame = new Array(768).fill(0).map(() => (Math.random() - 0.5) * 0.2);
+                features.push(frame);
+            }
+            return features;
+        }
+        
+        function generateMockTemplate() {
+            return new Array(15069).fill(0).map(() => Math.random() * 0.01);
+        }
+        
+        async function runSequenceTest(numFrames, description) {
+            log(`\n🔄 Starting ${description}...`, 'info');
+            updateProgress(0, 'Starting test');
+            updateMetrics({});
+            
+            try {
+                const fm = await initializeFaceFormer();
+                updateProgress(20, 'Generating test data');
+                
+                const audioFeatures = generateMockAudioFeatures(numFrames);
+                const template = generateMockTemplate();
+                const subjectId = 0;
+                
+                updateProgress(30, 'Processing sequence');
+                log(`📊 Input: ${numFrames} frames, template: ${template.length} vertices`, 'info');
+                
+                // Track progress
+                let progressCount = 0;
+                fm.setProgressCallback((message) => {
+                    log(`📈 ${message}`, 'info');
+                    progressCount += 5;
+                    updateProgress(30 + Math.min(progressCount, 60), message);
+                });
+                
+                const startTime = performance.now();
+                const result = await fm.generateVerticesWithTransformer(audioFeatures, template, subjectId);
+                const totalTime = performance.now() - startTime;
+                
+                updateProgress(100, 'Complete');
+                updateMetrics({
+                    totalFrames: numFrames,
+                    frames: result.vertices.length,
+                    chunksProcessed: result.chunksProcessed || 1,
+                    throughputFPS: result.throughputFPS || (result.vertices.length / (totalTime / 1000)),
+                    avgTimePerChunk: result.avgTimePerChunk || totalTime
+                });
+                
+                log(`✅ ${description} completed!`, 'success');
+                log(`📈 Results:`, 'info');
+                log(`   - Backend: ${result.backend}`, 'info');
+                log(`   - Input frames: ${numFrames}`, 'info');
+                log(`   - Output frames: ${result.vertices.length}`, 'info');
+                log(`   - Inference time: ${result.inferenceTime.toFixed(2)}ms`, 'info');
+                log(`   - Total time: ${totalTime.toFixed(2)}ms`, 'info');
+                
+                if (result.chunksProcessed) {
+                    log(`   - Chunks processed: ${result.chunksProcessed}`, 'success');
+                    log(`   - Avg time per chunk: ${result.avgTimePerChunk.toFixed(2)}ms`, 'info');
+                    log(`   - Throughput: ${result.throughputFPS} FPS`, 'success');
+                } else {
+                    const fps = (result.vertices.length / (totalTime / 1000)).toFixed(1);
+                    log(`   - Throughput: ${fps} FPS`, 'success');
+                }
+                
+                return result;
+                
+            } catch (error) {
+                log(`❌ ${description} failed: ${error.message}`, 'error');
+                updateProgress(0, 'Failed');
+                updateMetrics({});
+                throw error;
+            }
+        }
+        
+        async function runQuickTest(type) {
+            const configs = {
+                'short': { frames: 150, desc: 'Short Sequence Test' },
+                'medium': { frames: 300, desc: 'Medium Sequence Test (Chunked)' },
+                'long': { frames: 600, desc: 'Long Sequence Test (Chunked)' },
+                'verylong': { frames: 1000, desc: 'Very Long Sequence Test (Chunked)' }
+            };
+            
+            const config = configs[type];
+            await runSequenceTest(config.frames, config.desc);
+        }
+        
+        async function runCustomTest() {
+            const frames = parseInt(document.getElementById('sequenceLength').value);
+            const desc = `Custom Test (${frames} frames)`;
+            await runSequenceTest(frames, desc);
+        }
+        
+        async function runBenchmark() {
+            log('\n🏁 Starting benchmark suite...', 'warning');
+            const sequences = [100, 200, 400, 600, 800, 1000];
+            const results = [];
+            
+            for (const frames of sequences) {
+                try {
+                    const result = await runSequenceTest(frames, `Benchmark ${frames} frames`);
+                    results.push({ frames, result });
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause
+                } catch (error) {
+                    log(`❌ Benchmark failed at ${frames} frames: ${error.message}`, 'error');
+                }
+            }
+            
+            log('\n📊 Benchmark Summary:', 'success');
+            results.forEach(({ frames, result }) => {
+                const fps = result.throughputFPS || (result.vertices.length / (result.inferenceTime / 1000));
+                log(`   ${frames} frames: ${fps.toFixed(1)} FPS${result.chunksProcessed ? ` (${result.chunksProcessed} chunks)` : ''}`, 'info');
+            });
+        }
+        
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            log('🔧 Advanced Chunked Processing Demo loaded', 'info');
+            log('💡 Choose a test configuration and click a test button!', 'info');
+            updateProgress(0, 'Ready');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaceFormer BVH Timeline Integration Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        
+        .section h2 {
+            margin-top: 0;
+            color: #555;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #1e7e34; }
+        
+        .btn-warning { background: #ffc107; color: #000; }
+        .btn-warning:hover { background: #e0a800; }
+        
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        .status.info { background: #d4edda; color: #155724; }
+        .status.warning { background: #fff3cd; color: #856404; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        
+        .timeline-viz {
+            width: 100%;
+            height: 200px;
+            border: 1px solid #ccc;
+            background: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .track {
+            height: 30px;
+            margin: 2px 0;
+            background: #e9ecef;
+            position: relative;
+            border-radius: 3px;
+        }
+        
+        .clip {
+            height: 26px;
+            margin: 2px;
+            border-radius: 3px;
+            position: absolute;
+            opacity: 0.8;
+            color: white;
+            font-size: 10px;
+            line-height: 26px;
+            padding: 0 5px;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+        
+        .clip.faceformer { background: #007bff; }
+        .clip.body { background: #28a745; }
+        .clip.audio { background: #ffc107; color: #000; }
+        
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: red;
+            z-index: 100;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-box {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .stat-box h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+        }
+        
+        .log-time {
+            color: #888;
+        }
+        
+        .log-level-INFO { color: #0f0; }
+        .log-level-WARN { color: #ff0; }
+        .log-level-ERROR { color: #f00; }
+        
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .audio-controls input {
+            flex: 1;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .config-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .config-item label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .config-item input, .config-item select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 FaceFormer BVH Timeline Integration Demo</h1>
+        
+        <!-- Status Section -->
+        <div class="section">
+            <h2>📊 System Status</h2>
+            <div id="status" class="status info">Initializing FaceFormer BVH Timeline system...</div>
+            
+            <div class="controls">
+                <button id="initBtn" onclick="initializeSystem()">Initialize System</button>
+                <button id="loadModelBtn" onclick="loadFaceFormerModel()" disabled>Load FaceFormer Model</button>
+                <button id="resetBtn" onclick="resetSystem()" class="btn-warning">Reset System</button>
+            </div>
+        </div>
+        
+        <!-- Audio Input Section -->
+        <div class="section">
+            <h2>🎤 Audio Input & Processing</h2>
+            
+            <div class="controls">
+                <button id="recordBtn" onclick="toggleRecording()" disabled class="btn-success">Start Recording</button>
+                <button id="processBtn" onclick="processTestAudio()" disabled>Process Test Audio</button>
+                <button id="loadAudioBtn" onclick="loadAudioFile()" disabled>Load Audio File</button>
+                <input type="file" id="audioFileInput" accept="audio/*" style="display: none;" onchange="handleAudioFile(event)">
+            </div>
+            
+            <div class="audio-controls">
+                <label>Test Audio Length:</label>
+                <input type="range" id="audioLength" min="0.5" max="5" step="0.1" value="2">
+                <span id="audioLengthValue">2.0s</span>
+            </div>
+            
+            <div class="audio-controls">
+                <label>Processing Mode:</label>
+                <select id="processingMode">
+                    <option value="realtime">Real-time</option>
+                    <option value="batch">Batch</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Timeline Visualization -->
+        <div class="section">
+            <h2>🎬 Timeline Visualization</h2>
+            
+            <div class="controls">
+                <button id="playBtn" onclick="togglePlayback()" disabled class="btn-success">Play</button>
+                <button id="pauseBtn" onclick="pausePlayback()" disabled class="btn-warning">Pause</button>
+                <button id="stopBtn" onclick="stopPlayback()" disabled class="btn-danger">Stop</button>
+                <button id="clearTimelineBtn" onclick="clearTimeline()" class="btn-warning">Clear Timeline</button>
+            </div>
+            
+            <div class="audio-controls">
+                <label>Timeline Position:</label>
+                <input type="range" id="timelinePos" min="0" max="10" step="0.1" value="0" onchange="seekTimeline(this.value)">
+                <span id="timelinePosValue">0.0s</span>
+            </div>
+            
+            <div id="timelineViz" class="timeline-viz">
+                <div class="playhead" id="playhead" style="left: 0px;"></div>
+            </div>
+        </div>
+        
+        <!-- Configuration -->
+        <div class="section">
+            <h2>⚙️ Configuration</h2>
+            
+            <div class="config-grid">
+                <div class="config-item">
+                    <label for="frameRate">Frame Rate (FPS)</label>
+                    <input type="number" id="frameRate" value="30" min="15" max="60" onchange="updateConfig()">
+                </div>
+                
+                <div class="config-item">
+                    <label for="scaleFactor">Scale Factor</label>
+                    <input type="number" id="scaleFactor" value="1.0" step="0.1" min="0.1" max="3.0" onchange="updateConfig()">
+                </div>
+                
+                <div class="config-item">
+                    <label for="smoothing">Smoothing</label>
+                    <select id="smoothing" onchange="updateConfig()">
+                        <option value="true">Enabled</option>
+                        <option value="false">Disabled</option>
+                    </select>
+                </div>
+                
+                <div class="config-item">
+                    <label for="smoothingFactor">Smoothing Factor</label>
+                    <input type="number" id="smoothingFactor" value="0.8" step="0.1" min="0" max="1" onchange="updateConfig()">
+                </div>
+                
+                <div class="config-item">
+                    <label for="trackPriority">Track Priority</label>
+                    <input type="number" id="trackPriority" value="100" min="1" max="1000" onchange="updateConfig()">
+                </div>
+                
+                <div class="config-item">
+                    <label for="channels">Target Channels</label>
+                    <select id="channels" multiple onchange="updateConfig()">
+                        <option value="face" selected>Face</option>
+                        <option value="head" selected>Head</option>
+                        <option value="eyes">Eyes</option>
+                        <option value="mouth">Mouth</option>
+                        <option value="jaw">Jaw</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics -->
+        <div class="section">
+            <h2>📈 Performance Statistics</h2>
+            
+            <div class="stats">
+                <div class="stat-box">
+                    <h3>Frames Processed</h3>
+                    <div class="stat-value" id="framesProcessed">0</div>
+                </div>
+                
+                <div class="stat-box">
+                    <h3>Average Latency</h3>
+                    <div class="stat-value" id="avgLatency">0ms</div>
+                </div>
+                
+                <div class="stat-box">
+                    <h3>Model Inference</h3>
+                    <div class="stat-value" id="modelInference">0ms</div>
+                </div>
+                
+                <div class="stat-box">
+                    <h3>Conversion Time</h3>
+                    <div class="stat-value" id="conversionTime">0ms</div>
+                </div>
+                
+                <div class="stat-box">
+                    <h3>Timeline FPS</h3>
+                    <div class="stat-value" id="timelineFPS">0</div>
+                </div>
+                
+                <div class="stat-box">
+                    <h3>Active Tracks</h3>
+                    <div class="stat-value" id="activeTracks">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Debug Log -->
+        <div class="section">
+            <h2>🐛 Debug Log</h2>
+            <div class="controls">
+                <button onclick="clearLog()">Clear Log</button>
+                <button onclick="exportLog()">Export Log</button>
+                <label>
+                    <input type="checkbox" id="verboseLog" onchange="toggleVerboseLogging()"> Verbose Logging
+                </label>
+            </div>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <!-- Include required scripts -->
+    <script src="BVHTimelineCompositor.js"></script>
+    <script src="FaceFormerBVHConverter.js"></script>
+    <script src="FaceFormerTimelineIntegration.js"></script>
+    
+    <script>
+        // Global variables
+        let timeline = null;
+        let faceFormerIntegration = null;
+        let isRecording = false;
+        let isPlaying = false;
+        let audioContext = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let animationFrame = null;
+        
+        // Logging system
+        function log(level, message, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `
+                <span class="log-time">[${timestamp}]</span>
+                <span class="log-level-${level}">[${level}]</span>
+                ${message}
+                ${data ? `<br><span style="color: #ccc;">${JSON.stringify(data, null, 2)}</span>` : ''}
+            `;
+            
+            const logDiv = document.getElementById('log');
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            console.log(`[${level}] ${message}`, data || '');
+        }
+        
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            log('INFO', `Status: ${message}`);
+        }
+        
+        // Initialize the system
+        async function initializeSystem() {
+            try {
+                updateStatus('Initializing BVH Timeline system...', 'info');
+                
+                // Create timeline instance
+                timeline = new BVHTimelineCompositor({
+                    frameRate: parseInt(document.getElementById('frameRate').value),
+                    maxTracks: 10,
+                    enableLogging: true
+                });
+                
+                // Create FaceFormer integration
+                faceFormerIntegration = new FaceFormerTimelineIntegration(timeline, {
+                    realtime: document.getElementById('processingMode').value === 'realtime',
+                    trackName: 'faceformer_facial',
+                    priority: parseInt(document.getElementById('trackPriority').value),
+                    channels: Array.from(document.getElementById('channels').selectedOptions).map(opt => opt.value),
+                    converter: {
+                        scaleFactor: parseFloat(document.getElementById('scaleFactor').value),
+                        smoothing: document.getElementById('smoothing').value === 'true',
+                        smoothingFactor: parseFloat(document.getElementById('smoothingFactor').value),
+                        verbose: document.getElementById('verboseLog').checked
+                    }
+                });
+                
+                // Set up timeline callbacks
+                timeline.onFrameUpdate = (frame, time) => {
+                    updateTimelineVisualization(time);
+                    updateStatistics();
+                };
+                
+                // Initialize audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                updateStatus('System initialized successfully!', 'info');
+                
+                // Enable buttons
+                document.getElementById('loadModelBtn').disabled = false;
+                document.getElementById('recordBtn').disabled = false;
+                document.getElementById('processBtn').disabled = false;
+                document.getElementById('loadAudioBtn').disabled = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('clearTimelineBtn').disabled = false;
+                
+                log('INFO', 'System initialization completed', {
+                    timeline: !!timeline,
+                    faceFormerIntegration: !!faceFormerIntegration,
+                    audioContext: !!audioContext
+                });
+                
+            } catch (error) {
+                updateStatus(`Initialization failed: ${error.message}`, 'error');
+                log('ERROR', 'System initialization failed', { error: error.message, stack: error.stack });
+            }
+        }
+        
+        // Load FaceFormer model
+        async function loadFaceFormerModel() {
+            try {
+                updateStatus('Loading FaceFormer model...', 'info');
+                
+                // This would normally load a real FaceFormer model
+                // For demo purposes, we'll use the mock model
+                const success = await faceFormerIntegration.initializeFaceFormer('/mock/faceformer/model', {
+                    device: 'cpu',
+                    precision: 'fp32'
+                });
+                
+                if (success) {
+                    updateStatus('FaceFormer model loaded successfully!', 'info');
+                } else {
+                    updateStatus('FaceFormer model load failed, using mock model', 'warning');
+                }
+                
+                // Set up synchronization with timeline
+                faceFormerIntegration.synchronizeWithTimeline();
+                
+                log('INFO', 'FaceFormer model loading completed', { success });
+                
+            } catch (error) {
+                updateStatus(`Model loading failed: ${error.message}`, 'error');
+                log('ERROR', 'FaceFormer model loading failed', { error: error.message });
+            }
+        }
+        
+        // Toggle recording
+        async function toggleRecording() {
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    recordedChunks = [];
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    };
+                    
+                    mediaRecorder.onstop = async () => {
+                        const blob = new Blob(recordedChunks, { type: 'audio/wav' });
+                        await processAudioBlob(blob);
+                    };
+                    
+                    mediaRecorder.start();
+                    isRecording = true;
+                    
+                    document.getElementById('recordBtn').textContent = 'Stop Recording';
+                    document.getElementById('recordBtn').className = 'btn-danger';
+                    updateStatus('Recording audio...', 'info');
+                    
+                } catch (error) {
+                    updateStatus(`Recording failed: ${error.message}`, 'error');
+                    log('ERROR', 'Audio recording failed', { error: error.message });
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                document.getElementById('recordBtn').textContent = 'Start Recording';
+                document.getElementById('recordBtn').className = 'btn-success';
+                updateStatus('Processing recorded audio...', 'info');
+            }
+        }
+        
+        // Process test audio
+        async function processTestAudio() {
+            try {
+                updateStatus('Generating and processing test audio...', 'info');
+                
+                const duration = parseFloat(document.getElementById('audioLength').value);
+                const sampleRate = 16000;
+                const samples = Math.floor(duration * sampleRate);
+                
+                // Generate test audio (speech-like)
+                const audioData = new Float32Array(samples);
+                for (let i = 0; i < samples; i++) {
+                    const t = i / sampleRate;
+                    // Generate speech-like formants
+                    const f1 = 800 * (1 + 0.3 * Math.sin(t * 4));  // Formant 1
+                    const f2 = 1200 * (1 + 0.2 * Math.sin(t * 6)); // Formant 2
+                    const envelope = Math.sin(Math.PI * t / duration) * (1 - Math.abs(Math.sin(t * 20)) * 0.3);
+                    
+                    audioData[i] = envelope * (
+                        Math.sin(2 * Math.PI * f1 * t) * 0.6 +
+                        Math.sin(2 * Math.PI * f2 * t) * 0.4
+                    ) * 0.1;
+                }
+                
+                // Process with FaceFormer
+                const result = await faceFormerIntegration.processAudio(audioData, {
+                    startTime: timeline.getCurrentTime(),
+                    realtime: document.getElementById('processingMode').value === 'realtime'
+                });
+                
+                updateStatus(`Audio processed successfully! Created ${result.clips.length} clips.`, 'info');
+                updateTimelineVisualization();
+                
+                log('INFO', 'Test audio processing completed', {
+                    duration,
+                    samples,
+                    clips: result.clips.length,
+                    timing: result.timing
+                });
+                
+            } catch (error) {
+                updateStatus(`Audio processing failed: ${error.message}`, 'error');
+                log('ERROR', 'Test audio processing failed', { error: error.message });
+            }
+        }
+        
+        // Load audio file
+        function loadAudioFile() {
+            document.getElementById('audioFileInput').click();
+        }
+        
+        // Handle audio file
+        async function handleAudioFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            try {
+                updateStatus(`Loading audio file: ${file.name}`, 'info');
+                await processAudioBlob(file);
+            } catch (error) {
+                updateStatus(`Audio file processing failed: ${error.message}`, 'error');
+                log('ERROR', 'Audio file processing failed', { error: error.message });
+            }
+        }
+        
+        // Process audio blob
+        async function processAudioBlob(blob) {
+            try {
+                const arrayBuffer = await blob.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                // Convert to mono Float32Array
+                const audioData = audioBuffer.getChannelData(0);
+                
+                // Process with FaceFormer
+                const result = await faceFormerIntegration.processAudio(audioData, {
+                    startTime: timeline.getCurrentTime(),
+                    realtime: document.getElementById('processingMode').value === 'realtime'
+                });
+                
+                updateStatus(`Audio processed! Duration: ${audioBuffer.duration.toFixed(2)}s, Clips: ${result.clips.length}`, 'info');
+                updateTimelineVisualization();
+                
+                log('INFO', 'Audio blob processing completed', {
+                    duration: audioBuffer.duration,
+                    sampleRate: audioBuffer.sampleRate,
+                    clips: result.clips.length
+                });
+                
+            } catch (error) {
+                throw error;
+            }
+        }
+        
+        // Timeline controls
+        function togglePlayback() {
+            if (!isPlaying) {
+                timeline.play();
+                isPlaying = true;
+                document.getElementById('playBtn').textContent = 'Playing...';
+                document.getElementById('playBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = false;
+                startTimelineUpdate();
+            }
+        }
+        
+        function pausePlayback() {
+            timeline.pause();
+            isPlaying = false;
+            document.getElementById('playBtn').textContent = 'Play';
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            stopTimelineUpdate();
+        }
+        
+        function stopPlayback() {
+            timeline.stop();
+            isPlaying = false;
+            document.getElementById('playBtn').textContent = 'Play';
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = true;
+            stopTimelineUpdate();
+            updateTimelineVisualization(0);
+        }
+        
+        function seekTimeline(time) {
+            timeline.seek(parseFloat(time));
+            document.getElementById('timelinePosValue').textContent = `${parseFloat(time).toFixed(1)}s`;
+            updateTimelineVisualization(parseFloat(time));
+        }
+        
+        function clearTimeline() {
+            timeline.clearAllTracks();
+            updateTimelineVisualization();
+            updateStatus('Timeline cleared', 'info');
+        }
+        
+        // Timeline visualization
+        function updateTimelineVisualization(currentTime = null) {
+            const viz = document.getElementById('timelineViz');
+            const playhead = document.getElementById('playhead');
+            
+            // Clear existing tracks
+            viz.querySelectorAll('.track').forEach(track => track.remove());
+            
+            // Get timeline data
+            const tracks = timeline.getAllTracks();
+            const duration = timeline.getDuration();
+            
+            // Update timeline position slider
+            document.getElementById('timelinePos').max = Math.max(10, duration);
+            
+            // Update playhead position
+            if (currentTime !== null) {
+                const position = duration > 0 ? (currentTime / duration) * viz.clientWidth : 0;
+                playhead.style.left = `${position}px`;
+                document.getElementById('timelinePos').value = currentTime;
+                document.getElementById('timelinePosValue').textContent = `${currentTime.toFixed(1)}s`;
+            }
+            
+            // Render tracks
+            let trackIndex = 0;
+            for (const [trackName, trackData] of Object.entries(tracks)) {
+                const trackDiv = document.createElement('div');
+                trackDiv.className = 'track';
+                trackDiv.style.top = `${trackIndex * 35 + 5}px`;
+                
+                // Add track label
+                const label = document.createElement('div');
+                label.style.position = 'absolute';
+                label.style.left = '5px';
+                label.style.top = '5px';
+                label.style.fontSize = '10px';
+                label.style.color = '#666';
+                label.textContent = trackName;
+                trackDiv.appendChild(label);
+                
+                // Render clips
+                trackData.clips.forEach(clip => {
+                    const clipDiv = document.createElement('div');
+                    clipDiv.className = `clip ${trackData.type || 'faceformer'}`;
+                    
+                    if (duration > 0) {
+                        const startPercent = (clip.startTime / duration) * 100;
+                        const widthPercent = (clip.duration / duration) * 100;
+                        clipDiv.style.left = `${startPercent}%`;
+                        clipDiv.style.width = `${widthPercent}%`;
+                    }
+                    
+                    clipDiv.textContent = `${clip.type || 'Face'} (${clip.duration.toFixed(1)}s)`;
+                    trackDiv.appendChild(clipDiv);
+                });
+                
+                viz.appendChild(trackDiv);
+                trackIndex++;
+            }
+        }
+        
+        // Statistics update
+        function updateStatistics() {
+            if (!faceFormerIntegration) return;
+            
+            const stats = faceFormerIntegration.getStats();
+            const timelineStats = timeline.getStats();
+            
+            document.getElementById('framesProcessed').textContent = stats.framesProcessed;
+            document.getElementById('avgLatency').textContent = `${stats.averageLatency.toFixed(1)}ms`;
+            document.getElementById('modelInference').textContent = `${stats.modelInferenceTime.toFixed(1)}ms`;
+            document.getElementById('conversionTime').textContent = `${stats.conversionTime.toFixed(1)}ms`;
+            document.getElementById('timelineFPS').textContent = timelineStats.actualFrameRate.toFixed(1);
+            document.getElementById('activeTracks').textContent = Object.keys(timeline.getAllTracks()).length;
+        }
+        
+        // Timeline update loop
+        function startTimelineUpdate() {
+            function update() {
+                if (isPlaying) {
+                    updateTimelineVisualization(timeline.getCurrentTime());
+                    updateStatistics();
+                    animationFrame = requestAnimationFrame(update);
+                }
+            }
+            update();
+        }
+        
+        function stopTimelineUpdate() {
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
+        }
+        
+        // Configuration updates
+        function updateConfig() {
+            if (!faceFormerIntegration) return;
+            
+            try {
+                // Update converter options
+                faceFormerIntegration.converter.options.scaleFactor = parseFloat(document.getElementById('scaleFactor').value);
+                faceFormerIntegration.converter.options.smoothing = document.getElementById('smoothing').value === 'true';
+                faceFormerIntegration.converter.options.smoothingFactor = parseFloat(document.getElementById('smoothingFactor').value);
+                
+                // Update integration options
+                faceFormerIntegration.setRealtime(document.getElementById('processingMode').value === 'realtime');
+                faceFormerIntegration.setTrackPriority(parseInt(document.getElementById('trackPriority').value));
+                faceFormerIntegration.setChannels(Array.from(document.getElementById('channels').selectedOptions).map(opt => opt.value));
+                
+                // Update timeline frame rate
+                timeline.setFrameRate(parseInt(document.getElementById('frameRate').value));
+                
+                log('INFO', 'Configuration updated');
+                
+            } catch (error) {
+                log('ERROR', 'Configuration update failed', { error: error.message });
+            }
+        }
+        
+        // System reset
+        function resetSystem() {
+            try {
+                if (timeline) {
+                    timeline.stop();
+                    timeline.clearAllTracks();
+                }
+                
+                if (faceFormerIntegration) {
+                    faceFormerIntegration.dispose();
+                }
+                
+                timeline = null;
+                faceFormerIntegration = null;
+                isPlaying = false;
+                isRecording = false;
+                
+                // Disable buttons
+                document.querySelectorAll('button').forEach(btn => {
+                    if (btn.id !== 'initBtn' && btn.id !== 'resetBtn') {
+                        btn.disabled = true;
+                    }
+                });
+                
+                updateStatus('System reset. Click Initialize to restart.', 'warning');
+                updateTimelineVisualization();
+                
+                log('INFO', 'System reset completed');
+                
+            } catch (error) {
+                log('ERROR', 'System reset failed', { error: error.message });
+            }
+        }
+        
+        // Utility functions
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        function exportLog() {
+            const logContent = document.getElementById('log').textContent;
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `faceformer-timeline-log-${new Date().toISOString()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function toggleVerboseLogging() {
+            const verbose = document.getElementById('verboseLog').checked;
+            if (faceFormerIntegration) {
+                faceFormerIntegration.converter.options.verbose = verbose;
+                faceFormerIntegration.converter.options.logConversions = verbose;
+            }
+            log('INFO', `Verbose logging ${verbose ? 'enabled' : 'disabled'}`);
+        }
+        
+        // Update audio length display
+        document.getElementById('audioLength').addEventListener('input', function() {
+            document.getElementById('audioLengthValue').textContent = `${this.value}s`;
+        });
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            log('INFO', 'FaceFormer BVH Timeline Demo loaded');
+            updateStatus('Ready to initialize. Click "Initialize System" to begin.', 'info');
+        });
+    </script>
+</body>
+</html>

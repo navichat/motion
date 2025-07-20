@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kokoro TTS Test Page</title>
+    <script type="module">
+        import { KokoroModule } from './modules/KokoroModule.js';
+
+        window.kokoroModule = new KokoroModule({
+            kokoroModelPath: '../models/kokoro-v0_19/'
+        });
+
+        window.loadKokoro = async () => {
+            try {
+                await window.kokoroModule.load();
+                return true;
+            } catch (error) {
+                console.error("Failed to load Kokoro:", error);
+                return false;
+            }
+        };
+
+        window.synthesizeText = async (text) => {
+            try {
+                const audioData = await window.kokoroModule.synthesize(text);
+                return audioData.length > 0;
+            } catch (error) {
+                console.error("Failed to synthesize text with Kokoro:", error);
+                return false;
+            }
+        };
+    </script>
+</head>
+<body>
+    <h1>Kokoro TTS Test Page</h1>
+    <p>This page is for testing Kokoro TTS functionality in a headless environment.</p>
+</body>
+</html>

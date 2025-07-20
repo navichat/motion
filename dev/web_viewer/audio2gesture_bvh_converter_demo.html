@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio2Gesture to BVH Converter Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        
+        .demo-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .demo-section h2 {
+            margin-top: 0;
+            color: #ffd700;
+            font-size: 1.5em;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        select, input {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        select option {
+            background: #333;
+            color: white;
+        }
+        
+        .output {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: rgba(40, 167, 69, 0.3);
+            border: 1px solid rgba(40, 167, 69, 0.5);
+        }
+        
+        .status.error {
+            background: rgba(220, 53, 69, 0.3);
+            border: 1px solid rgba(220, 53, 69, 0.5);
+        }
+        
+        .status.info {
+            background: rgba(23, 162, 184, 0.3);
+            border: 1px solid rgba(23, 162, 184, 0.5);
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #feca57);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .frame-preview {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .bone-transform {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 10px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .bone-name {
+            font-weight: bold;
+            color: #feca57;
+        }
+        
+        .bone-values {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 Audio2Gesture to BVH Converter</h1>
+        <p class="subtitle">Neural network-driven gesture animation with BVH Timeline integration</p>
+        
+        <!-- Initialization Section -->
+        <div class="demo-section">
+            <h2>🚀 System Initialization</h2>
+            <div class="controls">
+                <button id="initBtn" onclick="initializeSystem()">Initialize Audio2Gesture Converter</button>
+                <button id="checkAvailabilityBtn" onclick="checkSystemAvailability()">Check System Availability</button>
+            </div>
+            <div id="initStatus" class="status info">Click "Initialize" to start the Audio2Gesture to BVH converter</div>
+            <div id="initOutput" class="output"></div>
+        </div>
+
+        <!-- Gesture Generation Section -->
+        <div class="demo-section">
+            <h2>🎬 Gesture Generation</h2>
+            <div class="controls">
+                <label>Expressiveness:</label>
+                <select id="expressivenessSelect">
+                    <option value="neutral">Neutral</option>
+                    <option value="expressive">Expressive</option>
+                    <option value="subtle">Subtle</option>
+                </select>
+                
+                <label>Duration:</label>
+                <input type="number" id="durationInput" value="3" min="1" max="10" step="0.5"> seconds
+                
+                <button id="generateBtn" onclick="generateGestureAnimation()" disabled>Generate Gesture Animation</button>
+                <button id="realtimeBtn" onclick="startRealtimeGeneration()" disabled>Start Realtime Mode</button>
+            </div>
+            
+            <div class="progress-bar">
+                <div id="generationProgress" class="progress-fill"></div>
+            </div>
+            
+            <div id="generationStatus" class="status info">Initialize system first to enable gesture generation</div>
+            <div id="generationOutput" class="output"></div>
+        </div>
+
+        <!-- Timeline Integration Section -->
+        <div class="demo-section">
+            <h2>🎞️ Timeline Integration</h2>
+            <div class="controls">
+                <label>Start Time:</label>
+                <input type="number" id="startTimeInput" value="0" min="0" step="0.1"> seconds
+                
+                <label>Priority:</label>
+                <select id="prioritySelect">
+                    <option value="1">High (1)</option>
+                    <option value="2">Medium-High (2)</option>
+                    <option value="3" selected>Medium (3)</option>
+                    <option value="4">Medium-Low (4)</option>
+                    <option value="5">Low (5)</option>
+                </select>
+                
+                <button id="createClipBtn" onclick="createTimelineClip()" disabled>Create Timeline Clip</button>
+                <button id="testBufferingBtn" onclick="testFrameBuffering()" disabled>Test Frame Buffering</button>
+            </div>
+            <div id="timelineStatus" class="status info">Generate gesture animation first</div>
+            <div id="timelineOutput" class="output"></div>
+        </div>
+
+        <!-- Performance Metrics Section -->
+        <div class="demo-section">
+            <h2>📊 Performance Metrics</h2>
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value" id="framesGenerated">0</div>
+                    <div class="metric-label">Frames Generated</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="averageFrameTime">0ms</div>
+                    <div class="metric-label">Avg Frame Time</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="currentFPS">0</div>
+                    <div class="metric-label">Current FPS</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="totalProcessingTime">0ms</div>
+                    <div class="metric-label">Total Processing</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Frame Preview Section -->
+        <div class="demo-section">
+            <h2>🎯 Frame Preview</h2>
+            <div class="controls">
+                <label>Frame:</label>
+                <input type="range" id="frameSlider" min="0" max="100" value="0" onchange="previewFrame(this.value)" disabled>
+                <span id="frameCounter">0 / 0</span>
+            </div>
+            <div id="framePreview" class="frame-preview">
+                <div style="text-align: center; opacity: 0.5;">Generate gesture animation to preview frames</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    <script src="./audio2gesture/audio2gesture_web_generator.js"></script>
+    <script src="./BVHTimeline.js"></script>
+    <script src="./Audio2GestureBVHConverter.js"></script>
+
+    <script>
+        let converter = null;
+        let currentGestureResult = null;
+        let currentTimelineClip = null;
+        let timeline = null;
+        let isRealtimeMode = false;
+
+        async function checkSystemAvailability() {
+            logOutput('initOutput', '🔍 Checking system availability...');
+            
+            const checks = {
+                'ONNX Runtime': typeof ort !== 'undefined',
+                'Audio2Gesture Generator': typeof Audio2GestureWebGenerator !== 'undefined',
+                'BVH Timeline': typeof BVHTimeline !== 'undefined',
+                'Audio2Gesture Converter': typeof Audio2GestureBVHConverter !== 'undefined'
+            };
+
+            let allAvailable = true;
+            for (const [component, available] of Object.entries(checks)) {
+                const status = available ? '✅' : '❌';
+                logOutput('initOutput', `${status} ${component}: ${available ? 'Available' : 'Not Available'}`);
+                if (!available) allAvailable = false;
+            }
+
+            if (allAvailable) {
+                updateStatus('initStatus', 'All components available! Ready to initialize.', 'success');
+            } else {
+                updateStatus('initStatus', 'Some components missing. Check console for details.', 'error');
+            }
+        }
+
+        async function initializeSystem() {
+            try {
+                updateStatus('initStatus', 'Initializing Audio2Gesture to BVH Converter...', 'info');
+                logOutput('initOutput', '🚀 Starting system initialization...');
+
+                // Initialize converter
+                converter = new Audio2GestureBVHConverter({
+                    modelPath: './audio2gesture/audio2gesture_step_fixed.onnx',
+                    frameRate: 30,
+                    bufferSize: 60
+                });
+
+                const success = await converter.initialize();
+                
+                if (success) {
+                    // Initialize BVH Timeline
+                    timeline = new BVHTimeline({
+                        frameRate: 30,
+                        bufferSize: 90,
+                        lookaheadFrames: 15
+                    });
+
+                    logOutput('initOutput', '✅ Audio2Gesture converter initialized successfully');
+                    logOutput('initOutput', '✅ BVH Timeline system ready');
+                    updateStatus('initStatus', 'System initialized successfully! Ready for gesture generation.', 'success');
+                    
+                    // Enable buttons
+                    document.getElementById('generateBtn').disabled = false;
+                    document.getElementById('realtimeBtn').disabled = false;
+                    document.getElementById('createClipBtn').disabled = false;
+                    document.getElementById('testBufferingBtn').disabled = false;
+                    
+                } else {
+                    throw new Error('Failed to initialize converter');
+                }
+
+            } catch (error) {
+                console.error('Initialization failed:', error);
+                logOutput('initOutput', `❌ Initialization failed: ${error.message}`);
+                updateStatus('initStatus', 'Initialization failed. Check console for details.', 'error');
+            }
+        }
+
+        async function generateGestureAnimation() {
+            if (!converter) {
+                updateStatus('generationStatus', 'Initialize system first!', 'error');
+                return;
+            }
+
+            try {
+                const expressiveness = document.getElementById('expressivenessSelect').value;
+                const duration = parseFloat(document.getElementById('durationInput').value);
+                
+                updateStatus('generationStatus', 'Generating gesture animation...', 'info');
+                logOutput('generationOutput', `🎬 Generating ${duration}s of ${expressiveness} gestures...`);
+                
+                // Show progress
+                animateProgress('generationProgress', duration * 1000);
+
+                // Generate synthetic audio
+                const sampleRate = 44100;
+                const audioLength = Math.floor(duration * sampleRate);
+                const syntheticAudio = new Float32Array(audioLength);
+                
+                // Create varied audio pattern
+                for (let i = 0; i < audioLength; i++) {
+                    const t = i / sampleRate;
+                    syntheticAudio[i] = Math.sin(t * 2 * Math.PI) * 0.1 + 
+                                       Math.sin(t * 3 * Math.PI) * 0.05 * Math.random();
+                }
+
+                // Generate gestures
+                currentGestureResult = await converter.processAudioToGestures(syntheticAudio, {
+                    duration: duration,
+                    expressiveness: expressiveness
+                });
+
+                // Update UI
+                logOutput('generationOutput', `✅ Generated ${currentGestureResult.bvhFrames.length} BVH frames`);
+                logOutput('generationOutput', `📊 Processing time: ${currentGestureResult.metadata.processingTime.toFixed(1)}ms`);
+                logOutput('generationOutput', `⚡ Frame rate: ${currentGestureResult.metadata.frameRate} FPS`);
+                
+                updateStatus('generationStatus', `Generated ${currentGestureResult.bvhFrames.length} frames successfully!`, 'success');
+                
+                // Update metrics
+                updatePerformanceMetrics();
+                
+                // Enable frame preview
+                setupFramePreview();
+                
+            } catch (error) {
+                console.error('Generation failed:', error);
+                logOutput('generationOutput', `❌ Generation failed: ${error.message}`);
+                updateStatus('generationStatus', 'Generation failed. Check console for details.', 'error');
+            }
+        }
+
+        async function createTimelineClip() {
+            if (!currentGestureResult) {
+                updateStatus('timelineStatus', 'Generate gesture animation first!', 'error');
+                return;
+            }
+
+            try {
+                const startTime = parseFloat(document.getElementById('startTimeInput').value);
+                const priority = parseInt(document.getElementById('prioritySelect').value);
+                const expressiveness = document.getElementById('expressivenessSelect').value;
+
+                updateStatus('timelineStatus', 'Creating timeline clip...', 'info');
+                logOutput('timelineOutput', '🎞️ Creating timeline clip with buffering...');
+
+                // Create synthetic audio for the clip
+                const duration = currentGestureResult.metadata.duration;
+                const audioLength = Math.floor(duration * 44100);
+                const syntheticAudio = new Float32Array(audioLength);
+                
+                currentTimelineClip = await converter.createTimelineClip(syntheticAudio, {
+                    startTime: startTime,
+                    priority: priority,
+                    expressiveness: expressiveness,
+                    timeline: timeline
+                });
+
+                logOutput('timelineOutput', `✅ Created clip: ${currentTimelineClip.id}`);
+                logOutput('timelineOutput', `📝 Start time: ${startTime}s, Duration: ${duration}s`);
+                logOutput('timelineOutput', `🎯 Priority: ${priority}, Frames: ${currentTimelineClip.frames.length}`);
+                logOutput('timelineOutput', `🎭 Expressiveness: ${expressiveness}`);
+
+                updateStatus('timelineStatus', 'Timeline clip created successfully!', 'success');
+
+            } catch (error) {
+                console.error('Timeline clip creation failed:', error);
+                logOutput('timelineOutput', `❌ Timeline clip creation failed: ${error.message}`);
+                updateStatus('timelineStatus', 'Timeline clip creation failed.', 'error');
+            }
+        }
+
+        async function testFrameBuffering() {
+            if (!timeline || !currentTimelineClip) {
+                updateStatus('timelineStatus', 'Create timeline clip first!', 'error');
+                return;
+            }
+
+            try {
+                logOutput('timelineOutput', '🧪 Testing frame buffering system...');
+
+                // Add clip to timeline
+                timeline.addClip(currentTimelineClip);
+
+                // Test frame retrieval at different times
+                const testTimes = [0, 0.5, 1.0, 1.5, 2.0];
+                
+                for (const testTime of testTimes) {
+                    const frame = timeline.getFrameAtTime(testTime);
+                    if (frame) {
+                        const transformCount = Object.keys(frame.transforms || {}).length;
+                        logOutput('timelineOutput', `  ⏰ Time ${testTime}s: ${transformCount} bone transforms`);
+                    } else {
+                        logOutput('timelineOutput', `  ⏰ Time ${testTime}s: No frame available`);
+                    }
+                }
+
+                // Test buffer stats
+                const bufferStats = timeline.buffer ? timeline.buffer.getStats() : {};
+                logOutput('timelineOutput', `📊 Buffer stats: ${JSON.stringify(bufferStats, null, 2)}`);
+
+                updateStatus('timelineStatus', 'Frame buffering test completed!', 'success');
+
+            } catch (error) {
+                console.error('Frame buffering test failed:', error);
+                logOutput('timelineOutput', `❌ Frame buffering test failed: ${error.message}`);
+            }
+        }
+
+        async function startRealtimeGeneration() {
+            if (!converter) {
+                updateStatus('generationStatus', 'Initialize system first!', 'error');
+                return;
+            }
+
+            try {
+                isRealtimeMode = !isRealtimeMode;
+                const btn = document.getElementById('realtimeBtn');
+                
+                if (isRealtimeMode) {
+                    btn.textContent = 'Stop Realtime Mode';
+                    btn.style.background = 'linear-gradient(45deg, #ff4757, #ffa502)';
+                    
+                    updateStatus('generationStatus', 'Realtime gesture generation active', 'info');
+                    logOutput('generationOutput', '🔄 Starting realtime gesture generation...');
+                    
+                    // Simulate realtime generation
+                    let frameCount = 0;
+                    const realtimeInterval = setInterval(async () => {
+                        if (!isRealtimeMode) {
+                            clearInterval(realtimeInterval);
+                            return;
+                        }
+                        
+                        try {
+                            // Generate audio chunk
+                            const audioChunk = new Float32Array(100);
+                            for (let i = 0; i < 100; i++) {
+                                audioChunk[i] = Math.sin(frameCount * 0.1 + i * 0.01) * 0.1;
+                            }
+                            
+                            const result = await converter.generateRealtimeGesture(audioChunk);
+                            frameCount++;
+                            
+                            if (frameCount % 10 === 0) {
+                                logOutput('generationOutput', `  🎯 Generated ${frameCount} realtime frames`);
+                                updatePerformanceMetrics();
+                            }
+                            
+                        } catch (error) {
+                            console.error('Realtime generation error:', error);
+                            isRealtimeMode = false;
+                            clearInterval(realtimeInterval);
+                        }
+                    }, 33); // ~30 FPS
+                    
+                } else {
+                    btn.textContent = 'Start Realtime Mode';
+                    btn.style.background = 'linear-gradient(45deg, #ff6b6b, #feca57)';
+                    updateStatus('generationStatus', 'Realtime mode stopped', 'info');
+                    logOutput('generationOutput', '⏹️ Realtime generation stopped');
+                }
+                
+            } catch (error) {
+                console.error('Realtime mode error:', error);
+                updateStatus('generationStatus', 'Realtime mode error', 'error');
+            }
+        }
+
+        function setupFramePreview() {
+            if (!currentGestureResult) return;
+            
+            const slider = document.getElementById('frameSlider');
+            const counter = document.getElementById('frameCounter');
+            
+            slider.max = currentGestureResult.bvhFrames.length - 1;
+            slider.disabled = false;
+            counter.textContent = `0 / ${currentGestureResult.bvhFrames.length}`;
+            
+            previewFrame(0);
+        }
+
+        function previewFrame(frameIndex) {
+            if (!currentGestureResult || frameIndex >= currentGestureResult.bvhFrames.length) return;
+            
+            const frame = currentGestureResult.bvhFrames[frameIndex];
+            const counter = document.getElementById('frameCounter');
+            const preview = document.getElementById('framePreview');
+            
+            counter.textContent = `${frameIndex} / ${currentGestureResult.bvhFrames.length}`;
+            
+            let html = `<div style="margin-bottom: 10px;"><strong>Frame ${frameIndex} (${frame.timestamp.toFixed(3)}s)</strong></div>`;
+            
+            for (const [boneName, transform] of Object.entries(frame.transforms || {})) {
+                html += `<div class="bone-transform">`;
+                html += `<div class="bone-name">${boneName}</div>`;
+                html += `<div class="bone-values">`;
+                
+                if (transform.rotation) {
+                    const r = transform.rotation;
+                    html += `R: (${r.x.toFixed(1)}°, ${r.y.toFixed(1)}°, ${r.z.toFixed(1)}°)`;
+                }
+                if (transform.position) {
+                    const p = transform.position;
+                    html += ` P: (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})`;
+                }
+                
+                html += `</div></div>`;
+            }
+            
+            preview.innerHTML = html;
+        }
+
+        function updatePerformanceMetrics() {
+            if (!converter) return;
+            
+            const stats = converter.getPerformanceStats();
+            
+            document.getElementById('framesGenerated').textContent = stats.framesGenerated;
+            document.getElementById('averageFrameTime').textContent = `${stats.averageFrameTime.toFixed(1)}ms`;
+            document.getElementById('currentFPS').textContent = stats.currentFPS.toFixed(1);
+            document.getElementById('totalProcessingTime').textContent = `${stats.totalProcessingTime.toFixed(0)}ms`;
+        }
+
+        function animateProgress(elementId, duration) {
+            const element = document.getElementById(elementId);
+            element.style.width = '0%';
+            
+            const startTime = Date.now();
+            const animate = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                element.style.width = `${progress * 100}%`;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            };
+            animate();
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        function logOutput(elementId, message) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            console.log('🎭 Audio2Gesture to BVH Converter Demo Loaded');
+            checkSystemAvailability();
+        });
+    </script>
+</body>
+</html>

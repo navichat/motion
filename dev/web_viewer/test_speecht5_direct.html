@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeechT5 TTS Direct Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max                // Load transformers.js
+                const { AutoTokenizer, AutoModel } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3');idth: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .info {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        .test-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #e9ecef;
+        }
+        .button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+        .button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .log-area {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 15px;
+        }
+        .input-area {
+            margin: 15px 0;
+        }
+        .input-area textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            resize: vertical;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .audio-player {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #e8f5e8;
+            border-radius: 5px;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 SpeechT5 TTS Direct Test</h1>
+        
+        <div class="info">
+            <strong>Purpose:</strong> Test the local SpeechT5 TTS model directly with detailed logging.
+            <br><br>
+            <strong>Local Model Path:</strong> <code>./models/speecht5_tts/</code>
+            <br><br>
+            This test verifies that the local SpeechT5 model can be loaded and used for text-to-speech generation.
+        </div>
+
+        <div class="test-section">
+            <h3>Test Controls</h3>
+            <button id="testBtn" class="button" onclick="testSpeechT5()">Test SpeechT5 Model</button>
+            <button id="directBtn" class="button" onclick="testDirect()">Test Direct Model Loading</button>
+            <button class="button" onclick="clearLog()">Clear Log</button>
+            
+            <div class="input-area">
+                <label for="testText"><strong>Test Text:</strong></label>
+                <textarea id="testText" placeholder="Enter text to synthesize...">Hello, this is a test of the SpeechT5 text-to-speech model. How does it sound?</textarea>
+            </div>
+            
+            <div id="statusArea"></div>
+            <div id="audioArea"></div>
+        </div>
+
+        <div class="log-area" id="logArea">
+            [Log will appear here...]
+        </div>
+    </div>
+
+    <script>
+        // Enhanced logging
+        function log(level, message, data = null) {
+            const timestamp = new Date().toISOString();
+            const logMsg = `[${timestamp}] [${level}] ${message}`;
+            
+            console.log(logMsg, data || '');
+            
+            const logArea = document.getElementById('logArea');
+            logArea.textContent += logMsg + '\n';
+            if (data) {
+                logArea.textContent += JSON.stringify(data, null, 2) + '\n';
+            }
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusArea = document.getElementById('statusArea');
+            statusArea.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function clearLog() {
+            document.getElementById('logArea').textContent = '[Log cleared...]\n';
+            document.getElementById('statusArea').innerHTML = '';
+            document.getElementById('audioArea').innerHTML = '';
+        }
+
+        async function testSpeechT5() {
+            const testBtn = document.getElementById('testBtn');
+            const testText = document.getElementById('testText').value.trim();
+            
+            if (!testText) {
+                showStatus('Please enter some text to test!', 'error');
+                return;
+            }
+            
+            testBtn.disabled = true;
+            testBtn.textContent = 'Testing...';
+            
+            try {
+                log('INFO', 'Starting SpeechT5 TTS test');
+                log('INFO', `Test text: "${testText}"`);
+                showStatus('Loading transformers.js...', 'info');
+                
+                // Load transformers.js
+                const { pipeline, AutoTokenizer, AutoModel } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3');
+                log('INFO', '✅ Transformers.js loaded successfully');
+                
+                showStatus('Loading SpeechT5 model...', 'info');
+                log('INFO', 'Loading SpeechT5 TTS model from local path');
+                
+                // Load SpeechT5 model
+                const tts = await pipeline("text-to-speech", "models/speecht5_tts", {
+                    device: "wasm",
+                    dtype: "fp32"
+                });
+                
+                log('INFO', '✅ SpeechT5 model loaded successfully');
+                showStatus('Generating speech...', 'info');
+                
+                // Generate speech
+                const result = await tts(testText);
+                
+                log('INFO', '✅ Speech generation completed', {
+                    resultType: typeof result,
+                    hasAudio: !!result.audio,
+                    hasSamplingRate: !!result.sampling_rate,
+                    resultKeys: Object.keys(result)
+                });
+                
+                // Create audio element
+                if (result.audio) {
+                    const audioBuffer = result.audio;
+                    const sampleRate = result.sampling_rate || 16000;
+                    
+                    // Create audio context and buffer
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const audioArrayBuffer = audioContext.createBuffer(1, audioBuffer.length, sampleRate);
+                    audioArrayBuffer.copyToChannel(audioBuffer, 0);
+                    
+                    // Convert to WAV blob for audio element
+                    const wavBlob = await audioBufferToWav(audioArrayBuffer);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    
+                    const audioArea = document.getElementById('audioArea');
+                    audioArea.innerHTML = `
+                        <div class="audio-player">
+                            <h4>Generated Audio:</h4>
+                            <audio controls>
+                                <source src="${audioUrl}" type="audio/wav">
+                                Your browser does not support the audio element.
+                            </audio>
+                            <p><strong>Sample Rate:</strong> ${sampleRate} Hz</p>
+                            <p><strong>Duration:</strong> ${(audioBuffer.length / sampleRate).toFixed(2)} seconds</p>
+                        </div>
+                    `;
+                    
+                    showStatus('✅ SpeechT5 TTS test completed successfully!', 'success');
+                    log('SUCCESS', 'SpeechT5 TTS test completed successfully');
+                } else {
+                    throw new Error('No audio generated');
+                }
+                
+            } catch (error) {
+                log('ERROR', `❌ SpeechT5 test failed: ${error.message}`);
+                showStatus(`❌ Test failed: ${error.message}`, 'error');
+                console.error('SpeechT5 error:', error);
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = 'Test SpeechT5 Model';
+            }
+        }
+
+        async function testDirect() {
+            const directBtn = document.getElementById('directBtn');
+            const testText = document.getElementById('testText').value.trim();
+            
+            if (!testText) {
+                showStatus('Please enter some text to test!', 'error');
+                return;
+            }
+            
+            directBtn.disabled = true;
+            directBtn.textContent = 'Testing...';
+            
+            try {
+                log('INFO', 'Starting direct SpeechT5 model loading test');
+                showStatus('Loading transformers.js...', 'info');
+                
+                // Load transformers.js
+                const { AutoTokenizer, AutoModel } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3');
+                log('INFO', '✅ Transformers.js loaded successfully');
+                
+                showStatus('Loading SpeechT5 model and tokenizer...', 'info');
+                log('INFO', 'Loading SpeechT5 model and tokenizer directly');
+                
+                // Load model and tokenizer directly
+                const model = await AutoModel.from_pretrained('models/speecht5_tts', {
+                    dtype: 'fp32'
+                });
+                
+                const tokenizer = await AutoTokenizer.from_pretrained('models/speecht5_tts');
+                
+                log('INFO', '✅ Model and tokenizer loaded successfully');
+                showStatus('Generating speech with direct model...', 'info');
+                
+                // Tokenize input
+                const inputs = tokenizer(testText);
+                log('INFO', 'Text tokenized successfully', {
+                    inputIds: inputs.input_ids.data.slice(0, 10),
+                    tokenCount: inputs.input_ids.data.length
+                });
+                
+                // Create speaker embeddings (SpeechT5 requires speaker embeddings)
+                const speakerEmbeddings = new Float32Array(512).fill(0.1);
+                
+                // Generate audio
+                const outputs = await model.generate({
+                    input_ids: inputs.input_ids,
+                    speaker_embeddings: speakerEmbeddings,
+                    max_length: 1000
+                });
+                
+                log('INFO', '✅ Direct speech generation completed', {
+                    outputType: typeof outputs,
+                    outputKeys: Object.keys(outputs)
+                });
+                
+                showStatus('✅ Direct model test completed successfully!', 'success');
+                
+            } catch (error) {
+                log('ERROR', `❌ Direct model test failed: ${error.message}`);
+                showStatus(`❌ Direct test failed: ${error.message}`, 'error');
+                console.error('Direct model error:', error);
+            } finally {
+                directBtn.disabled = false;
+                directBtn.textContent = 'Test Direct Model Loading';
+            }
+        }
+
+        // Utility function to convert AudioBuffer to WAV blob
+        async function audioBufferToWav(buffer) {
+            const length = buffer.length;
+            const arrayBuffer = new ArrayBuffer(44 + length * 2);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, buffer.sampleRate, true);
+            view.setUint32(28, buffer.sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, length * 2, true);
+            
+            // Convert float32 to int16
+            const channelData = buffer.getChannelData(0);
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                const sample = Math.max(-1, Math.min(1, channelData[i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        // Initialize
+        log('INFO', 'SpeechT5 TTS Direct Test initialized');
+        log('INFO', 'This test uses your local SpeechT5 model files from ./models/speecht5_tts/');
+        log('INFO', 'Click "Test SpeechT5 Model" to verify local model loading');
+    </script>
+</body>
+</html>

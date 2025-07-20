@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BVH Timeline Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .timeline-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .timeline-display {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .track-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .track {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .track h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        
+        .timeline-scrubber {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .stats {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 BVH Timeline Compositor Demo</h1>
+        
+        <div class="timeline-controls">
+            <button onclick="playTimeline()">▶️ Play</button>
+            <button onclick="pauseTimeline()">⏸️ Pause</button>
+            <button onclick="seekToStart()">⏮️ Start</button>
+            <button onclick="addTestAnimations()">➕ Add Test Clips</button>
+            <button onclick="clearTimeline()">🗑️ Clear</button>
+        </div>
+        
+        <div>
+            <label for="timeSlider">Timeline Position:</label>
+            <input type="range" id="timeSlider" class="timeline-scrubber" 
+                   min="0" max="10" step="0.1" value="0" 
+                   oninput="seekToTime(this.value)">
+            <span id="timeDisplay">0.0s</span>
+        </div>
+        
+        <div class="timeline-display" id="frameOutput">
+            Timeline output will appear here...
+        </div>
+        
+        <div class="track-info" id="trackInfo">
+            <!-- Track information will be populated here -->
+        </div>
+        
+        <div class="stats" id="timelineStats">
+            Timeline not initialized
+        </div>
+        
+        <h2>Available Operations</h2>
+        <div class="timeline-controls">
+            <button onclick="addBaseAnimation()">Add Base Animation</button>
+            <button onclick="addRSMTTransition()">Add RSMT Transition</button>
+            <button onclick="addDeepPhaseGeneration()">Add Deep Phase</button>
+            <button onclick="addAudioAnimation()">Add Audio Animation</button>
+            <button onclick="addFaceAnimation()">Add Face Animation</button>
+        </div>
+    </div>
+
+    <script src="js/BVHTimeline.js"></script>
+    <script>
+        let timeline = null;
+        let updateInterval = null;
+        
+        // Initialize timeline
+        function initTimeline() {
+            timeline = new BVHTimeline({
+                framerate: 30,
+                onFrameUpdate: (frame, time) => {
+                    displayFrame(frame, time);
+                    updateTimeDisplay(time);
+                },
+                onTrackChange: () => {
+                    updateTrackInfo();
+                }
+            });
+            
+            updateStats();
+            updateTrackInfo();
+            log('BVH Timeline initialized');
+        }
+        
+        function playTimeline() {
+            if (!timeline) return;
+            timeline.play();
+            log('Timeline playback started');
+        }
+        
+        function pauseTimeline() {
+            if (!timeline) return;
+            timeline.pause();
+            log('Timeline playback paused');
+        }
+        
+        function seekToStart() {
+            if (!timeline) return;
+            timeline.seek(0);
+            document.getElementById('timeSlider').value = 0;
+            log('Seeked to start');
+        }
+        
+        function seekToTime(time) {
+            if (!timeline) return;
+            timeline.seek(parseFloat(time));
+            log(`Seeked to ${time}s`);
+        }
+        
+        function clearTimeline() {
+            if (!timeline) return;
+            timeline.clearAll();
+            updateTrackInfo();
+            updateStats();
+            log('Timeline cleared');
+        }
+        
+        // Add test animations
+        function addTestAnimations() {
+            if (!timeline) return;
+            
+            // Add a base walking animation
+            timeline.addBVHAnimation('base', generateTestBVH('walk'), 0, {
+                duration: 3.0,
+                loop: true,
+                weight: 1.0
+            });
+            
+            // Add a transition at 3 seconds
+            timeline.addRSMTTransition(3.0, 
+                { type: 'walk' }, 
+                { type: 'run' }, 
+                1.0
+            );
+            
+            // Add a face animation
+            timeline.addBVHAnimation('face', generateTestBVH('talk'), 1.5, {
+                duration: 2.0,
+                weight: 0.8,
+                blendMode: 'additive'
+            });
+            
+            // Add audio-driven gestures
+            const dummyAudio = { duration: 4.0, sampleRate: 44100 };
+            timeline.addAudioAnimation(dummyAudio, 2.0, {
+                animationType: 'gesture',
+                weight: 0.6
+            });
+            
+            updateTrackInfo();
+            updateStats();
+            log('Test animations added');
+        }
+        
+        function addBaseAnimation() {
+            if (!timeline) return;
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '2') || '2');
+            
+            timeline.addBVHAnimation('base', generateTestBVH('idle'), startTime, {
+                duration: duration,
+                weight: 1.0
+            });
+            
+            updateTrackInfo();
+            log(`Added base animation at ${startTime}s for ${duration}s`);
+        }
+        
+        function addRSMTTransition() {
+            if (!timeline) return;
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '1') || '1');
+            
+            timeline.addRSMTTransition(startTime,
+                { type: 'pose_a' },
+                { type: 'pose_b' },
+                duration
+            );
+            
+            updateTrackInfo();
+            log(`Added RSMT transition at ${startTime}s for ${duration}s`);
+        }
+        
+        function addDeepPhaseGeneration() {
+            if (!timeline) return;
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '3') || '3');
+            const prompt_text = prompt('Animation prompt:', 'dancing') || 'dancing';
+            
+            timeline.addDeepPhaseGeneration(startTime, prompt_text, duration);
+            
+            updateTrackInfo();
+            log(`Added Deep Phase generation at ${startTime}s: "${prompt_text}"`);
+        }
+        
+        function addAudioAnimation() {
+            if (!timeline) return;
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '3') || '3');
+            
+            const dummyAudio = { duration: duration, sampleRate: 44100 };
+            timeline.addAudioAnimation(dummyAudio, startTime, {
+                animationType: 'gesture',
+                weight: 0.7
+            });
+            
+            updateTrackInfo();
+            log(`Added audio-driven animation at ${startTime}s for ${duration}s`);
+        }
+        
+        function addFaceAnimation() {
+            if (!timeline) return;
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '2') || '2');
+            
+            timeline.addBVHAnimation('face', generateTestBVH('expression'), startTime, {
+                duration: duration,
+                weight: 1.0,
+                blendMode: 'replace'
+            });
+            
+            updateTrackInfo();
+            log(`Added face animation at ${startTime}s for ${duration}s`);
+        }
+        
+        // Display functions
+        function displayFrame(frame, time) {
+            const output = document.getElementById('frameOutput');
+            const timeStr = time.toFixed(2);
+            
+            let frameInfo = `[${timeStr}s] Frame Data:\n`;
+            frameInfo += `  Type: ${frame.metadata?.type || 'unknown'}\n`;
+            frameInfo += `  Motion Data: ${frame.motionData?.length || 0} bones\n`;
+            
+            if (frame.motionData && frame.motionData.length > 0) {
+                frameInfo += `  Sample bone data: [${frame.motionData[0]?.slice(0, 3).map(x => x.toFixed(2)).join(', ') || 'none'}...]\n`;
+            }
+            
+            frameInfo += `  Metadata: ${JSON.stringify(frame.metadata)}\n`;
+            frameInfo += `\n`;
+            
+            // Keep only last 20 frames
+            const lines = output.textContent.split('\n');
+            if (lines.length > 100) {
+                output.textContent = lines.slice(-80).join('\n');
+            }
+            
+            output.textContent += frameInfo;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function updateTimeDisplay(time) {
+            document.getElementById('timeDisplay').textContent = `${time.toFixed(1)}s`;
+            document.getElementById('timeSlider').value = time;
+        }
+        
+        function updateTrackInfo() {
+            if (!timeline) return;
+            
+            const trackInfoDiv = document.getElementById('trackInfo');
+            trackInfoDiv.innerHTML = '';
+            
+            for (const [trackName, track] of Object.entries(timeline.tracks)) {
+                const trackDiv = document.createElement('div');
+                trackDiv.className = 'track';
+                
+                trackDiv.innerHTML = `
+                    <h4>${trackName.toUpperCase()} Track</h4>
+                    <div>Clips: ${track.clips.length}</div>
+                    <div>Priority: ${track.priority}</div>
+                    <div>Duration: ${track.getTotalDuration().toFixed(1)}s</div>
+                    <div>Status: ${track.muted ? 'Muted' : 'Active'}</div>
+                `;
+                
+                trackInfoDiv.appendChild(trackDiv);
+            }
+        }
+        
+        function updateStats() {
+            if (!timeline) return;
+            
+            const stats = timeline.getStats();
+            const statsDiv = document.getElementById('timelineStats');
+            
+            statsDiv.innerHTML = `
+                <strong>Timeline Stats:</strong>
+                Current Time: ${stats.currentTime.toFixed(2)}s |
+                Playing: ${stats.isPlaying ? 'Yes' : 'No'} |
+                Total Tracks: ${stats.totalTracks} |
+                Total Clips: ${Object.values(stats.tracks).reduce((sum, track) => sum + track.clipCount, 0)}
+            `;
+        }
+        
+        function log(message) {
+            console.log(`[Timeline Demo] ${message}`);
+        }
+        
+        // Generate test BVH data
+        function generateTestBVH(type) {
+            // This is a mock BVH generator for demo purposes
+            const bvhHeader = `HIERARCHY
+ROOT Hips
+{
+    OFFSET 0.0 0.0 0.0
+    CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation
+    JOINT Spine
+    {
+        OFFSET 0.0 10.0 0.0
+        CHANNELS 3 Zrotation Xrotation Yrotation
+        End Site
+        {
+            OFFSET 0.0 10.0 0.0
+        }
+    }
+}
+MOTION
+Frames: 30
+Frame Time: 0.033333
+`;
+            
+            // Generate some test motion data
+            let motionData = '';
+            for (let i = 0; i < 30; i++) {
+                const time = i / 30.0;
+                let frame = '';
+                
+                switch (type) {
+                    case 'walk':
+                        frame = `0.0 ${Math.sin(time * Math.PI * 4) * 2} 0.0 0.0 0.0 ${Math.sin(time * Math.PI * 8) * 10} ${Math.cos(time * Math.PI * 4) * 5} 0.0 0.0`;
+                        break;
+                    case 'talk':
+                        frame = `0.0 0.0 0.0 0.0 0.0 0.0 ${Math.sin(time * Math.PI * 12) * 3} ${Math.cos(time * Math.PI * 8) * 2} 0.0`;
+                        break;
+                    case 'expression':
+                        frame = `0.0 0.0 0.0 0.0 0.0 0.0 0.0 ${Math.sin(time * Math.PI * 6) * 5} ${Math.cos(time * Math.PI * 4) * 3}`;
+                        break;
+                    default:
+                        frame = '0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0';
+                }
+                
+                motionData += frame + '\n';
+            }
+            
+            return bvhHeader + motionData;
+        }
+        
+        // Update stats periodically
+        setInterval(() => {
+            if (timeline) {
+                updateStats();
+            }
+        }, 500);
+        
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            initTimeline();
+            log('Demo page loaded');
+        });
+    </script>
+</body>
+</html>

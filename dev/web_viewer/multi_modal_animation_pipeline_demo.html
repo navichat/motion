@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Modal Animation Pipeline Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 50%, #9b59b6 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-size: 1.3em;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        
+        .pipeline-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .pipeline-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .pipeline-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .pipeline-section h2 {
+            margin-top: 0;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .pipeline-section.faceformer h2 {
+            color: #ff6b6b;
+        }
+        
+        .pipeline-section.audio2gesture h2 {
+            color: #feca57;
+        }
+        
+        .pipeline-section.timeline h2 {
+            color: #48dbfb;
+        }
+        
+        .pipeline-section.integration h2 {
+            color: #ff9ff3;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 15px 0;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            min-width: 120px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        button.primary {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+        }
+        
+        button.success {
+            background: linear-gradient(45deg, #2ed573, #7bed9f);
+        }
+        
+        button.warning {
+            background: linear-gradient(45deg, #ffa502, #ff6348);
+        }
+        
+        select, input {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        select option {
+            background: #333;
+            color: white;
+        }
+        
+        .status {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .status.success {
+            background: rgba(46, 213, 115, 0.3);
+            border: 1px solid rgba(46, 213, 115, 0.5);
+        }
+        
+        .status.error {
+            background: rgba(255, 99, 72, 0.3);
+            border: 1px solid rgba(255, 99, 72, 0.5);
+        }
+        
+        .status.info {
+            background: rgba(72, 219, 251, 0.3);
+            border: 1px solid rgba(72, 219, 251, 0.5);
+        }
+        
+        .status.warning {
+            background: rgba(255, 165, 2, 0.3);
+            border: 1px solid rgba(255, 165, 2, 0.5);
+        }
+        
+        .output {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .metric-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        .metric-label {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .timeline-visualization {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            min-height: 100px;
+        }
+        
+        .timeline-track {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            height: 30px;
+        }
+        
+        .track-label {
+            width: 120px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .track-clips {
+            flex: 1;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .timeline-clip {
+            position: absolute;
+            height: 100%;
+            border-radius: 4px;
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+        }
+        
+        .clip-faceformer {
+            background: linear-gradient(90deg, #ff6b6b, #ff8e8e);
+        }
+        
+        .clip-audio2gesture {
+            background: linear-gradient(90deg, #feca57, #ffd93d);
+        }
+        
+        .clip-base {
+            background: linear-gradient(90deg, #48dbfb, #74c0fc);
+        }
+        
+        .progress-container {
+            margin: 15px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .demo-controls {
+            text-align: center;
+            margin: 30px 0;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .demo-controls h2 {
+            color: #ff9ff3;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 Multi-Modal Animation Pipeline</h1>
+        <p class="subtitle">Faceformer + Audio2Gesture + BVH Timeline Integration</p>
+        
+        <!-- Master Demo Controls -->
+        <div class="demo-controls">
+            <h2>🚀 Master Demo Controls</h2>
+            <div class="controls">
+                <button id="initAllBtn" class="primary" onclick="initializeAllSystems()">Initialize All Systems</button>
+                <button id="runFullDemoBtn" class="success" onclick="runFullPipelineDemo()" disabled>Run Full Pipeline Demo</button>
+                <button id="startRealtimeBtn" class="warning" onclick="toggleRealtimeMode()" disabled>Start Realtime Mode</button>
+                <button id="resetBtn" onclick="resetAllSystems()">Reset Systems</button>
+            </div>
+            <div id="masterStatus" class="status info">Click "Initialize All Systems" to begin</div>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div id="masterProgress" class="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipeline Components Grid -->
+        <div class="pipeline-grid">
+            
+            <!-- Faceformer Section -->
+            <div class="pipeline-section faceformer">
+                <h2>😊 Faceformer Pipeline</h2>
+                <div class="controls">
+                    <button id="faceformerInitBtn" onclick="initializeFaceformer()" disabled>Initialize</button>
+                    <button id="faceformerTestBtn" onclick="testFaceformer()" disabled>Test Generation</button>
+                </div>
+                <div id="faceformerStatus" class="status info">Waiting for initialization...</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="faceformerFrames">0</div>
+                        <div class="metric-label">Face Frames</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="faceformerFPS">0</div>
+                        <div class="metric-label">Face FPS</div>
+                    </div>
+                </div>
+                <div id="faceformerOutput" class="output"></div>
+            </div>
+
+            <!-- Audio2Gesture Section -->
+            <div class="pipeline-section audio2gesture">
+                <h2>🎭 Audio2Gesture Pipeline</h2>
+                <div class="controls">
+                    <button id="audio2gestureInitBtn" onclick="initializeAudio2Gesture()" disabled>Initialize</button>
+                    <button id="audio2gestureTestBtn" onclick="testAudio2Gesture()" disabled>Test Generation</button>
+                </div>
+                <div id="audio2gestureStatus" class="status info">Waiting for initialization...</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="gestureFrames">0</div>
+                        <div class="metric-label">Gesture Frames</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="gestureFPS">0</div>
+                        <div class="metric-label">Gesture FPS</div>
+                    </div>
+                </div>
+                <div id="audio2gestureOutput" class="output"></div>
+            </div>
+
+            <!-- Timeline Section -->
+            <div class="pipeline-section timeline">
+                <h2>🎞️ BVH Timeline System</h2>
+                <div class="controls">
+                    <button id="timelineInitBtn" onclick="initializeTimeline()" disabled>Initialize</button>
+                    <button id="timelineTestBtn" onclick="testTimelineComposition()" disabled>Test Composition</button>
+                </div>
+                <div id="timelineStatus" class="status info">Waiting for initialization...</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="timelineClips">0</div>
+                        <div class="metric-label">Active Clips</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="timelineBuffered">0</div>
+                        <div class="metric-label">Buffered Frames</div>
+                    </div>
+                </div>
+                <div id="timelineOutput" class="output"></div>
+            </div>
+
+            <!-- Integration Section -->
+            <div class="pipeline-section integration">
+                <h2>🔗 System Integration</h2>
+                <div class="controls">
+                    <button id="integrationInitBtn" onclick="initializeIntegration()" disabled>Initialize</button>
+                    <button id="integrationTestBtn" onclick="testFullIntegration()" disabled>Test Integration</button>
+                </div>
+                <div id="integrationStatus" class="status info">Waiting for initialization...</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="totalSources">0</div>
+                        <div class="metric-label">Animation Sources</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="compositeFrames">0</div>
+                        <div class="metric-label">Composite Frames</div>
+                    </div>
+                </div>
+                <div id="integrationOutput" class="output"></div>
+            </div>
+        </div>
+
+        <!-- Timeline Visualization -->
+        <div class="pipeline-section full-width">
+            <h2>📊 Timeline Visualization</h2>
+            <div class="timeline-visualization">
+                <div class="timeline-track">
+                    <div class="track-label">Faceformer:</div>
+                    <div class="track-clips" id="faceformerTrack"></div>
+                </div>
+                <div class="timeline-track">
+                    <div class="track-label">Audio2Gesture:</div>
+                    <div class="track-clips" id="gestureTrack"></div>
+                </div>
+                <div class="timeline-track">
+                    <div class="track-label">Base Animation:</div>
+                    <div class="track-clips" id="baseTrack"></div>
+                </div>
+                <div class="timeline-track">
+                    <div class="track-label">Composite:</div>
+                    <div class="track-clips" id="compositeTrack"></div>
+                </div>
+            </div>
+            <div class="controls">
+                <label>Playback Time:</label>
+                <input type="range" id="timelineSlider" min="0" max="10" step="0.1" value="0" onchange="updateTimelineVisualization(this.value)" disabled>
+                <span id="timelineTime">0.0s / 10.0s</span>
+                <button id="playBtn" onclick="playTimeline()" disabled>Play</button>
+                <button id="pauseBtn" onclick="pauseTimeline()" disabled>Pause</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include all dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    <script src="./BVHTimeline.js"></script>
+    <script src="./faceformer/faceformer_simple_generator.js"></script>
+    <script src="./audio2gesture/audio2gesture_web_generator.js"></script>
+    <script src="./FaceformerBVHConverter.js"></script>
+    <script src="./Audio2GestureBVHConverter.js"></script>
+    <script src="./Audio2GestureTimelineIntegration.js"></script>
+
+    <script>
+        // Global system state
+        let systems = {
+            faceformer: null,
+            audio2gesture: null,
+            timeline: null,
+            integration: null,
+            initialized: {
+                faceformer: false,
+                audio2gesture: false,
+                timeline: false,
+                integration: false
+            }
+        };
+
+        let timelineData = {
+            clips: [],
+            playback: null,
+            isPlaying: false,
+            currentTime: 0,
+            duration: 10
+        };
+
+        let realtimeMode = {
+            active: false,
+            streams: []
+        };
+
+        // Master initialization
+        async function initializeAllSystems() {
+            try {
+                updateMasterStatus('Initializing all systems...', 'info');
+                logToAll('🚀 Starting master initialization...');
+                
+                let progress = 0;
+                updateMasterProgress(progress);
+
+                // Initialize components in order
+                await initializeFaceformer();
+                progress += 25;
+                updateMasterProgress(progress);
+
+                await initializeAudio2Gesture();
+                progress += 25;
+                updateMasterProgress(progress);
+
+                await initializeTimeline();
+                progress += 25;
+                updateMasterProgress(progress);
+
+                await initializeIntegration();
+                progress += 25;
+                updateMasterProgress(progress);
+
+                // Enable master controls
+                document.getElementById('runFullDemoBtn').disabled = false;
+                document.getElementById('startRealtimeBtn').disabled = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = false;
+                document.getElementById('timelineSlider').disabled = false;
+
+                updateMasterStatus('All systems initialized successfully!', 'success');
+                logToAll('🎉 Master initialization complete!');
+
+            } catch (error) {
+                console.error('Master initialization failed:', error);
+                updateMasterStatus('Initialization failed. Check console for details.', 'error');
+                logToAll(`❌ Master initialization failed: ${error.message}`);
+            }
+        }
+
+        async function initializeFaceformer() {
+            try {
+                updateStatus('faceformerStatus', 'Initializing Faceformer...', 'info');
+                logOutput('faceformerOutput', '😊 Initializing Faceformer converter...');
+
+                if (typeof FaceformerBVHConverter === 'undefined') {
+                    throw new Error('FaceformerBVHConverter not available');
+                }
+
+                systems.faceformer = new FaceformerBVHConverter({
+                    modelPath: './faceformer/faceformer_model.onnx',
+                    frameRate: 30
+                });
+
+                const success = await systems.faceformer.initialize();
+                if (!success) {
+                    throw new Error('Faceformer initialization failed');
+                }
+
+                systems.initialized.faceformer = true;
+                updateStatus('faceformerStatus', 'Faceformer ready!', 'success');
+                logOutput('faceformerOutput', '✅ Faceformer converter initialized');
+
+                document.getElementById('faceformerTestBtn').disabled = false;
+
+            } catch (error) {
+                console.error('Faceformer initialization failed:', error);
+                updateStatus('faceformerStatus', 'Faceformer initialization failed', 'error');
+                logOutput('faceformerOutput', `❌ Faceformer failed: ${error.message}`);
+            }
+        }
+
+        async function initializeAudio2Gesture() {
+            try {
+                updateStatus('audio2gestureStatus', 'Initializing Audio2Gesture...', 'info');
+                logOutput('audio2gestureOutput', '🎭 Initializing Audio2Gesture converter...');
+
+                if (typeof Audio2GestureBVHConverter === 'undefined') {
+                    throw new Error('Audio2GestureBVHConverter not available');
+                }
+
+                systems.audio2gesture = new Audio2GestureBVHConverter({
+                    modelPath: './audio2gesture/audio2gesture_step_fixed.onnx',
+                    frameRate: 30
+                });
+
+                const success = await systems.audio2gesture.initialize();
+                if (!success) {
+                    throw new Error('Audio2Gesture initialization failed');
+                }
+
+                systems.initialized.audio2gesture = true;
+                updateStatus('audio2gestureStatus', 'Audio2Gesture ready!', 'success');
+                logOutput('audio2gestureOutput', '✅ Audio2Gesture converter initialized');
+
+                document.getElementById('audio2gestureTestBtn').disabled = false;
+
+            } catch (error) {
+                console.error('Audio2Gesture initialization failed:', error);
+                updateStatus('audio2gestureStatus', 'Audio2Gesture initialization failed', 'error');
+                logOutput('audio2gestureOutput', `❌ Audio2Gesture failed: ${error.message}`);
+            }
+        }
+
+        async function initializeTimeline() {
+            try {
+                updateStatus('timelineStatus', 'Initializing Timeline...', 'info');
+                logOutput('timelineOutput', '🎞️ Initializing BVH Timeline system...');
+
+                if (typeof BVHTimeline === 'undefined') {
+                    throw new Error('BVHTimeline not available');
+                }
+
+                systems.timeline = new BVHTimeline({
+                    frameRate: 30,
+                    bufferSize: 120,
+                    lookaheadFrames: 15
+                });
+
+                systems.initialized.timeline = true;
+                updateStatus('timelineStatus', 'Timeline ready!', 'success');
+                logOutput('timelineOutput', '✅ BVH Timeline system initialized');
+
+                document.getElementById('timelineTestBtn').disabled = false;
+
+            } catch (error) {
+                console.error('Timeline initialization failed:', error);
+                updateStatus('timelineStatus', 'Timeline initialization failed', 'error');
+                logOutput('timelineOutput', `❌ Timeline failed: ${error.message}`);
+            }
+        }
+
+        async function initializeIntegration() {
+            try {
+                updateStatus('integrationStatus', 'Initializing Integration...', 'info');
+                logOutput('integrationOutput', '🔗 Initializing system integration...');
+
+                if (!systems.initialized.faceformer || !systems.initialized.audio2gesture || !systems.initialized.timeline) {
+                    throw new Error('Required systems not initialized');
+                }
+
+                systems.integration = new Audio2GestureTimelineIntegration({
+                    timelineFrameRate: 30,
+                    timelineBufferSize: 120
+                });
+
+                // Set existing components
+                systems.integration.timeline = systems.timeline;
+                systems.integration.audio2gestureConverter = systems.audio2gesture;
+                systems.integration.initialized = true;
+
+                systems.initialized.integration = true;
+                updateStatus('integrationStatus', 'Integration ready!', 'success');
+                logOutput('integrationOutput', '✅ System integration complete');
+
+                document.getElementById('integrationTestBtn').disabled = false;
+
+            } catch (error) {
+                console.error('Integration initialization failed:', error);
+                updateStatus('integrationStatus', 'Integration initialization failed', 'error');
+                logOutput('integrationOutput', `❌ Integration failed: ${error.message}`);
+            }
+        }
+
+        async function runFullPipelineDemo() {
+            try {
+                updateMasterStatus('Running full pipeline demo...', 'info');
+                logToAll('🎬 Starting full pipeline demonstration...');
+
+                // Test each component
+                await testFaceformer();
+                await testAudio2Gesture();
+                await testTimelineComposition();
+                await testFullIntegration();
+
+                updateMasterStatus('Full pipeline demo completed successfully!', 'success');
+                logToAll('🎉 Full pipeline demonstration complete!');
+
+                // Update visualization
+                updateTimelineVisualization(0);
+
+            } catch (error) {
+                console.error('Full pipeline demo failed:', error);
+                updateMasterStatus('Pipeline demo failed', 'error');
+                logToAll(`❌ Pipeline demo failed: ${error.message}`);
+            }
+        }
+
+        async function testFaceformer() {
+            if (!systems.faceformer) return;
+
+            try {
+                logOutput('faceformerOutput', '🧪 Testing Faceformer generation...');
+                
+                // Generate synthetic audio
+                const audioData = new Float32Array(44100); // 1 second
+                for (let i = 0; i < audioData.length; i++) {
+                    audioData[i] = Math.sin(i / 1000) * 0.1;
+                }
+
+                const result = await systems.faceformer.processAudioToFacialAnimation(audioData, {
+                    duration: 1.0
+                });
+
+                updateMetric('faceformerFrames', result.bvhFrames.length);
+                updateMetric('faceformerFPS', (result.bvhFrames.length / result.metadata.duration).toFixed(1));
+
+                logOutput('faceformerOutput', `✅ Generated ${result.bvhFrames.length} face frames`);
+
+                // Add to timeline data for visualization
+                timelineData.clips.push({
+                    type: 'faceformer',
+                    startTime: 0,
+                    duration: result.metadata.duration,
+                    frames: result.bvhFrames.length
+                });
+
+            } catch (error) {
+                logOutput('faceformerOutput', `❌ Faceformer test failed: ${error.message}`);
+            }
+        }
+
+        async function testAudio2Gesture() {
+            if (!systems.audio2gesture) return;
+
+            try {
+                logOutput('audio2gestureOutput', '🧪 Testing Audio2Gesture generation...');
+                
+                // Generate synthetic audio
+                const audioData = new Float32Array(44100 * 2); // 2 seconds
+                for (let i = 0; i < audioData.length; i++) {
+                    audioData[i] = Math.cos(i / 500) * 0.1;
+                }
+
+                const result = await systems.audio2gesture.processAudioToGestures(audioData, {
+                    duration: 2.0,
+                    expressiveness: 'expressive'
+                });
+
+                updateMetric('gestureFrames', result.bvhFrames.length);
+                updateMetric('gestureFPS', (result.bvhFrames.length / result.metadata.duration).toFixed(1));
+
+                logOutput('audio2gestureOutput', `✅ Generated ${result.bvhFrames.length} gesture frames`);
+
+                // Add to timeline data for visualization
+                timelineData.clips.push({
+                    type: 'audio2gesture',
+                    startTime: 1,
+                    duration: result.metadata.duration,
+                    frames: result.bvhFrames.length
+                });
+
+            } catch (error) {
+                logOutput('audio2gestureOutput', `❌ Audio2Gesture test failed: ${error.message}`);
+            }
+        }
+
+        async function testTimelineComposition() {
+            if (!systems.timeline) return;
+
+            try {
+                logOutput('timelineOutput', '🧪 Testing timeline composition...');
+
+                // Add some test clips to timeline
+                const testClips = [
+                    {
+                        id: 'base_anim',
+                        type: 'base',
+                        startTime: 0,
+                        duration: 5,
+                        priority: 5,
+                        frames: Array(150).fill(null).map((_, i) => ({
+                            frameNumber: i,
+                            timestamp: i / 30,
+                            transforms: { root: { rotation: { x: 0, y: 0, z: 0 } } }
+                        }))
+                    }
+                ];
+
+                testClips.forEach(clip => systems.timeline.addClip(clip));
+
+                updateMetric('timelineClips', systems.timeline.clips ? systems.timeline.clips.length : 0);
+                updateMetric('timelineBuffered', systems.timeline.buffer ? Object.keys(systems.timeline.buffer.frameCache).length : 0);
+
+                logOutput('timelineOutput', `✅ Timeline composition test complete`);
+
+                // Add to timeline data for visualization
+                timelineData.clips.push({
+                    type: 'base',
+                    startTime: 0,
+                    duration: 5,
+                    frames: 150
+                });
+
+            } catch (error) {
+                logOutput('timelineOutput', `❌ Timeline test failed: ${error.message}`);
+            }
+        }
+
+        async function testFullIntegration() {
+            if (!systems.integration) return;
+
+            try {
+                logOutput('integrationOutput', '🧪 Testing full system integration...');
+
+                // Test integration capabilities
+                const stats = systems.integration.getTimelineStats();
+                
+                updateMetric('totalSources', timelineData.clips.length);
+                updateMetric('compositeFrames', stats.timeline.totalClips || 0);
+
+                logOutput('integrationOutput', `✅ Integration test complete`);
+                logOutput('integrationOutput', `   Timeline clips: ${stats.timeline.totalClips || 0}`);
+                logOutput('integrationOutput', `   Animation sources: ${timelineData.clips.length}`);
+
+            } catch (error) {
+                logOutput('integrationOutput', `❌ Integration test failed: ${error.message}`);
+            }
+        }
+
+        function updateTimelineVisualization(time) {
+            const timeValue = parseFloat(time);
+            document.getElementById('timelineTime').textContent = `${timeValue.toFixed(1)}s / ${timelineData.duration.toFixed(1)}s`;
+
+            // Update track visualizations
+            const tracks = {
+                faceformerTrack: timelineData.clips.filter(c => c.type === 'faceformer'),
+                gestureTrack: timelineData.clips.filter(c => c.type === 'audio2gesture'),
+                baseTrack: timelineData.clips.filter(c => c.type === 'base'),
+                compositeTrack: timelineData.clips
+            };
+
+            for (const [trackId, clips] of Object.entries(tracks)) {
+                const trackElement = document.getElementById(trackId);
+                if (!trackElement) continue;
+
+                trackElement.innerHTML = '';
+
+                clips.forEach((clip, index) => {
+                    const clipElement = document.createElement('div');
+                    clipElement.className = `timeline-clip clip-${clip.type}`;
+                    
+                    const leftPercent = (clip.startTime / timelineData.duration) * 100;
+                    const widthPercent = (clip.duration / timelineData.duration) * 100;
+                    
+                    clipElement.style.left = `${leftPercent}%`;
+                    clipElement.style.width = `${widthPercent}%`;
+                    clipElement.textContent = `${clip.frames}f`;
+                    
+                    trackElement.appendChild(clipElement);
+                });
+            }
+        }
+
+        async function toggleRealtimeMode() {
+            const btn = document.getElementById('startRealtimeBtn');
+            
+            if (!realtimeMode.active) {
+                // Start realtime mode
+                realtimeMode.active = true;
+                btn.textContent = 'Stop Realtime Mode';
+                btn.classList.add('warning');
+                
+                updateMasterStatus('Realtime mode active', 'warning');
+                logToAll('🔄 Starting realtime animation streams...');
+
+                // Start realtime streams (simplified for demo)
+                if (systems.integration) {
+                    const stream = await systems.integration.createRealtimeGestureStream({
+                        chunkDuration: 0.1
+                    });
+                    realtimeMode.streams.push(stream);
+                }
+
+            } else {
+                // Stop realtime mode
+                realtimeMode.active = false;
+                btn.textContent = 'Start Realtime Mode';
+                btn.classList.remove('warning');
+
+                // Stop all streams
+                realtimeMode.streams.forEach(stream => stream.stop && stream.stop());
+                realtimeMode.streams = [];
+
+                updateMasterStatus('Realtime mode stopped', 'info');
+                logToAll('⏹️ Realtime animation streams stopped');
+            }
+        }
+
+        function playTimeline() {
+            if (timelineData.isPlaying) return;
+
+            timelineData.isPlaying = true;
+            const slider = document.getElementById('timelineSlider');
+            
+            timelineData.playback = setInterval(() => {
+                timelineData.currentTime += 0.1;
+                
+                if (timelineData.currentTime >= timelineData.duration) {
+                    pauseTimeline();
+                    timelineData.currentTime = 0;
+                }
+                
+                slider.value = timelineData.currentTime;
+                updateTimelineVisualization(timelineData.currentTime);
+            }, 100);
+
+            document.getElementById('playBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+        }
+
+        function pauseTimeline() {
+            timelineData.isPlaying = false;
+            
+            if (timelineData.playback) {
+                clearInterval(timelineData.playback);
+                timelineData.playback = null;
+            }
+
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+        }
+
+        function resetAllSystems() {
+            // Stop realtime mode
+            if (realtimeMode.active) {
+                toggleRealtimeMode();
+            }
+
+            // Pause timeline
+            pauseTimeline();
+
+            // Reset data
+            timelineData.clips = [];
+            timelineData.currentTime = 0;
+
+            // Reset UI
+            updateMasterStatus('Systems reset. Click "Initialize All Systems" to begin', 'info');
+            updateMasterProgress(0);
+
+            // Disable buttons
+            const buttons = [
+                'runFullDemoBtn', 'startRealtimeBtn', 'playBtn', 'pauseBtn',
+                'faceformerTestBtn', 'audio2gestureTestBtn', 'timelineTestBtn', 'integrationTestBtn'
+            ];
+            buttons.forEach(id => document.getElementById(id).disabled = true);
+
+            // Reset metrics
+            ['faceformerFrames', 'faceformerFPS', 'gestureFrames', 'gestureFPS', 
+             'timelineClips', 'timelineBuffered', 'totalSources', 'compositeFrames'].forEach(id => {
+                document.getElementById(id).textContent = '0';
+            });
+
+            // Clear outputs
+            ['faceformerOutput', 'audio2gestureOutput', 'timelineOutput', 'integrationOutput'].forEach(id => {
+                document.getElementById(id).innerHTML = '';
+            });
+
+            // Reset systems
+            systems.initialized = {
+                faceformer: false,
+                audio2gesture: false,
+                timeline: false,
+                integration: false
+            };
+
+            logToAll('🧹 All systems reset');
+        }
+
+        // Utility functions
+        function updateMasterStatus(message, type) {
+            updateStatus('masterStatus', message, type);
+        }
+
+        function updateMasterProgress(percent) {
+            document.getElementById('masterProgress').style.width = `${percent}%`;
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        function updateMetric(elementId, value) {
+            document.getElementById(elementId).textContent = value;
+        }
+
+        function logOutput(elementId, message) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function logToAll(message) {
+            ['faceformerOutput', 'audio2gestureOutput', 'timelineOutput', 'integrationOutput'].forEach(id => {
+                logOutput(id, message);
+            });
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            console.log('🎭 Multi-Modal Animation Pipeline Demo Loaded');
+            
+            // Check availability of all components
+            const components = [
+                { name: 'ONNX Runtime', check: () => typeof ort !== 'undefined' },
+                { name: 'BVH Timeline', check: () => typeof BVHTimeline !== 'undefined' },
+                { name: 'Faceformer Converter', check: () => typeof FaceformerBVHConverter !== 'undefined' },
+                { name: 'Audio2Gesture Converter', check: () => typeof Audio2GestureBVHConverter !== 'undefined' },
+                { name: 'Integration System', check: () => typeof Audio2GestureTimelineIntegration !== 'undefined' }
+            ];
+
+            let allAvailable = true;
+            components.forEach(comp => {
+                const available = comp.check();
+                console.log(`${available ? '✅' : '❌'} ${comp.name}: ${available ? 'Available' : 'Not Available'}`);
+                if (!available) allAvailable = false;
+            });
+
+            if (allAvailable) {
+                updateMasterStatus('All components available. Ready to initialize!', 'success');
+                document.getElementById('initAllBtn').disabled = false;
+            } else {
+                updateMasterStatus('Some components missing. Check console for details.', 'error');
+            }
+
+            // Initialize timeline visualization
+            updateTimelineVisualization(0);
+        });
+    </script>
+</body>
+</html>

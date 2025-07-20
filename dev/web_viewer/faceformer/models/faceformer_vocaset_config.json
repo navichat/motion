@@ -1,0 +1,11 @@
+{
+  "dataset": "VOCASET",
+  "feature_dim": 128,
+  "audio_input_dim": 768,
+  "vertice_dim": 15069,
+  "num_subjects": 8,
+  "num_heads": 8,
+  "num_layers": 6,
+  "max_seq_length": 600,
+  "dropout": 0.1
+}

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Worker Test</title>
+</head>
+<body>
+    <h1>Simple Conversation Worker Test</h1>
+    <button onclick="testWorker()">Test Worker</button>
+    <div id="output"></div>
+
+    <script>
+        function testWorker() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'Creating worker...<br>';
+            
+            try {
+                const worker = new Worker('./js/conversationWorkerWorking.js');
+                output.innerHTML += 'Worker created successfully!<br>';
+                
+                worker.onmessage = function(e) {
+                    output.innerHTML += `Worker message: ${JSON.stringify(e.data)}<br>`;
+                };
+                
+                worker.onerror = function(error) {
+                    output.innerHTML += `Worker error: ${error.message}<br>`;
+                    console.error('Worker error:', error);
+                };
+                
+                // Test basic worker functionality
+                setTimeout(() => {
+                    output.innerHTML += 'Sending test message to worker...<br>';
+                    worker.postMessage({ type: 'init' });
+                }, 100);
+                
+            } catch (error) {
+                output.innerHTML += `Failed to create worker: ${error.message}<br>`;
+                console.error('Worker creation error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

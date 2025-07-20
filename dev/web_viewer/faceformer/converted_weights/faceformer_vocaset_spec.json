@@ -1,0 +1,49 @@
+{
+  "model_type": "FaceFormer",
+  "dataset": "VOCASET",
+  "inputs": {
+    "audio_features": {
+      "shape": [
+        "batch_size",
+        "sequence_length",
+        768
+      ],
+      "type": "float32",
+      "description": "Pre-computed Wav2Vec2 audio features"
+    },
+    "template": {
+      "shape": [
+        "batch_size",
+        15069
+      ],
+      "type": "float32",
+      "description": "Template face vertices"
+    },
+    "one_hot": {
+      "shape": [
+        "batch_size",
+        8
+      ],
+      "type": "float32",
+      "description": "Subject identity one-hot encoding"
+    }
+  },
+  "outputs": {
+    "vertices": {
+      "shape": [
+        "batch_size",
+        "sequence_length",
+        15069
+      ],
+      "type": "float32",
+      "description": "Generated face vertices"
+    }
+  },
+  "implementation_notes": [
+    "This model requires pre-computed Wav2Vec2 features as input",
+    "The audio preprocessing should use facebook/wav2vec2-base-960h",
+    "Auto-regressive generation is required for proper temporal consistency",
+    "Positional encoding period: unknown",
+    "Subject encoding based on training subjects from original dataset"
+  ]
+}

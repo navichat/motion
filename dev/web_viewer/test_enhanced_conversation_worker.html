@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Conversation Worker Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .log-output {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .voice-selection {
+            margin: 15px 0;
+        }
+        
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Enhanced Conversation Worker Test</h1>
+        
+        <div class="controls">
+            <button id="startBtn">Start Conversation</button>
+            <button id="endBtn" disabled>End Conversation</button>
+            <button id="testTTSBtn">Test TTS</button>
+            <button id="clearLogBtn">Clear Log</button>
+        </div>
+        
+        <div class="voice-selection">
+            <label for="voiceSelect">Voice:</label>
+            <select id="voiceSelect">
+                <option value="af_heart">Heart (Female)</option>
+                <option value="am_adam">Adam (Male)</option>
+                <option value="af_sarah">Sarah (Female)</option>
+                <option value="af_bella">Bella (Female)</option>
+                <option value="af_jessica">Jessica (Female)</option>
+                <option value="am_michael">Michael (Male)</option>
+                <option value="am_liam">Liam (Male)</option>
+                <option value="bf_alice">Alice (British Female)</option>
+                <option value="bm_daniel">Daniel (British Male)</option>
+                <option value="jf_alpha">Alpha (Japanese Female)</option>
+            </select>
+        </div>
+        
+        <div id="statusDiv"></div>
+        
+        <div class="log-output" id="logOutput"></div>
+        
+        <audio id="audioPlayer" controls style="width: 100%; margin-top: 15px;"></audio>
+    </div>
+
+    <script>
+        let worker = null;
+        let audioContext = null;
+        let microphone = null;
+        let processor = null;
+        let isRecording = false;
+        
+        // UI elements
+        const startBtn = document.getElementById('startBtn');
+        const endBtn = document.getElementById('endBtn');
+        const testTTSBtn = document.getElementById('testTTSBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const voiceSelect = document.getElementById('voiceSelect');
+        const statusDiv = document.getElementById('statusDiv');
+        const logOutput = document.getElementById('logOutput');
+        const audioPlayer = document.getElementById('audioPlayer');
+        
+        // Logging
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
+            logOutput.textContent += logEntry;
+            logOutput.scrollTop = logOutput.scrollHeight;
+            console.log(logEntry);
+        }
+        
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusDiv');
+            const statusElement = document.createElement('div');
+            statusElement.className = `status ${type}`;
+            statusElement.textContent = message;
+            statusDiv.appendChild(statusElement);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                if (statusElement.parentNode) {
+                    statusElement.parentNode.removeChild(statusElement);
+                }
+            }, 5000);
+        }
+        
+        // Initialize worker
+        async function initWorker() {
+            try {
+                worker = new Worker('js/conversationWorkerWorking.js', { type: 'module' });
+                
+                worker.onmessage = function(event) {
+                    const { type, data } = event.data;
+                    
+                    switch (type) {
+                        case 'status':
+                            showStatus(event.data.message, event.data.status === 'ready' ? 'success' : 'info');
+                            if (event.data.status === 'ready') {
+                                startBtn.disabled = false;
+                                testTTSBtn.disabled = false;
+                            }
+                            break;
+                            
+                        case 'info':
+                            log(event.data.message, 'info');
+                            break;
+                            
+                        case 'debug_log':
+                            log(event.data.message, event.data.level.toLowerCase());
+                            break;
+                            
+                        case 'transcript':
+                            log(`User: ${event.data.text}`, 'user');
+                            break;
+                            
+                        case 'response':
+                            log(`AI: ${event.data.text}`, 'ai');
+                            break;
+                            
+                        case 'output':
+                            log(`TTS: ${event.data.text}`, 'tts');
+                            playAudio(event.data.result.audio);
+                            break;
+                            
+                        case 'error':
+                            log(`Error: ${event.data.error || event.data.message}`, 'error');
+                            showStatus(`Error: ${event.data.error || event.data.message}`, 'error');
+                            break;
+                    }
+                };
+                
+                worker.onerror = function(error) {
+                    log(`Worker error: ${error.message}`, 'error');
+                    showStatus(`Worker error: ${error.message}`, 'error');
+                };
+                
+                log('Worker initialized successfully');
+                showStatus('Worker initialized successfully', 'success');
+                
+            } catch (error) {
+                log(`Failed to initialize worker: ${error.message}`, 'error');
+                showStatus(`Failed to initialize worker: ${error.message}`, 'error');
+            }
+        }
+        
+        // Audio handling
+        async function playAudio(audioData) {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                if (audioData.useWebSpeech) {
+                    // Use Web Speech API
+                    const utterance = new SpeechSynthesisUtterance(audioData.text);
+                    utterance.rate = 1.0;
+                    utterance.pitch = 1.0;
+                    utterance.volume = 1.0;
+                    
+                    utterance.onstart = () => {
+                        worker.postMessage({ type: 'playback_started' });
+                    };
+                    
+                    utterance.onend = () => {
+                        worker.postMessage({ type: 'playback_ended' });
+                    };
+                    
+                    speechSynthesis.speak(utterance);
+                } else if (audioData.data) {
+                    // Use generated audio data
+                    const audioBuffer = audioContext.createBuffer(1, audioData.data.length, audioData.sampleRate || 16000);
+                    const channelData = audioBuffer.getChannelData(0);
+                    channelData.set(audioData.data);
+                    
+                    const source = audioContext.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(audioContext.destination);
+                    
+                    source.onended = () => {
+                        worker.postMessage({ type: 'playback_ended' });
+                    };
+                    
+                    worker.postMessage({ type: 'playback_started' });
+                    source.start();
+                    
+                    // Also create a blob URL for the audio player
+                    const wavBlob = audioBufferToWav(audioBuffer);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    audioPlayer.src = audioUrl;
+                    
+                    // Log metadata if available
+                    if (audioData.metadata) {
+                        log(`TTS Metadata: Voice=${audioData.metadata.voice}, Tokens=${audioData.metadata.tokenCount}, Inference=${audioData.metadata.inferenceTime}ms`, 'info');
+                    }
+                }
+                
+            } catch (error) {
+                log(`Audio playback error: ${error.message}`, 'error');
+                worker.postMessage({ type: 'playback_ended' });
+            }
+        }
+        
+        // Convert AudioBuffer to WAV blob
+        function audioBufferToWav(buffer) {
+            const length = buffer.length;
+            const arrayBuffer = new ArrayBuffer(44 + length * 2);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, buffer.sampleRate, true);
+            view.setUint32(28, buffer.sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, length * 2, true);
+            
+            // Convert float32 to int16
+            const channelData = buffer.getChannelData(0);
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                const sample = Math.max(-1, Math.min(1, channelData[i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+        
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+        
+        // Microphone handling
+        async function startMicrophone() {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                microphone = audioContext.createMediaStreamSource(stream);
+                
+                // Create audio processor
+                processor = audioContext.createScriptProcessor(4096, 1, 1);
+                processor.onaudioprocess = function(event) {
+                    if (isRecording) {
+                        const inputData = event.inputBuffer.getChannelData(0);
+                        const audioData = new Float32Array(inputData);
+                        
+                        // Send to worker
+                        worker.postMessage({
+                            type: 'audio',
+                            data: audioData
+                        });
+                    }
+                };
+                
+                microphone.connect(processor);
+                processor.connect(audioContext.destination);
+                
+                log('Microphone started successfully');
+                return true;
+                
+            } catch (error) {
+                log(`Microphone error: ${error.message}`, 'error');
+                showStatus(`Microphone error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        // Event handlers
+        startBtn.addEventListener('click', async () => {
+            if (!worker) {
+                showStatus('Worker not initialized', 'error');
+                return;
+            }
+            
+            const micSuccess = await startMicrophone();
+            if (!micSuccess) return;
+            
+            isRecording = true;
+            startBtn.disabled = true;
+            endBtn.disabled = false;
+            
+            worker.postMessage({ type: 'start_call' });
+            showStatus('Conversation started', 'success');
+        });
+        
+        endBtn.addEventListener('click', () => {
+            if (!worker) return;
+            
+            isRecording = false;
+            startBtn.disabled = false;
+            endBtn.disabled = true;
+            
+            worker.postMessage({ type: 'end_call' });
+            showStatus('Conversation ended', 'info');
+        });
+        
+        testTTSBtn.addEventListener('click', () => {
+            if (!worker) return;
+            
+            const testText = "Hello! This is a test of the enhanced conversation worker with improved phonemization and Kokoro TTS integration.";
+            log(`Testing TTS with: "${testText}"`, 'info');
+            
+            // Simulate a TTS generation
+            worker.postMessage({
+                type: 'audio',
+                data: new Float32Array(1024) // Empty audio data to trigger speech detection
+            });
+        });
+        
+        clearLogBtn.addEventListener('click', () => {
+            logOutput.textContent = '';
+        });
+        
+        voiceSelect.addEventListener('change', () => {
+            if (worker) {
+                worker.postMessage({
+                    type: 'set_voice',
+                    voice: voiceSelect.value
+                });
+                log(`Voice changed to: ${voiceSelect.value}`, 'info');
+            }
+        });
+        
+        // Initialize everything
+        log('Initializing Enhanced Conversation Worker Test');
+        initWorker();
+    </script>
+</body>
+</html>

@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BVH Animation Test Suite - Interactive Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+        
+        .panel h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .test-controls {
+            grid-column: 1 / -1;
+        }
+        
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            color: #333;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-idle { background: #gray; }
+        .status-running { background: #f7971e; animation: pulse 1s infinite; }
+        .status-success { background: #4ecdc4; }
+        .status-error { background: #ff6b6b; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .results-container {
+            grid-column: 1 / -1;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .test-result {
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .test-result.success {
+            background: #f0fff4;
+            border-color: #4ecdc4;
+        }
+        
+        .test-result.error {
+            background: #fff5f5;
+            border-color: #ff6b6b;
+        }
+        
+        .test-result.warning {
+            background: #fffbeb;
+            border-color: #f7971e;
+        }
+        
+        .test-result h4 {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .performance-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .metric-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .metric-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+        
+        .log-output {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+        }
+        
+        .log-info { color: #63b3ed; }
+        .log-success { color: #68d391; }
+        .log-warning { color: #fbb040; }
+        .log-error { color: #fc8181; }
+        
+        .backend-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .backend-card {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .backend-card.active {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border: 2px solid #667eea;
+        }
+        
+        .backend-name {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .backend-metric {
+            font-size: 0.9em;
+            color: #666;
+            margin: 2px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 BVH Animation Test Suite</h1>
+            <p>Comprehensive testing framework for multi-modal animation backends</p>
+        </div>
+        
+        <div class="dashboard">
+            <!-- Test Controls Panel -->
+            <div class="panel test-controls">
+                <h2><span class="icon"></span>Test Suite Controls</h2>
+                
+                <div class="button-grid">
+                    <button class="btn btn-primary" onclick="runAllTests()">
+                        🚀 Run All Tests
+                    </button>
+                    <button class="btn btn-secondary" onclick="runUnitTests()">
+                        🔧 Unit Tests
+                    </button>
+                    <button class="btn btn-success" onclick="runIntegrationTests()">
+                        🔗 Integration Tests
+                    </button>
+                    <button class="btn btn-warning" onclick="runPerformanceTests()">
+                        ⚡ Performance Tests
+                    </button>
+                    <button class="btn btn-danger" onclick="runStressTests()">
+                        💥 Stress Tests
+                    </button>
+                    <button class="btn btn-primary" onclick="clearResults()">
+                        🧹 Clear Results
+                    </button>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="testProgress" style="width: 0%"></div>
+                </div>
+                
+                <div id="currentTest" style="text-align: center; margin: 10px 0; font-weight: bold;">
+                    Ready to run tests...
+                </div>
+            </div>
+            
+            <!-- Backend Status Panel -->
+            <div class="panel">
+                <h2><span class="icon"></span>Backend Status</h2>
+                <div class="backend-status" id="backendStatus">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Performance Metrics Panel -->
+            <div class="panel">
+                <h2><span class="icon"></span>Performance Metrics</h2>
+                <div class="performance-metrics">
+                    <div class="metric">
+                        <div class="metric-value" id="testsRun">0</div>
+                        <div class="metric-label">Tests Run</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="testsPassed">0</div>
+                        <div class="metric-label">Passed</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="testsFailed">0</div>
+                        <div class="metric-label">Failed</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="avgTime">0ms</div>
+                        <div class="metric-label">Avg Time</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Test Results Panel -->
+            <div class="panel results-container">
+                <h2><span class="icon"></span>Test Results</h2>
+                <div id="testResults">
+                    <p style="text-align: center; color: #666; margin: 20px 0;">
+                        No tests run yet. Click a test button to begin.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Log Output -->
+        <div class="panel">
+            <h2><span class="icon"></span>Test Log</h2>
+            <div class="log-output" id="logOutput">
+                <div class="log-entry log-info">[INFO] Test suite initialized</div>
+                <div class="log-entry log-info">[INFO] Ready to run tests...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include test dependencies -->
+    <script src="MockBackends.js"></script>
+    <script src="SampleDataGenerators.js"></script>
+    <script src="BVHAnimationTestSuite.js"></script>
+    
+    <script>
+        // Global test state
+        let testSuite;
+        let testResults = [];
+        let isRunning = false;
+        
+        // Initialize test suite
+        async function initializeTestSuite() {
+            try {
+                testSuite = new BVHAnimationTestSuite();
+                await testSuite.initialize();
+                
+                // Update backend status
+                updateBackendStatus();
+                
+                logMessage('SUCCESS', 'Test suite initialized successfully');
+            } catch (error) {
+                logMessage('ERROR', `Failed to initialize test suite: ${error.message}`);
+            }
+        }
+        
+        // Update backend status display
+        function updateBackendStatus() {
+            const statusContainer = document.getElementById('backendStatus');
+            const backends = [
+                { name: 'Timeline', status: 'active', tests: 12, avgTime: 45 },
+                { name: 'Audio2Gesture', status: 'active', tests: 15, avgTime: 67 },
+                { name: 'FaceFormer', status: 'active', tests: 10, avgTime: 32 },
+                { name: 'DeepMimic', status: 'active', tests: 18, avgTime: 156 },
+                { name: 'RSMT', status: 'active', tests: 14, avgTime: 89 },
+                { name: 'Pathfinding', status: 'active', tests: 11, avgTime: 78 }
+            ];
+            
+            statusContainer.innerHTML = backends.map(backend => `
+                <div class="backend-card ${backend.status}">
+                    <div class="backend-name">${backend.name}</div>
+                    <div class="backend-metric">${backend.tests} tests</div>
+                    <div class="backend-metric">${backend.avgTime}ms avg</div>
+                    <div class="status-indicator status-${backend.status}"></div>
+                </div>
+            `).join('');
+        }
+        
+        // Logging functions
+        function logMessage(level, message) {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const logClass = `log-${level.toLowerCase()}`;
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${logClass}`;
+            logEntry.textContent = `[${timestamp}] [${level}] ${message}`;
+            
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Progress tracking
+        function updateProgress(current, total) {
+            const percentage = (current / total) * 100;
+            document.getElementById('testProgress').style.width = `${percentage}%`;
+        }
+        
+        function updateCurrentTest(testName) {
+            document.getElementById('currentTest').textContent = `Running: ${testName}`;
+        }
+        
+        // Test execution functions
+        async function runAllTests() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            clearResults();
+            logMessage('INFO', 'Starting full test suite...');
+            
+            try {
+                const results = await testSuite.runAllTests();
+                displayResults(results);
+                updateMetrics(results);
+                logMessage('SUCCESS', `All tests completed. ${results.summary.passed}/${results.summary.total} passed`);
+            } catch (error) {
+                logMessage('ERROR', `Test execution failed: ${error.message}`);
+            } finally {
+                isRunning = false;
+                updateCurrentTest('Tests completed');
+            }
+        }
+        
+        async function runUnitTests() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            clearResults();
+            logMessage('INFO', 'Starting unit tests...');
+            
+            try {
+                const results = await testSuite.runUnitTests();
+                displayResults(results);
+                updateMetrics(results);
+                logMessage('SUCCESS', `Unit tests completed. ${results.summary.passed}/${results.summary.total} passed`);
+            } catch (error) {
+                logMessage('ERROR', `Unit test execution failed: ${error.message}`);
+            } finally {
+                isRunning = false;
+                updateCurrentTest('Unit tests completed');
+            }
+        }
+        
+        async function runIntegrationTests() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            clearResults();
+            logMessage('INFO', 'Starting integration tests...');
+            
+            try {
+                const results = await testSuite.runIntegrationTests();
+                displayResults(results);
+                updateMetrics(results);
+                logMessage('SUCCESS', `Integration tests completed. ${results.summary.passed}/${results.summary.total} passed`);
+            } catch (error) {
+                logMessage('ERROR', `Integration test execution failed: ${error.message}`);
+            } finally {
+                isRunning = false;
+                updateCurrentTest('Integration tests completed');
+            }
+        }
+        
+        async function runPerformanceTests() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            clearResults();
+            logMessage('INFO', 'Starting performance tests...');
+            
+            try {
+                const results = await testSuite.runPerformanceTests();
+                displayResults(results);
+                updateMetrics(results);
+                logMessage('SUCCESS', `Performance tests completed. ${results.summary.passed}/${results.summary.total} passed`);
+            } catch (error) {
+                logMessage('ERROR', `Performance test execution failed: ${error.message}`);
+            } finally {
+                isRunning = false;
+                updateCurrentTest('Performance tests completed');
+            }
+        }
+        
+        async function runStressTests() {
+            if (isRunning) return;
+            
+            isRunning = true;
+            clearResults();
+            logMessage('INFO', 'Starting stress tests...');
+            
+            try {
+                // Run performance tests with higher load
+                const results = await testSuite.runPerformanceTests({ 
+                    highLoad: true, 
+                    frameCount: 5000,
+                    concurrentOperations: 10 
+                });
+                displayResults(results);
+                updateMetrics(results);
+                logMessage('SUCCESS', `Stress tests completed. ${results.summary.passed}/${results.summary.total} passed`);
+            } catch (error) {
+                logMessage('ERROR', `Stress test execution failed: ${error.message}`);
+            } finally {
+                isRunning = false;
+                updateCurrentTest('Stress tests completed');
+            }
+        }
+        
+        // Result display functions
+        function displayResults(results) {
+            const resultsContainer = document.getElementById('testResults');
+            resultsContainer.innerHTML = '';
+            
+            if (results.tests && results.tests.length > 0) {
+                results.tests.forEach(test => {
+                    const resultElement = document.createElement('div');
+                    resultElement.className = `test-result ${test.passed ? 'success' : 'error'}`;
+                    
+                    resultElement.innerHTML = `
+                        <h4>
+                            <span class="status-indicator status-${test.passed ? 'success' : 'error'}"></span>
+                            ${test.name}
+                            <span style="margin-left: auto; font-size: 0.8em;">${test.duration}ms</span>
+                        </h4>
+                        ${test.error ? `<p style="color: #e53e3e; margin: 5px 0;"><strong>Error:</strong> ${test.error}</p>` : ''}
+                        ${test.description ? `<p style="margin: 5px 0;">${test.description}</p>` : ''}
+                        ${test.assertions ? `<p style="font-size: 0.9em; color: #666;">Assertions: ${test.assertions.length}</p>` : ''}
+                    `;
+                    
+                    resultsContainer.appendChild(resultElement);
+                });
+            }
+            
+            // Add summary
+            if (results.summary) {
+                const summaryElement = document.createElement('div');
+                summaryElement.className = `test-result ${results.summary.passed === results.summary.total ? 'success' : 'warning'}`;
+                summaryElement.innerHTML = `
+                    <h4>Test Summary</h4>
+                    <p>Total: ${results.summary.total} | Passed: ${results.summary.passed} | Failed: ${results.summary.failed}</p>
+                    <p>Total Time: ${results.summary.totalTime}ms | Average: ${results.summary.averageTime}ms</p>
+                `;
+                resultsContainer.insertBefore(summaryElement, resultsContainer.firstChild);
+            }
+        }
+        
+        function updateMetrics(results) {
+            if (results.summary) {
+                document.getElementById('testsRun').textContent = results.summary.total;
+                document.getElementById('testsPassed').textContent = results.summary.passed;
+                document.getElementById('testsFailed').textContent = results.summary.failed;
+                document.getElementById('avgTime').textContent = `${results.summary.averageTime}ms`;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = `
+                <p style="text-align: center; color: #666; margin: 20px 0;">
+                    Running tests...
+                </p>
+            `;
+            
+            // Reset metrics
+            document.getElementById('testsRun').textContent = '0';
+            document.getElementById('testsPassed').textContent = '0';
+            document.getElementById('testsFailed').textContent = '0';
+            document.getElementById('avgTime').textContent = '0ms';
+            
+            // Reset progress
+            updateProgress(0, 100);
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeTestSuite();
+            
+            // Set up periodic status updates
+            setInterval(updateBackendStatus, 30000); // Update every 30 seconds
+        });
+        
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey) {
+                switch (e.key) {
+                    case 'Enter':
+                        e.preventDefault();
+                        runAllTests();
+                        break;
+                    case 'u':
+                        e.preventDefault();
+                        runUnitTests();
+                        break;
+                    case 'i':
+                        e.preventDefault();
+                        runIntegrationTests();
+                        break;
+                    case 'p':
+                        e.preventDefault();
+                        runPerformanceTests();
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

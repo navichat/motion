@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSMT BVH Timeline Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ecf0f1;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            background: rgba(52, 73, 94, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(236, 240, 241, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #ecf0f1;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(44, 62, 80, 0.8);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid rgba(236, 240, 241, 0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #bdc3c7;
+        }
+
+        input, select, button, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #34495e;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: rgba(44, 62, 80, 0.8);
+            color: #ecf0f1;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .animation-library {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .animation-item {
+            background: rgba(52, 73, 94, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(236, 240, 241, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .animation-item:hover {
+            background: rgba(102, 126, 234, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .animation-item.loaded {
+            border-color: #2ecc71;
+            background: rgba(46, 204, 113, 0.2);
+        }
+
+        .animation-item.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.3);
+        }
+
+        .animation-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .animation-info {
+            font-size: 11px;
+            color: #95a5a6;
+        }
+
+        .transition-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .transition-queue {
+            background: rgba(44, 62, 80, 0.9);
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .queue-item {
+            background: rgba(52, 73, 94, 0.8);
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            font-size: 12px;
+            border-left: 3px solid #667eea;
+        }
+
+        .queue-item.active {
+            border-left-color: #2ecc71;
+            background: rgba(46, 204, 113, 0.2);
+        }
+
+        .queue-item.failed {
+            border-left-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.2);
+        }
+
+        .timeline-display {
+            width: 100%;
+            height: 250px;
+            background: rgba(44, 62, 80, 0.9);
+            border: 2px solid rgba(236, 240, 241, 0.1);
+            border-radius: 8px;
+            position: relative;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .timeline-track {
+            height: 40px;
+            margin: 5px;
+            border-radius: 6px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .track-base { background: linear-gradient(90deg, #3498db, #2980b9); }
+        .track-transitions { background: linear-gradient(90deg, #667eea, #764ba2); }
+        .track-current { background: linear-gradient(90deg, #2ecc71, #27ae60); }
+
+        .timeline-cursor {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e74c3c;
+            z-index: 10;
+            transition: left 0.1s ease;
+        }
+
+        .transition-clip {
+            position: absolute;
+            height: 30px;
+            background: rgba(102, 126, 234, 0.7);
+            border: 1px solid #667eea;
+            border-radius: 4px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            top: 5px;
+        }
+
+        .pose-visualization {
+            background: rgba(44, 62, 80, 0.9);
+            border: 2px solid rgba(236, 240, 241, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pose-vector-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(30px, 1fr));
+            gap: 2px;
+            margin-top: 15px;
+            max-width: 400px;
+        }
+
+        .vector-component {
+            height: 20px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 2px;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+
+        .vector-component.active {
+            opacity: 1;
+            transform: scaleY(1.2);
+        }
+
+        .similarity-meter {
+            width: 100%;
+            height: 20px;
+            background: rgba(52, 73, 94, 0.8);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .similarity-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c, #f39c12, #2ecc71);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .stats-panel {
+            background: rgba(44, 62, 80, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 30px;
+            border: 1px solid rgba(236, 240, 241, 0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: rgba(52, 73, 94, 0.8);
+            border-radius: 8px;
+            border: 1px solid rgba(236, 240, 241, 0.1);
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #95a5a6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .log-panel {
+            background: #2c3e50;
+            color: #2ecc71;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid rgba(236, 240, 241, 0.1);
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+
+        .log-entry.error {
+            color: #e74c3c;
+        }
+
+        .log-entry.warning {
+            color: #f39c12;
+        }
+
+        .log-entry.info {
+            color: #667eea;
+        }
+
+        .processing-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            display: none;
+            z-index: 1000;
+            border: 1px solid #667eea;
+        }
+
+        .processing-indicator.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .transition-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .animation-library {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animation keyframes */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .transition-active {
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 RSMT BVH Timeline Demo</h1>
+        
+        <div class="demo-grid">
+            <!-- Animation Library Panel -->
+            <div class="panel">
+                <h2>📚 Animation Library</h2>
+                
+                <div class="control-group">
+                    <button id="loadAnimations">🔄 Load Animations</button>
+                    <button id="refreshLibrary">🔍 Refresh Library</button>
+                </div>
+                
+                <div class="animation-library" id="animationLibrary">
+                    <div class="animation-item" data-animation="loading">
+                        <div class="animation-name">Loading...</div>
+                        <div class="animation-info">Discovering animations</div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="selectedAnimation">Selected Animation:</label>
+                    <select id="selectedAnimation">
+                        <option value="">Select animation...</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="animationInfo">Animation Info:</label>
+                    <textarea id="animationInfo" rows="4" readonly placeholder="Select an animation to view details"></textarea>
+                </div>
+            </div>
+            
+            <!-- Transition Controls Panel -->
+            <div class="panel">
+                <h2>🚀 Transition Controls</h2>
+                
+                <div class="control-group">
+                    <label for="transitionDuration">Transition Duration (seconds):</label>
+                    <input type="range" id="transitionDuration" min="0.1" max="3.0" step="0.1" value="1.0">
+                    <span id="durationValue">1.0s</span>
+                </div>
+                
+                <div class="control-group">
+                    <label for="transitionStyle">Transition Style:</label>
+                    <select id="transitionStyle">
+                        <option value="natural">Natural</option>
+                        <option value="smooth">Smooth</option>
+                        <option value="dynamic">Dynamic</option>
+                        <option value="precise">Precise</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="similarityThreshold">Similarity Threshold:</label>
+                    <input type="range" id="similarityThreshold" min="0.1" max="1.0" step="0.1" value="0.8">
+                    <span id="thresholdValue">0.8</span>
+                </div>
+                
+                <div class="transition-controls">
+                    <button id="requestTransition">🎯 Request Transition</button>
+                    <button id="smartTransition">🧠 Smart Transition</button>
+                    <button id="chainTransitions">🔗 Chain Transitions</button>
+                    <button id="clearTransitions">🗑️ Clear Transitions</button>
+                </div>
+                
+                <div class="control-group">
+                    <h4>Transition Queue</h4>
+                    <div class="transition-queue" id="transitionQueue">
+                        <div class="queue-item">No transitions queued</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Visualization Section -->
+        <div class="demo-grid">
+            <!-- Timeline Display -->
+            <div class="panel">
+                <h2>⏱️ Timeline Visualization</h2>
+                
+                <div class="control-group">
+                    <label for="timelinePosition">Timeline Position:</label>
+                    <input type="range" id="timelinePosition" min="0" max="100" value="0">
+                    <span id="positionValue">0.00s</span>
+                </div>
+                
+                <div class="control-group">
+                    <button id="playTimeline">▶️ Play</button>
+                    <button id="pauseTimeline">⏸️ Pause</button>
+                    <button id="stopTimeline">⏹️ Stop</button>
+                </div>
+                
+                <div class="timeline-display" id="timelineDisplay">
+                    <div class="timeline-cursor" id="timelineCursor"></div>
+                    <div class="timeline-track track-base">Base Animation</div>
+                    <div class="timeline-track track-transitions">RSMT Transitions</div>
+                    <div class="timeline-track track-current">Current Pose</div>
+                </div>
+            </div>
+            
+            <!-- Pose Visualization -->
+            <div class="panel">
+                <h2>🤖 Pose Analysis</h2>
+                
+                <div class="pose-visualization" id="poseVisualization">
+                    <div class="pose-placeholder">
+                        Current Pose Vector<br>
+                        <small>Load animations to see pose analysis</small>
+                    </div>
+                    
+                    <div class="pose-vector-display" id="poseVectorDisplay">
+                        <!-- Vector components will be generated here -->
+                    </div>
+                    
+                    <div class="control-group" style="width: 100%; margin-top: 15px;">
+                        <label>Similarity to Target:</label>
+                        <div class="similarity-meter">
+                            <div class="similarity-bar" id="similarityBar"></div>
+                        </div>
+                        <span id="similarityValue">0.0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics Panel -->
+        <div class="stats-panel">
+            <h2>📊 RSMT Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-value" id="statLoadedAnimations">0</span>
+                    <span class="stat-label">Loaded Animations</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statActiveTransitions">0</span>
+                    <span class="stat-label">Active Transitions</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statQueuedTransitions">0</span>
+                    <span class="stat-label">Queued Transitions</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statSuccessfulTransitions">0</span>
+                    <span class="stat-label">Successful Transitions</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statAverageTime">0ms</span>
+                    <span class="stat-label">Avg Transition Time</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statCacheHitRate">0%</span>
+                    <span class="stat-label">Cache Hit Rate</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Log Panel -->
+        <div class="log-panel" id="logPanel">
+            <div class="log-entry info">[RSMT Demo] Initializing Realtime Stylized Motion Transition system...</div>
+        </div>
+    </div>
+    
+    <!-- Processing Indicator -->
+    <div class="processing-indicator" id="processingIndicator">
+        🔄 Processing RSMT Transition...
+    </div>
+    
+    <!-- Include Required Scripts -->
+    <script src="BVHTimelineCompositor.js"></script>
+    <script src="RSMTBVHConverter.js"></script>
+    <script src="RSMTTimelineIntegration.js"></script>
+    
+    <script>
+        class RSMTDemo {
+            constructor() {
+                this.timeline = null;
+                this.rsmt = null;
+                this.selectedAnimation = null;
+                this.currentTime = 0;
+                this.isPlaying = false;
+                this.animationFrame = null;
+                
+                this.init();
+            }
+            
+            async init() {
+                this.log('Initializing RSMT BVH Timeline Demo...', 'info');
+                
+                try {
+                    // Initialize timeline
+                    this.timeline = new BVHTimelineCompositor({
+                        frameRate: 30,
+                        maxTracks: 10,
+                        enableBlending: true,
+                        cacheFrames: true
+                    });
+                    
+                    // Initialize RSMT integration
+                    this.rsmt = new RSMTTimelineIntegration(this.timeline, {
+                        animationsPath: '../assets/animations/',
+                        autoLoadAnimations: true,
+                        transitionTrackName: 'rsmt_transitions',
+                        transitionPriority: 75
+                    });
+                    
+                    // Set up callbacks
+                    this.rsmt.onTransitionStart = (request) => {
+                        this.log(`Transition started: ${request.targetAnimation}`, 'info');
+                        this.updateTransitionQueue();
+                    };
+                    
+                    this.rsmt.onTransitionComplete = (request, transition) => {
+                        this.log(`Transition completed: ${request.targetAnimation} (quality: ${transition.quality.toFixed(2)})`, 'info');
+                        this.updateTransitionQueue();
+                        this.updateStats();
+                    };
+                    
+                    this.rsmt.onTransitionFailed = (request, error) => {
+                        this.log(`Transition failed: ${request.targetAnimation} - ${error.message}`, 'error');
+                        this.updateTransitionQueue();
+                    };
+                    
+                    this.rsmt.onAnimationLoaded = (name, data) => {
+                        this.log(`Animation loaded: ${name} (${data.frames.length} frames)`, 'info');
+                        this.updateAnimationLibrary();
+                    };
+                    
+                    // Set up event listeners
+                    this.setupEventListeners();
+                    
+                    // Wait for initialization
+                    await this.rsmt.initialize();
+                    
+                    this.log('RSMT demo initialized successfully!', 'info');
+                    this.updateStats();
+                    
+                } catch (error) {
+                    this.log(`Initialization failed: ${error.message}`, 'error');
+                    console.error('Demo initialization error:', error);
+                }
+            }
+            
+            setupEventListeners() {
+                // Animation library controls
+                document.getElementById('loadAnimations').addEventListener('click', () => this.loadAnimations());
+                document.getElementById('refreshLibrary').addEventListener('click', () => this.refreshLibrary());
+                document.getElementById('selectedAnimation').addEventListener('change', (e) => this.selectAnimation(e.target.value));
+                
+                // Transition controls
+                document.getElementById('requestTransition').addEventListener('click', () => this.requestTransition());
+                document.getElementById('smartTransition').addEventListener('click', () => this.smartTransition());
+                document.getElementById('chainTransitions').addEventListener('click', () => this.chainTransitions());
+                document.getElementById('clearTransitions').addEventListener('click', () => this.clearTransitions());
+                
+                // Timeline controls
+                document.getElementById('playTimeline').addEventListener('click', () => this.playTimeline());
+                document.getElementById('pauseTimeline').addEventListener('click', () => this.pauseTimeline());
+                document.getElementById('stopTimeline').addEventListener('click', () => this.stopTimeline());
+                
+                // Parameter controls
+                document.getElementById('transitionDuration').addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    document.getElementById('durationValue').textContent = `${value.toFixed(1)}s`;
+                    this.rsmt.setTransitionDuration(value);
+                });
+                
+                document.getElementById('similarityThreshold').addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    document.getElementById('thresholdValue').textContent = value.toFixed(1);
+                    this.rsmt.setSimilarityThreshold(value);
+                });
+                
+                document.getElementById('timelinePosition').addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    this.currentTime = (value / 100) * 10; // 10 second timeline
+                    document.getElementById('positionValue').textContent = `${this.currentTime.toFixed(2)}s`;
+                    this.updateTimelineVisualization();
+                });
+            }
+            
+            async loadAnimations() {
+                this.showProcessingIndicator();
+                this.log('Loading animations from assets...', 'info');
+                
+                try {
+                    const result = await this.rsmt.loadAnimationsFromAssets();
+                    this.log(`Loaded ${result.successful} animations successfully`, 'info');
+                    
+                    if (result.failed > 0) {
+                        this.log(`Failed to load ${result.failed} animations`, 'warning');
+                    }
+                    
+                    this.updateAnimationLibrary();
+                    this.updateStats();
+                    
+                } catch (error) {
+                    this.log(`Failed to load animations: ${error.message}`, 'error');
+                } finally {
+                    this.hideProcessingIndicator();
+                }
+            }
+            
+            refreshLibrary() {
+                this.updateAnimationLibrary();
+                this.updateStats();
+                this.log('Animation library refreshed', 'info');
+            }
+            
+            selectAnimation(animationName) {
+                this.selectedAnimation = animationName;
+                
+                if (animationName) {
+                    const info = this.rsmt.getAnimationInfo(animationName);
+                    if (info) {
+                        document.getElementById('animationInfo').value = JSON.stringify(info, null, 2);
+                        this.log(`Selected animation: ${animationName}`, 'info');
+                        this.updatePoseVisualization(animationName);
+                    }
+                }
+                
+                this.updateAnimationLibrarySelection();
+            }
+            
+            async requestTransition() {
+                if (!this.selectedAnimation) {
+                    this.log('Please select a target animation first', 'warning');
+                    return;
+                }
+                
+                this.showProcessingIndicator();
+                
+                try {
+                    const options = {
+                        duration: parseFloat(document.getElementById('transitionDuration').value),
+                        style: document.getElementById('transitionStyle').value
+                    };
+                    
+                    const result = await this.rsmt.requestTransition(this.selectedAnimation, options);
+                    this.log(`Transition requested: ${result.id}`, 'info');
+                    
+                    this.updateTransitionQueue();
+                    this.updateTimelineVisualization();
+                    
+                } catch (error) {
+                    this.log(`Transition request failed: ${error.message}`, 'error');
+                } finally {
+                    this.hideProcessingIndicator();
+                }
+            }
+            
+            async smartTransition() {
+                if (!this.selectedAnimation) {
+                    this.log('Please select a target animation first', 'warning');
+                    return;
+                }
+                
+                this.showProcessingIndicator();
+                
+                try {
+                    const options = {
+                        duration: parseFloat(document.getElementById('transitionDuration').value),
+                        style: document.getElementById('transitionStyle').value,
+                        quality: 'high'
+                    };
+                    
+                    const result = await this.rsmt.smartTransition(this.selectedAnimation, options);
+                    this.log(`Smart transition requested: ${result.id}`, 'info');
+                    
+                    this.updateTransitionQueue();
+                    this.updateTimelineVisualization();
+                    
+                } catch (error) {
+                    this.log(`Smart transition failed: ${error.message}`, 'error');
+                } finally {
+                    this.hideProcessingIndicator();
+                }
+            }
+            
+            async chainTransitions() {
+                const loadedAnimations = this.rsmt.getLoadedAnimations();
+                if (loadedAnimations.length < 2) {
+                    this.log('Need at least 2 animations loaded for chaining', 'warning');
+                    return;
+                }
+                
+                this.showProcessingIndicator();
+                
+                try {
+                    // Create a sequence using first 3 available animations
+                    const sequence = loadedAnimations.slice(0, 3);
+                    const options = {
+                        duration: parseFloat(document.getElementById('transitionDuration').value),
+                        style: document.getElementById('transitionStyle').value
+                    };
+                    
+                    const results = await this.rsmt.chainTransitions(sequence, options);
+                    this.log(`Chain transition created with ${results.length} segments`, 'info');
+                    
+                    this.updateTransitionQueue();
+                    this.updateTimelineVisualization();
+                    
+                } catch (error) {
+                    this.log(`Chain transition failed: ${error.message}`, 'error');
+                } finally {
+                    this.hideProcessingIndicator();
+                }
+            }
+            
+            clearTransitions() {
+                // Clear the timeline transition track
+                if (this.timeline.clearTrack) {
+                    this.timeline.clearTrack('rsmt_transitions');
+                }
+                
+                this.updateTransitionQueue();
+                this.updateTimelineVisualization();
+                this.log('All transitions cleared', 'info');
+            }
+            
+            playTimeline() {
+                this.isPlaying = true;
+                this.timeline.play();
+                this.startAnimation();
+                this.log('Timeline playback started', 'info');
+            }
+            
+            pauseTimeline() {
+                this.isPlaying = false;
+                this.timeline.pause();
+                
+                if (this.animationFrame) {
+                    cancelAnimationFrame(this.animationFrame);
+                    this.animationFrame = null;
+                }
+                
+                this.log('Timeline playback paused', 'info');
+            }
+            
+            stopTimeline() {
+                this.isPlaying = false;
+                this.currentTime = 0;
+                this.timeline.stop();
+                
+                if (this.animationFrame) {
+                    cancelAnimationFrame(this.animationFrame);
+                    this.animationFrame = null;
+                }
+                
+                document.getElementById('timelinePosition').value = 0;
+                document.getElementById('positionValue').textContent = '0.00s';
+                this.updateTimelineVisualization();
+                
+                this.log('Timeline playback stopped', 'info');
+            }
+            
+            startAnimation() {
+                const animate = () => {
+                    if (!this.isPlaying) return;
+                    
+                    this.currentTime += 1/30; // 30 FPS
+                    
+                    if (this.currentTime >= 10) { // 10 second timeline
+                        this.currentTime = 10;
+                        this.pauseTimeline();
+                        return;
+                    }
+                    
+                    const percentage = (this.currentTime / 10) * 100;
+                    document.getElementById('timelinePosition').value = percentage;
+                    document.getElementById('positionValue').textContent = `${this.currentTime.toFixed(2)}s`;
+                    
+                    this.updateTimelineVisualization();
+                    this.updatePoseVisualizationRealtime();
+                    
+                    this.animationFrame = requestAnimationFrame(animate);
+                };
+                
+                this.animationFrame = requestAnimationFrame(animate);
+            }
+            
+            updateAnimationLibrary() {
+                const container = document.getElementById('animationLibrary');
+                const select = document.getElementById('selectedAnimation');
+                
+                // Clear existing
+                container.innerHTML = '';
+                select.innerHTML = '<option value="">Select animation...</option>';
+                
+                const loadedAnimations = this.rsmt.getLoadedAnimations();
+                
+                if (loadedAnimations.length === 0) {
+                    container.innerHTML = '<div class="animation-item"><div class="animation-name">No animations loaded</div></div>';
+                    return;
+                }
+                
+                loadedAnimations.forEach(animationName => {
+                    // Add to library grid
+                    const item = document.createElement('div');
+                    item.className = 'animation-item loaded';
+                    item.dataset.animation = animationName;
+                    item.addEventListener('click', () => this.selectAnimation(animationName));
+                    
+                    const info = this.rsmt.getAnimationInfo(animationName);
+                    
+                    item.innerHTML = `
+                        <div class="animation-name">${animationName}</div>
+                        <div class="animation-info">
+                            ${info ? `${info.frameCount} frames, ${info.duration.toFixed(1)}s` : 'Loading...'}
+                        </div>
+                    `;
+                    
+                    container.appendChild(item);
+                    
+                    // Add to select
+                    const option = document.createElement('option');
+                    option.value = animationName;
+                    option.textContent = animationName;
+                    select.appendChild(option);
+                });
+            }
+            
+            updateAnimationLibrarySelection() {
+                const items = document.querySelectorAll('.animation-item');
+                items.forEach(item => {
+                    item.classList.remove('selected');
+                    if (item.dataset.animation === this.selectedAnimation) {
+                        item.classList.add('selected');
+                    }
+                });
+                
+                document.getElementById('selectedAnimation').value = this.selectedAnimation || '';
+            }
+            
+            updateTransitionQueue() {
+                const container = document.getElementById('transitionQueue');
+                
+                const activeTransitions = this.rsmt.getActiveTransitions();
+                const queuedTransitions = this.rsmt.getQueuedTransitions();
+                
+                container.innerHTML = '';
+                
+                if (activeTransitions.length === 0 && queuedTransitions.length === 0) {
+                    container.innerHTML = '<div class="queue-item">No transitions queued</div>';
+                    return;
+                }
+                
+                // Show active transitions
+                activeTransitions.forEach(transition => {
+                    const item = document.createElement('div');
+                    item.className = 'queue-item active';
+                    item.innerHTML = `
+                        <strong>${transition.targetAnimation}</strong><br>
+                        Status: ${transition.status}<br>
+                        Quality: ${transition.quality.toFixed(2)}
+                    `;
+                    container.appendChild(item);
+                });
+                
+                // Show queued transitions
+                queuedTransitions.forEach(transition => {
+                    const item = document.createElement('div');
+                    item.className = 'queue-item';
+                    item.innerHTML = `
+                        <strong>${transition.targetAnimation}</strong><br>
+                        Status: ${transition.status}
+                    `;
+                    container.appendChild(item);
+                });
+            }
+            
+            updateTimelineVisualization() {
+                const cursor = document.getElementById('timelineCursor');
+                const percentage = (this.currentTime / 10) * 100; // 10 second timeline
+                cursor.style.left = `${percentage}%`;
+                
+                // Update transition clips visualization
+                const display = document.getElementById('timelineDisplay');
+                
+                // Remove existing clips
+                const existingClips = display.querySelectorAll('.transition-clip');
+                existingClips.forEach(clip => clip.remove());
+                
+                // Add active transition clips
+                const activeTransitions = this.rsmt.getActiveTransitions();
+                activeTransitions.forEach(transition => {
+                    const clip = document.createElement('div');
+                    clip.className = 'transition-clip';
+                    
+                    const startPercent = (transition.startTime / 1000 / 10) * 100;
+                    const durationPercent = ((transition.endTime - transition.startTime) / 1000 / 10) * 100;
+                    
+                    clip.style.left = `${startPercent}%`;
+                    clip.style.width = `${durationPercent}%`;
+                    clip.textContent = transition.targetAnimation;
+                    
+                    display.appendChild(clip);
+                });
+            }
+            
+            updatePoseVisualization(animationName) {
+                const container = document.getElementById('poseVectorDisplay');
+                
+                if (!animationName) {
+                    container.innerHTML = '';
+                    return;
+                }
+                
+                try {
+                    // Get animation info
+                    const info = this.rsmt.getAnimationInfo(animationName);
+                    if (!info) return;
+                    
+                    // Create mock pose vector visualization
+                    container.innerHTML = '';
+                    
+                    // Create vector components (mock data)
+                    for (let i = 0; i < 64; i++) {
+                        const component = document.createElement('div');
+                        component.className = 'vector-component';
+                        
+                        // Mock vector values
+                        const value = Math.random();
+                        component.style.opacity = value;
+                        component.style.transform = `scaleY(${value})`;
+                        
+                        container.appendChild(component);
+                    }
+                    
+                    // Update similarity (mock)
+                    const similarity = 0.7 + Math.random() * 0.3;
+                    this.updateSimilarityMeter(similarity);
+                    
+                } catch (error) {
+                    this.log(`Pose visualization error: ${error.message}`, 'error');
+                }
+            }
+            
+            updatePoseVisualizationRealtime() {
+                // Update pose vector components with animation
+                const components = document.querySelectorAll('.vector-component');
+                components.forEach((component, index) => {
+                    const phase = (this.currentTime + index * 0.1) % (Math.PI * 2);
+                    const value = 0.3 + 0.7 * (Math.sin(phase) + 1) / 2;
+                    
+                    component.style.opacity = value;
+                    component.style.transform = `scaleY(${value})`;
+                    
+                    if (value > 0.8) {
+                        component.classList.add('active');
+                    } else {
+                        component.classList.remove('active');
+                    }
+                });
+                
+                // Update similarity meter
+                const similarity = 0.6 + 0.4 * Math.sin(this.currentTime);
+                this.updateSimilarityMeter(similarity);
+            }
+            
+            updateSimilarityMeter(similarity) {
+                const bar = document.getElementById('similarityBar');
+                const value = document.getElementById('similarityValue');
+                
+                const percentage = similarity * 100;
+                bar.style.width = `${percentage}%`;
+                value.textContent = `${percentage.toFixed(1)}%`;
+            }
+            
+            updateStats() {
+                const stats = this.rsmt.getStats();
+                
+                document.getElementById('statLoadedAnimations').textContent = stats.loadedAnimations || 0;
+                document.getElementById('statActiveTransitions').textContent = stats.activeTransitions || 0;
+                document.getElementById('statQueuedTransitions').textContent = stats.queuedTransitions || 0;
+                document.getElementById('statSuccessfulTransitions').textContent = stats.successfulTransitions || 0;
+                document.getElementById('statAverageTime').textContent = `${(stats.averageTransitionTime || 0).toFixed(1)}ms`;
+                document.getElementById('statCacheHitRate').textContent = `${((stats.cacheHitRate || 0) * 100).toFixed(1)}%`;
+            }
+            
+            showProcessingIndicator() {
+                document.getElementById('processingIndicator').classList.add('show');
+            }
+            
+            hideProcessingIndicator() {
+                document.getElementById('processingIndicator').classList.remove('show');
+            }
+            
+            log(message, type = 'info') {
+                const logPanel = document.getElementById('logPanel');
+                const timestamp = new Date().toLocaleTimeString();
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.textContent = `[${timestamp}] ${message}`;
+                
+                logPanel.appendChild(entry);
+                logPanel.scrollTop = logPanel.scrollHeight;
+                
+                // Keep only last 100 entries
+                while (logPanel.children.length > 100) {
+                    logPanel.removeChild(logPanel.firstChild);
+                }
+            }
+        }
+        
+        // Initialize demo when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new RSMTDemo();
+        });
+        
+    </script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kokoro Model Output Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .log-area {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 15px;
+        }
+        .button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Kokoro Model Output Debug</h1>
+        <p>This tool inspects the actual output structure of the Kokoro model to understand what it returns.</p>
+        
+        <button class="button" onclick="debugKokoroOutput()">Debug Kokoro Model Output</button>
+        <button class="button" onclick="clearLog()">Clear Log</button>
+        
+        <div class="log-area" id="logArea">
+            [Debug output will appear here...]
+        </div>
+    </div>
+
+    <script>
+        function log(message, data = null) {
+            const timestamp = new Date().toISOString();
+            const logMsg = `[${timestamp}] ${message}`;
+            
+            console.log(logMsg, data || '');
+            
+            const logArea = document.getElementById('logArea');
+            logArea.textContent += logMsg + '\n';
+            if (data) {
+                logArea.textContent += JSON.stringify(data, null, 2) + '\n';
+            }
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logArea').textContent = '[Log cleared...]\n';
+        }
+
+        async function debugKokoroOutput() {
+            try {
+                log('Loading transformers.js...');
+                const { AutoModel, AutoTokenizer, env } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3');
+                
+                // Configure environment
+                env.allowLocalModels = true;
+                env.localModelPath = './';
+                
+                log('Loading Kokoro model...');
+                const model = await AutoModel.from_pretrained('models/Kokoro-82M-v1.0-ONNX', {
+                    dtype: 'fp32'
+                });
+                
+                log('Loading tokenizer...');
+                const tokenizer = await AutoTokenizer.from_pretrained('models/Kokoro-82M-v1.0-ONNX');
+                
+                log('Tokenizing test text...');
+                const testText = "Hello world";
+                const inputs = tokenizer(testText);
+                const tokenIds = Array.from(inputs.input_ids.data).map(id => Number(id));
+                
+                log('Loading voice data...');
+                const voiceResponse = await fetch('models/Kokoro-82M-v1.0-ONNX/voices/af_heart.bin');
+                const voiceBuffer = await voiceResponse.arrayBuffer();
+                const voiceData = new Float32Array(voiceBuffer);
+                
+                log('Preparing model inputs...');
+                const tokenLength = tokenIds.length;
+                const styleIndex = Math.min(tokenLength, Math.floor(voiceData.length / 256) - 1);
+                const styleVector = voiceData.slice(styleIndex * 256, (styleIndex + 1) * 256);
+                
+                const paddedTokens = [0, ...tokenIds, 0];
+                const inputTensor = new transformers.Tensor('int32', new Int32Array(paddedTokens), [1, paddedTokens.length]);
+                const styleTensor = new transformers.Tensor('float32', styleVector, [1, 1, 256]);
+                const speedTensor = new transformers.Tensor('float32', new Float32Array([1.0]), [1]);
+                
+                log('Running model inference...');
+                const output = await model({
+                    input_ids: inputTensor,
+                    style: styleTensor,
+                    speed: speedTensor
+                });
+                
+                log('MODEL OUTPUT STRUCTURE:', {
+                    outputType: typeof output,
+                    outputKeys: Object.keys(output),
+                    outputConstructor: output.constructor.name
+                });
+                
+                // Inspect each output key
+                for (const key of Object.keys(output)) {
+                    const value = output[key];
+                    log(`OUTPUT KEY: ${key}`, {
+                        type: typeof value,
+                        constructor: value?.constructor?.name,
+                        isArray: Array.isArray(value),
+                        hasData: !!value?.data,
+                        hasDims: !!value?.dims,
+                        hasShape: !!value?.shape,
+                        keys: value && typeof value === 'object' ? Object.keys(value) : undefined
+                    });
+                    
+                    if (value && value.data) {
+                        log(`  ${key}.data:`, {
+                            dataType: typeof value.data,
+                            dataConstructor: value.data?.constructor?.name,
+                            dataLength: value.data?.length,
+                            firstFewValues: value.data?.slice ? Array.from(value.data.slice(0, 5)) : 'No slice method'
+                        });
+                    }
+                    
+                    if (value && value.dims) {
+                        log(`  ${key}.dims:`, Array.from(value.dims));
+                    }
+                    
+                    if (value && value.shape) {
+                        log(`  ${key}.shape:`, Array.from(value.shape));
+                    }
+                }
+                
+                log('Debug complete - check output structure above');
+                
+            } catch (error) {
+                log('ERROR:', error.message);
+                console.error(error);
+            }
+        }
+
+        // Initialize
+        log('Kokoro Model Output Debug Tool initialized');
+        log('Click "Debug Kokoro Model Output" to inspect the model output structure');
+    </script>
+</body>
+</html>

@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BVH Timeline Compositor Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .section h3 {
+            margin-top: 0;
+            color: #666;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .timeline-view {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            height: 300px;
+            overflow-y: auto;
+        }
+        
+        .timeline-scrubber {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .track-controls {
+            display: grid;
+            grid-template-columns: 1fr auto auto auto;
+            gap: 10px;
+            align-items: center;
+            margin: 5px 0;
+            padding: 5px;
+            background: #f8f9fa;
+            border-radius: 3px;
+        }
+        
+        .track-name {
+            font-weight: bold;
+        }
+        
+        .weight-slider {
+            width: 100px;
+        }
+        
+        .status {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .clip-input {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 10px;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        input, select {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 BVH Timeline Compositor Demo</h1>
+        
+        <div class="section">
+            <h3>Timeline Controls</h3>
+            <div class="controls">
+                <button id="playBtn">Play</button>
+                <button id="pauseBtn">Pause</button>
+                <button id="stopBtn">Stop</button>
+                <button id="resetBtn">Reset</button>
+            </div>
+            
+            <div>
+                <label>Timeline Position (ms):</label>
+                <input type="range" id="timelineScrubber" class="timeline-scrubber" 
+                       min="0" max="20000" value="0" step="100">
+                <span id="timeDisplay">0ms</span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Track Controls</h3>
+            <div id="trackControls"></div>
+        </div>
+        
+        <div class="section">
+            <h3>Add Clips</h3>
+            <div>
+                <div class="clip-input">
+                    <select id="trackSelect">
+                        <option value="base_animations">Base Animations</option>
+                        <option value="body_gestures">Body Gestures</option>
+                        <option value="facial_animation">Facial Animation</option>
+                        <option value="neural_gestures">Neural Gestures</option>
+                        <option value="transitions">Transitions</option>
+                    </select>
+                    <input type="number" id="clipStartTime" placeholder="Start Time (ms)" value="0">
+                    <input type="number" id="clipDuration" placeholder="Duration (ms)" value="2000">
+                    <button id="addClipBtn">Add Test Clip</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Timeline Status</h3>
+            <div class="status" id="statusDisplay">Initializing...</div>
+        </div>
+        
+        <div class="section">
+            <h3>Current Frame Data</h3>
+            <div class="timeline-view" id="frameDisplay">No frame data</div>
+        </div>
+        
+        <div class="section">
+            <h3>Timeline Log</h3>
+            <div class="timeline-view" id="logDisplay">Timeline initializing...</div>
+        </div>
+    </div>
+
+    <!-- Include the timeline compositor -->
+    <script src="js/BVHTimelineCompositor.js"></script>
+    <script src="js/BVHTimelineExample.js"></script>
+    
+    <script>
+        let timeline = null;
+        let isPlaying = false;
+        let currentTime = 0;
+        
+        // UI elements
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const timelineScrubber = document.getElementById('timelineScrubber');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const trackControls = document.getElementById('trackControls');
+        const statusDisplay = document.getElementById('statusDisplay');
+        const frameDisplay = document.getElementById('frameDisplay');
+        const logDisplay = document.getElementById('logDisplay');
+        const addClipBtn = document.getElementById('addClipBtn');
+        const trackSelect = document.getElementById('trackSelect');
+        const clipStartTime = document.getElementById('clipStartTime');
+        const clipDuration = document.getElementById('clipDuration');
+        
+        // Logging function
+        function log(message, data = '') {
+            const timestamp = new Date().toISOString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+            logDisplay.textContent += logEntry;
+            logDisplay.scrollTop = logDisplay.scrollHeight;
+            console.log(message, data);
+        }
+        
+        // Initialize the timeline
+        async function initializeTimeline() {
+            log('Initializing BVH Timeline Compositor...');
+            
+            try {
+                // Create compositor
+                const compositor = new BVHTimelineCompositor({
+                    frameRate: 30,
+                    blendMode: 'hierarchical',
+                    cacheSize: 500
+                });
+                
+                // Set up event listeners
+                compositor.on('frameUpdate', (data) => {
+                    currentTime = data.timestamp;
+                    updateTimeDisplay();
+                    updateFrameDisplay(data.frame);
+                });
+                
+                compositor.on('playStarted', () => {
+                    isPlaying = true;
+                    updateControlButtons();
+                    log('Timeline playback started');
+                });
+                
+                compositor.on('playPaused', () => {
+                    isPlaying = false;
+                    updateControlButtons();
+                    log('Timeline playback paused');
+                });
+                
+                compositor.on('playStopped', () => {
+                    isPlaying = false;
+                    currentTime = 0;
+                    updateControlButtons();
+                    updateTimeDisplay();
+                    log('Timeline playback stopped');
+                });
+                
+                compositor.on('trackAdded', (data) => {
+                    log(`Track added: ${data.trackId} (${data.track.type})`);
+                    updateTrackControls();
+                });
+                
+                compositor.on('clipAdded', (data) => {
+                    log(`Clip added: ${data.clip.id} to track ${data.trackId}`);
+                    updateStatus();
+                });
+                
+                // Create a simple timeline example
+                timeline = {
+                    compositor: compositor,
+                    tracks: new Map()
+                };
+                
+                // Add some basic tracks
+                setupBasicTracks();
+                addSampleClips();
+                
+                log('Timeline initialized successfully');
+                updateStatus();
+                updateTrackControls();
+                
+            } catch (error) {
+                log(`Error initializing timeline: ${error.message}`);
+                console.error(error);
+            }
+        }
+        
+        function setupBasicTracks() {
+            // Base animation track
+            timeline.compositor.addTrack('base_animations', {
+                type: 'static',
+                priority: 100,
+                weight: 1.0,
+                channels: 'body',
+                blendMode: 'replace'
+            });
+            
+            // Body gestures track
+            timeline.compositor.addTrack('body_gestures', {
+                type: 'audio2gesture',
+                priority: 80,
+                weight: 0.7,
+                channels: 'arms',
+                blendMode: 'additive'
+            });
+            
+            // Facial animation track
+            timeline.compositor.addTrack('facial_animation', {
+                type: 'faceformer',
+                priority: 85,
+                weight: 1.0,
+                channels: 'face',
+                blendMode: 'replace'
+            });
+            
+            // Neural gestures track
+            timeline.compositor.addTrack('neural_gestures', {
+                type: 'neural',
+                priority: 70,
+                weight: 0.5,
+                channels: 'hands',
+                blendMode: 'additive'
+            });
+            
+            // Transition track
+            timeline.compositor.addTrack('transitions', {
+                type: 'rsmt',
+                priority: 90,
+                weight: 1.0,
+                channels: 'body',
+                blendMode: 'replace'
+            });
+        }
+        
+        function addSampleClips() {
+            // Add some sample clips
+            timeline.compositor.addClip('base_animations', {
+                id: 'idle_animation',
+                startTime: 0,
+                duration: 5000,
+                bvhData: generateSampleBVH('idle'),
+                loop: true,
+                weight: 1.0
+            });
+            
+            timeline.compositor.addClip('body_gestures', {
+                id: 'talking_gesture',
+                startTime: 2000,
+                duration: 4000,
+                bvhData: generateSampleBVH('gesture'),
+                fadeIn: 300,
+                fadeOut: 300,
+                weight: 0.6
+            });
+            
+            timeline.compositor.addClip('facial_animation', {
+                id: 'smile_expression',
+                startTime: 3000,
+                duration: 2000,
+                bvhData: generateSampleBVH('face'),
+                weight: 1.0
+            });
+        }
+        
+        function generateSampleBVH(type) {
+            // Generate sample BVH data for demonstration
+            const frames = [];
+            const frameCount = 30; // 1 second at 30fps
+            
+            for (let i = 0; i < frameCount; i++) {
+                const frame = {};
+                const time = i / 30.0;
+                
+                switch (type) {
+                    case 'idle':
+                        // Subtle breathing animation
+                        frame[0] = { // Root
+                            position: { x: 0, y: Math.sin(time * 2) * 0.5, z: 0 },
+                            rotation: { x: 0, y: 0, z: 0 }
+                        };
+                        frame[1] = { // Spine
+                            position: { x: 0, y: 0, z: 0 },
+                            rotation: { x: Math.sin(time * 2) * 2, y: 0, z: 0 }
+                        };
+                        break;
+                        
+                    case 'gesture':
+                        // Arm gesturing animation
+                        frame[0] = { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 } };
+                        frame[5] = { // Left arm
+                            position: { x: 0, y: 0, z: 0 },
+                            rotation: { x: 0, y: 0, z: Math.sin(time * 4) * 30 }
+                        };
+                        frame[9] = { // Right arm
+                            position: { x: 0, y: 0, z: 0 },
+                            rotation: { x: 0, y: 0, z: -Math.sin(time * 4) * 30 }
+                        };
+                        break;
+                        
+                    case 'face':
+                        // Facial expression
+                        frame[15] = { // Face joint
+                            position: { x: 0, y: 0, z: 0 },
+                            rotation: { x: Math.sin(time * 3) * 5, y: 0, z: Math.sin(time * 2) * 3 }
+                        };
+                        break;
+                }
+                
+                frames.push(frame);
+            }
+            
+            return { frames: frames };
+        }
+        
+        function updateControlButtons() {
+            playBtn.disabled = isPlaying;
+            pauseBtn.disabled = !isPlaying;
+        }
+        
+        function updateTimeDisplay() {
+            timeDisplay.textContent = `${Math.round(currentTime)}ms`;
+            timelineScrubber.value = currentTime;
+        }
+        
+        function updateFrameDisplay(frame) {
+            if (!frame) {
+                frameDisplay.textContent = 'No frame data';
+                return;
+            }
+            
+            let display = 'Current Frame Data:\n';
+            display += '===================\n';
+            
+            Object.entries(frame).forEach(([jointIndex, jointData]) => {
+                display += `Joint ${jointIndex}:\n`;
+                if (jointData.position) {
+                    display += `  Position: x=${jointData.position.x.toFixed(2)}, y=${jointData.position.y.toFixed(2)}, z=${jointData.position.z.toFixed(2)}\n`;
+                }
+                if (jointData.rotation) {
+                    display += `  Rotation: x=${jointData.rotation.x.toFixed(2)}, y=${jointData.rotation.y.toFixed(2)}, z=${jointData.rotation.z.toFixed(2)}\n`;
+                }
+                display += '\n';
+            });
+            
+            frameDisplay.textContent = display;
+        }
+        
+        function updateStatus() {
+            if (!timeline) return;
+            
+            const status = timeline.compositor.getStatus();
+            const trackCount = timeline.compositor.tracks.size;
+            const totalClips = Array.from(timeline.compositor.tracks.values())
+                .reduce((sum, track) => sum + track.clips.length, 0);
+            
+            statusDisplay.innerHTML = `
+Timeline Status:
+- Current Time: ${status.currentTime}ms
+- Playing: ${status.isPlaying}
+- Frame Rate: ${status.frameRate} FPS
+- Tracks: ${trackCount}
+- Total Clips: ${totalClips}
+- Cache Size: ${status.cacheSize}
+            `;
+        }
+        
+        function updateTrackControls() {
+            if (!timeline) return;
+            
+            trackControls.innerHTML = '';
+            
+            timeline.compositor.tracks.forEach((track, trackId) => {
+                const trackDiv = document.createElement('div');
+                trackDiv.className = 'track-controls';
+                
+                trackDiv.innerHTML = `
+                    <div class="track-name">${trackId} (${track.type})</div>
+                    <input type="range" class="weight-slider" min="0" max="1" step="0.1" value="${track.weight}" 
+                           data-track="${trackId}" data-control="weight">
+                    <button data-track="${trackId}" data-control="mute">${track.muted ? 'Unmute' : 'Mute'}</button>
+                    <button data-track="${trackId}" data-control="enable">${track.enabled ? 'Disable' : 'Enable'}</button>
+                `;
+                
+                trackControls.appendChild(trackDiv);
+            });
+            
+            // Add event listeners
+            trackControls.addEventListener('input', (e) => {
+                if (e.target.dataset.control === 'weight') {
+                    const trackId = e.target.dataset.track;
+                    const track = timeline.compositor.tracks.get(trackId);
+                    if (track) {
+                        track.weight = parseFloat(e.target.value);
+                        log(`Track ${trackId} weight set to ${track.weight}`);
+                    }
+                }
+            });
+            
+            trackControls.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const trackId = e.target.dataset.track;
+                    const control = e.target.dataset.control;
+                    const track = timeline.compositor.tracks.get(trackId);
+                    
+                    if (track) {
+                        if (control === 'mute') {
+                            track.muted = !track.muted;
+                            e.target.textContent = track.muted ? 'Unmute' : 'Mute';
+                            log(`Track ${trackId} ${track.muted ? 'muted' : 'unmuted'}`);
+                        } else if (control === 'enable') {
+                            track.enabled = !track.enabled;
+                            e.target.textContent = track.enabled ? 'Disable' : 'Enable';
+                            log(`Track ${trackId} ${track.enabled ? 'enabled' : 'disabled'}`);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Event listeners
+        playBtn.addEventListener('click', () => {
+            if (timeline) {
+                timeline.compositor.play();
+            }
+        });
+        
+        pauseBtn.addEventListener('click', () => {
+            if (timeline) {
+                timeline.compositor.pause();
+            }
+        });
+        
+        stopBtn.addEventListener('click', () => {
+            if (timeline) {
+                timeline.compositor.stop();
+            }
+        });
+        
+        resetBtn.addEventListener('click', () => {
+            if (timeline) {
+                timeline.compositor.stop();
+                currentTime = 0;
+                updateTimeDisplay();
+                log('Timeline reset');
+            }
+        });
+        
+        timelineScrubber.addEventListener('input', (e) => {
+            if (timeline) {
+                const newTime = parseInt(e.target.value);
+                timeline.compositor.setTime(newTime);
+                currentTime = newTime;
+                updateTimeDisplay();
+            }
+        });
+        
+        addClipBtn.addEventListener('click', () => {
+            if (timeline) {
+                const trackId = trackSelect.value;
+                const startTime = parseInt(clipStartTime.value) || 0;
+                const duration = parseInt(clipDuration.value) || 2000;
+                
+                timeline.compositor.addClip(trackId, {
+                    id: `clip_${Date.now()}`,
+                    startTime: startTime,
+                    duration: duration,
+                    bvhData: generateSampleBVH('gesture'),
+                    weight: 0.7
+                });
+                
+                log(`Added test clip to ${trackId} at ${startTime}ms for ${duration}ms`);
+                updateStatus();
+            }
+        });
+        
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            initializeTimeline();
+        });
+        
+        // Update status periodically
+        setInterval(() => {
+            if (timeline && isPlaying) {
+                updateStatus();
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

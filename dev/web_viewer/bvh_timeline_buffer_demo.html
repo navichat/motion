@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BVH Timeline Frame Buffer Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #2C3E50 0%, #4A6741 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .demo-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .demo-section h2 {
+            color: #3498db;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #ecf0f1;
+        }
+        
+        input, select, button {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            backdrop-filter: blur(5px);
+        }
+        
+        button {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        button:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .buffer-visualization {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 200px;
+        }
+        
+        .buffer-timeline {
+            width: 100%;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            position: relative;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .buffer-segment {
+            position: absolute;
+            height: 100%;
+            top: 0;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .buffer-segment.cached { background: #27ae60; }
+        .buffer-segment.generating { background: #f39c12; }
+        .buffer-segment.error { background: #e74c3c; }
+        .buffer-segment.empty { background: rgba(255, 255, 255, 0.1); }
+        
+        .playhead {
+            position: absolute;
+            width: 3px;
+            height: 100%;
+            background: #ff4757;
+            top: 0;
+            z-index: 10;
+            transition: left 0.1s ease;
+        }
+        
+        .lookahead-indicator {
+            position: absolute;
+            height: 100%;
+            background: rgba(52, 152, 219, 0.3);
+            border: 2px solid #3498db;
+            border-radius: 3px;
+            top: 0;
+            z-index: 5;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .buffer-health {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .health-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #27ae60;
+        }
+        
+        .health-indicator.warning { background: #f39c12; }
+        .health-indicator.critical { background: #e74c3c; }
+        
+        .debug-log {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            color: #2ecc71;
+        }
+        
+        .performance-chart {
+            width: 100%;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-line {
+            stroke: #3498db;
+            stroke-width: 2;
+            fill: none;
+        }
+        
+        .memory-bar {
+            background: rgba(255, 255, 255, 0.1);
+            height: 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .memory-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #f39c12, #e74c3c);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 BVH Timeline Frame Buffer System</h1>
+        
+        <div class="demo-section">
+            <h2>⚙️ Buffer Configuration</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label>Max Buffer Size (frames)</label>
+                    <input type="number" id="maxBufferSize" value="300" min="50" max="1000">
+                </div>
+                <div class="control-group">
+                    <label>Lookahead Frames</label>
+                    <input type="number" id="lookaheadFrames" value="60" min="10" max="300">
+                </div>
+                <div class="control-group">
+                    <label>Cleanup Interval (ms)</label>
+                    <input type="number" id="cleanupInterval" value="1000" min="100" max="5000">
+                </div>
+                <div class="control-group">
+                    <label>Stale Threshold (ms)</label>
+                    <input type="number" id="staleThreshold" value="5000" min="1000" max="30000">
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="initializeBtn">🚀 Initialize Timeline</button>
+                <button id="addTestClipsBtn" disabled>➕ Add Test Clips</button>
+                <button id="clearBufferBtn" disabled>🗑️ Clear Buffer</button>
+                <button id="forceCleanupBtn" disabled>🧹 Force Cleanup</button>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>🎮 Playback Controls</h2>
+            <div class="controls">
+                <button id="playBtn" disabled>▶️ Play</button>
+                <button id="pauseBtn" disabled>⏸️ Pause</button>
+                <button id="stopBtn" disabled>⏹️ Stop</button>
+                <button id="seekBtn" disabled>⏭️ Seek to 5s</button>
+            </div>
+            
+            <div class="control-group">
+                <label>Timeline Position (seconds)</label>
+                <input type="range" id="timelineSlider" min="0" max="10" step="0.1" value="0" disabled>
+                <span id="timelineValue">0.0s</span>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>📊 Buffer Visualization</h2>
+            
+            <div class="buffer-health">
+                <div id="healthIndicator" class="health-indicator"></div>
+                <span id="healthStatus">Buffer Status: Initializing</span>
+            </div>
+            
+            <div class="memory-bar">
+                <div id="memoryFill" class="memory-fill" style="width: 0%"></div>
+            </div>
+            <small id="memoryLabel">Memory Usage: 0 MB / 0 MB</small>
+            
+            <div class="buffer-timeline">
+                <div id="playhead" class="playhead" style="left: 0%"></div>
+                <div id="lookaheadIndicator" class="lookahead-indicator" style="left: 0%; width: 10%"></div>
+                <div id="bufferSegments"></div>
+            </div>
+            
+            <div class="performance-chart">
+                <svg id="performanceChart" width="100%" height="150">
+                    <path id="frameTimeChart" class="chart-line"></path>
+                    <path id="bufferHitChart" class="chart-line" style="stroke: #2ecc71;"></path>
+                </svg>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>📈 Performance Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div id="bufferSize" class="stat-value">0</div>
+                    <div class="stat-label">Buffer Size</div>
+                </div>
+                <div class="stat-card">
+                    <div id="bufferHitRate" class="stat-value">0%</div>
+                    <div class="stat-label">Buffer Hit Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div id="frameGenTime" class="stat-value">0ms</div>
+                    <div class="stat-label">Frame Gen Time</div>
+                </div>
+                <div class="stat-card">
+                    <div id="totalFramesRequested" class="stat-value">0</div>
+                    <div class="stat-label">Frames Requested</div>
+                </div>
+                <div class="stat-card">
+                    <div id="cleanupCount" class="stat-value">0</div>
+                    <div class="stat-label">Cleanups</div>
+                </div>
+                <div class="stat-card">
+                    <div id="memoryUsage" class="stat-value">0MB</div>
+                    <div class="stat-label">Memory Usage</div>
+                </div>
+                <div class="stat-card">
+                    <div id="timeSpan" class="stat-value">0s</div>
+                    <div class="stat-label">Buffer Time Span</div>
+                </div>
+                <div class="stat-card">
+                    <div id="utilizationPercent" class="stat-value">0%</div>
+                    <div class="stat-label">Buffer Utilization</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>🐛 Debug Log</h2>
+            <div class="controls">
+                <button onclick="clearLog()">Clear Log</button>
+                <button onclick="exportStats()">Export Stats</button>
+                <label>
+                    <input type="checkbox" id="verboseLogging"> Verbose Logging
+                </label>
+            </div>
+            <div id="debugLog" class="debug-log"></div>
+        </div>
+    </div>
+
+    <!-- Include Timeline System -->
+    <script src="BVHTimeline.js"></script>
+    <script src="js/FaceformerBVHConverter.js"></script>
+
+    <script>
+        class BufferDemo {
+            constructor() {
+                this.timeline = null;
+                this.isPlaying = false;
+                this.animationId = null;
+                this.updateId = null;
+                this.performanceHistory = [];
+                this.maxHistoryLength = 100;
+                
+                this.setupEventListeners();
+                this.log('Buffer demo initialized');
+            }
+            
+            setupEventListeners() {
+                document.getElementById('initializeBtn').addEventListener('click', () => this.initializeTimeline());
+                document.getElementById('addTestClipsBtn').addEventListener('click', () => this.addTestClips());
+                document.getElementById('clearBufferBtn').addEventListener('click', () => this.clearBuffer());
+                document.getElementById('forceCleanupBtn').addEventListener('click', () => this.forceCleanup());
+                
+                document.getElementById('playBtn').addEventListener('click', () => this.play());
+                document.getElementById('pauseBtn').addEventListener('click', () => this.pause());
+                document.getElementById('stopBtn').addEventListener('click', () => this.stop());
+                document.getElementById('seekBtn').addEventListener('click', () => this.seek(5.0));
+                
+                document.getElementById('timelineSlider').addEventListener('input', (e) => {
+                    this.seek(parseFloat(e.target.value));
+                });
+                
+                // Configuration changes
+                ['maxBufferSize', 'lookaheadFrames', 'cleanupInterval', 'staleThreshold'].forEach(id => {
+                    document.getElementById(id).addEventListener('change', () => this.updateConfiguration());
+                });
+            }
+            
+            async initializeTimeline() {
+                try {
+                    const config = this.getConfiguration();
+                    
+                    this.timeline = new BVHTimeline({
+                        framerate: 30,
+                        maxBufferSize: config.maxBufferSize,
+                        lookaheadFrames: config.lookaheadFrames,
+                        cleanupInterval: config.cleanupInterval,
+                        staleThreshold: config.staleThreshold,
+                        onFrameUpdate: (frame, time) => this.onFrameUpdate(frame, time),
+                        onBufferUpdate: (stats) => this.onBufferUpdate(stats)
+                    });
+                    
+                    this.log(`Timeline initialized with buffer size: ${config.maxBufferSize}, lookahead: ${config.lookaheadFrames}`);
+                    
+                    // Enable controls
+                    document.getElementById('addTestClipsBtn').disabled = false;
+                    document.getElementById('clearBufferBtn').disabled = false;
+                    document.getElementById('forceCleanupBtn').disabled = false;
+                    document.getElementById('playBtn').disabled = false;
+                    document.getElementById('timelineSlider').disabled = false;
+                    document.getElementById('seekBtn').disabled = false;
+                    
+                    // Start monitoring
+                    this.startMonitoring();
+                    
+                } catch (error) {
+                    this.log(`Initialization failed: ${error.message}`, 'error');
+                }
+            }
+            
+            getConfiguration() {
+                return {
+                    maxBufferSize: parseInt(document.getElementById('maxBufferSize').value),
+                    lookaheadFrames: parseInt(document.getElementById('lookaheadFrames').value),
+                    cleanupInterval: parseInt(document.getElementById('cleanupInterval').value),
+                    staleThreshold: parseInt(document.getElementById('staleThreshold').value)
+                };
+            }
+            
+            updateConfiguration() {
+                if (!this.timeline) return;
+                
+                const config = this.getConfiguration();
+                
+                // Update buffer configuration
+                this.timeline.frameBuffer.maxBufferSize = config.maxBufferSize;
+                this.timeline.frameBuffer.lookaheadFrames = config.lookaheadFrames;
+                this.timeline.frameBuffer.cleanupInterval = config.cleanupInterval;
+                this.timeline.frameBuffer.staleThreshold = config.staleThreshold;
+                
+                this.log(`Configuration updated: ${JSON.stringify(config)}`);
+            }
+            
+            async addTestClips() {
+                if (!this.timeline) return;
+                
+                try {
+                    // Add test BVH clip
+                    this.timeline.addBVHAnimation('base', this.generateTestBVH(), 0, {
+                        duration: 3.0,
+                        weight: 1.0,
+                        blendMode: 'replace'
+                    });
+                    
+                    // Add test RSMT transition
+                    this.timeline.addRSMTTransition(3.0, 
+                        this.generateTestPose('standing'), 
+                        this.generateTestPose('sitting'), 
+                        2.0, 
+                        { weight: 0.8 }
+                    );
+                    
+                    // Add test Deep Phase generation
+                    this.timeline.addDeepPhaseGeneration(5.0, 'walking forward', 3.0, {
+                        weight: 0.9,
+                        blendMode: 'weighted'
+                    });
+                    
+                    // Add test audio clip (simulated)
+                    const mockAudioBuffer = this.createMockAudioBuffer(4.0); // 4 seconds
+                    this.timeline.addAudioAnimation(mockAudioBuffer, 1.0, {
+                        animationType: 'face',
+                        weight: 0.7
+                    });
+                    
+                    // Update timeline range
+                    document.getElementById('timelineSlider').max = 10;
+                    
+                    this.log('Test clips added to timeline');
+                    
+                } catch (error) {
+                    this.log(`Failed to add test clips: ${error.message}`, 'error');
+                }
+            }
+            
+            play() {
+                if (!this.timeline || this.isPlaying) return;
+                
+                this.timeline.play();
+                this.isPlaying = true;
+                
+                document.getElementById('playBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = false;
+                
+                this.log('Playback started');
+            }
+            
+            pause() {
+                if (!this.timeline) return;
+                
+                this.timeline.pause();
+                this.isPlaying = false;
+                
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+                this.log('Playback paused');
+            }
+            
+            stop() {
+                if (!this.timeline) return;
+                
+                this.timeline.pause();
+                this.timeline.seek(0);
+                this.isPlaying = false;
+                
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = true;
+                
+                this.log('Playback stopped');
+            }
+            
+            seek(time) {
+                if (!this.timeline) return;
+                
+                this.timeline.seek(time);
+                document.getElementById('timelineSlider').value = time;
+                document.getElementById('timelineValue').textContent = `${time.toFixed(1)}s`;
+                
+                this.log(`Seeked to ${time.toFixed(2)}s`);
+            }
+            
+            clearBuffer() {
+                if (!this.timeline) return;
+                
+                this.timeline.clearBuffer();
+                this.log('Buffer cleared');
+            }
+            
+            forceCleanup() {
+                if (!this.timeline) return;
+                
+                this.timeline.cleanupBuffer();
+                this.log('Forced buffer cleanup');
+            }
+            
+            onFrameUpdate(frame, time) {
+                // Update UI with current time
+                document.getElementById('timelineSlider').value = time;
+                document.getElementById('timelineValue').textContent = `${time.toFixed(1)}s`;
+                
+                // Update playhead position
+                const maxTime = parseFloat(document.getElementById('timelineSlider').max);
+                const position = (time / maxTime) * 100;
+                document.getElementById('playhead').style.left = `${position}%`;
+                
+                // Log frame info (verbose)
+                if (document.getElementById('verboseLogging').checked) {
+                    this.log(`Frame at ${time.toFixed(3)}s: ${frame.motionData?.length || 0} bone channels`);
+                }
+            }
+            
+            onBufferUpdate(stats) {
+                // This callback is fired when buffer is updated
+                this.updateStats(this.timeline.getStats());
+            }
+            
+            startMonitoring() {
+                const update = () => {
+                    if (this.timeline) {
+                        this.updateStats(this.timeline.getStats());
+                        this.updateVisualization();
+                        this.updatePerformanceChart();
+                    }
+                    this.updateId = setTimeout(update, 100); // 10 FPS update
+                };
+                update();
+            }
+            
+            updateStats(stats) {
+                const bufferStats = stats.buffer;
+                const perfStats = stats.performance;
+                
+                // Basic stats
+                document.getElementById('bufferSize').textContent = bufferStats.bufferSize || 0;
+                document.getElementById('bufferHitRate').textContent = `${(perfStats.bufferHitRate * 100).toFixed(1)}%`;
+                document.getElementById('frameGenTime').textContent = `${perfStats.frameGenerationTime?.toFixed(1) || 0}ms`;
+                document.getElementById('totalFramesRequested').textContent = perfStats.totalFramesRequested || 0;
+                document.getElementById('cleanupCount').textContent = bufferStats.cleanupCount || 0;
+                document.getElementById('memoryUsage').textContent = `${(bufferStats.memoryUsage / (1024 * 1024)).toFixed(1)}MB`;
+                document.getElementById('timeSpan').textContent = `${bufferStats.timeSpan?.toFixed(1) || 0}s`;
+                document.getElementById('utilizationPercent').textContent = `${bufferStats.utilizationPercent?.toFixed(1) || 0}%`;
+                
+                // Update health indicator
+                const health = this.timeline.frameBuffer.getHealthStatus();
+                const indicator = document.getElementById('healthIndicator');
+                const status = document.getElementById('healthStatus');
+                
+                indicator.className = 'health-indicator';
+                if (!health.healthy) {
+                    indicator.classList.add('critical');
+                    status.textContent = `Buffer Status: Critical (${health.utilizationPercent.toFixed(1)}%)`;
+                } else if (health.utilizationPercent > 70) {
+                    indicator.classList.add('warning');
+                    status.textContent = `Buffer Status: Warning (${health.utilizationPercent.toFixed(1)}%)`;
+                } else {
+                    status.textContent = `Buffer Status: Healthy (${health.utilizationPercent.toFixed(1)}%)`;
+                }
+                
+                // Update memory bar
+                const memoryPercent = Math.min(health.utilizationPercent, 100);
+                document.getElementById('memoryFill').style.width = `${memoryPercent}%`;
+                document.getElementById('memoryLabel').textContent = 
+                    `Memory Usage: ${health.memoryUsageMB.toFixed(1)} MB / ${(this.timeline.frameBuffer.maxBufferSize * 0.01).toFixed(1)} MB (est)`;
+                
+                // Store performance data for charting
+                this.performanceHistory.push({
+                    time: Date.now(),
+                    frameGenTime: perfStats.frameGenerationTime || 0,
+                    bufferHitRate: perfStats.bufferHitRate || 0,
+                    bufferSize: bufferStats.bufferSize || 0
+                });
+                
+                if (this.performanceHistory.length > this.maxHistoryLength) {
+                    this.performanceHistory.shift();
+                }
+            }
+            
+            updateVisualization() {
+                if (!this.timeline) return;
+                
+                const currentTime = this.timeline.currentTime;
+                const maxTime = parseFloat(document.getElementById('timelineSlider').max);
+                const lookaheadTime = this.timeline.frameBuffer.lookaheadFrames * this.timeline.frameTime;
+                
+                // Update lookahead indicator
+                const currentPos = (currentTime / maxTime) * 100;
+                const lookaheadWidth = (lookaheadTime / maxTime) * 100;
+                
+                document.getElementById('lookaheadIndicator').style.left = `${currentPos}%`;
+                document.getElementById('lookaheadIndicator').style.width = `${lookaheadWidth}%`;
+                
+                // Update buffer segments visualization
+                this.updateBufferSegments(currentTime, maxTime);
+            }
+            
+            updateBufferSegments(currentTime, maxTime) {
+                const container = document.getElementById('bufferSegments');
+                container.innerHTML = '';
+                
+                if (!this.timeline.frameBuffer) return;
+                
+                const bufferStats = this.timeline.frameBuffer.getStats();
+                const frameTime = this.timeline.frameTime;
+                
+                // Get buffered frames
+                const bufferedFrames = this.timeline.frameBuffer.getFramesInRange(0, maxTime);
+                
+                bufferedFrames.forEach(frameData => {
+                    const segment = document.createElement('div');
+                    segment.className = 'buffer-segment cached';
+                    
+                    const startPos = (frameData.time / maxTime) * 100;
+                    const width = (frameTime / maxTime) * 100;
+                    
+                    segment.style.left = `${startPos}%`;
+                    segment.style.width = `${Math.max(width, 0.5)}%`;
+                    segment.textContent = Math.floor(frameData.time * 30); // Frame number
+                    
+                    container.appendChild(segment);
+                });
+            }
+            
+            updatePerformanceChart() {
+                if (this.performanceHistory.length < 2) return;
+                
+                const chart = document.getElementById('performanceChart');
+                const width = chart.clientWidth;
+                const height = 150;
+                
+                // Frame generation time chart
+                let frameTimePath = '';
+                this.performanceHistory.forEach((point, index) => {
+                    const x = (index / (this.performanceHistory.length - 1)) * width;
+                    const y = height - (point.frameGenTime / 50) * height; // Normalize to 50ms max
+                    
+                    if (index === 0) {
+                        frameTimePath += `M ${x} ${y}`;
+                    } else {
+                        frameTimePath += ` L ${x} ${y}`;
+                    }
+                });
+                
+                // Buffer hit rate chart
+                let hitRatePath = '';
+                this.performanceHistory.forEach((point, index) => {
+                    const x = (index / (this.performanceHistory.length - 1)) * width;
+                    const y = height - (point.bufferHitRate * height);
+                    
+                    if (index === 0) {
+                        hitRatePath += `M ${x} ${y}`;
+                    } else {
+                        hitRatePath += ` L ${x} ${y}`;
+                    }
+                });
+                
+                document.getElementById('frameTimeChart').setAttribute('d', frameTimePath);
+                document.getElementById('bufferHitChart').setAttribute('d', hitRatePath);
+            }
+            
+            // Test data generators
+            generateTestBVH() {
+                return `HIERARCHY
+ROOT Hips
+{
+    OFFSET 0.0 0.0 0.0
+    CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation
+    JOINT Spine
+    {
+        OFFSET 0.0 0.0 0.0
+        CHANNELS 3 Zrotation Xrotation Yrotation
+        End Site
+        {
+            OFFSET 0.0 20.0 0.0
+        }
+    }
+}
+MOTION
+Frames: 90
+Frame Time: 0.033333
+${Array(90).fill(0).map(() => '0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0').join('\n')}`;
+            }
+            
+            generateTestPose(type) {
+                return {
+                    motionData: [[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]],
+                    metadata: { poseType: type }
+                };
+            }
+            
+            createMockAudioBuffer(duration) {
+                // Create a mock audio buffer for testing
+                return {
+                    duration: duration,
+                    sampleRate: 44100,
+                    getChannelData: (channel) => new Float32Array(Math.floor(duration * 44100))
+                };
+            }
+            
+            log(message, level = 'info') {
+                const logDiv = document.getElementById('debugLog');
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('div');
+                
+                const levelColors = {
+                    info: '#2ecc71',
+                    warning: '#f39c12',
+                    error: '#e74c3c'
+                };
+                
+                logEntry.innerHTML = `<span style="color: #95a5a6;">[${timestamp}]</span> <span style="color: ${levelColors[level] || '#2ecc71'};">[${level.toUpperCase()}]</span> ${message}`;
+                logDiv.appendChild(logEntry);
+                logDiv.scrollTop = logDiv.scrollHeight;
+                
+                console.log(`[BufferDemo] ${message}`);
+            }
+        }
+        
+        // Utility functions
+        function clearLog() {
+            document.getElementById('debugLog').innerHTML = '';
+        }
+        
+        function exportStats() {
+            if (!window.demo || !window.demo.timeline) return;
+            
+            const stats = window.demo.timeline.getStats();
+            const blob = new Blob([JSON.stringify(stats, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bvh-timeline-stats-${new Date().toISOString()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Initialize demo
+        document.addEventListener('DOMContentLoaded', () => {
+            window.demo = new BufferDemo();
+        });
+    </script>
+</body>
+</html>

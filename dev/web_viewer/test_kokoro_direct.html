@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kokoro TTS Direct Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .test-section h2 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .log-output {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Kokoro TTS Direct Test</h1>
+        
+        <div class="test-section">
+            <h2>🌐 WebGPU Availability Test</h2>
+            <button onclick="testWebGPU()">Test WebGPU Support</button>
+            <div id="webgpuTestResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📦 Test Local Kokoro Model</h2>
+            <button onclick="tryKokoroJs()">Test Local Kokoro Model</button>
+            <div id="kokoroJsResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🧠 Load Kokoro Model Directly</h2>
+            <button onclick="loadKokoroModel()">Load Kokoro Model</button>
+            <div id="kokoroModelResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🎙️ Try SpeechT5 Instead</h2>
+            <div class="input-group">
+                <label for="testText">Text to Synthesize:</label>
+                <textarea id="testText" rows="3" placeholder="Enter text to convert to speech...">Hello! This is a test of the local TTS system.</textarea>
+            </div>
+            <button onclick="trySpeechT5()">Test SpeechT5 TTS</button>
+            <button onclick="playGeneratedAudio()">Play Generated Audio</button>
+            <div id="speechT5Result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📊 System Log</h2>
+            <button onclick="clearLog()">Clear Log</button>
+            <div id="logOutput" class="log-output"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        let generatedAudio = null;
+        let audioContext = null;
+        let speechT5Model = null;
+        
+        window.log = function(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const logOutput = document.getElementById('logOutput');
+            const typeString = String(type || 'info').toUpperCase();
+            const logEntry = `[${timestamp}] [${typeString}] ${message}\n`;
+            logOutput.textContent += logEntry;
+            logOutput.scrollTop = logOutput.scrollHeight;
+            console.log(logEntry);
+        };
+        
+        window.showStatus = function(message, type = 'info') {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            return statusDiv;
+        };
+        
+        window.testWebGPU = async function() {
+            const resultDiv = document.getElementById('webgpuTestResult');
+            resultDiv.innerHTML = '';
+            
+            log('Testing WebGPU availability...');
+            
+            try {
+                if (!navigator.gpu) {
+                    log('❌ WebGPU is not supported in this browser');
+                    resultDiv.appendChild(showStatus('❌ WebGPU is not supported in this browser', 'error'));
+                    return;
+                }
+                
+                log('✅ WebGPU API is available');
+                resultDiv.appendChild(showStatus('✅ WebGPU API is available', 'success'));
+                
+                // Try to get adapter
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) {
+                    log('❌ No WebGPU adapter available');
+                    resultDiv.appendChild(showStatus('❌ No WebGPU adapter available', 'error'));
+                    return;
+                }
+                
+                log('✅ WebGPU adapter obtained');
+                log(`Adapter info: ${adapter.info?.vendor || 'unknown'} ${adapter.info?.architecture || 'unknown'}`);
+                
+                // Check for f16 extension support
+                const features = adapter.features;
+                const f16Supported = features.has('shader-f16');
+                log(`WebGPU f16 extension support: ${f16Supported ? 'YES' : 'NO'}`);
+                
+                // List all available features
+                const featureList = Array.from(features).join(', ');
+                log(`Available WebGPU features: ${featureList || 'none'}`);
+                
+                resultDiv.appendChild(showStatus(`✅ WebGPU adapter: ${adapter.info?.vendor || 'unknown'} ${adapter.info?.architecture || 'unknown'}`, 'success'));
+                resultDiv.appendChild(showStatus(`f16 extension: ${f16Supported ? 'SUPPORTED' : 'NOT SUPPORTED'}`, f16Supported ? 'success' : 'error'));
+                
+                // Request device with f16 extension if supported
+                const deviceDescriptor = {};
+                if (f16Supported) {
+                    deviceDescriptor.requiredFeatures = ['shader-f16'];
+                    log('✅ Requesting WebGPU device with f16 extension enabled');
+                }
+                
+                // Try to get device
+                const device = await adapter.requestDevice(deviceDescriptor);
+                if (!device) {
+                    log('❌ Could not create WebGPU device');
+                    resultDiv.appendChild(showStatus('❌ Could not create WebGPU device', 'error'));
+                    return;
+                }
+                
+                log('✅ WebGPU device created successfully');
+                resultDiv.appendChild(showStatus('✅ WebGPU device created successfully', 'success'));
+                
+                // Test basic capabilities
+                const limits = device.limits;
+                log(`WebGPU limits: maxBufferSize=${limits.maxBufferSize}, maxTextureDimension2D=${limits.maxTextureDimension2D}`);
+                resultDiv.appendChild(showStatus(`✅ WebGPU ready for model inference`, 'success'));
+                
+            } catch (error) {
+                log(`❌ WebGPU test failed: ${error.message}`, 'error');
+                resultDiv.appendChild(showStatus(`❌ WebGPU test failed: ${error.message}`, 'error'));
+            }
+        };
+        
+        window.tryKokoroJs = async function() {
+            const resultDiv = document.getElementById('kokoroJsResult');
+            resultDiv.innerHTML = '';
+            
+            log('Attempting to load local Kokoro model directly...');
+            
+            try {
+                // Load transformers.js to work with local ONNX files
+                const { AutoModel, AutoTokenizer, env, Tensor } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3');
+                
+                // Configure for local models and WebGPU
+                env.allowLocalModels = true;
+                env.localModelPath = './';  // Set to current directory, not ./models/
+                env.remoteModelPath = 'https://huggingface.co/';
+                
+                // Enable WebGPU for acceleration
+                env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3/dist/';
+                
+                // Configure WebGPU backend properly
+                env.backends.onnx.webgpu = env.backends.onnx.webgpu || {};
+                env.backends.onnx.webgpu.preferredDataType = 'float16';
+                env.backends.onnx.webgpu.supportFloat16 = true;
+                
+                // Set execution provider order
+                env.backends.onnx.executionProviders = ['webgpu', 'wasm'];
+                
+                log('✅ Transformers.js environment configured for f16 support');
+                
+                // Check WebGPU support and adapter
+                let webgpuSupported = false;
+                let webgpuF16Supported = false;
+                let webgpuDevice = null;
+                if (navigator.gpu) {
+                    try {
+                        const adapter = await navigator.gpu.requestAdapter();
+                        if (adapter) {
+                            // Check for f16 extension support
+                            const features = adapter.features;
+                            webgpuF16Supported = features.has('shader-f16');
+                            log(`WebGPU f16 extension support: ${webgpuF16Supported ? 'YES' : 'NO'}`);
+                            
+                            // Request device with f16 extension if supported
+                            const deviceDescriptor = {};
+                            if (webgpuF16Supported) {
+                                deviceDescriptor.requiredFeatures = ['shader-f16'];
+                                log('✅ Requesting WebGPU device with f16 extension enabled');
+                            }
+                            
+                            webgpuDevice = await adapter.requestDevice(deviceDescriptor);
+                            if (webgpuDevice) {
+                                webgpuSupported = true;
+                                log('✅ WebGPU is supported and device available');
+                                log(`WebGPU Adapter: ${adapter.info?.vendor || 'unknown'} ${adapter.info?.architecture || 'unknown'}`);
+                                
+                                // Configure WebGPU settings for better compatibility
+                                env.backends.onnx.webgpu = {
+                                    preferredLayout: 'NHWC',
+                                    validateInputContent: false,
+                                    contextId: 'webgpu-context',
+                                    powerPreference: 'high-performance',
+                                    device: webgpuDevice  // Pass the device directly
+                                };
+                                env.backends.onnx.wasm.numThreads = 1; // Reduce WASM threads when using WebGPU
+                            }
+                        }
+                    } catch (webgpuError) {
+                        log(`⚠️ WebGPU available but failed to initialize: ${webgpuError.message}`);
+                        webgpuSupported = false;
+                    }
+                } else {
+                    log('⚠️ WebGPU not supported by browser');
+                }
+                
+                if (!webgpuSupported) {
+                    log('Using WASM backend instead');
+                    env.backends.onnx.wasm.numThreads = 4; // Use more threads for WASM
+                }
+                
+                log('✅ Transformers.js loaded successfully');
+                resultDiv.appendChild(showStatus('✅ Transformers.js loaded successfully', 'success'));
+                
+                // Check model file availability
+                log('Checking model file availability...');
+                const modelFiles = [
+                    { name: 'config.json', path: 'models/Kokoro-82M-v1.0-ONNX/config.json' },
+                    { name: 'tokenizer.json', path: 'models/Kokoro-82M-v1.0-ONNX/tokenizer.json' },
+                    { name: 'model.onnx (fp32)', path: 'models/Kokoro-82M-v1.0-ONNX/model.onnx' },
+                    { name: 'model_fp16.onnx', path: 'models/Kokoro-82M-v1.0-ONNX/model_fp16.onnx' },
+                    { name: 'model_q4f16.onnx', path: 'models/Kokoro-82M-v1.0-ONNX/model_q4f16.onnx' },
+                    { name: 'model_q8f16.onnx', path: 'models/Kokoro-82M-v1.0-ONNX/model_q8f16.onnx' }
+                ];
+                
+                for (const file of modelFiles) {
+                    try {
+                        const response = await fetch(file.path);
+                        if (response.ok) {
+                            const size = response.headers.get('content-length');
+                            log(`✅ ${file.name} available (${size ? Math.round(size / 1024 / 1024) + 'MB' : 'size unknown'})`);
+                        } else {
+                            log(`❌ ${file.name} not accessible: ${response.status}`);
+                        }
+                    } catch (error) {
+                        log(`❌ ${file.name} check failed: ${error.message}`);
+                    }
+                }
+                
+                // Load the local Kokoro model with optimized quantization
+                log('Loading local Kokoro model with optimized quantization...');
+                resultDiv.appendChild(showStatus('Loading local Kokoro model with optimized quantization...', 'info'));
+                
+                // Try quantizations in order of performance for WebGPU compatibility
+                // These correspond to the actual model files available
+                const quantizationOptions = [
+                    { dtype: 'q4f16', modelFile: 'model_q4f16.onnx', name: '4-bit float16 (WebGPU optimized)', requiresF16: true },
+                    { dtype: 'q8f16', modelFile: 'model_q8f16.onnx', name: '8-bit float16 (WebGPU optimized)', requiresF16: true },
+                    { dtype: 'fp16', modelFile: 'model_fp16.onnx', name: '16-bit floating point', requiresF16: true },
+                    { dtype: 'fp32', modelFile: 'model.onnx', name: '32-bit floating point', requiresF16: false }
+                ];
+                
+                // Try WebGPU first, then fall back to WASM
+                const deviceOptions = [
+                    { device: 'webgpu', name: 'WebGPU', compatible: webgpuSupported },
+                    { device: 'wasm', name: 'WASM', compatible: true }
+                ];
+                
+                let model = null;
+                let usedQuantization = null;
+                let usedDevice = null;
+                
+                // Try WebGPU first with compatible quantizations, then WASM
+                for (const deviceOption of deviceOptions) {
+                    if (!deviceOption.compatible) {
+                        log(`⚠️ ${deviceOption.name} not supported by browser, skipping...`);
+                        continue;
+                    }
+                    
+                    // For WebGPU, filter quantizations based on f16 support
+                    let quantsToTry = [];
+                    if (deviceOption.device === 'webgpu') {
+                        if (webgpuF16Supported) {
+                            // If f16 is supported, try f16 quantizations first, then fp32
+                            quantsToTry = quantizationOptions.filter(q => q.requiresF16).concat(
+                                quantizationOptions.filter(q => !q.requiresF16)
+                            );
+                            log('✅ WebGPU f16 extension supported, trying f16 quantizations first');
+                        } else {
+                            // If f16 is not supported, only try fp32
+                            quantsToTry = quantizationOptions.filter(q => !q.requiresF16);
+                            log('⚠️ WebGPU f16 extension not supported, using fp32 only');
+                        }
+                    } else {
+                        // For WASM, try all quantizations (WASM supports f16)
+                        quantsToTry = quantizationOptions;
+                    }
+                    
+                    for (const quantOption of quantsToTry) {
+                        try {
+                            log(`Trying ${quantOption.name} quantization with ${deviceOption.name}...`);
+                            
+                            // Create model loading options
+                            const modelOptions = {
+                                dtype: quantOption.dtype,
+                                device: deviceOption.device,
+                                progress_callback: (progress) => {
+                                    if (progress.status === 'progress') {
+                                        log(`Loading progress: ${progress.name} - ${Math.round(progress.progress)}%`);
+                                    }
+                                }
+                            };
+                            
+                            // For WebGPU, add additional configuration
+                            if (deviceOption.device === 'webgpu') {
+                                modelOptions.executionProviders = ['webgpu'];
+                                modelOptions.graphOptimizationLevel = 'all';
+                                modelOptions.enableMemPattern = true;
+                                modelOptions.enableCpuMemArena = true;
+                                
+                                // Configure WebGPU-specific options for f16 support
+                                if (quantOption.requiresF16 && webgpuF16Supported) {
+                                    modelOptions.webgpuOptions = {
+                                        preferredDataType: 'float16',
+                                        supportFloat16: true,
+                                        device: webgpuDevice
+                                    };
+                                    log(`✅ Configured WebGPU f16 support for ${quantOption.name}`);
+                                } else if (!quantOption.requiresF16) {
+                                    modelOptions.webgpuOptions = {
+                                        preferredDataType: 'float32',
+                                        supportFloat16: false,
+                                        device: webgpuDevice
+                                    };
+                                }
+                                
+                                log(`Attempting WebGPU with model file: ${quantOption.modelFile}`);
+                            }
+                            
+                            model = await AutoModel.from_pretrained('models/Kokoro-82M-v1.0-ONNX', modelOptions);
+                            
+                            usedQuantization = quantOption;
+                            usedDevice = deviceOption;
+                            log(`✅ Successfully loaded model with ${quantOption.name} quantization on ${deviceOption.name}`);
+                            break;
+                        } catch (error) {
+                            log(`⚠️ Failed to load with ${quantOption.name} on ${deviceOption.name}: ${error.message}`);
+                            continue;
+                        }
+                    }
+                    
+                    if (model) break; // Stop trying devices if we found one that works
+                }
+                
+                if (!model) {
+                    throw new Error('Failed to load model with any quantization option on any device');
+                }
+                
+                log(`✅ Kokoro model loaded from local files using ${usedQuantization.name} on ${usedDevice.name}`);
+                resultDiv.appendChild(showStatus(`✅ Kokoro model loaded using ${usedQuantization.name} on ${usedDevice.name}`, 'success'));
+                
+                // Load the tokenizer
+                const tokenizer = await AutoTokenizer.from_pretrained('models/Kokoro-82M-v1.0-ONNX');
+                
+                log('✅ Kokoro tokenizer loaded from local files');
+                resultDiv.appendChild(showStatus('✅ Kokoro tokenizer loaded from local files', 'success'));
+                
+                // Check tokenizer language configuration
+                log('Tokenizer config:', tokenizer.config);
+                
+                // Test tokenization with explicit English text
+                const testText = "Hello, this is a test of the English Kokoro text-to-speech system. The voice should sound natural and pleasant, with proper English pronunciation and intonation.";
+                
+                // Convert text to phonemes first (Kokoro expects phonetic input)
+                const phonemes = convertTextToPhonemes(testText);
+                log(`✅ Converted text to phonemes: "${phonemes}"`);
+                
+                const inputs = tokenizer(phonemes);
+                
+                // Verify tokenization by detokenizing
+                const tokenIds = Array.from(inputs.input_ids.data);
+                const detokenizedText = tokenizer.decode(tokenIds, { skip_special_tokens: true });
+                
+                log(`✅ Original text: "${testText}"`);
+                log(`✅ Phonemes: "${phonemes}"`);
+                log(`✅ Tokenized into ${tokenIds.length} tokens: [${tokenIds.slice(0, 10).join(', ')}...]`);
+                log(`✅ Detokenized text: "${detokenizedText}"`);
+                log(`✅ Tokenization verification: ${phonemes === detokenizedText ? 'PASSED' : 'FAILED'}`);
+                
+                resultDiv.appendChild(showStatus(`✅ Tokenized "${testText}" into ${tokenIds.length} tokens`, 'success'));
+                
+                if (phonemes !== detokenizedText) {
+                    log('⚠️ Phoneme tokenization mismatch detected - this may affect audio quality', 'warning');
+                    resultDiv.appendChild(showStatus('⚠️ Phoneme tokenization mismatch detected', 'warning'));
+                }
+                
+                // Load a voice file
+                const voiceResponse = await fetch('models/Kokoro-82M-v1.0-ONNX/voices/af_heart.bin');
+                if (!voiceResponse.ok) {
+                    throw new Error(`Failed to load voice file: ${voiceResponse.status} ${voiceResponse.statusText}`);
+                }
+                
+                const voiceBuffer = await voiceResponse.arrayBuffer();
+                const voiceData = new Float32Array(voiceBuffer);
+                
+                log(`✅ Voice data loaded: ${voiceData.length} floats (${voiceBuffer.byteLength} bytes)`);
+                resultDiv.appendChild(showStatus(`✅ Voice data loaded: ${voiceData.length} floats`, 'success'));
+                
+                // Calculate style vector based on token length (as per Kokoro docs)
+                const tokenLength = inputs.input_ids.data.length;
+                const styleIndex = Math.min(tokenLength, voiceData.length / 256 - 1);
+                const styleVector = voiceData.slice(styleIndex * 256, (styleIndex + 1) * 256);
+                
+                log(`✅ Style vector extracted: index ${styleIndex}, length ${styleVector.length}`);
+                resultDiv.appendChild(showStatus(`✅ Style vector extracted for token length ${tokenLength}`, 'success'));
+                
+                // Prepare inputs for model inference
+                // Convert BigInt to regular numbers for Int64Array (model expects int64)
+                const processedTokenIds = Array.from(inputs.input_ids.data).map(id => Number(id));
+                const paddedTokens = [0, ...processedTokenIds, 0]; // Add padding
+                const inputIds = new BigInt64Array(paddedTokens.map(x => BigInt(x))); // Use BigInt64Array for int64
+                const style = new Float32Array(styleVector);
+                const speed = new Float32Array([1.0]);
+                
+                log(`✅ Model inputs prepared: ${inputIds.length} tokens, ${style.length} style features`);
+                resultDiv.appendChild(showStatus(`✅ Model inputs prepared successfully`, 'success'));
+                
+                // Create tensors for model inference
+                const inputTensor = new Tensor('int64', inputIds, [1, inputIds.length]); // Changed to int64
+                const styleTensor = new Tensor('float32', style, [1, 256]); // Changed from [1, 1, 256] to [1, 256]
+                const speedTensor = new Tensor('float32', speed, [1]);
+                
+                log('✅ Tensors created for model inference');
+                resultDiv.appendChild(showStatus('✅ Tensors created for model inference', 'success'));
+                
+                // Run model inference
+                log('🔄 Running Kokoro model inference...');
+                resultDiv.appendChild(showStatus('🔄 Running Kokoro model inference...', 'info'));
+                
+                const inferenceStartTime = performance.now();
+                const output = await model({
+                    input_ids: inputTensor,
+                    style: styleTensor,
+                    speed: speedTensor
+                });
+                const inferenceTime = performance.now() - inferenceStartTime;
+                
+                log(`✅ Model inference completed in ${inferenceTime.toFixed(2)}ms`);
+                resultDiv.appendChild(showStatus(`✅ Model inference completed in ${inferenceTime.toFixed(2)}ms`, 'success'));
+                
+                // Extract audio data - Kokoro outputs 'waveform'
+                const audioData = output.waveform || output.audio || output.last_hidden_state || output.logits;
+                if (audioData && audioData.data) {
+                    const audioArray = new Float32Array(audioData.data);
+                    const sampleRate = 24000; // Kokoro outputs at 24000 Hz
+                    const duration = audioArray.length / sampleRate;
+                    
+                    log(`✅ Audio generated: ${audioArray.length} samples at ${sampleRate}Hz (${duration.toFixed(2)}s)`);
+                    resultDiv.appendChild(showStatus(`✅ Audio generated: ${audioArray.length} samples`, 'success'));
+                    
+                    // Create audio element for playback
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const audioBuffer = audioContext.createBuffer(1, audioArray.length, sampleRate);
+                    audioBuffer.copyToChannel(audioArray, 0);
+                    
+                    const wavBlob = await audioBufferToWav(audioBuffer);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    
+                    const audioElement = document.createElement('audio');
+                    audioElement.controls = true;
+                    audioElement.src = audioUrl;
+                    
+                    const audioDiv = document.createElement('div');
+                    audioDiv.style.margin = '10px 0';
+                    audioDiv.innerHTML = '<strong>Generated Kokoro Audio:</strong><br>';
+                    audioDiv.appendChild(audioElement);
+                    resultDiv.appendChild(audioDiv);
+                    
+                    log('✅ Audio playback element created');
+                    
+                } else {
+                    log('⚠️ No audio data found in model output. Output keys: ' + (output ? Object.keys(output).join(', ') : 'none'), 'warning');
+                    resultDiv.appendChild(showStatus('⚠️ No audio data found in model output', 'warning'));
+                }
+                
+                log('✅ Local Kokoro model inference test completed successfully');
+                resultDiv.appendChild(showStatus('✅ Local Kokoro model inference test completed successfully', 'success'));
+                
+            } catch (error) {
+                log(`❌ Local Kokoro test failed: ${error.message}`, 'error');
+                resultDiv.appendChild(showStatus(`❌ Local Kokoro test failed: ${error.message}`, 'error'));
+                console.error('Local Kokoro error:', error);
+            }
+        };
+        
+        window.loadKokoroModel = async function() {
+            const resultDiv = document.getElementById('kokoroModelResult');
+            resultDiv.innerHTML = '';
+            
+            log('Attempting to load Kokoro model directly...');
+            
+            try {
+                // Try to load transformers.js and use the model directly
+                const { AutoModel, AutoTokenizer } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3');
+                
+                log('Loading Kokoro model and tokenizer...');
+                resultDiv.appendChild(showStatus('Loading Kokoro model and tokenizer...', 'info'));
+                
+                // Load model
+                const model = await AutoModel.from_pretrained('./models/Kokoro-82M-v1.0-ONNX', {
+                    dtype: 'fp32'
+                });
+                
+                log('✅ Kokoro model loaded');
+                resultDiv.appendChild(showStatus('✅ Kokoro model loaded', 'success'));
+                
+                // Load tokenizer
+                const tokenizer = await AutoTokenizer.from_pretrained('./models/Kokoro-82M-v1.0-ONNX');
+                
+                log('✅ Kokoro tokenizer loaded');
+                resultDiv.appendChild(showStatus('✅ Kokoro tokenizer loaded', 'success'));
+                
+                // Test tokenization
+                const text = "Hello test";
+                const tokens = tokenizer(text);
+                
+                log(`Tokenized "${text}" to ${tokens.input_ids.data.length} tokens`);
+                resultDiv.appendChild(showStatus(`Tokenized "${text}" to ${tokens.input_ids.data.length} tokens`, 'info'));
+                
+                // Load voice data
+                const voiceResponse = await fetch('./models/Kokoro-82M-v1.0-ONNX/voices/af_heart.bin');
+                const voiceData = await voiceResponse.arrayBuffer();
+                
+                log(`✅ Voice data loaded: ${voiceData.byteLength} bytes`);
+                resultDiv.appendChild(showStatus(`✅ Voice data loaded: ${voiceData.byteLength} bytes`, 'success'));
+                
+            } catch (error) {
+                log(`❌ Direct model loading failed: ${error.message}`, 'error');
+                resultDiv.appendChild(showStatus(`❌ Direct model loading failed: ${error.message}`, 'error'));
+                console.error('Direct model loading error:', error);
+            }
+        };
+        
+        window.trySpeechT5 = async function() {
+            const resultDiv = document.getElementById('speechT5Result');
+            resultDiv.innerHTML = '';
+            
+            const testText = document.getElementById('testText').value;
+            
+            if (!testText.trim()) {
+                log('❌ No text provided', 'error');
+                resultDiv.appendChild(showStatus('❌ No text provided', 'error'));
+                return;
+            }
+            
+            log('Attempting to load SpeechT5 model...');
+            resultDiv.appendChild(showStatus('Loading SpeechT5 model...', 'info'));
+            
+            try {
+                const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3');
+                
+                log('Loading SpeechT5 TTS pipeline...');
+                
+                speechT5Model = await pipeline('text-to-speech', 'models/speecht5_tts', {  // Remove ./ prefix
+                    device: 'wasm',
+                    dtype: 'fp32'
+                });
+                
+                log('✅ SpeechT5 model loaded successfully');
+                resultDiv.appendChild(showStatus('✅ SpeechT5 model loaded successfully', 'success'));
+                
+                // Generate speech with speaker embeddings
+                log(`Generating speech for: "${testText}"`);
+                resultDiv.appendChild(showStatus(`Generating speech for: "${testText}"`, 'info'));
+                
+                // Create speaker embeddings (SpeechT5 requires a 512-dimensional speaker embedding)
+                const speakerEmbeddings = new Float32Array(512);
+                // Initialize with small random values
+                for (let i = 0; i < speakerEmbeddings.length; i++) {
+                    speakerEmbeddings[i] = (Math.random() - 0.5) * 0.1; // Small random values around 0
+                }
+                
+                log('✅ Speaker embeddings created: 512 dimensions');
+                resultDiv.appendChild(showStatus('✅ Speaker embeddings created', 'success'));
+                
+                const result = await speechT5Model(testText, {
+                    speaker_embeddings: speakerEmbeddings
+                });
+                
+                log('✅ Speech generated successfully');
+                resultDiv.appendChild(showStatus('✅ Speech generated successfully', 'success'));
+                
+                // Store the generated audio
+                generatedAudio = result.audio;
+                
+                log(`Generated audio: ${generatedAudio.length} samples at ${result.sampling_rate}Hz`);
+                resultDiv.appendChild(showStatus(`Generated audio: ${generatedAudio.length} samples at ${result.sampling_rate}Hz`, 'info'));
+                
+            } catch (error) {
+                log(`❌ SpeechT5 test failed: ${error.message}`, 'error');
+                resultDiv.appendChild(showStatus(`❌ SpeechT5 test failed: ${error.message}`, 'error'));
+                console.error('SpeechT5 error:', error);
+            }
+        };
+        
+        window.playGeneratedAudio = async function() {
+            if (!generatedAudio || generatedAudio.length === 0) {
+                log('❌ No generated audio to play', 'error');
+                return;
+            }
+            
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                // Convert Float32Array to AudioBuffer
+                const audioBuffer = audioContext.createBuffer(1, generatedAudio.length, 16000);
+                const channelData = audioBuffer.getChannelData(0);
+                channelData.set(generatedAudio);
+                
+                // Play the audio
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.start();
+                
+                log('🔊 Playing generated audio', 'success');
+                
+            } catch (error) {
+                log(`❌ Audio playback failed: ${error.message}`, 'error');
+                console.error('Audio playback error:', error);
+            }
+        };
+        
+        window.clearLog = function() {
+            document.getElementById('logOutput').textContent = '';
+        };
+        
+        // Utility function to convert AudioBuffer to WAV blob
+        async function audioBufferToWav(buffer) {
+            const length = buffer.length;
+            const arrayBuffer = new ArrayBuffer(44 + length * 2);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, buffer.sampleRate, true);
+            view.setUint32(28, buffer.sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, length * 2, true);
+            
+            // Convert float32 to int16
+            const channelData = buffer.getChannelData(0);
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                const sample = Math.max(-1, Math.min(1, channelData[i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+        
+        // Text-to-phoneme conversion for Kokoro
+        function convertTextToPhonemes(text) {
+            // Simple phoneme mapping for English words
+            // This is a basic implementation - for production use, consider a more sophisticated G2P system
+            const phonemeMap = {
+                'hello': 'h ə l oʊ',
+                'this': 'ð ɪ s',
+                'is': 'ɪ z',
+                'a': 'ə',
+                'test': 't ɛ s t',
+                'of': 'ʌ v',
+                'the': 'ð ə',
+                'english': 'ɪ ŋ ɡ l ɪ ʃ',
+                'kokoro': 'k oʊ k oʊ r oʊ',
+                'text': 't ɛ k s t',
+                'to': 't u',
+                'speech': 's p i tʃ',
+                'system': 's ɪ s t ə m',
+                'voice': 'v ɔɪ s',
+                'should': 'ʃ ʊ d',
+                'sound': 's aʊ n d',
+                'natural': 'n æ tʃ ə r ə l',
+                'and': 'æ n d',
+                'pleasant': 'p l ɛ z ə n t',
+                'with': 'w ɪ θ',
+                'proper': 'p r ɑ p ər',
+                'pronunciation': 'p r ə n ʌ n s i eɪ ʃ ə n',
+                'intonation': 'ɪ n t ə n eɪ ʃ ə n'
+            };
+            
+            // Convert to lowercase and split into words
+            const words = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
+            
+            // Convert each word to phonemes
+            const phonemes = words.map(word => {
+                if (phonemeMap[word]) {
+                    return phonemeMap[word];
+                } else {
+                    // Basic fallback: try to phonetically spell it out
+                    return word.split('').map(char => {
+                        const charMap = {
+                            'a': 'eɪ', 'b': 'b', 'c': 'k', 'd': 'd', 'e': 'i',
+                            'f': 'f', 'g': 'ɡ', 'h': 'h', 'i': 'aɪ', 'j': 'dʒ',
+                            'k': 'k', 'l': 'l', 'm': 'm', 'n': 'n', 'o': 'oʊ',
+                            'p': 'p', 'q': 'k w', 'r': 'r', 's': 's', 't': 't',
+                            'u': 'u', 'v': 'v', 'w': 'w', 'x': 'k s', 'y': 'waɪ',
+                            'z': 'z'
+                        };
+                        return charMap[char] || char;
+                    }).join(' ');
+                }
+            });
+            
+            return phonemes.join(' ');
+        }
+        
+        // Initialize
+        log('Kokoro TTS Local Model Test initialized');
+        log('This test uses your local model files from ./models/ instead of HuggingFace');
+        log('Click "Test Local Kokoro Model" to verify local model loading');
+    </script>
+</body>
+</html>

@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete BVH Timeline VRM Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: 100vh;
+        }
+        
+        .control-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .viewer-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .timeline-controls {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .timeline-scrubber {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .track-controls {
+            display: grid;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .track-group {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .track-group h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 2px;
+        }
+        
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        button.danger { background: #dc3545; }
+        button.success { background: #28a745; }
+        
+        .viewer-3d {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .stats-panel {
+            padding: 15px;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .log-output {
+            height: 200px;
+            overflow-y: auto;
+            background: #000;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+        }
+        
+        input[type="number"] {
+            width: 60px;
+            padding: 4px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-indicator.connected { background: #28a745; }
+        .status-indicator.disconnected { background: #dc3545; }
+        .status-indicator.processing { background: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <h2>🎬 BVH Timeline Control</h2>
+            
+            <!-- Playback Controls -->
+            <div class="timeline-controls">
+                <div style="margin-bottom: 10px;">
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <span id="connectionStatus">Initializing...</span>
+                </div>
+                
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button onclick="playTimeline()">▶️</button>
+                    <button onclick="pauseTimeline()">⏸️</button>
+                    <button onclick="stopTimeline()">⏹️</button>
+                    <button onclick="seekToStart()">⏮️</button>
+                </div>
+                
+                <input type="range" id="timeSlider" class="timeline-scrubber" 
+                       min="0" max="30" step="0.1" value="0" 
+                       oninput="seekToTime(this.value)">
+                <div>Time: <span id="timeDisplay">0.0s</span></div>
+            </div>
+            
+            <!-- Track Controls -->
+            <div class="track-controls">
+                <div class="track-group">
+                    <h4>Base Animations</h4>
+                    <button onclick="addIdleAnimation()">Add Idle</button>
+                    <button onclick="addWalkAnimation()">Add Walk</button>
+                    <button onclick="addRunAnimation()">Add Run</button>
+                </div>
+                
+                <div class="track-group">
+                    <h4>Transitions (RSMT)</h4>
+                    <button onclick="addWalkToRunTransition()">Walk→Run</button>
+                    <button onclick="addRunToIdleTransition()">Run→Idle</button>
+                    <button onclick="addCustomTransition()">Custom</button>
+                </div>
+                
+                <div class="track-group">
+                    <h4>AI Generation</h4>
+                    <button onclick="addDeepPhaseAnimation()">Deep Phase</button>
+                    <button onclick="addAudioGestures()">Audio Gestures</button>
+                    <button onclick="addFaceAnimation()">Face Anim</button>
+                </div>
+                
+                <div class="track-group">
+                    <h4>Timeline Management</h4>
+                    <button onclick="clearAllTracks()" class="danger">Clear All</button>
+                    <button onclick="exportTimeline()" class="success">Export</button>
+                    <button onclick="importTimeline()">Import</button>
+                </div>
+            </div>
+            
+            <!-- Settings -->
+            <div style="margin-top: 20px;">
+                <h4>Settings</h4>
+                <div>
+                    <label>
+                        <input type="checkbox" id="realtimeMode" checked onchange="toggleRealtime()">
+                        Realtime Mode
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        <input type="checkbox" id="smoothingEnabled" checked onchange="toggleSmoothing()">
+                        Frame Smoothing
+                    </label>
+                </div>
+                <div>
+                    Framerate: <input type="number" id="framerate" value="30" min="15" max="60" onchange="updateFramerate()">
+                </div>
+            </div>
+            
+            <!-- Log Output -->
+            <div class="log-output" id="logOutput"></div>
+        </div>
+        
+        <!-- Main Viewer -->
+        <div class="viewer-container">
+            <div class="timeline-controls">
+                <h3>VRM Avatar + Timeline Compositor</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button onclick="loadVRMModel()">Load VRM</button>
+                    <button onclick="resetAvatar()">Reset Pose</button>
+                    <span>Active Tracks: <span id="activeTracksCount">0</span></span>
+                </div>
+            </div>
+            
+            <div class="viewer-3d" id="viewer3d">
+                3D VRM Viewer
+                <br>
+                <small>Timeline-driven avatar animation will appear here</small>
+            </div>
+            
+            <div class="stats-panel" id="statsPanel">
+                Loading statistics...
+            </div>
+        </div>
+    </div>
+
+    <!-- Include the timeline components -->
+    <script src="js/BVHTimeline.js"></script>
+    <script src="js/BVHTimelineVRMIntegration.js"></script>
+    
+    <script>
+        // Global instances
+        let timeline = null;
+        let vrmBVHAdapter = null;
+        let timelineVRMIntegration = null;
+        let isInitialized = false;
+        
+        // Mock VRM BVH Adapter for demo
+        class MockVRMBVHAdapter {
+            constructor() {
+                this.bones = new Map();
+                this.isLoaded = false;
+                this.currentPose = 'idle';
+                console.log('[Mock VRM] Adapter created');
+            }
+            
+            updateBone(boneName, position, rotation) {
+                this.bones.set(boneName, { position, rotation });
+            }
+            
+            update(time) {
+                // Simulate VRM model update
+                this.lastUpdateTime = time;
+            }
+            
+            loadModel(url) {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        this.isLoaded = true;
+                        log('VRM model loaded successfully');
+                        resolve(true);
+                    }, 1000);
+                });
+            }
+            
+            reset() {
+                this.bones.clear();
+                this.currentPose = 'idle';
+                log('Avatar pose reset');
+            }
+        }
+        
+        // Initialize the complete system
+        async function initializeSystem() {
+            try {
+                log('Initializing BVH Timeline system...');
+                
+                // Create VRM adapter
+                vrmBVHAdapter = new MockVRMBVHAdapter();
+                
+                // Create timeline with high framerate for smooth animation
+                timeline = new BVHTimeline({
+                    framerate: 30,
+                    onFrameUpdate: (frame, time) => {
+                        updateTimeDisplay(time);
+                        updateActiveTracksDisplay();
+                    }
+                });
+                
+                // Create integration layer
+                timelineVRMIntegration = new BVHTimelineVRMIntegration(vrmBVHAdapter, {
+                    realtime: true,
+                    smoothing: true,
+                    framerate: 30,
+                    interpolation: 'linear'
+                });
+                
+                // Connect timeline to VRM
+                timelineVRMIntegration.connectTimeline(timeline);
+                
+                isInitialized = true;
+                updateConnectionStatus('Connected', 'connected');
+                log('System initialization complete');
+                
+                // Add some default animations
+                setupDefaultTimeline();
+                
+            } catch (error) {
+                console.error('System initialization failed:', error);
+                updateConnectionStatus('Failed', 'disconnected');
+                log(`ERROR: ${error.message}`);
+            }
+        }
+        
+        // Setup a default timeline with sample animations
+        function setupDefaultTimeline() {
+            log('Setting up default timeline...');
+            
+            // Add base idle animation
+            timeline.addBVHAnimation('base', generateMockBVH('idle'), 0, {
+                duration: 5.0,
+                loop: true,
+                weight: 1.0
+            });
+            
+            // Add a walk animation that starts at 5 seconds
+            timeline.addBVHAnimation('base', generateMockBVH('walk'), 5.0, {
+                duration: 3.0,
+                weight: 1.0
+            });
+            
+            // Add transition from idle to walk
+            timeline.addRSMTTransition(4.5, 
+                { type: 'idle' }, 
+                { type: 'walk' }, 
+                0.5
+            );
+            
+            // Add some face animation
+            timeline.addBVHAnimation('face', generateMockBVH('talk'), 2.0, {
+                duration: 4.0,
+                weight: 0.8,
+                blendMode: 'additive'
+            });
+            
+            updateActiveTracksDisplay();
+            log('Default timeline setup complete');
+        }
+        
+        // Timeline control functions
+        function playTimeline() {
+            if (!timeline) return;
+            timeline.play();
+            updateConnectionStatus('Playing', 'processing');
+            log('Timeline playback started');
+        }
+        
+        function pauseTimeline() {
+            if (!timeline) return;
+            timeline.pause();
+            updateConnectionStatus('Paused', 'connected');
+            log('Timeline playback paused');
+        }
+        
+        function stopTimeline() {
+            if (!timeline) return;
+            timeline.pause();
+            timeline.seek(0);
+            updateConnectionStatus('Stopped', 'connected');
+            log('Timeline playback stopped');
+        }
+        
+        function seekToStart() {
+            if (!timeline) return;
+            timeline.seek(0);
+            document.getElementById('timeSlider').value = 0;
+            log('Seeked to start');
+        }
+        
+        function seekToTime(time) {
+            if (!timeline) return;
+            timeline.seek(parseFloat(time));
+            log(`Seeked to ${time}s`);
+        }
+        
+        // Animation addition functions
+        function addIdleAnimation() {
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '3') || '3');
+            
+            timeline.addBVHAnimation('base', generateMockBVH('idle'), startTime, {
+                duration: duration,
+                weight: 1.0,
+                loop: true
+            });
+            
+            updateActiveTracksDisplay();
+            log(`Added idle animation at ${startTime}s for ${duration}s`);
+        }
+        
+        function addWalkAnimation() {
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '2') || '2');
+            
+            timeline.addBVHAnimation('base', generateMockBVH('walk'), startTime, {
+                duration: duration,
+                weight: 1.0
+            });
+            
+            updateActiveTracksDisplay();
+            log(`Added walk animation at ${startTime}s for ${duration}s`);
+        }
+        
+        function addRunAnimation() {
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '2') || '2');
+            
+            timeline.addBVHAnimation('base', generateMockBVH('run'), startTime, {
+                duration: duration,
+                weight: 1.0
+            });
+            
+            updateActiveTracksDisplay();
+            log(`Added run animation at ${startTime}s for ${duration}s`);
+        }
+        
+        function addWalkToRunTransition() {
+            const startTime = parseFloat(prompt('Start time (seconds):', '3') || '3');
+            const duration = parseFloat(prompt('Duration (seconds):', '0.5') || '0.5');
+            
+            timeline.addRSMTTransition(startTime,
+                { type: 'walk' },
+                { type: 'run' },
+                duration
+            );
+            
+            updateActiveTracksDisplay();
+            log(`Added walk→run transition at ${startTime}s for ${duration}s`);
+        }
+        
+        function addRunToIdleTransition() {
+            const startTime = parseFloat(prompt('Start time (seconds):', '5') || '5');
+            const duration = parseFloat(prompt('Duration (seconds):', '1') || '1');
+            
+            timeline.addRSMTTransition(startTime,
+                { type: 'run' },
+                { type: 'idle' },
+                duration
+            );
+            
+            updateActiveTracksDisplay();
+            log(`Added run→idle transition at ${startTime}s for ${duration}s`);
+        }
+        
+        function addCustomTransition() {
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '1') || '1');
+            const fromPose = prompt('From pose:', 'idle') || 'idle';
+            const toPose = prompt('To pose:', 'walk') || 'walk';
+            
+            timeline.addRSMTTransition(startTime,
+                { type: fromPose },
+                { type: toPose },
+                duration
+            );
+            
+            updateActiveTracksDisplay();
+            log(`Added ${fromPose}→${toPose} transition at ${startTime}s for ${duration}s`);
+        }
+        
+        function addDeepPhaseAnimation() {
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '3') || '3');
+            const prompt_text = prompt('Animation prompt:', 'dancing gracefully') || 'dancing gracefully';
+            
+            timeline.addDeepPhaseGeneration(startTime, prompt_text, duration);
+            
+            updateActiveTracksDisplay();
+            log(`Added Deep Phase generation at ${startTime}s: "${prompt_text}"`);
+        }
+        
+        function addAudioGestures() {
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '4') || '4');
+            
+            const mockAudio = { duration: duration, sampleRate: 44100 };
+            timeline.addAudioAnimation(mockAudio, startTime, {
+                animationType: 'gesture',
+                weight: 0.7
+            });
+            
+            updateActiveTracksDisplay();
+            log(`Added audio-driven gestures at ${startTime}s for ${duration}s`);
+        }
+        
+        function addFaceAnimation() {
+            const startTime = parseFloat(prompt('Start time (seconds):', '0') || '0');
+            const duration = parseFloat(prompt('Duration (seconds):', '3') || '3');
+            
+            timeline.addBVHAnimation('face', generateMockBVH('expression'), startTime, {
+                duration: duration,
+                weight: 1.0,
+                blendMode: 'additive'
+            });
+            
+            updateActiveTracksDisplay();
+            log(`Added face animation at ${startTime}s for ${duration}s`);
+        }
+        
+        // VRM control functions
+        function loadVRMModel() {
+            if (!vrmBVHAdapter) return;
+            
+            log('Loading VRM model...');
+            vrmBVHAdapter.loadModel('/path/to/model.vrm').then(() => {
+                document.getElementById('viewer3d').innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px; margin-bottom: 10px;">🤖</div>
+                        <div>VRM Model Loaded</div>
+                        <div style="font-size: 12px; margin-top: 5px;">Timeline-driven animation active</div>
+                    </div>
+                `;
+            });
+        }
+        
+        function resetAvatar() {
+            if (!vrmBVHAdapter) return;
+            vrmBVHAdapter.reset();
+        }
+        
+        // Timeline management
+        function clearAllTracks() {
+            if (!timeline) return;
+            if (confirm('Clear all timeline tracks?')) {
+                timeline.clearAll();
+                updateActiveTracksDisplay();
+                log('All tracks cleared');
+            }
+        }
+        
+        function exportTimeline() {
+            if (!timeline) return;
+            
+            const timelineData = {
+                tracks: {},
+                settings: {
+                    framerate: timeline.framerate,
+                    currentTime: timeline.currentTime
+                }
+            };
+            
+            // Export track data
+            for (const [trackName, track] of Object.entries(timeline.tracks)) {
+                timelineData.tracks[trackName] = {
+                    clips: track.clips.map(clip => ({
+                        type: clip.type,
+                        startTime: clip.startTime,
+                        duration: clip.duration,
+                        weight: clip.weight,
+                        blendMode: clip.blendMode,
+                        metadata: clip.metadata
+                    }))
+                };
+            }
+            
+            const blob = new Blob([JSON.stringify(timelineData, null, 2)], {
+                type: 'application/json'
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bvh_timeline.json';
+            a.click();
+            
+            log('Timeline exported');
+        }
+        
+        function importTimeline() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const timelineData = JSON.parse(e.target.result);
+                        // TODO: Implement timeline import logic
+                        log('Timeline import (not yet implemented)');
+                    } catch (error) {
+                        log(`Import error: ${error.message}`);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+        
+        // Settings functions
+        function toggleRealtime() {
+            const enabled = document.getElementById('realtimeMode').checked;
+            if (timelineVRMIntegration) {
+                timelineVRMIntegration.setRealtime(enabled);
+            }
+            log(`Realtime mode: ${enabled}`);
+        }
+        
+        function toggleSmoothing() {
+            const enabled = document.getElementById('smoothingEnabled').checked;
+            if (timelineVRMIntegration) {
+                timelineVRMIntegration.setSmoothing(enabled);
+            }
+            log(`Frame smoothing: ${enabled}`);
+        }
+        
+        function updateFramerate() {
+            const framerate = parseInt(document.getElementById('framerate').value);
+            if (timeline) {
+                timeline.framerate = framerate;
+                timeline.frameTime = 1.0 / framerate;
+            }
+            log(`Framerate updated: ${framerate} FPS`);
+        }
+        
+        // UI update functions
+        function updateTimeDisplay(time) {
+            document.getElementById('timeDisplay').textContent = `${time.toFixed(1)}s`;
+            document.getElementById('timeSlider').value = time;
+        }
+        
+        function updateConnectionStatus(status, type) {
+            document.getElementById('connectionStatus').textContent = status;
+            const indicator = document.getElementById('statusIndicator');
+            indicator.className = `status-indicator ${type}`;
+        }
+        
+        function updateActiveTracksDisplay() {
+            if (!timeline) return;
+            
+            const activeClips = timeline.getActiveClipsAtTime(timeline.currentTime);
+            document.getElementById('activeTracksCount').textContent = activeClips.length;
+            
+            // Update stats panel
+            const stats = timeline.getStats();
+            const vrmStats = timelineVRMIntegration ? timelineVRMIntegration.getStats() : {};
+            
+            document.getElementById('statsPanel').innerHTML = `
+                <strong>Timeline Stats:</strong>
+                Time: ${stats.currentTime.toFixed(2)}s | 
+                Playing: ${stats.isPlaying ? 'Yes' : 'No'} | 
+                Active Clips: ${activeClips.length} | 
+                Total Clips: ${Object.values(stats.tracks).reduce((sum, track) => sum + track.clipCount, 0)}
+                <br>
+                <strong>VRM Integration:</strong>
+                Connected: ${vrmStats.isConnected ? 'Yes' : 'No'} | 
+                Frames Processed: ${vrmStats.framesProcessed || 0} | 
+                Avg Processing: ${(vrmStats.averageProcessingTime || 0).toFixed(2)}ms | 
+                Dropped: ${vrmStats.droppedFrames || 0}
+            `;
+        }
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logOutput = document.getElementById('logOutput');
+            logOutput.textContent += `[${timestamp}] ${message}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+            console.log(`[Timeline Demo] ${message}`);
+        }
+        
+        // Mock BVH generator
+        function generateMockBVH(animationType) {
+            // Generate procedural BVH data based on animation type
+            const frames = 30;
+            const frameTime = 0.033333;
+            
+            let bvh = `HIERARCHY
+ROOT Hips
+{
+    OFFSET 0.0 0.0 0.0
+    CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation
+    JOINT Spine
+    {
+        OFFSET 0.0 10.0 0.0
+        CHANNELS 3 Zrotation Xrotation Yrotation
+        End Site
+        {
+            OFFSET 0.0 10.0 0.0
+        }
+    }
+}
+MOTION
+Frames: ${frames}
+Frame Time: ${frameTime}
+`;
+            
+            for (let i = 0; i < frames; i++) {
+                const t = i / frames;
+                let frame = '';
+                
+                switch (animationType) {
+                    case 'idle':
+                        frame = `0.0 ${Math.sin(t * Math.PI * 4) * 0.5} 0.0 0.0 0.0 ${Math.sin(t * Math.PI * 2) * 2} ${Math.cos(t * Math.PI * 2) * 1} 0.0 0.0`;
+                        break;
+                    case 'walk':
+                        frame = `${Math.sin(t * Math.PI * 8) * 2} ${Math.abs(Math.sin(t * Math.PI * 8)) * 1 + 1} 0.0 0.0 0.0 ${Math.sin(t * Math.PI * 8) * 15} ${Math.cos(t * Math.PI * 4) * 8} 0.0 0.0`;
+                        break;
+                    case 'run':
+                        frame = `${Math.sin(t * Math.PI * 12) * 3} ${Math.abs(Math.sin(t * Math.PI * 12)) * 2 + 1} 0.0 0.0 0.0 ${Math.sin(t * Math.PI * 12) * 25} ${Math.cos(t * Math.PI * 6) * 15} 0.0 0.0`;
+                        break;
+                    case 'talk':
+                        frame = `0.0 0.0 0.0 0.0 0.0 0.0 ${Math.sin(t * Math.PI * 16) * 3} ${Math.cos(t * Math.PI * 12) * 2} 0.0`;
+                        break;
+                    case 'expression':
+                        frame = `0.0 0.0 0.0 0.0 0.0 0.0 0.0 ${Math.sin(t * Math.PI * 8) * 5} ${Math.cos(t * Math.PI * 6) * 3}`;
+                        break;
+                    default:
+                        frame = '0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0';
+                }
+                
+                bvh += frame + '\n';
+            }
+            
+            return bvh;
+        }
+        
+        // Update stats periodically
+        setInterval(() => {
+            if (isInitialized) {
+                updateActiveTracksDisplay();
+            }
+        }, 500);
+        
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            initializeSystem();
+        });
+    </script>
+</body>
+</html>
