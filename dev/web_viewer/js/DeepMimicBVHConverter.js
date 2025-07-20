@@ -31,6 +31,13 @@ class DeepMimicBVHConverter {
         // DeepMimic bone structure (humanoid character)
         this.boneStructure = this.initializeBoneStructure();
         
+        // Initialize VRM bone mapper for proper avatar compatibility
+        this.vrmMapper = new DeepMimicVRMBoneMapper({
+            scaleFactor: this.scaleFactor,
+            interpolationSmoothing: this.smoothingFactor,
+            physicsInfluence: options.physicsInfluence || 1.0
+        });
+        
         // Physics simulation parameters
         this.physicsParams = {
             gravity: options.gravity || -9.81,
@@ -66,12 +73,13 @@ class DeepMimicBVHConverter {
             totalProcessingTime: 0
         };
         
-        console.log('[DeepMimic BVH Converter] Initialized with options:', {
+        console.log('[DeepMimic BVH Converter] Initialized with VRM mapping support:', {
             scaleFactor: this.scaleFactor,
             frameRate: this.frameRate,
             motionStyle: this.motionStyle,
             physicsIntegration: this.physicsIntegration,
-            rootMotionEnabled: this.rootMotionEnabled
+            rootMotionEnabled: this.rootMotionEnabled,
+            vrmMappingStats: this.vrmMapper.getMappingStats()
         });
     }
     
@@ -325,48 +333,45 @@ class DeepMimicBVHConverter {
      * Generate BVH frames from parsed DeepMimic data
      */
     generateBVHFrames(parsedData, referenceData) {
-        console.log('[DeepMimic BVH] Generating BVH frames');
+        console.log('[DeepMimic BVH] Generating BVH frames with VRM mapping');
+        
+        // Convert DeepMimic frames to VRM-compatible BVH frames
+        const vrmFrames = this.vrmMapper.convertDeepMimicSequence(parsedData.frames);
         
         const bvhFrames = [];
         
-        parsedData.frames.forEach((frame, index) => {
+        vrmFrames.forEach((vrmFrame, index) => {
             const bvhFrame = {
-                frameNumber: frame.frameNumber,
-                timestamp: frame.timestamp,
-                motionData: [],
+                frameNumber: vrmFrame.frameNumber,
+                time: vrmFrame.time,
                 bones: {},
-                physics: frame.physics,
                 metadata: {
                     source: 'deepmimic',
+                    mappedToVRM: true,
                     motionStyle: this.motionStyle,
                     energyLevel: this.energyLevel,
-                    contacts: frame.contacts || []
+                    originalDeepMimicFrame: index < parsedData.frames.length ? parsedData.frames[index] : null,
+                    ...vrmFrame.metadata
                 }
             };
             
-            // Convert bone data to BVH format
-            Object.keys(this.boneStructure).forEach(boneName => {
-                const boneData = frame.bones[boneName];
+            // Process VRM bones with motion style and physics
+            Object.keys(vrmFrame.bones).forEach(boneName => {
+                const boneData = vrmFrame.bones[boneName];
                 if (boneData) {
                     // Apply motion style modifications
                     const styledBone = this.applyMotionStyle(boneData, boneName);
                     
+                    // Apply physics constraints
+                    const constrainedBone = this.applyBonePhysics(styledBone, boneName, vrmFrame);
+                    
                     // Store in BVH format
-                    bvhFrame.bones[boneName] = styledBone;
-                    
-                    // Create motion data array (position + rotation)
-                    const motionValues = [
-                        styledBone.position.x,
-                        styledBone.position.y,
-                        styledBone.position.z,
-                        styledBone.rotation.x,
-                        styledBone.rotation.y,
-                        styledBone.rotation.z
-                    ];
-                    
-                    bvhFrame.motionData.push(...motionValues);
+                    bvhFrame.bones[boneName] = constrainedBone;
                 }
             });
+            
+            // Add physics metadata
+            bvhFrame.physics = this.calculateFramePhysics(bvhFrame, index > 0 ? bvhFrames[index - 1] : null);
             
             bvhFrames.push(bvhFrame);
         });
@@ -376,6 +381,7 @@ class DeepMimicBVHConverter {
             return this.applySmoothingFilter(bvhFrames);
         }
         
+        console.log(`[DeepMimic BVH] Generated ${bvhFrames.length} VRM-compatible BVH frames`);
         return bvhFrames;
     }
     
@@ -476,6 +482,91 @@ class DeepMimicBVHConverter {
         boneData.rotation.z *= naturalMultiplier;
         
         return boneData;
+    }
+    
+    /**
+     * Apply physics constraints to individual bone
+     */
+    applyBonePhysics(boneData, boneName, frame) {
+        if (!this.physicsIntegration) {
+            return boneData;
+        }
+        
+        const constrainedBone = JSON.parse(JSON.stringify(boneData));
+        
+        // Apply bone-specific physics constraints
+        switch (boneName) {
+            case 'rightLeg':
+            case 'leftLeg':
+                // Knee constraints - prevent hyperextension
+                constrainedBone.rotation.x = Math.max(-3.14, Math.min(0, constrainedBone.rotation.x));
+                break;
+                
+            case 'rightForeArm':
+            case 'leftForeArm':
+                // Elbow constraints
+                constrainedBone.rotation.x = Math.max(0, Math.min(3.14, constrainedBone.rotation.x));
+                break;
+                
+            case 'neck':
+                // Neck rotation limits
+                constrainedBone.rotation.x = Math.max(-1.0, Math.min(1.0, constrainedBone.rotation.x));
+                constrainedBone.rotation.y = Math.max(-1.0, Math.min(1.0, constrainedBone.rotation.y));
+                constrainedBone.rotation.z = Math.max(-1.0, Math.min(1.0, constrainedBone.rotation.z));
+                break;
+                
+            case 'hips':
+                // Apply gravity and ground constraints
+                if (constrainedBone.position) {
+                    constrainedBone.position.y = Math.max(this.physicsParams.groundHeight, constrainedBone.position.y);
+                }
+                break;
+        }
+        
+        return constrainedBone;
+    }
+    
+    /**
+     * Calculate physics metrics for frame
+     */
+    calculateFramePhysics(frame, previousFrame) {
+        const physics = {
+            stability: 1.0,
+            groundContact: false,
+            momentum: { x: 0, y: 0, z: 0 },
+            energy: 0
+        };
+        
+        // Check ground contact
+        if (frame.bones.leftFoot || frame.bones.rightFoot) {
+            const leftFootY = frame.bones.leftFoot?.position?.y || 0;
+            const rightFootY = frame.bones.rightFoot?.position?.y || 0;
+            const groundThreshold = this.physicsParams.groundHeight + 0.05;
+            
+            physics.groundContact = leftFootY <= groundThreshold || rightFootY <= groundThreshold;
+        }
+        
+        // Calculate momentum if we have previous frame
+        if (previousFrame && frame.bones.hips && previousFrame.bones.hips) {
+            const currentPos = frame.bones.hips.position || { x: 0, y: 0, z: 0 };
+            const prevPos = previousFrame.bones.hips.position || { x: 0, y: 0, z: 0 };
+            
+            physics.momentum = {
+                x: currentPos.x - prevPos.x,
+                y: currentPos.y - prevPos.y,
+                z: currentPos.z - prevPos.z
+            };
+            
+            // Calculate kinetic energy
+            const speed = Math.sqrt(
+                physics.momentum.x * physics.momentum.x +
+                physics.momentum.y * physics.momentum.y +
+                physics.momentum.z * physics.momentum.z
+            );
+            physics.energy = 0.5 * speed * speed; // Simplified kinetic energy
+        }
+        
+        return physics;
     }
     
     /**
