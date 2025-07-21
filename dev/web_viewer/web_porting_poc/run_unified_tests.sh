@@ -36,6 +36,36 @@ echo "  - unified_animation_model_test.js (Model verification)"
 echo "  - bvh-timeline.js (BVH Timeline implementation)"
 echo ""
 
+# Check for DeepMimic models and convert if needed
+echo "🔍 Checking for DeepMimic models..."
+DEEPMIMIC_ACTOR="../../pytorch_DeepMimic/deepmimic/output/agent0_model_anet.pth"
+DEEPMIMIC_CRITIC="../../pytorch_DeepMimic/deepmimic/output/agent0_model_cnet.pth"
+
+if [ -f "$DEEPMIMIC_ACTOR" ] && [ -f "$DEEPMIMIC_CRITIC" ]; then
+    echo "✅ Found DeepMimic PyTorch models"
+    
+    # Check if ONNX models already exist
+    if [ ! -f "deepmimic_onnx/deepmimic_actor.onnx" ] || [ ! -f "deepmimic_onnx/deepmimic_critic.onnx" ]; then
+        echo "🔄 Converting DeepMimic models to ONNX..."
+        if command -v python3 &> /dev/null; then
+            python3 convert_deepmimic_to_onnx.py --validate
+            if [ $? -eq 0 ]; then
+                echo "✅ DeepMimic ONNX conversion successful"
+            else
+                echo "⚠️ DeepMimic ONNX conversion failed - using mock models"
+            fi
+        else
+            echo "⚠️ Python3 not found - DeepMimic will use mock models"
+        fi
+    else
+        echo "✅ DeepMimic ONNX models already exist"
+    fi
+else
+    echo "⚠️ DeepMimic PyTorch models not found - will use mock models"
+    echo "   Expected: $DEEPMIMIC_ACTOR"
+    echo "   Expected: $DEEPMIMIC_CRITIC"
+fi
+
 # Start server in background
 $PYTHON_CMD -m http.server $PORT > /dev/null 2>&1 &
 SERVER_PID=$!
@@ -58,6 +88,7 @@ echo "📝 Test Interface Features:"
 echo "  - RSMT System Testing (DeepPhase, StyleVAE, TransitionNet)"
 echo "  - FaceFormer Audio-to-Face Animation"
 echo "  - AudioGesture Enhanced Generator"
+echo "  - DeepMimic Policy Networks (Actor/Critic)"
 echo "  - BVH Timeline Compositing"
 echo "  - Real-time Performance HUD"
 echo "  - Model Loading Verification"
@@ -66,8 +97,9 @@ echo "🔧 Usage Instructions:"
 echo "  1. Wait for all models to load (check status indicators)"
 echo "  2. Upload audio files for FaceFormer and AudioGesture"
 echo "  3. Configure motion parameters for RSMT"
-echo "  4. Use BVH Timeline controls to composite animations"
-echo "  5. Monitor performance via HUD overlay"
+echo "  4. Set policy parameters for DeepMimic"
+echo "  5. Use BVH Timeline controls to composite animations"
+echo "  6. Monitor performance via HUD overlay"
 echo ""
 
 # Try to open browser

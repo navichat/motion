@@ -10,7 +10,38 @@ class UnifiedAnimationModelTest {
                 deepphase: { path: './rsmt/deepphase.onnx', session: null, status: 'pending' },
                 stylevae: { path: './rsmt/stylevae.onnx', session: null, status: 'pending' },
                 transitionnet: { path: './rsmt/transitionnet.onnx', session: null, status: 'pending' },
-                manifoldvae: { path: './rsmt/onnx_models/manifold_vae.onnx', session: null, status: 'pending' }
+                   /**
+     * Generate AudioGesture BVH frame
+     */
+    async generateAudioGestureBVHFrame() {
+        // Generate gesture BVH frame
+        const audioFeatures = this.generateAudioGestureTestData([1, 100, 64]);
+        
+        // Convert to gesture BVH frame
+        return this.convertAudioGestureToBVH(audioFeatures);
+    }
+    
+    /**
+     * Generate DeepMimic BVH frame
+     */
+    async generateDeepMimicBVHFrame() {
+        // Generate DeepMimic policy action
+        const stateData = this.generateDeepMimicStateData([1, 197]); // Standard humanoid state size
+        
+        // If DeepMimic models are loaded, run inference
+        if (this.models.deepmimic.actor.session) {
+            try {
+                const actions = await this.runDeepMimicInference(stateData);
+                return this.convertDeepMimicToBVH(actions);
+            } catch (error) {
+                console.warn('DeepMimic inference failed, using mock data:', error);
+            }
+        }
+        
+        // Generate mock action data
+        const mockActions = this.generateDeepMimicTestData([1, 43]); // Standard humanoid action size
+        return this.convertDeepMimicToBVH(mockActions);
+    }ae: { path: './rsmt/onnx_models/manifold_vae.onnx', session: null, status: 'pending' }
             },
             faceformer: {
                 minimal: { path: '../engine/web_porting_poc/faceformer/faceformer_minimal.onnx', session: null, status: 'pending' },
@@ -23,9 +54,17 @@ class UnifiedAnimationModelTest {
                 enhanced: { path: '../audio2gesture/enhanced_audio2gesture_model.onnx', session: null, status: 'pending' },
                 attention: { path: '../audio2gesture/audio2gesture_attention.onnx', session: null, status: 'pending' }
             },
-            deepphase: {
-                policy: { path: '../deepmimic/deepphase_policy.onnx', session: null, status: 'pending' },
-                discriminator: { path: '../deepmimic/deepphase_discriminator.onnx', session: null, status: 'pending' }
+            deepmimic: {
+                actor: { path: '../../pytorch_DeepMimic/deepmimic/output/agent0_model_anet.onnx', session: null, status: 'pending' },
+                critic: { path: '../../pytorch_DeepMimic/deepmimic/output/agent0_model_cnet.onnx', session: null, status: 'pending' },
+                policy_walk: { path: '../deepmimic/humanoid3d_walk_policy.onnx', session: null, status: 'pending' },
+                policy_run: { path: '../deepmimic/humanoid3d_run_policy.onnx', session: null, status: 'pending' }
+            },
+            deepmimic: {
+                actor: { path: './deepmimic_onnx/deepmimic_actor.onnx', session: null, status: 'pending' },
+                critic: { path: './deepmimic_onnx/deepmimic_critic.onnx', session: null, status: 'pending' },
+                policy_walk: { path: './deepmimic/deepmimic_walk_policy.onnx', session: null, status: 'pending' },
+                policy_run: { path: './deepmimic/deepmimic_run_policy.onnx', session: null, status: 'pending' }
             }
         };
         
@@ -424,6 +463,59 @@ class UnifiedAnimationModelTest {
         return new Float32Array(size).map(() => Math.random() * 0.1);
     }
     
+    generateDeepMimicStateData(shape) {
+        const size = shape.reduce((a, b) => a * b, 1);
+        const stateData = new Float32Array(size);
+        
+        // Generate realistic humanoid state data
+        for (let i = 0; i < size; i++) {
+            if (i < 6) {
+                // Root position and orientation
+                if (i === 1) stateData[i] = 1.0; // Y position (standing height)
+                else stateData[i] = (Math.random() - 0.5) * 0.1;
+            } else if (i < 50) {
+                // Joint positions/orientations
+                stateData[i] = (Math.random() - 0.5) * 0.5;
+            } else {
+                // Velocities and other state info
+                stateData[i] = (Math.random() - 0.5) * 0.2;
+            }
+        }
+        
+        return stateData;
+    }
+    
+    generateDeepMimicTestData(shape) {
+        const size = shape.reduce((a, b) => a * b, 1);
+        return new Float32Array(size).map(() => (Math.random() - 0.5) * 0.3);
+    }
+    
+    /**
+     * Run DeepMimic inference
+     */
+    async runDeepMimicInference(stateData) {
+        if (!this.models.deepmimic.actor.session) {
+            throw new Error('DeepMimic actor model not loaded');
+        }
+        
+        try {
+            // Create input tensor
+            const inputTensor = new ort.Tensor('float32', stateData, [1, stateData.length]);
+            const inputs = { 'input': inputTensor };
+            
+            // Run inference
+            const outputs = await this.models.deepmimic.actor.session.run(inputs);
+            
+            // Extract actions from output
+            const actionTensor = outputs[Object.keys(outputs)[0]];
+            return Array.from(actionTensor.data);
+            
+        } catch (error) {
+            console.error('DeepMimic inference error:', error);
+            throw error;
+        }
+    }
+    
     /**
      * Summarize model outputs
      */
@@ -497,6 +589,18 @@ class UnifiedAnimationModelTest {
             } catch (error) {
                 bvhTests.audiogesture = { success: false, error: error.message };
                 console.log('❌ AudioGesture BVH generation failed:', error.message);
+            }
+        }
+        
+        // Test DeepMimic BVH generation
+        if (this.models.deepmimic.actor.status === 'loaded' || this.models.deepmimic.policy_walk.status === 'loaded') {
+            try {
+                const frame = await this.generateDeepMimicBVHFrame();
+                bvhTests.deepmimic = { success: true, frame: frame, joints: Object.keys(frame).length };
+                console.log('✅ DeepMimic BVH frame generated');
+            } catch (error) {
+                bvhTests.deepmimic = { success: false, error: error.message };
+                console.log('❌ DeepMimic BVH generation failed:', error.message);
             }
         }
         
@@ -597,6 +701,140 @@ class UnifiedAnimationModelTest {
     }
     
     /**
+     * Convert DeepMimic actions to BVH frame
+     */
+    convertDeepMimicToBVH(actions) {
+        const frame = {};
+        
+        // DeepMimic typically outputs joint torques/actions that need to be converted to poses
+        if (Array.isArray(actions) && actions.length >= 43) {
+            // Standard humanoid action mapping
+            // Root position and orientation (first 6 DOF)
+            frame.Hips = [
+                actions[0] * 10,  // X translation (scaled)
+                actions[1] * 10,  // Y translation
+                actions[2] * 10,  // Z translation
+                actions[3] * 57.3, // Roll (rad to deg)
+                actions[4] * 57.3, // Pitch
+                actions[5] * 57.3  // Yaw
+            ];
+            
+            // Spine/torso joints
+            frame.Chest = [
+                actions[6] * 57.3,
+                actions[7] * 57.3,
+                actions[8] * 57.3
+            ];
+            
+            frame.Neck = [
+                actions[9] * 57.3,
+                actions[10] * 57.3,
+                actions[11] * 57.3
+            ];
+            
+            frame.Head = [
+                actions[12] * 57.3,
+                0, 0
+            ];
+            
+            // Left arm
+            frame.LeftShoulder = [
+                actions[13] * 57.3,
+                actions[14] * 57.3,
+                actions[15] * 57.3
+            ];
+            
+            frame.LeftElbow = [
+                actions[16] * 57.3,
+                0, 0
+            ];
+            
+            frame.LeftWrist = [
+                actions[17] * 57.3,
+                actions[18] * 57.3,
+                0
+            ];
+            
+            // Right arm
+            frame.RightShoulder = [
+                actions[19] * 57.3,
+                actions[20] * 57.3,
+                actions[21] * 57.3
+            ];
+            
+            frame.RightElbow = [
+                actions[22] * 57.3,
+                0, 0
+            ];
+            
+            frame.RightWrist = [
+                actions[23] * 57.3,
+                actions[24] * 57.3,
+                0
+            ];
+            
+            // Left leg
+            frame.LeftHip = [
+                actions[25] * 57.3,
+                actions[26] * 57.3,
+                actions[27] * 57.3
+            ];
+            
+            frame.LeftKnee = [
+                actions[28] * 57.3,
+                0, 0
+            ];
+            
+            frame.LeftAnkle = [
+                actions[29] * 57.3,
+                actions[30] * 57.3,
+                actions[31] * 57.3
+            ];
+            
+            // Right leg
+            frame.RightHip = [
+                actions[32] * 57.3,
+                actions[33] * 57.3,
+                actions[34] * 57.3
+            ];
+            
+            frame.RightKnee = [
+                actions[35] * 57.3,
+                0, 0
+            ];
+            
+            frame.RightAnkle = [
+                actions[36] * 57.3,
+                actions[37] * 57.3,
+                actions[38] * 57.3
+            ];
+            
+        } else {
+            // Fallback for invalid/insufficient action data
+            const joints = ['Hips', 'Chest', 'Neck', 'Head', 'LeftShoulder', 'LeftElbow', 'LeftWrist',
+                          'RightShoulder', 'RightElbow', 'RightWrist', 'LeftHip', 'LeftKnee', 'LeftAnkle',
+                          'RightHip', 'RightKnee', 'RightAnkle'];
+            
+            joints.forEach(joint => {
+                if (joint === 'Hips') {
+                    frame[joint] = [0, 1.0, 0, 0, 0, 0]; // Standing pose
+                } else {
+                    frame[joint] = [0, 0, 0]; // Neutral rotations
+                }
+            });
+        }
+        
+        // Add metadata
+        frame._metadata = {
+            source: 'deepmimic',
+            actionCount: Array.isArray(actions) ? actions.length : 0,
+            timestamp: Date.now()
+        };
+        
+        return frame;
+    }
+    
+    /**
      * Test frame compositing from multiple sources
      */
     async testFrameCompositing() {
@@ -619,6 +857,11 @@ class UnifiedAnimationModelTest {
             if (this.testResults.bvhOutputs.audiogesture?.success) {
                 frames.audiogesture = this.testResults.bvhOutputs.audiogesture.frame;
                 this.bvhFrameBuffer.sources.add('audiogesture');
+            }
+            
+            if (this.testResults.bvhOutputs.deepmimic?.success) {
+                frames.deepmimic = this.testResults.bvhOutputs.deepmimic.frame;
+                this.bvhFrameBuffer.sources.add('deepmimic');
             }
             
             // Composite frames

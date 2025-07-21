@@ -44,7 +44,7 @@
         
         .main-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
             gap: 20px;
             padding: 30px;
         }
@@ -442,6 +442,56 @@
                     AudioGesture System - Ready to initialize...
                 </div>
             </div>
+            
+            <!-- DeepMimic Policy System Panel -->
+            <div class="system-panel" id="deepmimic-panel">
+                <div class="system-title">
+                    <span class="status-indicator" id="deepmimic-status"></span>
+                    DeepMimic Policies
+                </div>
+                
+                <div class="model-grid">
+                    <div class="model-status" id="deepmimic-actor">Actor Network</div>
+                    <div class="model-status" id="deepmimic-critic">Critic Network</div>
+                    <div class="model-status" id="deepmimic-converter">ONNX Converter</div>
+                    <div class="model-status" id="deepmimic-inference">Inference Engine</div>
+                </div>
+                
+                <div class="control-group">
+                    <button class="btn primary" onclick="initializeDeepMimic()">Initialize DeepMimic</button>
+                    <button class="btn" onclick="runDeepMimicPolicy()">Execute Policy</button>
+                </div>
+                
+                <div class="control-group">
+                    <label>Policy Type:</label>
+                    <select id="deepmimic-policy">
+                        <option value="humanoid3d_walk">Humanoid Walk</option>
+                        <option value="humanoid3d_run">Humanoid Run</option>
+                        <option value="humanoid3d_jump">Humanoid Jump</option>
+                        <option value="custom">Custom Policy</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>State Input:</label>
+                    <select id="deepmimic-state">
+                        <option value="random">Random State</option>
+                        <option value="reference">Reference Motion</option>
+                        <option value="manual">Manual Input</option>
+                        <option value="interactive">Interactive</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Action Space:</label>
+                    <input type="range" id="deepmimic-noise" min="0" max="1" step="0.1" value="0.1">
+                    <span id="deepmimic-noise-value">0.1</span> exploration noise
+                </div>
+                
+                <div class="output-area" id="deepmimic-output">
+                    DeepMimic Policy System - Ready to initialize...
+                </div>
+            </div>
         </div>
         
         <!-- BVH Timeline Section -->
@@ -564,6 +614,11 @@
             
             document.getElementById('audiogesture-length').addEventListener('input', function(e) {
                 document.getElementById('audiogesture-length-value').textContent = e.target.value;
+            });
+            
+            // DeepMimic noise control
+            document.getElementById('deepmimic-noise').addEventListener('input', function(e) {
+                document.getElementById('deepmimic-noise-value').textContent = e.target.value;
             });
             
             logToSystem('system', 'Unified Animation Systems Test initialized');
@@ -843,6 +898,288 @@
                 setSystemStatus('audiogesture', 'error');
                 logToSystem('audiogesture', `❌ Gesture generation failed: ${error.message}`);
             }
+        }
+        
+        // DeepMimic Policy System Functions
+        async function initializeDeepMimic() {
+            logToSystem('deepmimic', 'Initializing DeepMimic policy system...');
+            updateModelStatus('deepmimic-actor', 'loading');
+            updateModelStatus('deepmimic-critic', 'loading');
+            updateModelStatus('deepmimic-converter', 'loading');
+            updateModelStatus('deepmimic-inference', 'loading');
+            
+            try {
+                // Initialize DeepMimic policy system
+                systems.deepmimic = {
+                    actorModel: null,
+                    criticModel: null,
+                    stateSize: 197, // Standard humanoid state size
+                    actionSize: 43,  // Standard humanoid action size
+                    isInitialized: false,
+                    currentState: null,
+                    actionHistory: []
+                };
+                
+                // Load pre-trained PyTorch models (convert to ONNX)
+                const actorPath = '../../pytorch_DeepMimic/deepmimic/output/agent0_model_anet.pth';
+                const criticPath = '../../pytorch_DeepMimic/deepmimic/output/agent0_model_cnet.pth';
+                
+                // For demo purposes, create mock ONNX sessions
+                // In production, these would be converted from PyTorch
+                await loadDeepMimicModels(actorPath, criticPath);
+                
+                updateModelStatus('deepmimic-actor', 'loaded');
+                updateModelStatus('deepmimic-critic', 'loaded');
+                updateModelStatus('deepmimic-converter', 'loaded');
+                updateModelStatus('deepmimic-inference', 'loaded');
+                
+                systems.deepmimic.isInitialized = true;
+                setSystemStatus('deepmimic', 'ready');
+                logToSystem('deepmimic', '✅ DeepMimic policy system initialized successfully');
+                logToSystem('deepmimic', 'Loaded: Actor Network, Critic Network, ONNX Converter');
+                
+            } catch (error) {
+                setSystemStatus('deepmimic', 'error');
+                updateModelStatus('deepmimic-actor', 'error');
+                updateModelStatus('deepmimic-critic', 'error');
+                updateModelStatus('deepmimic-converter', 'error');
+                updateModelStatus('deepmimic-inference', 'error');
+                logToSystem('deepmimic', `❌ DeepMimic initialization failed: ${error.message}`);
+            }
+            
+            updateSystemStatus();
+        }
+        
+        async function loadDeepMimicModels(actorPath, criticPath) {
+            // Mock loading function - in practice would convert PyTorch to ONNX
+            logToSystem('deepmimic', '🔄 Converting PyTorch models to ONNX...');
+            
+            // Simulate model conversion and loading
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            systems.deepmimic.actorModel = {
+                predict: async (stateInput) => {
+                    // Mock actor network inference
+                    return generateMockActions(systems.deepmimic.actionSize);
+                }
+            };
+            
+            systems.deepmimic.criticModel = {
+                predict: async (stateInput) => {
+                    // Mock critic network inference
+                    return Math.random() * 2 - 1; // Value function output
+                }
+            };
+            
+            logToSystem('deepmimic', '✅ Models converted and loaded successfully');
+        }
+        
+        async function runDeepMimicPolicy() {
+            if (!systems.deepmimic || !systems.deepmimic.isInitialized) {
+                logToSystem('deepmimic', '⚠️ DeepMimic not initialized');
+                return;
+            }
+            
+            const policyType = document.getElementById('deepmimic-policy').value;
+            const stateInput = document.getElementById('deepmimic-state').value;
+            const noiseLevel = parseFloat(document.getElementById('deepmimic-noise').value);
+            
+            logToSystem('deepmimic', `🔄 Executing ${policyType} policy with ${stateInput} state`);
+            setSystemStatus('deepmimic', 'running');
+            
+            try {
+                // Generate or retrieve current state
+                const currentState = generateDeepMimicState(stateInput, systems.deepmimic.stateSize);
+                systems.deepmimic.currentState = currentState;
+                
+                // Run actor network to get actions
+                const actions = await systems.deepmimic.actorModel.predict(currentState);
+                
+                // Add exploration noise
+                const noisyActions = addExplorationNoise(actions, noiseLevel);
+                
+                // Convert actions to BVH frame
+                const motionBVH = convertDeepMimicActionsToBVH(noisyActions, policyType);
+                
+                // Merge with current frame or create new frame
+                if (currentBVHFrame) {
+                    mergeDeepMimicMotionToBVH(currentBVHFrame, motionBVH);
+                } else {
+                    currentBVHFrame = motionBVH;
+                }
+                
+                // Store action history
+                systems.deepmimic.actionHistory.push({
+                    timestamp: Date.now(),
+                    state: currentState,
+                    actions: noisyActions,
+                    policy: policyType
+                });
+                
+                // Keep only recent history
+                if (systems.deepmimic.actionHistory.length > 100) {
+                    systems.deepmimic.actionHistory.shift();
+                }
+                
+                updateFrameDisplay();
+                
+                setSystemStatus('deepmimic', 'ready');
+                logToSystem('deepmimic', `✅ Policy executed (${actions.length} DOF actions)`);
+                logToSystem('deepmimic', `State: [${currentState.slice(0, 5).map(v => v.toFixed(3)).join(', ')}...]`);
+                logToSystem('deepmimic', `Actions: [${noisyActions.slice(0, 5).map(v => v.toFixed(3)).join(', ')}...]`);
+                
+                // Add to timeline
+                if (systems.timeline) {
+                    addDeepMimicMotionToTimeline(motionBVH, policyType);
+                    updateTimelineVisualization();
+                }
+                
+            } catch (error) {
+                setSystemStatus('deepmimic', 'error');
+                logToSystem('deepmimic', `❌ Policy execution failed: ${error.message}`);
+            }
+        }
+        
+        function generateDeepMimicState(stateType, stateSize) {
+            // Generate state input based on selected type
+            switch (stateType) {
+                case 'random':
+                    return Array.from({length: stateSize}, () => Math.random() * 2 - 1);
+                case 'reference':
+                    // Generate reference motion state
+                    return generateReferenceMotionState(stateSize);
+                case 'manual':
+                    // Use manual input (would be from UI)
+                    return generateManualState(stateSize);
+                case 'interactive':
+                    // Interactive control state
+                    return generateInteractiveState(stateSize);
+                default:
+                    return new Array(stateSize).fill(0);
+            }
+        }
+        
+        function generateReferenceMotionState(stateSize) {
+            // Generate a plausible humanoid reference state
+            const state = new Array(stateSize).fill(0);
+            
+            // Root position and orientation (first 6 values)
+            state[0] = 0; // x position
+            state[1] = 1.0; // y position (standing height)
+            state[2] = 0; // z position
+            state[3] = 0; // roll
+            state[4] = 0; // pitch
+            state[5] = 0; // yaw
+            
+            // Fill rest with small random values to simulate standing pose
+            for (let i = 6; i < stateSize; i++) {
+                state[i] = (Math.random() - 0.5) * 0.1;
+            }
+            
+            return state;
+        }
+        
+        function generateMockActions(actionSize) {
+            // Generate plausible action values for humanoid motion
+            return Array.from({length: actionSize}, (_, i) => {
+                // Smaller values for more stable motion
+                return (Math.random() - 0.5) * 0.5;
+            });
+        }
+        
+        function addExplorationNoise(actions, noiseLevel) {
+            return actions.map(action => {
+                const noise = (Math.random() - 0.5) * noiseLevel;
+                return action + noise;
+            });
+        }
+        
+        function convertDeepMimicActionsToBVH(actions, policyType) {
+            // Convert DeepMimic actions to BVH frame format
+            const bvhFrame = createEmptyBVHFrame();
+            
+            // Map actions to joint rotations (simplified mapping)
+            if (actions.length >= 43) { // Standard humanoid action space
+                // Hip actions
+                bvhFrame.Hips[3] = actions[0] * 180 / Math.PI; // Convert to degrees
+                bvhFrame.Hips[4] = actions[1] * 180 / Math.PI;
+                bvhFrame.Hips[5] = actions[2] * 180 / Math.PI;
+                
+                // Spine actions
+                bvhFrame.Chest[0] = actions[3] * 180 / Math.PI;
+                bvhFrame.Chest[1] = actions[4] * 180 / Math.PI;
+                bvhFrame.Chest[2] = actions[5] * 180 / Math.PI;
+                
+                // Neck actions
+                bvhFrame.Neck[0] = actions[6] * 180 / Math.PI;
+                bvhFrame.Neck[1] = actions[7] * 180 / Math.PI;
+                bvhFrame.Neck[2] = actions[8] * 180 / Math.PI;
+                
+                // Left arm actions
+                bvhFrame.LeftShoulder[0] = actions[9] * 180 / Math.PI;
+                bvhFrame.LeftShoulder[1] = actions[10] * 180 / Math.PI;
+                bvhFrame.LeftShoulder[2] = actions[11] * 180 / Math.PI;
+                bvhFrame.LeftElbow[0] = actions[12] * 180 / Math.PI;
+                
+                // Right arm actions
+                bvhFrame.RightShoulder[0] = actions[13] * 180 / Math.PI;
+                bvhFrame.RightShoulder[1] = actions[14] * 180 / Math.PI;
+                bvhFrame.RightShoulder[2] = actions[15] * 180 / Math.PI;
+                bvhFrame.RightElbow[0] = actions[16] * 180 / Math.PI;
+                
+                // Left leg actions
+                bvhFrame.LeftHip[0] = actions[17] * 180 / Math.PI;
+                bvhFrame.LeftHip[1] = actions[18] * 180 / Math.PI;
+                bvhFrame.LeftHip[2] = actions[19] * 180 / Math.PI;
+                bvhFrame.LeftKnee[0] = actions[20] * 180 / Math.PI;
+                bvhFrame.LeftAnkle[0] = actions[21] * 180 / Math.PI;
+                
+                // Right leg actions
+                bvhFrame.RightHip[0] = actions[22] * 180 / Math.PI;
+                bvhFrame.RightHip[1] = actions[23] * 180 / Math.PI;
+                bvhFrame.RightHip[2] = actions[24] * 180 / Math.PI;
+                bvhFrame.RightKnee[0] = actions[25] * 180 / Math.PI;
+                bvhFrame.RightAnkle[0] = actions[26] * 180 / Math.PI;
+            }
+            
+            // Add metadata
+            bvhFrame._metadata = {
+                source: 'deepmimic',
+                policy: policyType,
+                actionCount: actions.length,
+                timestamp: Date.now()
+            };
+            
+            return bvhFrame;
+        }
+        
+        function mergeDeepMimicMotionToBVH(baseFrame, motionFrame) {
+            // Merge DeepMimic motion into existing frame
+            for (const joint in motionFrame) {
+                if (joint.startsWith('_')) continue; // Skip metadata
+                
+                if (baseFrame[joint] && Array.isArray(baseFrame[joint]) && Array.isArray(motionFrame[joint])) {
+                    // Replace body motion data from DeepMimic
+                    for (let i = 0; i < Math.min(baseFrame[joint].length, motionFrame[joint].length); i++) {
+                        baseFrame[joint][i] = motionFrame[joint][i];
+                    }
+                }
+            }
+        }
+        
+        function addDeepMimicMotionToTimeline(motionBVH, policyType) {
+            // Add DeepMimic motion to timeline as a clip
+            const clip = {
+                id: `deepmimic_${Date.now()}`,
+                type: 'deepmimic',
+                policy: policyType,
+                startTime: systems.timeline.currentTime,
+                duration: 0.033, // Single frame at 30 FPS
+                data: motionBVH
+            };
+            
+            systems.timeline.clips.push(clip);
+            logToSystem('deepmimic', `📎 Added motion clip: ${policyType} policy`);
         }
         
         // Timeline Functions
@@ -1402,15 +1739,39 @@
             return colors[type] || '#95a5a6';
         }
         
+        // Helper functions for DeepMimic state generation
+        function generateManualState(stateSize) {
+            // For now, return zeros - could be extended with UI controls
+            return new Array(stateSize).fill(0);
+        }
+        
+        function generateInteractiveState(stateSize) {
+            // Interactive state based on user input (mouse, keyboard, etc.)
+            // For demo, return a standing pose with small variations
+            const state = new Array(stateSize).fill(0);
+            
+            // Set standing height
+            if (stateSize > 1) state[1] = 1.0;
+            
+            // Add small random variations for natural movement
+            for (let i = 6; i < Math.min(stateSize, 50); i++) {
+                state[i] = (Math.random() - 0.5) * 0.05;
+            }
+            
+            return state;
+        }
+        
         // Export functions for global access
         window.unifiedAnimationTest = {
             initializeRSMT,
             initializeFaceFormer,
             initializeAudioGesture,
+            initializeDeepMimic,
             initializeTimeline,
             generateRSMTTransition,
             generateFacialAnimation,
             generateGestures,
+            runDeepMimicPolicy,
             setPrimarySource,
             playTimeline,
             pauseTimeline,

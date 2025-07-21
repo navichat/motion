@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Management Engine Demo</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #2d2d30;
+            border-radius: 8px;
+        }
+        
+        .header h1 {
+            color: #569cd6;
+            margin: 0;
+        }
+        
+        .header p {
+            color: #9cdcfe;
+            margin: 10px 0 0 0;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #0078d4;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #106ebe;
+        }
+        
+        .btn-success {
+            background: #107c10;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #0e6b0e;
+        }
+        
+        .btn-warning {
+            background: #ff8c00;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #e07b00;
+        }
+        
+        .console-output {
+            background: #0f0f0f;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .console-output pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #569cd6;
+        }
+        
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            color: #569cd6;
+            font-size: 16px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4ec9b0;
+            margin: 5px 0;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #9cdcfe;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #3c3c3c;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ec9b0, #569cd6);
+            transition: width 0.3s ease;
+        }
+        
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+        }
+        
+        .log-info { color: #d4d4d4; }
+        .log-success { color: #4ec9b0; }
+        .log-warning { color: #ffcc02; }
+        .log-error { color: #f14c4c; }
+        .log-debug { color: #9cdcfe; }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-idle { background: #666; }
+        .status-running { background: #4ec9b0; animation: pulse 1.5s infinite; }
+        .status-error { background: #f14c4c; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .queue-visualization {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .queue-items {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .queue-item {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            text-align: center;
+            min-width: 60px;
+        }
+        
+        .queue-item.queued { background: #404040; color: #ccc; }
+        .queue-item.running { background: #0078d4; color: white; animation: pulse 1s infinite; }
+        .queue-item.completed { background: #107c10; color: white; }
+        .queue-item.failed { background: #d13438; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Task Management Engine Demo</h1>
+            <p>Fibonacci Heap Scheduling with WebGPU/WebNN Worker Pools</p>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-primary" onclick="runFullTestSuite()">
+                📋 Run Full Test Suite
+            </button>
+            <button class="btn btn-success" onclick="runQuickDemo()">
+                ⚡ Quick Demo
+            </button>
+            <button class="btn btn-warning" onclick="startInteractiveDemo()">
+                🎮 Interactive Demo
+            </button>
+            <button class="btn" onclick="clearConsole()" style="background: #666; color: white;">
+                🗑️ Clear Console
+            </button>
+        </div>
+        
+        <div class="stats-panel">
+            <div class="stat-card">
+                <h3>System Status</h3>
+                <div class="stat-value" id="systemStatus">
+                    <span class="status-indicator status-idle"></span>Idle
+                </div>
+            </div>
+            <div class="stat-card">
+                <h3>Queue Size</h3>
+                <div class="stat-value" id="queueSize">0</div>
+                <div class="stat-label">Pending Tasks</div>
+            </div>
+            <div class="stat-card">
+                <h3>Running Tasks</h3>
+                <div class="stat-value" id="runningTasks">0</div>
+                <div class="stat-label">Currently Executing</div>
+            </div>
+            <div class="stat-card">
+                <h3>Completed</h3>
+                <div class="stat-value" id="completedTasks">0</div>
+                <div class="stat-label">Total Finished</div>
+            </div>
+        </div>
+        
+        <div class="queue-visualization">
+            <h3>Task Queue Visualization</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="queue-items" id="queueItems">
+                <div class="queue-item queued">Waiting for tasks...</div>
+            </div>
+        </div>
+        
+        <div class="console-output" id="console">
+            <pre id="consoleContent">Task Management Engine Demo loaded.
+Ready to run tests and demonstrations.
+
+Click "Run Full Test Suite" to test all components
+Click "Quick Demo" for a fast demonstration
+Click "Interactive Demo" to manually control tasks
+
+Console output will appear here...</pre>
+        </div>
+    </div>
+
+    <!-- Load our task management system -->
+    <script src="./js/FibonacciHeap.js"></script>
+    <script src="./js/MockGPUJobs.js"></script>
+    <script src="./js/TaskManager.js"></script>
+    <script src="./js/TaskManagerTestSuite.js"></script>
+    
+    <script>
+        // Console management
+        function log(message, type = 'info') {
+            const console = document.getElementById('consoleContent');
+            const timestamp = new Date().toLocaleTimeString();
+            const logClass = `log-${type}`;
+            
+            console.innerHTML += `\n<div class="log-entry ${logClass}">[${timestamp}] ${message}</div>`;
+            
+            // Auto scroll to bottom
+            const consoleElement = document.getElementById('console');
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+        
+        function clearConsole() {
+            document.getElementById('consoleContent').innerHTML = 'Console cleared.\n';
+            updateStats({ queue: { size: 0, running: 0, completed: 0 } });
+            updateQueueVisualization([]);
+        }
+        
+        // Statistics updates
+        function updateStats(stats) {
+            document.getElementById('queueSize').textContent = stats.queue?.size || 0;
+            document.getElementById('runningTasks').textContent = stats.queue?.running || 0;
+            document.getElementById('completedTasks').textContent = stats.queue?.completed || 0;
+            
+            // Update progress bar
+            const total = (stats.queue?.size || 0) + (stats.queue?.running || 0) + (stats.queue?.completed || 0);
+            const completed = stats.queue?.completed || 0;
+            const progress = total > 0 ? (completed / total) * 100 : 0;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+        }
+        
+        function updateSystemStatus(status, isRunning = false) {
+            const statusElement = document.getElementById('systemStatus');
+            const indicator = statusElement.querySelector('.status-indicator');
+            
+            if (isRunning) {
+                indicator.className = 'status-indicator status-running';
+                statusElement.innerHTML = `<span class="status-indicator status-running"></span>${status}`;
+            } else {
+                indicator.className = 'status-indicator status-idle';
+                statusElement.innerHTML = `<span class="status-indicator status-idle"></span>${status}`;
+            }
+        }
+        
+        function updateQueueVisualization(tasks) {
+            const queueItems = document.getElementById('queueItems');
+            
+            if (tasks.length === 0) {
+                queueItems.innerHTML = '<div class="queue-item queued">No tasks in queue</div>';
+                return;
+            }
+            
+            queueItems.innerHTML = '';
+            tasks.forEach((task, index) => {
+                const item = document.createElement('div');
+                item.className = `queue-item ${task.status}`;
+                item.textContent = `${task.type || 'Task'} ${index + 1}`;
+                item.title = `Priority: ${task.priority || 'N/A'}, Status: ${task.status}`;
+                queueItems.appendChild(item);
+            });
+        }
+        
+        // Test functions
+        async function runFullTestSuite() {
+            updateSystemStatus('Running Tests', true);
+            log('🚀 Starting Full Test Suite...', 'info');
+            
+            try {
+                // Redirect console.log to our display
+                const originalConsoleLog = console.log;
+                console.log = function(...args) {
+                    log(args.join(' '), 'debug');
+                    originalConsoleLog.apply(console, args);
+                };
+                
+                const testSuite = new TaskManagerTestSuite();
+                await testSuite.runAllTests();
+                
+                // Restore console.log
+                console.log = originalConsoleLog;
+                
+                log('✅ Test Suite Completed!', 'success');
+                updateSystemStatus('Tests Completed');
+                
+            } catch (error) {
+                log(`❌ Test Suite Failed: ${error.message}`, 'error');
+                updateSystemStatus('Tests Failed');
+            }
+        }
+        
+        async function runQuickDemo() {
+            updateSystemStatus('Running Demo', true);
+            log('⚡ Starting Quick Demo...', 'info');
+            
+            try {
+                const manager = new TaskManager({
+                    maxConcurrentTasks: 3,
+                    cpuWorkers: 3,
+                    schedulingInterval: 100
+                });
+                
+                // Create and schedule tasks
+                const tasks = [];
+                for (let i = 0; i < 6; i++) {
+                    const job = MockGPUJobFactory.createRandomJob();
+                    job.duration = 500 + Math.random() * 1000;
+                    const priority = Math.floor(Math.random() * 10);
+                    const taskId = manager.scheduleTask(job, priority);
+                    
+                    tasks.push({
+                        id: taskId,
+                        type: job.type,
+                        priority: priority,
+                        status: 'queued'
+                    });
+                }
+                
+                log(`📋 Scheduled ${tasks.length} tasks`, 'info');
+                updateQueueVisualization(tasks);
+                
+                // Monitor progress
+                manager.on('taskStarted', (task) => {
+                    log(`▶️ Started: ${task.job.type}`, 'info');
+                    const taskIndex = tasks.findIndex(t => t.id === task.id);
+                    if (taskIndex >= 0) {
+                        tasks[taskIndex].status = 'running';
+                        updateQueueVisualization(tasks);
+                    }
+                });
+                
+                manager.on('taskCompleted', (task) => {
+                    log(`✅ Completed: ${task.job.type}`, 'success');
+                    const taskIndex = tasks.findIndex(t => t.id === task.id);
+                    if (taskIndex >= 0) {
+                        tasks[taskIndex].status = 'completed';
+                        updateQueueVisualization(tasks);
+                    }
+                    updateStats(manager.getStats());
+                });
+                
+                // Update stats periodically
+                const statsInterval = setInterval(() => {
+                    updateStats(manager.getStats());
+                }, 200);
+                
+                manager.start();
+                
+                // Wait for completion
+                await new Promise(resolve => {
+                    const checkCompletion = () => {
+                        const stats = manager.getStats();
+                        if (stats.queue.completed >= tasks.length) {
+                            clearInterval(statsInterval);
+                            resolve();
+                        }
+                    };
+                    const completionInterval = setInterval(checkCompletion, 100);
+                });
+                
+                manager.stop();
+                log('🎉 Quick Demo Completed!', 'success');
+                updateSystemStatus('Demo Completed');
+                
+            } catch (error) {
+                log(`❌ Demo Failed: ${error.message}`, 'error');
+                updateSystemStatus('Demo Failed');
+            }
+        }
+        
+        let interactiveManager = null;
+        let interactiveTasks = [];
+        
+        async function startInteractiveDemo() {
+            if (interactiveManager) {
+                interactiveManager.stop();
+            }
+            
+            updateSystemStatus('Interactive Mode', true);
+            log('🎮 Interactive Demo Started', 'info');
+            log('Use browser console to run: addTask(), addHighPriorityTask(), showStats()', 'info');
+            
+            interactiveManager = new TaskManager({
+                maxConcurrentTasks: 2,
+                cpuWorkers: 2,
+                schedulingInterval: 100
+            });
+            
+            interactiveTasks = [];
+            
+            // Set up monitoring
+            interactiveManager.on('taskStarted', (task) => {
+                log(`▶️ Started: ${task.job.type} (Priority: ${task.priority})`, 'info');
+                updateTaskStatus(task.id, 'running');
+            });
+            
+            interactiveManager.on('taskCompleted', (task) => {
+                log(`✅ Completed: ${task.job.type}`, 'success');
+                updateTaskStatus(task.id, 'completed');
+                updateStats(interactiveManager.getStats());
+            });
+            
+            interactiveManager.start();
+            
+            // Expose functions to global scope for console access
+            window.addTask = function(priority = Math.floor(Math.random() * 10)) {
+                const job = MockGPUJobFactory.createRandomJob();
+                job.duration = 1000 + Math.random() * 2000;
+                const taskId = interactiveManager.scheduleTask(job, priority);
+                
+                interactiveTasks.push({
+                    id: taskId,
+                    type: job.type,
+                    priority: priority,
+                    status: 'queued'
+                });
+                
+                log(`➕ Added ${job.type} (Priority: ${priority})`, 'info');
+                updateQueueVisualization(interactiveTasks);
+                updateStats(interactiveManager.getStats());
+                return taskId;
+            };
+            
+            window.addHighPriorityTask = function() {
+                return window.addTask(1);
+            };
+            
+            window.showStats = function() {
+                const stats = interactiveManager.getStats();
+                log(`📊 Stats: Queue(${stats.queue.size}) Running(${stats.queue.running}) Completed(${stats.queue.completed})`, 'info');
+                return stats;
+            };
+            
+            window.stopInteractive = function() {
+                if (interactiveManager) {
+                    interactiveManager.stop();
+                    updateSystemStatus('Stopped');
+                    log('⏹️ Interactive Demo Stopped', 'warning');
+                }
+            };
+            
+            // Add a few initial tasks
+            setTimeout(() => {
+                window.addTask(5);
+                window.addTask(3);
+                window.addTask(8);
+            }, 500);
+        }
+        
+        function updateTaskStatus(taskId, status) {
+            const taskIndex = interactiveTasks.findIndex(t => t.id === taskId);
+            if (taskIndex >= 0) {
+                interactiveTasks[taskIndex].status = status;
+                updateQueueVisualization(interactiveTasks);
+            }
+        }
+        
+        // Initialize
+        log('🎯 Task Management Engine Demo Ready!', 'success');
+        log('Click the buttons above to start testing', 'info');
+    </script>
+</body>
+</html>
