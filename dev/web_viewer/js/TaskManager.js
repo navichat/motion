@@ -79,15 +79,67 @@ class WorkerPool {
     }
 
     _createWorker(id) {
-        // For now, create a mock worker. In real implementation, this would create actual Web Workers
-        return {
-            id: `${this.workerType}_worker_${id}`,
-            type: this.workerType,
-            busy: false,
-            currentTask: null,
-            terminate: () => { /* Mock terminate */ },
-            postMessage: (data) => { /* Mock postMessage */ }
-        };
+        try {
+            let actualWorker = null;
+            
+            // Create actual workers based on type
+            switch (this.workerType) {
+                case 'cpu':
+                    if (typeof Worker !== 'undefined') {
+                        actualWorker = new Worker('./js/workers/cpu-worker.js');
+                    }
+                    break;
+                case 'gpu':
+                    if (typeof Worker !== 'undefined') {
+                        actualWorker = new Worker('./js/workers/gpu-worker.js');
+                    }
+                    break;
+                case 'webnn':
+                    if (typeof Worker !== 'undefined') {
+                        actualWorker = new Worker('./js/workers/webnn-worker.js');
+                    }
+                    break;
+                default:
+                    console.warn(`Unknown worker type: ${this.workerType}`);
+            }
+
+            // Wrap the worker with our interface
+            return {
+                id: `${this.workerType}_worker_${id}`,
+                type: this.workerType,
+                busy: false,
+                currentTask: null,
+                actualWorker: actualWorker,
+                terminate: () => {
+                    if (actualWorker) {
+                        actualWorker.terminate();
+                    }
+                },
+                postMessage: (data) => {
+                    if (actualWorker) {
+                        actualWorker.postMessage(data);
+                    }
+                },
+                addEventListener: (event, handler) => {
+                    if (actualWorker) {
+                        actualWorker.addEventListener(event, handler);
+                    }
+                }
+            };
+        } catch (error) {
+            console.warn(`Failed to create ${this.workerType} worker:`, error);
+            // Fallback to mock worker
+            return {
+                id: `${this.workerType}_worker_${id}_mock`,
+                type: this.workerType,
+                busy: false,
+                currentTask: null,
+                actualWorker: null,
+                terminate: () => { /* Mock terminate */ },
+                postMessage: (data) => { /* Mock postMessage */ },
+                addEventListener: (event, handler) => { /* Mock addEventListener */ }
+            };
+        }
     }
 
     getAvailableWorker() {
@@ -430,8 +482,14 @@ class TaskManager {
             // Set up cancellation check
             const shouldStop = () => task.status === 'cancelled' || task.status === 'preempted';
 
-            // Execute the job
-            const result = await task.job.execute(progressCallback, shouldStop);
+            // Execute task on worker
+            let result;
+            if (worker.actualWorker) {
+                result = await this._executeTaskOnRealWorker(task, worker, progressCallback, shouldStop);
+            } else {
+                // Fallback to job's execute method (for mock jobs)
+                result = await task.job.execute(progressCallback, shouldStop);
+            }
             
             if (task.status === 'running') {
                 task.status = 'completed';
@@ -506,6 +564,66 @@ class TaskManager {
         } else if (worker.type === 'webnn') {
             this.workerPools.webnn.releaseWorker(worker);
         }
+    }
+
+    async _executeTaskOnRealWorker(task, worker, progressCallback, shouldStop) {
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('Task execution timeout'));
+            }, task.maxExecutionTime || 30000);
+
+            // Set up worker message handlers
+            const messageHandler = (event) => {
+                const { type, taskId, result, error, progress, stats } = event.data;
+                
+                if (taskId !== task.id) return; // Ignore messages for other tasks
+                
+                switch (type) {
+                    case 'completed':
+                        clearTimeout(timeout);
+                        worker.actualWorker.removeEventListener('message', messageHandler);
+                        resolve(result);
+                        break;
+                    case 'error':
+                        clearTimeout(timeout);
+                        worker.actualWorker.removeEventListener('message', messageHandler);
+                        reject(new Error(error));
+                        break;
+                    case 'progress':
+                        if (progressCallback) {
+                            progressCallback(progress, stats);
+                        }
+                        // Check if task should be stopped
+                        if (shouldStop()) {
+                            worker.actualWorker.postMessage({
+                                type: 'cancel',
+                                taskId: task.id
+                            });
+                        }
+                        break;
+                    case 'cancelled':
+                        clearTimeout(timeout);
+                        worker.actualWorker.removeEventListener('message', messageHandler);
+                        resolve({ cancelled: true });
+                        break;
+                }
+            };
+
+            worker.actualWorker.addEventListener('message', messageHandler);
+
+            // Send task to worker
+            worker.actualWorker.postMessage({
+                type: 'execute',
+                data: {
+                    taskId: task.id,
+                    jobType: task.job.type,
+                    duration: task.job.duration,
+                    complexity: task.job.complexity,
+                    resourceRequirements: task.job.resourceRequirements,
+                    ...task.job
+                }
+            });
+        });
     }
 
     // Event system

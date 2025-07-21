@@ -616,11 +616,6 @@
                 document.getElementById('audiogesture-length-value').textContent = e.target.value;
             });
             
-            // DeepMimic noise control
-            document.getElementById('deepmimic-noise').addEventListener('input', function(e) {
-                document.getElementById('deepmimic-noise-value').textContent = e.target.value;
-            });
-            
             logToSystem('system', 'Unified Animation Systems Test initialized');
             updateSystemStatus();
         }
@@ -1737,28 +1732,6 @@
                 'transition': '#9b59b6'
             };
             return colors[type] || '#95a5a6';
-        }
-        
-        // Helper functions for DeepMimic state generation
-        function generateManualState(stateSize) {
-            // For now, return zeros - could be extended with UI controls
-            return new Array(stateSize).fill(0);
-        }
-        
-        function generateInteractiveState(stateSize) {
-            // Interactive state based on user input (mouse, keyboard, etc.)
-            // For demo, return a standing pose with small variations
-            const state = new Array(stateSize).fill(0);
-            
-            // Set standing height
-            if (stateSize > 1) state[1] = 1.0;
-            
-            // Add small random variations for natural movement
-            for (let i = 6; i < Math.min(stateSize, 50); i++) {
-                state[i] = (Math.random() - 0.5) * 0.05;
-            }
-            
-            return state;
         }
         
         // Export functions for global access

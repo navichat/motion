@@ -1,227 +1,200 @@
-# Task Management Engine
+## Task Management Engine
 
-A sophisticated task scheduling system built for web browsers that uses a Fibonacci heap for efficient priority queue operations. This system coordinates CPU, GPU (WebGPU), and WebNN workers to execute tasks with support for preemption, priority scheduling, and real-time monitoring.
+A sophisticated task scheduling and management system built for Chrome browser environments, featuring Fibonacci heap-based priority queuing and real Web Worker support for WebGPU, WebNN, and CPU-intensive workloads.
 
-## 🌟 Features
+### ✨ Key Features
 
-### Core Components
+- **� Fibonacci Heap Scheduling**: O(1) insertion, O(log n) extraction for efficient priority management
+- **👥 Real Worker Pool Support**: Actual Web Workers for CPU, WebGPU, and WebNN tasks
+- **⚡ Task Preemption**: High-priority tasks can interrupt lower-priority ones
+- **📊 Real-time Monitoring**: Live statistics and progress tracking
+- **🎯 Flexible Scheduling**: Support for immediate and delayed task execution
+- **🛡️ Error Handling**: Automatic retry logic with exponential backoff
+- **🔗 Event-Driven Architecture**: Comprehensive event system for task lifecycle management
 
-- **🔧 Fibonacci Heap Implementation**: O(1) insert and decrease-key operations for efficient priority scheduling
-- **🎮 Mock GPU Jobs**: Simulated WebGPU/WebNN workloads for testing (JobA, JobB, JobC)
-- **⚙️ Task Manager**: Advanced scheduling engine with preemption and worker pool management
-- **👥 Worker Pools**: Coordinated CPU, GPU, and WebNN worker threads
-- **📊 Real-time Monitoring**: Live statistics and queue visualization
+### 🧩 Architecture Components
 
-### Advanced Features
-
-- **Priority-based Scheduling**: Lower numbers = higher priority with aging support
-- **Task Preemption**: Interrupt lower-priority tasks for urgent work
-- **Resource Allocation**: Memory and compute resource tracking
-- **Interruptible Tasks**: Support for cancellation and resumption
-- **Comprehensive Testing**: Full test suite with stress testing
-
-## 🚀 Quick Start
-
-### 1. Open the Demo
-
-Open `task-manager-demo.html` in a modern web browser that supports:
-- WebGPU (optional, fallback provided)
-- Web Workers
-- ES6+ JavaScript features
-
-### 2. Run Tests
-
-Click **"Run Full Test Suite"** to verify all components:
-- ✅ Fibonacci Heap operations
-- ✅ Mock GPU job execution
-- ✅ Task manager basics
-- ✅ Priority scheduling
-- ✅ Queue fill/empty demo
-
-### 3. Interactive Demo
-
-Click **"Interactive Demo"** and use the browser console:
-
-```javascript
-// Add tasks with random priority
-addTask();
-
-// Add high priority task
-addHighPriorityTask();
-
-// Check system stats
-showStats();
-
-// Stop the interactive demo
-stopInteractive();
-```
-
-## 📁 File Structure
-
-```
-js/
-├── FibonacciHeap.js         # Fibonacci heap implementation
-├── MockGPUJobs.js           # Simulated GPU workloads
-├── TaskManager.js           # Main scheduling engine
-├── TaskManagerTestSuite.js  # Comprehensive test suite
-└── workers/
-    ├── cpu-worker.js        # CPU worker implementation
-    ├── gpu-worker.js        # WebGPU worker implementation
-    └── webnn-worker.js      # WebNN worker implementation
-
-task-manager-demo.html       # Interactive demo page
-```
-
-## 🔧 API Reference
-
-### TaskManager
-
-```javascript
-const manager = new TaskManager({
-    cpuWorkers: 2,           // Number of CPU workers
-    gpuWorkers: 1,           // Number of GPU workers  
-    webnnWorkers: 1,         // Number of WebNN workers
-    maxConcurrentTasks: 4,   // Max parallel tasks
-    preemptionEnabled: true, // Allow task preemption
-    schedulingInterval: 100  // Scheduling loop interval (ms)
-});
-
-// Schedule a task
-const taskId = manager.scheduleTask(job, priority, scheduledTime, options);
-
-// Start/stop processing
-manager.start();
-manager.stop();
-
-// Event handlers
-manager.on('taskCompleted', (task) => console.log('Done:', task.id));
-manager.on('taskStarted', (task) => console.log('Started:', task.id));
-manager.on('taskPreempted', (task) => console.log('Preempted:', task.id));
-
-// Get statistics
-const stats = manager.getStats();
-```
-
-### MockGPUJobFactory
-
-```javascript
-// Create different job types
-const jobA = MockGPUJobFactory.createJobA(complexity);  // Matrix operations
-const jobB = MockGPUJobFactory.createJobB(complexity);  // Neural networks
-const jobC = MockGPUJobFactory.createJobC(complexity);  // Media processing
-
-// Create random job
-const randomJob = MockGPUJobFactory.createRandomJob();
-
-// Create batch of jobs
-const jobs = MockGPUJobFactory.createJobBatch(10);
-```
-
-### FibonacciHeap
-
+#### FibonacciHeap.js
+Advanced priority queue implementation optimized for scheduling operations:
 ```javascript
 const heap = new FibonacciHeap();
-
-// Basic operations
-const node = heap.insert(priority, value);
+const node = heap.insert(priority, data);
 const min = heap.extractMin();
 heap.decreaseKey(node, newPriority);
-heap.delete(node);
-
-// Utilities
-const isEmpty = heap.isEmpty();
-const size = heap.size();
-const stats = heap.getStats();
 ```
 
-## 🎯 Use Cases
+#### TaskManager.js (Enhanced)
+Main scheduling engine with real worker pool integration:
+```javascript
+const manager = new TaskManager({
+    maxConcurrentTasks: 4,
+    preemptionEnabled: true,
+    workerPools: {
+        cpu: { size: 2 },
+        gpu: { size: 1 },
+        webnn: { size: 1 }
+    }
+});
 
-This task management engine is designed for applications that need to coordinate multiple types of computational work:
+await manager.start();
+const taskId = manager.scheduleTask(job, priority);
+```
 
-### Real-world Applications
-- **🎤 Voice Activity Detection**: Real-time audio processing
-- **🗣️ Text-to-Speech (Kokoro)**: Audio synthesis workloads
-- **👂 Speech-to-Text (Whisper)**: Audio transcription tasks
-- **🤖 Small LLM Inference**: Language model operations
-- **🎭 RSMT Motion**: Real-time stylized motion transition
-- **🏃 DeepMimic**: Character animation and physics
-- **😊 FaceFormer**: Facial expression synthesis
-- **🎵 Audio2Gesture**: Audio-driven gesture generation
+#### Worker Pool Architecture
+- **CPU Workers** (`workers/cpu-worker.js`): Handle CPU-intensive computations
+- **GPU Workers** (`workers/gpu-worker.js`): Manage WebGPU compute shaders and GPU memory
+- **WebNN Workers** (`workers/webnn-worker.js`): Execute neural network inference tasks
 
-### Benefits
-- **Predictable Performance**: Queue fills and empties in a controlled manner
-- **Efficient Resource Use**: Smart allocation across CPU/GPU/WebNN
-- **Responsive System**: High-priority tasks can preempt lower-priority work
-- **Scalable Architecture**: Easy to add new worker types and job categories
+### 🎮 Demo & Testing
 
-## 🧪 Testing
+The demo page (`task-manager-demo.html`) provides an interactive interface with:
 
-The system includes comprehensive tests that verify:
+1. **� Full Test Suite**: Comprehensive testing of all components
+2. **⚡ Quick Demo**: Basic functionality demonstration  
+3. **🎮 Interactive Demo**: Manual task scheduling and monitoring
+4. **🔧 Enhanced Worker Test**: Real worker communication and execution testing
 
-1. **Fibonacci Heap Correctness**: Priority ordering and heap properties
-2. **Mock Job Execution**: Progress tracking and completion
-3. **Priority Scheduling**: High-priority tasks execute first
-4. **Queue Management**: Predictable fill/empty behavior
-5. **Worker Coordination**: Proper resource allocation
-6. **Stress Testing**: High-volume task processing
+### 🚀 Getting Started
 
-### Running Tests
+1. **Open the Demo**:
+   ```bash
+   # Serve the files (required for Web Workers)
+   python -m http.server 8000
+   # Open http://localhost:8000/task-manager-demo.html
+   ```
+
+2. **Basic Usage**:
+   ```javascript
+   // Create manager with real workers
+   const manager = new TaskManager({
+       workerPools: {
+           cpu: { size: 2 },
+           gpu: { size: 1 }
+       }
+   });
+   
+   await manager.start();
+   
+   // Schedule a task
+   const task = manager.scheduleTask(job, priority);
+   
+   // Monitor events
+   manager.on('taskCompleted', (task) => {
+       console.log(`Task ${task.id} completed in ${task.endTime - task.startTime}ms`);
+   });
+   ```
+
+3. **Creating Custom Jobs**:
+   ```javascript
+   class CustomJob {
+       constructor(name, duration = 1000) {
+           this.type = 'custom';
+           this.name = name;
+           this.duration = duration;
+           this.resourceRequirements = { memory: 128, cpu: 0.5 };
+       }
+       
+       async execute(progressCallback, shouldStop) {
+           // Job execution logic
+           for (let i = 0; i < 100; i++) {
+               if (shouldStop()) break;
+               await new Promise(resolve => setTimeout(resolve, this.duration / 100));
+               progressCallback(i + 1, { step: i + 1, total: 100 });
+           }
+           return { success: true, executionTime: this.duration };
+       }
+   }
+   ```
+
+### 🔧 Real Worker Integration
+
+The enhanced TaskManager now supports actual Web Workers:
+
+#### Worker Communication Protocol
+```javascript
+// Sending task to worker
+worker.postMessage({
+    type: 'execute',
+    data: {
+        taskId: 'task-123',
+        jobType: 'neural-inference',
+        duration: 2000,
+        complexity: 0.8,
+        resourceRequirements: { memory: 512, gpu: true }
+    }
+});
+
+// Worker response
+self.postMessage({
+    type: 'progress',
+    taskId: 'task-123',
+    progress: 45,
+    stats: { processed: 450, total: 1000 }
+});
+```
+
+#### WebGPU Worker Example
+```javascript
+// In gpu-worker.js
+const device = await navigator.gpu.requestAdapter()
+    .then(adapter => adapter.requestDevice());
+
+const computeShader = device.createShaderModule({ code: shaderCode });
+// Execute GPU computations...
+```
+
+### 📊 Performance Monitoring
+
+Real-time statistics available through `manager.getStats()`:
 
 ```javascript
-// Browser console
-const testSuite = new TaskManagerTestSuite();
-await testSuite.runAllTests();
-
-// Or use the demo page
-window.runTaskManagerTests();
+{
+    tasksScheduled: 150,
+    tasksCompleted: 120,
+    tasksFailed: 2,
+    totalExecutionTime: 45000,
+    workers: {
+        cpu: [{ id: 'cpu-0', busy: false, currentTask: null }],
+        gpu: [{ id: 'gpu-0', busy: true, currentTask: 'task-123' }],
+        webnn: [{ id: 'webnn-0', busy: false, currentTask: null }]
+    },
+    queue: {
+        size: 5,
+        running: 3,
+        completed: 120
+    }
+}
 ```
 
-## 🔮 Next Steps
+### 🎯 Use Cases
 
-After validating the core scheduling system, you can proceed to implement:
+Perfect for coordinating complex ML workloads:
 
-1. **Real Worker Threads**: Replace mock workers with actual WebGPU/WebNN implementations
-2. **Model Integration**: Add actual AI models (Whisper, Kokoro, etc.)
-3. **Audio Pipeline**: Integrate with Web Audio API for real-time processing
-4. **Performance Optimization**: Fine-tune scheduling parameters
-5. **Production Deployment**: Add error handling and monitoring
+- **🎙️ Voice Activity Detection**: Real-time audio processing
+- **🗣️ Text-to-Speech (Kokoro)**: High-quality speech synthesis
+- **👂 Speech-to-Text (Whisper)**: Accurate transcription
+- **🧠 Small LLM Inference**: Language understanding
+- **🏃 Motion Synthesis**: RSMT, DeepMimic animation
+- **😊 Facial Animation**: FaceFormer expressions
+- **🎵 Audio-to-Gesture**: Full-body gesture generation
 
-## 🤝 Architecture Notes
+### 🔄 Task Lifecycle
 
-### Why Fibonacci Heap?
-- **O(1) insert**: Critical for real-time task scheduling
-- **O(1) decrease-key**: Essential for priority adjustments and aging
-- **O(log n) extract-min**: Acceptable for task dequeuing
-- **Efficient merging**: Supports advanced scheduling algorithms
+1. **Schedule** → Task added to Fibonacci heap
+2. **Queue** → Waiting for available worker
+3. **Execute** → Running on appropriate worker type
+4. **Progress** → Real-time updates via callbacks
+5. **Complete** → Results returned, worker released
 
-### Worker Pool Design
-- **Type-specific pools**: CPU, GPU, and WebNN workers are separate
-- **Resource awareness**: Tasks specify their computational requirements
-- **Graceful fallback**: GPU/WebNN tasks can fall back to CPU simulation
+### 🛠️ Development
 
-### Preemption Strategy
-- **Priority-based**: Higher priority tasks can interrupt lower priority ones
-- **Voluntary cooperation**: Tasks check for interruption signals
-- **State preservation**: Preempted tasks are re-queued with adjusted priority
+Run tests to verify functionality:
+```javascript
+// Basic component tests
+await runBasicTests();
 
-## 📊 Performance Characteristics
+// Enhanced worker integration tests  
+await runEnhancedTests();
+```
 
-- **Scheduling Overhead**: ~100ms intervals, configurable
-- **Task Throughput**: Scales with worker pool size
-- **Memory Usage**: O(n) where n = number of queued tasks
-- **Priority Updates**: O(1) amortized via Fibonacci heap
-
-## 🛠️ Browser Compatibility
-
-- **Chrome**: Full WebGPU support (recommended)
-- **Firefox**: CPU/WebNN fallback
-- **Safari**: CPU fallback
-- **Edge**: Full WebGPU support
-
-## 📝 License
-
-This task management engine is designed for research and development use. Adapt the components as needed for your specific application requirements.
-
----
-
-**Ready to coordinate your computational workloads? Start with the demo and build your way up to production!** 🚀
+The system provides a solid foundation for building complex multi-modal AI applications in the browser with efficient resource management and real-time coordination.

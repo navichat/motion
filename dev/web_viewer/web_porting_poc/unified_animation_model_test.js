@@ -55,16 +55,14 @@ class UnifiedAnimationModelTest {
                 attention: { path: '../audio2gesture/audio2gesture_attention.onnx', session: null, status: 'pending' }
             },
             deepmimic: {
-                actor: { path: '../../pytorch_DeepMimic/deepmimic/output/agent0_model_anet.onnx', session: null, status: 'pending' },
-                critic: { path: '../../pytorch_DeepMimic/deepmimic/output/agent0_model_cnet.onnx', session: null, status: 'pending' },
+                actor: { path: './deepmimic_onnx/deepmimic_actor.onnx', session: null, status: 'pending' },
+                critic: { path: './deepmimic_onnx/deepmimic_critic.onnx', session: null, status: 'pending' },
                 policy_walk: { path: '../deepmimic/humanoid3d_walk_policy.onnx', session: null, status: 'pending' },
                 policy_run: { path: '../deepmimic/humanoid3d_run_policy.onnx', session: null, status: 'pending' }
             },
-            deepmimic: {
-                actor: { path: './deepmimic_onnx/deepmimic_actor.onnx', session: null, status: 'pending' },
-                critic: { path: './deepmimic_onnx/deepmimic_critic.onnx', session: null, status: 'pending' },
-                policy_walk: { path: './deepmimic/deepmimic_walk_policy.onnx', session: null, status: 'pending' },
-                policy_run: { path: './deepmimic/deepmimic_run_policy.onnx', session: null, status: 'pending' }
+            deepphase: {
+                policy: { path: '../deepmimic/deepphase_policy.onnx', session: null, status: 'pending' },
+                discriminator: { path: '../deepmimic/deepphase_discriminator.onnx', session: null, status: 'pending' }
             }
         };
         

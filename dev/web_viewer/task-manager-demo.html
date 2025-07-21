@@ -223,6 +223,9 @@
             <button class="btn btn-warning" onclick="startInteractiveDemo()">
                 🎮 Interactive Demo
             </button>
+            <button class="btn btn-primary" onclick="runEnhancedWorkerTest()" style="background: #8b5cf6;">
+                🔧 Enhanced Worker Test
+            </button>
             <button class="btn" onclick="clearConsole()" style="background: #666; color: white;">
                 🗑️ Clear Console
             </button>
@@ -279,6 +282,7 @@ Console output will appear here...</pre>
     <script src="./js/MockGPUJobs.js"></script>
     <script src="./js/TaskManager.js"></script>
     <script src="./js/TaskManagerTestSuite.js"></script>
+    <script src="./js/EnhancedTaskManagerTestDemo.js"></script>
     
     <script>
         // Console management
@@ -535,6 +539,33 @@ Console output will appear here...</pre>
             if (taskIndex >= 0) {
                 interactiveTasks[taskIndex].status = status;
                 updateQueueVisualization(interactiveTasks);
+            }
+        }
+
+        // Enhanced worker test function
+        async function runEnhancedWorkerTest() {
+            updateSystemStatus('Running Enhanced Worker Tests', true);
+            log('🔧 Starting Enhanced Worker Test...', 'info');
+            
+            try {
+                // Redirect console.log to our display
+                const originalConsoleLog = console.log;
+                console.log = function(...args) {
+                    log(args.join(' '), 'debug');
+                    originalConsoleLog.apply(console, args);
+                };
+                
+                await runEnhancedTests();
+                
+                // Restore console.log
+                console.log = originalConsoleLog;
+                
+                log('✅ Enhanced Worker Tests Completed!', 'success');
+                updateSystemStatus('Enhanced Tests Completed');
+                
+            } catch (error) {
+                log(`❌ Enhanced Worker Tests Failed: ${error.message}`, 'error');
+                updateSystemStatus('Enhanced Tests Failed');
             }
         }
         
