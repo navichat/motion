@@ -7,8 +7,9 @@
 let activeTasks = new Map();
 let webnnContext = null;
 let webnnAdapter = null;
+let currentTask = null;
+let cancelled = false;
 
-// Worker message handling
 // Initialize WebNN if available
 async function initWebNN() {
     if (!navigator.ml) {
@@ -18,7 +19,7 @@ async function initWebNN() {
     
     try {
         webnnContext = await navigator.ml.createContext();
-        console.log('WebNN initialized successfully');
+        console.log('WebNN Worker: WebNN context initialized');
         return true;
     } catch (error) {
         console.error('Failed to initialize WebNN:', error);
@@ -50,29 +51,11 @@ self.onmessage = function(event) {
     }
 };
 
-let currentTask = null;
-let cancelled = false;
-let webnnContext = null;
-
-// Initialize WebNN if available
-async function initializeWebNN() {
-    try {
-        if (typeof navigator !== 'undefined' && navigator.ml) {
-            webnnContext = await navigator.ml.createContext();
-            console.log('WebNN Worker: WebNN context initialized');
-            return true;
-        }
-    } catch (error) {
-        console.log('WebNN Worker: WebNN not available, using CPU fallback');
-    }
-    return false;
-}
-
 function executeTask(taskData) {
     const { taskId, jobType, duration = 1000, complexity = 1, shouldFail = false } = taskData;
     
     currentTask = taskId;
-    cancelled = false;
+    cancelled = false; // Reset cancelled flag for new task
     
     console.log(`WebNN Worker: Starting task ${taskId} (${jobType})`);
     
@@ -84,6 +67,9 @@ function executeTask(taskData) {
                 taskId: taskId,
                 error: 'Intentional test error from WebNN worker'
             });
+            
+            // Reset current task status
+            currentTask = null;
         }, 50);
         return;
     }
@@ -104,6 +90,9 @@ function cancelTask(taskId) {
             type: 'cancelled',
             taskId: taskId
         });
+        
+        // Reset current task status
+        currentTask = null;
     }
 }
 
@@ -124,6 +113,7 @@ async function simulateWebNNInference(taskId, duration, complexity) {
             
             // Check if cancelled
             if (cancelled) {
+                currentTask = null;
                 return;
             }
             
@@ -164,6 +154,9 @@ async function simulateWebNNInference(taskId, duration, complexity) {
                     usingWebNN: !!webnnContext
                 }
             });
+            
+            // Reset current task status
+            currentTask = null;
         }
         
     } catch (error) {
@@ -172,6 +165,9 @@ async function simulateWebNNInference(taskId, duration, complexity) {
             taskId: taskId,
             error: error.message
         });
+        
+        // Reset current task status
+        currentTask = null;
     }
 }
 
@@ -247,6 +243,7 @@ async function simulateWebNNSpecificWork(taskId, duration, complexity, jobType) 
             
             // Check if cancelled
             if (cancelled) {
+                currentTask = null;
                 return;
             }
             
@@ -290,6 +287,9 @@ async function simulateWebNNSpecificWork(taskId, duration, complexity, jobType) 
                     usingWebNN: !!webnnContext
                 }
             });
+            
+            // Reset current task status
+            currentTask = null;
         }
         
     } catch (error) {
@@ -298,6 +298,9 @@ async function simulateWebNNSpecificWork(taskId, duration, complexity, jobType) 
             taskId: taskId,
             error: error.message
         });
+        
+        // Reset current task status
+        currentTask = null;
     }
 }
 
@@ -314,6 +317,11 @@ async function simulateImageClassification(complexity) {
             resolve(confidence / features);
         }, 30);
     });
+}
+
+// Generic neural network inference simulation
+async function simulateNeuralInference(complexity) {
+    return simulateNeuralNetworkCPU(complexity);
 }
 
 async function simulateTextProcessing(complexity) {
@@ -347,7 +355,7 @@ async function simulateAudioProcessing(complexity) {
 }
 
 // Initialize WebNN and notify ready
-initializeWebNN().then((hasWebNN) => {
+initWebNN().then((hasWebNN) => {
     self.postMessage({
         type: 'ready',
         workerType: 'webnn',

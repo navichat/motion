@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepMimic ONNX JavaScript Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #1e7e34;
+        }
+        
+        .btn-warning {
+            background-color: #ffc107;
+            color: black;
+        }
+        
+        .btn-warning:hover {
+            background-color: #e0a800;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        select, input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .stat-title {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            color: #007bff;
+            font-weight: bold;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .motion-preview {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 200px;
+            overflow-y: auto;
+        }
+        
+        .timeline-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .timeline-controls input[type="range"] {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>DeepMimic ONNX JavaScript Demo</h1>
+    <p>This demo showcases the DeepMimic policy inference engine running in JavaScript using ONNX Runtime Web.</p>
+    
+    <div class="container">
+        <h2>System Status</h2>
+        <div id="systemStatus" class="status warning">Initializing...</div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-title">Inference Engine</div>
+                <div class="stat-value" id="engineStatus">Not Initialized</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Models Loaded</div>
+                <div class="stat-value" id="modelsLoaded">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Execution Provider</div>
+                <div class="stat-value" id="executionProvider">Unknown</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Performance</div>
+                <div class="stat-value" id="avgInferenceTime">0ms</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Controls</h2>
+        <div class="controls">
+            <div>
+                <label>Initialize Engine:</label>
+                <select id="executionProviderSelect">
+                    <option value="webgl">WebGL</option>
+                    <option value="webgpu">WebGPU</option>
+                    <option value="webnn">WebNN</option>
+                    <option value="wasm">WASM</option>
+                </select>
+                <button id="initEngineBtn" class="btn-primary">Initialize Engine</button>
+            </div>
+            
+            <div>
+                <label>Load Model:</label>
+                <input type="file" id="modelFileInput" accept=".onnx" multiple>
+                <button id="loadModelBtn" class="btn-success">Load ONNX Model</button>
+            </div>
+            
+            <div>
+                <label>Select Policy:</label>
+                <select id="policySelect" disabled>
+                    <option value="">No models loaded</option>
+                </select>
+                <button id="switchPolicyBtn" class="btn-warning" disabled>Switch Policy</button>
+            </div>
+            
+            <div>
+                <label>Motion Generation:</label>
+                <input type="number" id="durationInput" value="5" min="1" max="30" step="1" placeholder="Duration (seconds)">
+                <button id="generateMotionBtn" class="btn-success" disabled>Generate Motion</button>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="runInferenceBtn" class="btn-primary" disabled>Run Single Inference</button>
+            <button id="startRealtimeBtn" class="btn-success" disabled>Start Real-time</button>
+            <button id="stopRealtimeBtn" class="btn-danger" disabled>Stop Real-time</button>
+            <button id="resetStateBtn" class="btn-warning" disabled>Reset State</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Motion Timeline</h2>
+        <div class="timeline-controls">
+            <button id="timelinePlayBtn" class="btn-success" disabled>Play</button>
+            <button id="timelinePauseBtn" class="btn-warning" disabled>Pause</button>
+            <input type="range" id="timelineSlider" min="0" max="100" value="0" disabled>
+            <span id="timelineTime">0.00s / 0.00s</span>
+        </div>
+        
+        <div class="motion-preview" id="motionPreview">
+            Motion data will appear here...
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Performance Statistics</h2>
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-title">Total Inferences</div>
+                <div class="stat-value" id="totalInferences">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Average Time</div>
+                <div class="stat-value" id="averageTime">0ms</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Last Inference</div>
+                <div class="stat-value" id="lastInferenceTime">0ms</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Frames Generated</div>
+                <div class="stat-value" id="framesGenerated">0</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>System Log</h2>
+        <div class="log" id="systemLog"></div>
+        <button id="clearLogBtn" class="btn-danger">Clear Log</button>
+    </div>
+    
+    <!-- Load dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js"></script>
+    
+    <!-- Load our modules -->
+    <script src="../js/BVHTimeline.js"></script>
+    <script src="deepmimic_inference.js"></script>
+    <script src="deepmimic_bvh_converter.js"></script>
+    
+    <script>
+        class DeepMimicDemo {
+            constructor() {
+                this.inferenceEngine = null;
+                this.bvhConverter = null;
+                this.timeline = null;
+                this.realtimeControl = null;
+                this.motionSequence = [];
+                this.isPlaying = false;
+                this.currentTime = 0;
+                this.maxTime = 0;
+                
+                this.setupEventListeners();
+                this.initializeTimeline();
+                this.log('Demo initialized. Click "Initialize Engine" to begin.');
+            }
+            
+            setupEventListeners() {
+                document.getElementById('initEngineBtn').addEventListener('click', () => this.initializeEngine());
+                document.getElementById('loadModelBtn').addEventListener('click', () => this.loadModel());
+                document.getElementById('switchPolicyBtn').addEventListener('click', () => this.switchPolicy());
+                document.getElementById('generateMotionBtn').addEventListener('click', () => this.generateMotion());
+                document.getElementById('runInferenceBtn').addEventListener('click', () => this.runSingleInference());
+                document.getElementById('startRealtimeBtn').addEventListener('click', () => this.startRealtime());
+                document.getElementById('stopRealtimeBtn').addEventListener('click', () => this.stopRealtime());
+                document.getElementById('resetStateBtn').addEventListener('click', () => this.resetState());
+                document.getElementById('timelinePlayBtn').addEventListener('click', () => this.playTimeline());
+                document.getElementById('timelinePauseBtn').addEventListener('click', () => this.pauseTimeline());
+                document.getElementById('timelineSlider').addEventListener('input', (e) => this.seekTimeline(e.target.value));
+                document.getElementById('clearLogBtn').addEventListener('click', () => this.clearLog());
+            }
+            
+            initializeTimeline() {
+                this.timeline = new BVHTimeline();
+                this.log('BVH Timeline initialized');
+            }
+            
+            async initializeEngine() {
+                try {
+                    const provider = document.getElementById('executionProviderSelect').value;
+                    this.updateStatus('Initializing inference engine...', 'warning');
+                    
+                    this.inferenceEngine = new DeepMimicInferenceEngine({
+                        executionProvider: provider
+                    });
+                    
+                    await this.inferenceEngine.initialize();
+                    
+                    this.bvhConverter = new DeepMimicBVHConverter({
+                        inferenceEngine: this.inferenceEngine,
+                        timeline: this.timeline
+                    });
+                    
+                    await this.bvhConverter.initialize();
+                    
+                    this.updateStatus('Inference engine initialized successfully!', 'success');
+                    this.updateUI();
+                    this.log('DeepMimic inference engine initialized');
+                    
+                } catch (error) {
+                    this.updateStatus(`Failed to initialize: ${error.message}`, 'error');
+                    this.log(`Error: ${error.message}`);
+                }
+            }
+            
+            async loadModel() {
+                const fileInput = document.getElementById('modelFileInput');
+                const files = fileInput.files;
+                
+                if (files.length === 0) {
+                    this.log('Please select ONNX model files to load');
+                    return;
+                }
+                
+                try {
+                    for (const file of files) {
+                        this.log(`Loading model: ${file.name}...`);
+                        const url = URL.createObjectURL(file);
+                        await this.inferenceEngine.loadModel(url, file.name.replace('.onnx', ''));
+                        this.log(`Successfully loaded: ${file.name}`);
+                    }
+                    
+                    this.updatePolicySelect();
+                    this.updateUI();
+                    this.log(`Loaded ${files.length} model(s)`);
+                    
+                } catch (error) {
+                    this.log(`Error loading model: ${error.message}`);
+                }
+            }
+            
+            switchPolicy() {
+                const select = document.getElementById('policySelect');
+                const modelName = select.value;
+                
+                if (!modelName) return;
+                
+                try {
+                    this.bvhConverter.switchPolicy(modelName);
+                    this.log(`Switched to policy: ${modelName}`);
+                } catch (error) {
+                    this.log(`Error switching policy: ${error.message}`);
+                }
+            }
+            
+            async generateMotion() {
+                if (!this.bvhConverter) {
+                    this.log('Converter not initialized');
+                    return;
+                }
+                
+                try {
+                    const duration = parseFloat(document.getElementById('durationInput').value);
+                    const modelName = document.getElementById('policySelect').value || null;
+                    
+                    this.log(`Generating ${duration}s of motion...`);
+                    
+                    const startTime = performance.now();
+                    this.motionSequence = await this.bvhConverter.generateMotionSequence({
+                        duration,
+                        modelName,
+                        realTime: true
+                    });
+                    const endTime = performance.now();
+                    
+                    this.maxTime = duration;
+                    this.currentTime = 0;
+                    
+                    this.log(`Generated ${this.motionSequence.length} frames in ${(endTime - startTime).toFixed(2)}ms`);
+                    this.updateMotionPreview();
+                    this.updateTimelineControls();
+                    
+                } catch (error) {
+                    this.log(`Error generating motion: ${error.message}`);
+                }
+            }
+            
+            async runSingleInference() {
+                if (!this.inferenceEngine) {
+                    this.log('Inference engine not initialized');
+                    return;
+                }
+                
+                try {
+                    // Use default state for single inference
+                    const defaultState = this.bvhConverter.createDefaultState();
+                    
+                    const result = await this.inferenceEngine.runInference(defaultState);
+                    const bvhFrame = this.inferenceEngine.actionsToBVH(result.actions);
+                    
+                    this.log(`Inference completed in ${result.inferenceTime.toFixed(2)}ms`);
+                    this.log(`Actions: [${result.actions.slice(0, 6).map(x => x.toFixed(3)).join(', ')}...]`);
+                    
+                    this.updatePerformanceStats();
+                    
+                } catch (error) {
+                    this.log(`Error running inference: ${error.message}`);
+                }
+            }
+            
+            async startRealtime() {
+                if (!this.bvhConverter) {
+                    this.log('Converter not initialized');
+                    return;
+                }
+                
+                try {
+                    this.log('Starting real-time motion synthesis...');
+                    
+                    this.realtimeControl = await this.bvhConverter.startRealTimeMotion(this.timeline, {
+                        trackName: 'realtime_deepmimic',
+                        targetFPS: 30
+                    });
+                    
+                    this.updateUI();
+                    this.log('Real-time motion synthesis started');
+                    
+                } catch (error) {
+                    this.log(`Error starting real-time: ${error.message}`);
+                }
+            }
+            
+            stopRealtime() {
+                if (this.realtimeControl) {
+                    this.realtimeControl.stop();
+                    this.realtimeControl = null;
+                    this.updateUI();
+                    this.log('Real-time motion synthesis stopped');
+                }
+            }
+            
+            resetState() {
+                if (this.bvhConverter) {
+                    this.bvhConverter.resetMotionState();
+                    this.log('Motion state reset');
+                }
+            }
+            
+            playTimeline() {
+                this.isPlaying = true;
+                this.updateTimelineControls();
+                this.animateTimeline();
+                this.log('Timeline playback started');
+            }
+            
+            pauseTimeline() {
+                this.isPlaying = false;
+                this.updateTimelineControls();
+                this.log('Timeline playback paused');
+            }
+            
+            seekTimeline(value) {
+                this.currentTime = (value / 100) * this.maxTime;
+                this.updateMotionPreview();
+                this.updateTimeDisplay();
+            }
+            
+            animateTimeline() {
+                if (!this.isPlaying) return;
+                
+                this.currentTime += 1/30; // 30 FPS
+                if (this.currentTime > this.maxTime) {
+                    this.currentTime = 0; // Loop
+                }
+                
+                this.updateMotionPreview();
+                this.updateTimeDisplay();
+                
+                const progress = (this.currentTime / this.maxTime) * 100;
+                document.getElementById('timelineSlider').value = progress;
+                
+                setTimeout(() => this.animateTimeline(), 1000/30);
+            }
+            
+            updateMotionPreview() {
+                if (this.motionSequence.length === 0) return;
+                
+                const frameIndex = Math.floor((this.currentTime / this.maxTime) * this.motionSequence.length);
+                const frame = this.motionSequence[Math.min(frameIndex, this.motionSequence.length - 1)];
+                
+                if (frame) {
+                    const preview = document.getElementById('motionPreview');
+                    let text = `Frame ${frameIndex} (t=${this.currentTime.toFixed(2)}s):\n\n`;
+                    text += `Root Position: [${frame.rootPosition.map(x => x.toFixed(3)).join(', ')}]\n`;
+                    text += `Root Rotation: [${frame.rootRotation.map(x => x.toFixed(1)).join(', ')}]°\n\n`;
+                    
+                    text += 'Bone Rotations:\n';
+                    for (const [boneName, boneData] of Object.entries(frame.bones)) {
+                        text += `  ${boneName}: [${boneData.rotation.map(x => x.toFixed(1)).join(', ')}]°\n`;
+                    }
+                    
+                    preview.textContent = text;
+                }
+            }
+            
+            updateTimeDisplay() {
+                const display = document.getElementById('timelineTime');
+                display.textContent = `${this.currentTime.toFixed(2)}s / ${this.maxTime.toFixed(2)}s`;
+            }
+            
+            updateTimelineControls() {
+                const hasMotion = this.motionSequence.length > 0;
+                document.getElementById('timelinePlayBtn').disabled = !hasMotion || this.isPlaying;
+                document.getElementById('timelinePauseBtn').disabled = !hasMotion || !this.isPlaying;
+                document.getElementById('timelineSlider').disabled = !hasMotion;
+            }
+            
+            updatePolicySelect() {
+                const select = document.getElementById('policySelect');
+                const models = this.inferenceEngine.getAvailableModels();
+                
+                select.innerHTML = '';
+                if (models.length === 0) {
+                    select.innerHTML = '<option value="">No models loaded</option>';
+                } else {
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        select.appendChild(option);
+                    });
+                }
+                
+                select.disabled = models.length === 0;
+                document.getElementById('switchPolicyBtn').disabled = models.length === 0;
+            }
+            
+            updateUI() {
+                const engineReady = this.inferenceEngine && this.inferenceEngine.isInitialized;
+                const modelsLoaded = engineReady ? this.inferenceEngine.getAvailableModels().length : 0;
+                const realtimeRunning = this.realtimeControl && this.realtimeControl.isRunning();
+                
+                // Update status displays
+                document.getElementById('engineStatus').textContent = engineReady ? 'Ready' : 'Not Initialized';
+                document.getElementById('modelsLoaded').textContent = modelsLoaded;
+                
+                if (engineReady) {
+                    const providers = ort.env.executionProviders || ['unknown'];
+                    document.getElementById('executionProvider').textContent = providers[0];
+                }
+                
+                // Update button states
+                document.getElementById('initEngineBtn').disabled = engineReady;
+                document.getElementById('loadModelBtn').disabled = !engineReady;
+                document.getElementById('generateMotionBtn').disabled = !engineReady || modelsLoaded === 0;
+                document.getElementById('runInferenceBtn').disabled = !engineReady;
+                document.getElementById('startRealtimeBtn').disabled = !engineReady || realtimeRunning;
+                document.getElementById('stopRealtimeBtn').disabled = !realtimeRunning;
+                document.getElementById('resetStateBtn').disabled = !engineReady;
+                
+                this.updatePerformanceStats();
+            }
+            
+            updatePerformanceStats() {
+                if (!this.inferenceEngine) return;
+                
+                const stats = this.inferenceEngine.getPerformanceStats();
+                document.getElementById('totalInferences').textContent = stats.totalInferences;
+                document.getElementById('averageTime').textContent = stats.averageTime.toFixed(2) + 'ms';
+                document.getElementById('lastInferenceTime').textContent = stats.lastInferenceTime.toFixed(2) + 'ms';
+                document.getElementById('avgInferenceTime').textContent = stats.averageTime.toFixed(2) + 'ms';
+                
+                if (this.bvhConverter) {
+                    const conversionStats = this.bvhConverter.getPerformanceStats();
+                    document.getElementById('framesGenerated').textContent = conversionStats.conversion.totalFrames;
+                }
+            }
+            
+            updateStatus(message, type) {
+                const statusDiv = document.getElementById('systemStatus');
+                statusDiv.textContent = message;
+                statusDiv.className = `status ${type}`;
+            }
+            
+            log(message) {
+                const logDiv = document.getElementById('systemLog');
+                const timestamp = new Date().toLocaleTimeString();
+                logDiv.textContent += `[${timestamp}] ${message}\n`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+            
+            clearLog() {
+                document.getElementById('systemLog').textContent = '';
+            }
+        }
+        
+        // Initialize demo when page loads
+        window.addEventListener('load', () => {
+            window.deepMimicDemo = new DeepMimicDemo();
+        });
+    </script>
+</body>
+</html>

@@ -246,6 +246,30 @@ class MockGPUJob {
 }
 
 /**
+ * Specific Job Types for easy importing
+ */
+class JobA extends MockGPUJob {
+    constructor(complexity = 1) {
+        const duration = 1000 + (complexity * 500); // 1-6 seconds
+        super('JobA', duration, complexity);
+    }
+}
+
+class JobB extends MockGPUJob {
+    constructor(complexity = 1) {
+        const duration = 800 + (complexity * 300); // 0.8-3.8 seconds
+        super('JobB', duration, complexity);
+    }
+}
+
+class JobC extends MockGPUJob {
+    constructor(complexity = 1) {
+        const duration = 1200 + (complexity * 400); // 1.2-5.2 seconds
+        super('JobC', duration, complexity);
+    }
+}
+
+/**
  * Factory for creating different types of mock GPU jobs
  */
 class MockGPUJobFactory {
@@ -287,8 +311,14 @@ class MockGPUJobFactory {
 
 // Export for both Node.js and browser environments
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MockGPUJob, MockGPUJobFactory };
+    module.exports = { MockGPUJob, MockGPUJobFactory, JobA, JobB, JobC };
 } else if (typeof window !== 'undefined') {
     window.MockGPUJob = MockGPUJob;
     window.MockGPUJobFactory = MockGPUJobFactory;
+    window.JobA = JobA;
+    window.JobB = JobB;
+    window.JobC = JobC;
 }
+
+// ES6 module exports for modern browser imports
+export { MockGPUJob, MockGPUJobFactory, JobA, JobB, JobC };

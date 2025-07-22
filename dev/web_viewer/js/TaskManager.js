@@ -420,43 +420,34 @@ class TaskManager {
     _getAvailableWorker(task) {
         // Explicit backend assignment based on task.backend or job.backend
         const backend = task.backend || (task.job && task.job.backend);
-        
-        let selectedWorkerType;
-        let worker;
-        
+
+        let workerPool;
         if (backend === 'gpu') {
-            selectedWorkerType = 'GPU';
-            worker = this.workerPools.gpu.getAvailableWorker();
+            workerPool = this.workerPools.gpu;
         } else if (backend === 'webnn') {
-            selectedWorkerType = 'WebNN';
-            worker = this.workerPools.webnn.getAvailableWorker();
+            workerPool = this.workerPools.webnn;
         } else if (backend === 'wasm') {
-            selectedWorkerType = 'WASM';
-            worker = this.workerPools.wasm.getAvailableWorker();
+            workerPool = this.workerPools.wasm;
         } else {
-            // Fallback to resource requirements if backend not specified
             const requirements = task.resourceRequirements || {};
             if (requirements.gpu && requirements.gpu > 0) {
-                selectedWorkerType = 'GPU';
-                worker = this.workerPools.gpu.getAvailableWorker();
+                workerPool = this.workerPools.gpu;
             } else if (requirements.webnn && requirements.webnn > 0) {
-                selectedWorkerType = 'WebNN';
-                worker = this.workerPools.webnn.getAvailableWorker();
+                workerPool = this.workerPools.webnn;
             } else if (requirements.wasm && requirements.wasm > 0) {
-                selectedWorkerType = 'WASM';
-                worker = this.workerPools.wasm.getAvailableWorker();
+                workerPool = this.workerPools.wasm;
             } else {
-                selectedWorkerType = 'CPU';
-                worker = this.workerPools.cpu.getAvailableWorker();
+                workerPool = this.workerPools.cpu;
             }
         }
-        
+
+        const worker = workerPool.getAvailableWorker();
         if (worker) {
-            console.log(`Task ${task.id} (${task.job.type}) assigned to ${selectedWorkerType} worker: ${worker.id}`);
+            console.log(`Task ${task.id} (${task.job.type}) assigned to ${worker.type} worker: ${worker.id}`);
         } else {
-            console.log(`No available ${selectedWorkerType} worker for task ${task.id} (${task.job.type})`);
+            console.log(`No available ${workerPool.workerType} worker for task ${task.id} (${task.job.type})`);
         }
-        
+
         return worker;
     }
 
@@ -524,13 +515,20 @@ class TaskManager {
             // Set up cancellation check
             const shouldStop = () => task.status === 'cancelled' || task.status === 'preempted';
 
-            // Execute task on worker
             let result;
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Task execution timeout')), task.timeout));
+
             if (worker.actualWorker) {
-                result = await this._executeTaskOnRealWorker(task, worker, progressCallback, shouldStop);
+                result = await Promise.race([
+                    this._executeTaskOnRealWorker(task, worker, progressCallback, shouldStop),
+                    timeoutPromise
+                ]);
             } else {
                 // Fallback to job's execute method (for mock jobs)
-                result = await task.job.execute(progressCallback, shouldStop);
+                result = await Promise.race([
+                    task.job.execute(progressCallback, shouldStop),
+                    timeoutPromise
+                ]);
             }
             
             if (task.status === 'running') {
@@ -785,3 +783,6 @@ if (typeof module !== 'undefined' && module.exports) {
     window.Task = Task;
     window.WorkerPool = WorkerPool;
 }
+
+// ES6 module exports for modern browser imports
+export { TaskManager, Task, WorkerPool };

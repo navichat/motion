@@ -55,7 +55,7 @@ function executeTask(taskData) {
     const { taskId, jobType, duration = 1000, complexity = 1, shouldFail = false } = taskData;
     
     currentTask = taskId;
-    cancelled = false;
+    cancelled = false; // Reset cancelled flag for new task
     
     console.log(`GPU Worker: Starting task ${taskId} (${jobType})`);
     
@@ -111,6 +111,7 @@ async function simulateGPUWork(taskId, duration, complexity) {
             
             // Check if cancelled
             if (cancelled) {
+                currentTask = null; // Reset current task when cancelled
                 return;
             }
             
@@ -233,6 +234,7 @@ async function simulateWebGPUWork(taskId, duration, complexity, jobType) {
             
             // Check if cancelled
             if (cancelled) {
+                currentTask = null; // Reset current task when cancelled
                 return;
             }
             

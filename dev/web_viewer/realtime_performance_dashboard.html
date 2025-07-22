@@ -552,40 +552,45 @@
         async function runBenchmarks() {
             log('Starting performance benchmarks...');
             showAlert('Running hardware benchmarks...', 'info');
-            
+
             const backends = ['cpu', 'gpu', 'webnn', 'wasm'];
-            const results = {};
-            
+
             for (const backend of backends) {
                 try {
                     updateBackendStatus(backend, 'Running benchmark...');
-                    
                     const job = BenchmarkJobFactory.createComprehensiveBenchmark(backend, {
                         duration: 3000
                     });
-                    
                     const taskId = taskManager.scheduleTask(job, 1);
-                    
-                    // Wait for completion (simplified for demo)
-                    await new Promise(resolve => {
-                        const checkComplete = () => {
-                            const stats = taskManager.getStats();
-                            if (stats.queue.completed > 0) {
-                                resolve();
-                            } else {
-                                setTimeout(checkComplete, 500);
+
+                    await new Promise((resolve, reject) => {
+                        const completionHandler = (task) => {
+                            if (task.id === taskId) {
+                                taskManager.off('taskCompleted', completionHandler);
+                                taskManager.off('taskFailed', failureHandler);
+                                resolve(task.result);
                             }
                         };
-                        checkComplete();
+
+                        const failureHandler = (task) => {
+                            if (task.id === taskId) {
+                                taskManager.off('taskCompleted', completionHandler);
+                                taskManager.off('taskFailed', failureHandler);
+                                reject(new Error(`Benchmark for ${backend} failed: ${task.error}`));
+                            }
+                        };
+
+                        taskManager.on('taskCompleted', completionHandler);
+                        taskManager.on('taskFailed', failureHandler);
                     });
-                    
+
                     updateBackendStatus(backend, 'Benchmark complete');
                 } catch (error) {
                     log(`Benchmark failed for ${backend}: ${error.message}`);
                     updateBackendStatus(backend, 'Benchmark failed');
                 }
             }
-            
+
             log('All benchmarks complete');
             showAlert('Hardware benchmarks complete', 'success');
         }

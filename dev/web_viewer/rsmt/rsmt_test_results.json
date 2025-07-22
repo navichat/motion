@@ -1,0 +1,291 @@
+{
+  "timestamp": "2025-07-20T23:43:30.121Z",
+  "overall": "ready",
+  "environment": {
+    "nodeVersion": "v22.17.1",
+    "platform": "linux",
+    "architecture": "x64",
+    "workingDirectory": "/home/barberb/motion/dev/web_viewer/web_porting_poc/rsmt",
+    "testDirectory": "/home/barberb/motion/dev/web_viewer/web_porting_poc/rsmt"
+  },
+  "files": {
+    "rsmt-inference.js": {
+      "status": "found",
+      "size": 21428,
+      "modified": "2025-07-20T22:53:56.394Z"
+    },
+    "rsmt-bvh-integration.js": {
+      "status": "found",
+      "size": 18769,
+      "modified": "2025-07-20T22:55:19.872Z"
+    },
+    "rsmt-demo.html": {
+      "status": "found",
+      "size": 37836,
+      "modified": "2025-07-20T22:58:47.325Z"
+    },
+    "rsmt-validator.js": {
+      "status": "found",
+      "size": 22560,
+      "modified": "2025-07-20T23:00:22.962Z"
+    },
+    "README.md": {
+      "status": "found",
+      "size": 5847,
+      "modified": "2025-07-20T23:10:09.450Z"
+    },
+    "deepphase.onnx": {
+      "status": "found",
+      "size": 3602849,
+      "modified": "2025-07-20T22:52:23.802Z"
+    },
+    "stylevae.onnx": {
+      "status": "found",
+      "size": 180751,
+      "modified": "2025-07-20T22:52:23.803Z"
+    },
+    "transitionnet.onnx": {
+      "status": "found",
+      "size": 903845,
+      "modified": "2025-07-20T22:52:23.804Z"
+    },
+    "test-integration.js": {
+      "status": "found",
+      "size": 13430,
+      "modified": "2025-07-20T23:01:38.350Z"
+    },
+    "onnx_models/": {
+      "status": "found",
+      "contents": [
+        "deephase.onnx",
+        "manifold_vae.onnx"
+      ],
+      "count": 2
+    }
+  },
+  "models": {
+    "deepphase": {
+      "name": "deepphase",
+      "found": true,
+      "location": "./deepphase.onnx",
+      "size": 3602849,
+      "paths": [
+        "./deepphase.onnx",
+        "./onnx_models/deepphase.onnx"
+      ],
+      "modified": "2025-07-20T22:52:23.802Z"
+    },
+    "stylevae": {
+      "name": "stylevae",
+      "found": true,
+      "location": "./stylevae.onnx",
+      "size": 180751,
+      "paths": [
+        "./stylevae.onnx",
+        "./onnx_models/stylevae.onnx"
+      ],
+      "modified": "2025-07-20T22:52:23.803Z"
+    },
+    "transitionnet": {
+      "name": "transitionnet",
+      "found": true,
+      "location": "./transitionnet.onnx",
+      "size": 903845,
+      "paths": [
+        "./transitionnet.onnx",
+        "./onnx_models/transitionnet.onnx"
+      ],
+      "modified": "2025-07-20T22:52:23.804Z"
+    },
+    "manifold_vae": {
+      "name": "manifold_vae",
+      "found": true,
+      "location": "./onnx_models/manifold_vae.onnx",
+      "size": 180889,
+      "paths": [
+        "./onnx_models/manifold_vae.onnx"
+      ],
+      "modified": "2025-07-20T22:46:35.123Z"
+    }
+  },
+  "integration": {
+    "inference": {
+      "status": "analyzed",
+      "hasClass": true,
+      "className": "RSMTInference",
+      "methods": [
+        "constructor",
+        "initialize",
+        "extractModelInfo",
+        "encodeToPhase",
+        "encodeToManifold",
+        "decodeFromManifold",
+        "generateTransition",
+        "generateStylizedTransition",
+        "phaseToSkeleton",
+        "prepareSkeletonInput",
+        "preparePhaseInput",
+        "prepareManifoldInput",
+        "createCacheKey",
+        "getPhaseVectorSize",
+        "getManifoldDimension",
+        "getPerformanceStats",
+        "clearCaches",
+        "getModelInfo",
+        "isReady",
+        "dispose"
+      ],
+      "dependencies": [
+        "onnxruntime-web",
+        "performance tracking"
+      ],
+      "lines": 563,
+      "size": 21428
+    },
+    "bvhIntegration": {
+      "status": "analyzed",
+      "hasClass": true,
+      "className": "RSMTBVHIntegration",
+      "methods": [
+        "constructor",
+        "createVRMBoneMapping",
+        "addStylizedTransition",
+        "generateRSMTTransition",
+        "prepareMotionForRSMT",
+        "bvhFrameToSkeletonData",
+        "motionDataToSkeletonData",
+        "convertRSMTToBVHFrames",
+        "createBVHClipFromTransition",
+        "extractMotionFromClip",
+        "findTrackContainingClip",
+        "getStyleBlending",
+        "createTransitionCacheKey",
+        "hashMotionData",
+        "cleanupCache",
+        "createDefaultBVHFrame",
+        "getPerformanceStats",
+        "removeTransition",
+        "clearAllTransitions",
+        "dispose"
+      ],
+      "dependencies": [
+        "BVHTimeline",
+        "performance tracking"
+      ],
+      "lines": 538,
+      "size": 18769
+    },
+    "demo": {
+      "status": "analyzed",
+      "scripts": [
+        "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js",
+        "../bvh-timeline.js",
+        "rsmt-inference.js",
+        "rsmt-bvh-integration.js"
+      ],
+      "styles": [],
+      "elements": [
+        {
+          "element": "canvas",
+          "ids": [
+            "timelineCanvas"
+          ]
+        },
+        {
+          "element": "button",
+          "ids": [
+            "initSystem",
+            "resetSystem",
+            "loadSampleMotions",
+            "clearMotions",
+            "generateTransition",
+            "previewTransition",
+            "playTimeline",
+            "pauseTimeline",
+            "stopTimeline"
+          ]
+        },
+        {
+          "element": "input",
+          "ids": [
+            "transitionLength",
+            "startTime",
+            "playbackSpeed"
+          ]
+        },
+        {
+          "element": "select",
+          "ids": [
+            "motionList",
+            "sourceMotion",
+            "targetMotion"
+          ]
+        }
+      ],
+      "size": 37836,
+      "lines": 996,
+      "hasInlineScript": true,
+      "inlineScriptCount": 1
+    }
+  },
+  "performance": {
+    "fileLoading": {
+      "rsmt-inference.js": {
+        "size": 21428,
+        "loadTime": 0.218805,
+        "linesPerSecond": "2573067"
+      },
+      "rsmt-bvh-integration.js": {
+        "size": 18769,
+        "loadTime": 0.33535,
+        "linesPerSecond": "1604294"
+      },
+      "rsmt-demo.html": {
+        "size": 37836,
+        "loadTime": 0.249039,
+        "linesPerSecond": "3999374"
+      }
+    },
+    "memoryUsage": {
+      "rss": 29052928,
+      "heapTotal": 5574656,
+      "heapUsed": 4937360,
+      "external": 1476634
+    },
+    "compatibility": {
+      "features": {
+        "async/await": {
+          "used": true,
+          "supported": true
+        },
+        "arrow functions": {
+          "used": true,
+          "supported": true
+        },
+        "template literals": {
+          "used": false,
+          "supported": true
+        },
+        "destructuring": {
+          "used": true,
+          "supported": true
+        },
+        "classes": {
+          "used": true,
+          "supported": true
+        },
+        "WebAssembly": {
+          "used": true,
+          "supported": true
+        },
+        "Web Workers": {
+          "used": false,
+          "supported": true
+        }
+      },
+      "warnings": [],
+      "score": 100
+    }
+  },
+  "errors": []
+}

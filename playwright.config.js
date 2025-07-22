@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   timeout: 300000, // 5 minutes
-  testDir: './tests',
+  testDir: './dev/web_viewer/js',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -26,7 +26,11 @@ export default defineConfig({
         browserName: 'chromium',
         // Enable performance APIs for FLOPS measurement
         launchOptions: {
-          args: ['--enable-precise-memory-info', '--enable-blink-features=MemoryMeasurement']
+          args: [
+            '--enable-precise-memory-info',
+            '--enable-blink-features=MemoryMeasurement',
+            '--enable-features=WebGPU,UseWebGPUAdapterNameInWebGLExtension'
+          ]
         }
       },
     },
@@ -40,7 +44,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'python3 -m http.server 8080',
+    command: 'python3 dev/web_viewer/serve_with_headers.py',
     port: 8080,
     reuseExistingServer: !process.env.CI,
   },

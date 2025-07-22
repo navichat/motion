@@ -235,16 +235,47 @@
             <button class="btn btn-primary" onclick="runValidationTest()" style="background: #059669;">
                 🔍 Validate Integration
             </button>
+            <button class="btn btn-primary" onclick="runWebGPUTestsWithUI()" style="background: #8b5cf6;">
+                🧪 Run WebGPU Tests
+            </button>
             <button class="btn btn-primary" onclick="runRealWorkloadTest()" style="background: #dc2626;">
                 🚀 Real WASM/GPU/WebNN Workload
             </button>
             <button class="btn btn-primary" onclick="runMLPipelineTest()" style="background: #7c3aed;">
                 🧠 ML Pipeline Test
             </button>
+            <button class="btn btn-success" onclick="runAIModelTests()" style="background: #059669;">
+                🤖 AI Model Tests
+            </button>
+            <button class="btn btn-warning" onclick="runDeepMimicTest()" style="background: #d97706;">
+                🏃 DeepMimic
+            </button>
+            <button class="btn btn-warning" onclick="runFaceFormerTest()" style="background: #dc2626;">
+                😊 FaceFormer
+            </button>
+            <button class="btn btn-warning" onclick="runAudio2GestureTest()" style="background: #7c2d12;">
+                🎵 Audio2Gesture
+            </button>
+            <button class="btn btn-warning" onclick="runRSMTTest()" style="background: #4338ca;">
+                🎬 RSMT
+            </button>
+            <button class="btn btn-warning" onclick="runKokoroTest()" style="background: #be185d;">
+                💖 Kokoro
+            </button>
+            <button class="btn btn-warning" onclick="runWhisperTest()" style="background: #065f46;">
+                🎙️ Whisper
+            </button>
+            <button class="btn btn-warning" onclick="runVADTest()" style="background: #7c2d12;">
+                🔊 VAD
+            </button>
+            <button class="btn btn-warning" onclick="runTinyLlamaTest()" style="background: #7c3aed;">
+                🦙 TinyLlama
+            </button>
+            <button class="btn btn-warning" onclick="runDiabloGPTTest()" style="background: #991b1b;">
+                � DiabloGPT
+            </button>
             <button class="btn" onclick="clearConsole()" style="background: #666; color: white;">
                 🧹 Clear Console
-            </button>
-                🗑️ Clear Console
             </button>
         </div>
         
@@ -295,16 +326,17 @@ Console output will appear here...</pre>
     </div>
 
     <!-- Load our task management system -->
-    <script src="./js/FibonacciHeap.js"></script>
-    <script src="./js/MockGPUJobs.js"></script>
-    <script src="./js/RealWASMJobs.js"></script>
-    <script src="./js/RealWebGPUJobs.js"></script>
-    <script src="./js/RealWebNNJobs.js"></script>
-    <script src="./js/RealJobFactory.js"></script>
-    <script src="./js/TaskManager.js"></script>
-    <script src="./js/TaskManagerTestSuite.js"></script>
-    <script src="./js/EnhancedTaskManagerTestDemo.js"></script>
-    <script src="./js/ValidationTest.js"></script>
+    <script src="./js/FibonacciHeap.js" type="module"></script>
+    <script src="./js/MockGPUJobs.js" type="module"></script>
+    <script src="./js/RealWASMJobs.js" type="module"></script>
+    <script src="./js/RealWebGPUJobs.js" type="module"></script>
+    <script src="./js/RealWebNNJobs.js" type="module"></script>
+    <script src="./js/RealJobFactory.js" type="module"></script>
+    <script src="./js/TaskManager.js" type="module"></script>
+    <script src="./js/TaskManagerTestSuite.js" type="module"></script>
+    <script src="./js/EnhancedTaskManagerTestDemo.js" type="module"></script>
+    <script src="./js/ValidationTest.js" type="module"></script>
+    <script src="./js/TaskManagerWebGPUTest.js" type="module"></script>
     
     <script>
         // Console management
@@ -622,6 +654,32 @@ Console output will appear here...</pre>
             }
         }
 
+        async function runWebGPUTestsWithUI() {
+            updateSystemStatus('Running WebGPU Tests', true);
+            log('🧪 Starting WebGPU Test...', 'info');
+            
+            try {
+                // Redirect console.log to our display
+                const originalConsoleLog = console.log;
+                console.log = function(...args) {
+                    log(args.join(' '), 'debug');
+                    originalConsoleLog.apply(console, args);
+                };
+                
+                await window.runWebGPUTests();
+                
+                // Restore console.log
+                console.log = originalConsoleLog;
+                
+                log('✅ WebGPU Test Completed!', 'success');
+                updateSystemStatus('WebGPU Test Completed');
+                
+            } catch (error) {
+                log(`❌ WebGPU Test Failed: ${error.message}`, 'error');
+                updateSystemStatus('WebGPU Test Failed');
+            }
+        }
+
         async function runRealWorkloadTest() {
             updateSystemStatus('Running Real Workload Test', true);
             log('🚀 Starting Real WASM/WebGPU/WebNN Workload Test...', 'info');
@@ -812,9 +870,466 @@ Console output will appear here...</pre>
                 updateSystemStatus('ML Pipeline Test Failed');
             }
         }
+
+        // Helper functions for workload creation
+        function createRealisticWorkload(intensity = 'medium') {
+            const workloadSizes = {
+                'light': 20,
+                'medium': 50,
+                'heavy': 100
+            };
+            
+            const jobCount = workloadSizes[intensity] || 50;
+            const workload = [];
+            
+            for (let i = 0; i < jobCount; i++) {
+                const jobTypes = ['WebGPU_Compute', 'WASM_Process', 'WebNN_Inference', 'CPU_Task'];
+                const jobType = jobTypes[Math.floor(Math.random() * jobTypes.length)];
+                
+                const job = RealJobFactory.createJob(jobType, {
+                    complexity: Math.floor(Math.random() * 10) + 1,
+                    duration: 200 + Math.random() * 1800,
+                    memorySize: 32 + Math.random() * 256
+                });
+                
+                workload.push({
+                    job: job,
+                    priority: Math.floor(Math.random() * 10),
+                    scheduledTime: Date.now() + Math.random() * 5000,
+                    options: { retries: 2 }
+                });
+            }
+            
+            return workload;
+        }
+
+        function createMLPipelineWorkload() {
+            const pipeline = [];
+            
+            // Data preprocessing (high priority)
+            for (let i = 0; i < 5; i++) {
+                pipeline.push({
+                    job: RealJobFactory.createJob('DataPreprocessing', {
+                        complexity: 3,
+                        duration: 300 + Math.random() * 200
+                    }),
+                    priority: 1,
+                    scheduledTime: Date.now() + i * 100
+                });
+            }
+            
+            // Feature extraction
+            for (let i = 0; i < 8; i++) {
+                pipeline.push({
+                    job: RealJobFactory.createJob('FeatureExtraction', {
+                        complexity: 5,
+                        duration: 400 + Math.random() * 300
+                    }),
+                    priority: 3,
+                    scheduledTime: Date.now() + 1000 + i * 150
+                });
+            }
+            
+            // Model inference
+            for (let i = 0; i < 12; i++) {
+                pipeline.push({
+                    job: RealJobFactory.createJob('ModelInference', {
+                        complexity: 7,
+                        duration: 600 + Math.random() * 400
+                    }),
+                    priority: 2 + Math.floor(Math.random() * 4),
+                    scheduledTime: Date.now() + 2000 + i * 200
+                });
+            }
+            
+            // Real-time audio processing (highest priority)
+            for (let i = 0; i < 15; i++) {
+                pipeline.push({
+                    job: RealJobFactory.createJob('AudioProcessing', {
+                        complexity: 4,
+                        duration: 50 + Math.random() * 100
+                    }),
+                    priority: 0,
+                    scheduledTime: Date.now() + 500 + i * 300
+                });
+            }
+            
+            // Background computation (lowest priority)
+            for (let i = 0; i < 6; i++) {
+                pipeline.push({
+                    job: RealJobFactory.createJob('BackgroundCompute', {
+                        complexity: 6,
+                        duration: 1000 + Math.random() * 500
+                    }),
+                    priority: 8,
+                    scheduledTime: Date.now() + 3000 + i * 500
+                });
+            }
+            
+            return pipeline;
+        }
+
+        // AI Model Test Functions
+        async function runAIModelTests() {
+            updateSystemStatus('Running AI Model Tests', true);
+            log('🤖 Starting Comprehensive AI Model Tests...', 'info');
+            
+            try {
+                const manager = new TaskManager({
+                    maxConcurrentTasks: 8,
+                    preemptionEnabled: true,
+                    schedulingInterval: 25,
+                    workerPools: {
+                        cpu: { size: 3 },
+                        gpu: { size: 4 },
+                        webnn: { size: 6 }
+                    }
+                });
+
+                await manager.start();
+                
+                // Create AI model workload
+                const aiModels = [
+                    { type: 'DeepMimic', priority: 2, backend: 'gpu' },
+                    { type: 'FaceFormer', priority: 1, backend: 'webnn' },
+                    { type: 'Audio2Gesture', priority: 3, backend: 'gpu' },
+                    { type: 'RSMT', priority: 2, backend: 'webnn' },
+                    { type: 'Kokoro', priority: 0, backend: 'webnn' },
+                    { type: 'Whisper', priority: 1, backend: 'gpu' },
+                    { type: 'VAD', priority: 0, backend: 'cpu' },
+                    { type: 'TinyLlama', priority: 4, backend: 'webnn' },
+                    { type: 'DiabloGPT', priority: 5, backend: 'gpu' }
+                ];
+
+                log(`🚀 Scheduling ${aiModels.length} AI model tasks...`, 'info');
+
+                const tasks = [];
+                aiModels.forEach(model => {
+                    const job = createAIModelJob(model.type, model.backend);
+                    const taskId = manager.scheduleTask(job, model.priority);
+                    tasks.push({ id: taskId, ...model });
+                });
+
+                // Monitor AI model execution
+                manager.on('taskStarted', (task) => {
+                    log(`🎯 AI Model Started: ${task.job.type} on ${task.job.backend} backend`, 'info');
+                });
+
+                manager.on('taskCompleted', (task) => {
+                    const duration = task.endTime - task.startTime;
+                    log(`✅ AI Model Completed: ${task.job.type} in ${duration}ms`, 'success');
+                });
+
+                // Wait for completion
+                const startTime = Date.now();
+                const monitor = setInterval(() => {
+                    const stats = manager.getStats();
+                    if (stats.queue.completed >= tasks.length) {
+                        clearInterval(monitor);
+                        const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                        log(`🎉 All AI models completed in ${totalTime}s!`, 'success');
+                        manager.stop();
+                        updateSystemStatus('AI Model Tests Complete');
+                    }
+                }, 500);
+
+            } catch (error) {
+                log(`❌ AI Model Tests Failed: ${error.message}`, 'error');
+                updateSystemStatus('AI Model Tests Failed');
+            }
+        }
+
+        async function runDeepMimicTest() {
+            await runSingleAIModel('DeepMimic', 'gpu', 2, {
+                description: 'Physics-based character animation with reinforcement learning',
+                computeIntensity: 'high',
+                memoryRequirement: 'large'
+            });
+        }
+
+        async function runFaceFormerTest() {
+            await runSingleAIModel('FaceFormer', 'webnn', 1, {
+                description: 'Real-time facial animation from audio',
+                computeIntensity: 'medium',
+                memoryRequirement: 'medium'
+            });
+        }
+
+        async function runAudio2GestureTest() {
+            await runSingleAIModel('Audio2Gesture', 'gpu', 3, {
+                description: 'Full-body gesture generation from speech audio',
+                computeIntensity: 'high',
+                memoryRequirement: 'large'
+            });
+        }
+
+        async function runRSMTTest() {
+            await runSingleAIModel('RSMT', 'webnn', 2, {
+                description: 'Real-time Stylized Motion Transition',
+                computeIntensity: 'medium',
+                memoryRequirement: 'medium'
+            });
+        }
+
+        async function runKokoroTest() {
+            await runSingleAIModel('Kokoro', 'webnn', 0, {
+                description: 'Real-time emotional speech synthesis',
+                computeIntensity: 'low',
+                memoryRequirement: 'small'
+            });
+        }
+
+        async function runWhisperTest() {
+            await runSingleAIModel('Whisper', 'gpu', 1, {
+                description: 'Automatic speech recognition and transcription',
+                computeIntensity: 'medium',
+                memoryRequirement: 'medium'
+            });
+        }
+
+        async function runVADTest() {
+            await runSingleAIModel('VAD', 'cpu', 0, {
+                description: 'Voice Activity Detection for real-time processing',
+                computeIntensity: 'low',
+                memoryRequirement: 'small'
+            });
+        }
+
+        async function runTinyLlamaTest() {
+            await runSingleAIModel('TinyLlama', 'webnn', 4, {
+                description: 'Lightweight language model for text generation',
+                computeIntensity: 'medium',
+                memoryRequirement: 'medium'
+            });
+        }
+
+        async function runDiabloGPTTest() {
+            await runSingleAIModel('DiabloGPT', 'gpu', 5, {
+                description: 'Conversational AI model for dialogue generation',
+                computeIntensity: 'high',
+                memoryRequirement: 'large'
+            });
+        }
+
+        async function runSingleAIModel(modelType, backend, priority, config) {
+            updateSystemStatus(`Running ${modelType}`, true);
+            log(`🤖 Starting ${modelType} test...`, 'info');
+            log(`📋 Config: ${config.description}`, 'debug');
+            log(`⚙️ Backend: ${backend}, Priority: ${priority}, Compute: ${config.computeIntensity}`, 'debug');
+            
+            try {
+                const manager = new TaskManager({
+                    maxConcurrentTasks: 4,
+                    preemptionEnabled: true,
+                    schedulingInterval: 50,
+                    workerPools: {
+                        cpu: { size: 2 },
+                        gpu: { size: 2 },
+                        webnn: { size: 3 }
+                    }
+                });
+
+                await manager.start();
+
+                const job = createAIModelJob(modelType, backend, config);
+                const taskId = manager.scheduleTask(job, priority);
+
+                manager.on('taskStarted', (task) => {
+                    if (task.id === taskId) {
+                        log(`🎯 ${modelType} started on ${backend} worker`, 'info');
+                    }
+                });
+
+                manager.on('taskProgress', (data) => {
+                    if (data.task.id === taskId && data.progress % 20 === 0) {
+                        log(`📊 ${modelType}: ${data.progress}% complete`, 'debug');
+                    }
+                });
+
+                manager.on('taskCompleted', (task) => {
+                    if (task.id === taskId) {
+                        const duration = task.endTime - task.startTime;
+                        log(`✅ ${modelType} completed in ${duration}ms`, 'success');
+                        log(`📈 Performance: ${(1000/duration).toFixed(2)} FPS equivalent`, 'info');
+                        manager.stop();
+                        updateSystemStatus(`${modelType} Test Complete`);
+                    }
+                });
+
+                manager.on('taskFailed', (task) => {
+                    if (task.id === taskId) {
+                        log(`❌ ${modelType} failed: ${task.error}`, 'error');
+                        manager.stop();
+                        updateSystemStatus(`${modelType} Test Failed`);
+                    }
+                });
+
+                // Timeout after 2 minutes
+                setTimeout(() => {
+                    log(`⏰ ${modelType} test timeout`, 'warning');
+                    manager.stop();
+                    updateSystemStatus(`${modelType} Test Timeout`);
+                }, 120000);
+
+            } catch (error) {
+                log(`❌ ${modelType} Test Failed: ${error.message}`, 'error');
+                updateSystemStatus(`${modelType} Test Failed`);
+            }
+        }
+
+        function createAIModelJob(modelType, backend, config = {}) {
+            const baseConfig = {
+                type: modelType,
+                backend: backend,
+                duration: getModelDuration(modelType),
+                complexity: getModelComplexity(modelType),
+                memorySize: getModelMemorySize(modelType),
+                computeIntensity: config.computeIntensity || 'medium',
+                realTimeConstraint: isRealTimeModel(modelType),
+                batchSize: getOptimalBatchSize(modelType, backend),
+                precision: getModelPrecision(modelType, backend)
+            };
+
+            return {
+                ...baseConfig,
+                execute: async function(worker, onProgress) {
+                    const startTime = Date.now();
+                    log(`🚀 Executing ${this.type} on ${this.backend} worker`, 'debug');
+                    
+                    // Simulate model loading
+                    onProgress?.(10);
+                    await this._simulateModelLoad();
+                    
+                    // Simulate preprocessing
+                    onProgress?.(30);
+                    await this._simulatePreprocessing();
+                    
+                    // Simulate inference
+                    onProgress?.(50);
+                    await this._simulateInference();
+                    
+                    // Simulate postprocessing
+                    onProgress?.(80);
+                    await this._simulatePostprocessing();
+                    
+                    onProgress?.(100);
+                    
+                    const executionTime = Date.now() - startTime;
+                    return {
+                        success: true,
+                        executionTime,
+                        backend: this.backend,
+                        modelType: this.type,
+                        throughput: this.batchSize / (executionTime / 1000),
+                        memoryUsed: this.memorySize,
+                        precision: this.precision
+                    };
+                },
+                
+                _simulateModelLoad: async function() {
+                    const loadTime = this.memorySize * 10; // Larger models take longer to load
+                    await new Promise(resolve => setTimeout(resolve, loadTime));
+                },
+                
+                _simulatePreprocessing: async function() {
+                    const prepTime = this.complexity * 50;
+                    await new Promise(resolve => setTimeout(resolve, prepTime));
+                },
+                
+                _simulateInference: async function() {
+                    const inferenceTime = this.duration * 0.6; // Main computation
+                    await new Promise(resolve => setTimeout(resolve, inferenceTime));
+                },
+                
+                _simulatePostprocessing: async function() {
+                    const postTime = this.complexity * 30;
+                    await new Promise(resolve => setTimeout(resolve, postTime));
+                }
+            };
+        }
+
+        function getModelDuration(modelType) {
+            const durations = {
+                'DeepMimic': 2000,      // Complex physics simulation
+                'FaceFormer': 150,      // Real-time facial animation
+                'Audio2Gesture': 800,   // Full body gesture generation
+                'RSMT': 300,           // Motion transition
+                'Kokoro': 100,         // Real-time speech synthesis
+                'Whisper': 500,        // Speech recognition
+                'VAD': 50,             // Voice activity detection
+                'TinyLlama': 400,      // Language model inference
+                'DiabloGPT': 600       // Conversational AI
+            };
+            return durations[modelType] || 500;
+        }
+
+        function getModelComplexity(modelType) {
+            const complexity = {
+                'DeepMimic': 9,        // Very complex physics
+                'FaceFormer': 5,       // Medium complexity
+                'Audio2Gesture': 7,    // High complexity
+                'RSMT': 6,            // Medium-high complexity
+                'Kokoro': 3,          // Low-medium complexity
+                'Whisper': 6,         // Medium-high complexity
+                'VAD': 2,             // Low complexity
+                'TinyLlama': 5,       // Medium complexity
+                'DiabloGPT': 8        // High complexity
+            };
+            return complexity[modelType] || 5;
+        }
+
+        function getModelMemorySize(modelType) {
+            const memorySizes = {
+                'DeepMimic': 512,      // MB - Large physics simulation
+                'FaceFormer': 128,     // MB - Medium model
+                'Audio2Gesture': 256,  // MB - Large model
+                'RSMT': 164,          // MB - Medium model
+                'Kokoro': 64,         // MB - Small model
+                'Whisper': 200,       // MB - Medium-large model
+                'VAD': 32,            // MB - Small model
+                'TinyLlama': 96,      // MB - Small-medium model
+                'DiabloGPT': 384      // MB - Large model
+            };
+            return memorySizes[modelType] || 128;
+        }
+
+        function isRealTimeModel(modelType) {
+            const realTimeModels = ['FaceFormer', 'Kokoro', 'VAD', 'RSMT'];
+            return realTimeModels.includes(modelType);
+        }
+
+        function getOptimalBatchSize(modelType, backend) {
+            const batchSizes = {
+                'gpu': {
+                    'DeepMimic': 4,
+                    'FaceFormer': 8,
+                    'Audio2Gesture': 2,
+                    'Whisper': 4,
+                    'DiabloGPT': 2
+                },
+                'webnn': {
+                    'FaceFormer': 16,
+                    'RSMT': 12,
+                    'Kokoro': 32,
+                    'TinyLlama': 8
+                },
+                'cpu': {
+                    'VAD': 64,
+                    'Kokoro': 16
+                }
+            };
+            return batchSizes[backend]?.[modelType] || 1;
+        }
+
+        function getModelPrecision(modelType, backend) {
+            if (backend === 'webnn') return 'int8';
+            if (isRealTimeModel(modelType)) return 'fp16';
+            return 'fp32';
+        }
         
         // Initialize
         log('🎯 Task Management Engine Demo Ready!', 'success');
+        log('🤖 AI Models: DeepMimic, FaceFormer, Audio2Gesture, RSMT, Kokoro, Whisper, VAD, TinyLlama, DiabloGPT', 'info');
         log('Click the buttons above to start testing', 'info');
     </script>
 </body>

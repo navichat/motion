@@ -55,11 +55,23 @@ class FibonacciHeap {
 
         // Add all children of min to root list
         if (minNode.child !== null) {
-            const children = this._getChildrenList(minNode.child);
-            for (const child of children) {
+            // First, set parent of all children to null
+            let child = minNode.child;
+            do {
                 child.parent = null;
-                this._addToRootList(child);
-            }
+                child = child.right;
+            } while (child !== minNode.child);
+
+            // Now, merge the two circular lists
+            const rootEnd = this.min.right;
+            const childList = minNode.child;
+            const childListEnd = childList.left;
+
+            this.min.right = childList;
+            childList.left = this.min;
+
+            childListEnd.right = rootEnd;
+            rootEnd.left = childListEnd;
         }
 
         // Remove min from root list
