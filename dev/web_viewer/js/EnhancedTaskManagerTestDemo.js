@@ -2,6 +2,55 @@
  * Enhanced TaskManager Test - Non-module version for demo page
  */
 
+// Test job classes if not already defined
+if (typeof JobA === 'undefined') {
+    class JobA {
+        constructor(id, duration = 500) {
+            this.id = id;
+            this.duration = duration;
+            this.type = 'computational';
+        }
+
+        async execute(worker) {
+            // Simulate computational work
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve({
+                        jobId: this.id,
+                        result: `JobA ${this.id} completed`,
+                        executionTime: this.duration
+                    });
+                }, this.duration);
+            });
+        }
+    }
+
+    class JobB {
+        constructor(id, duration = 700) {
+            this.id = id;
+            this.duration = duration;
+            this.type = 'gpu';
+        }
+
+        async execute(worker) {
+            // Simulate GPU work
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve({
+                        jobId: this.id,
+                        result: `JobB ${this.id} completed`,
+                        executionTime: this.duration
+                    });
+                }, this.duration);
+            });
+        }
+    }
+
+    // Make classes globally available
+    window.JobA = JobA;
+    window.JobB = JobB;
+}
+
 // Test enhanced TaskManager functionality with real workers
 async function testEnhancedTaskManager() {
     console.log('🧪 Testing Enhanced TaskManager with Real Workers');
@@ -39,15 +88,56 @@ async function testEnhancedTaskManager() {
 
     console.log('📝 Scheduling test tasks...');
 
-    // Schedule mixed workload
-    const tasks = [
-        manager.scheduleTask(new JobA('cpu-intensive-1', 2000), 5),
-        manager.scheduleTask(new JobB('neural-inference-1', 3000), 8),
-        manager.scheduleTask(new JobC('media-processing-1', 1500), 3),
-        manager.scheduleTask(new JobA('cpu-intensive-2', 1000), 7),
-        manager.scheduleTask(new JobB('neural-inference-2', 2500), 9),
-        manager.scheduleTask(new JobC('media-processing-2', 1800), 4)
-    ];
+    // Schedule mixed workload - use available job types
+    let tasks = [];
+    
+    if (typeof JobA !== 'undefined') {
+        // Use original mock jobs if available
+        tasks = [
+            manager.scheduleTask(new JobA('cpu-intensive-1', 2000), 5),
+            manager.scheduleTask(new JobB('neural-inference-1', 3000), 8),
+            manager.scheduleTask(new JobC('media-processing-1', 1500), 3),
+            manager.scheduleTask(new JobA('cpu-intensive-2', 1000), 7),
+            manager.scheduleTask(new JobB('neural-inference-2', 2500), 9),
+            manager.scheduleTask(new JobC('media-processing-2', 1800), 4)
+        ];
+    } else if (typeof WASMMatrixJob !== 'undefined') {
+        // Use real WASM/WebGPU jobs if available
+        tasks = [
+            manager.scheduleTask(new WASMMatrixJob('wasm-matrix-1', 256, 1), 5),
+            manager.scheduleTask(new WebGPUMatrixJob('gpu-matrix-1', 256, 1), 8),
+            manager.scheduleTask(new WASMPrimeJob('wasm-prime-1', 50000, 1), 3),
+            manager.scheduleTask(new WASMFractalJob('wasm-fractal-1', 256, 50, 1), 7),
+            manager.scheduleTask(new WebGPUImageJob('gpu-image-1', 512, 512, 1), 9),
+            manager.scheduleTask(new WASMMatrixJob('wasm-matrix-2', 256, 1), 4)
+        ];
+    } else {
+        // Fallback to simple test jobs
+        tasks = [
+            manager.scheduleTask({
+                id: 'test-job-1',
+                type: 'TestJob',
+                execute: async (progress) => {
+                    for (let i = 0; i < 20; i++) {
+                        if (progress) progress((i + 1) * 5);
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+                    return { success: true };
+                }
+            }, 5),
+            manager.scheduleTask({
+                id: 'test-job-2',
+                type: 'TestJob',
+                execute: async (progress) => {
+                    for (let i = 0; i < 30; i++) {
+                        if (progress) progress(Math.round((i + 1) / 30 * 100));
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+                    return { success: true };
+                }
+            }, 8)
+        ];
+    }
 
     console.log(`📦 Scheduled ${tasks.length} tasks`);
 
@@ -60,11 +150,11 @@ async function testEnhancedTaskManager() {
         console.log(`⏱️  [${elapsed}s] Queue: ${stats.queue.pending} pending, ${stats.queue.running} running, ${stats.tasksCompleted} completed`);
         
         // Show worker utilization
-        const cpuBusy = stats.workers.cpu.filter(w => w.busy).length;
-        const gpuBusy = stats.workers.gpu.filter(w => w.busy).length;
-        const webnnBusy = stats.workers.webnn.filter(w => w.busy).length;
+        const cpuBusy = stats.workers.cpu.busy;
+        const gpuBusy = stats.workers.gpu.busy;
+        const webnnBusy = stats.workers.webnn.busy;
         
-        console.log(`👥 Workers: CPU ${cpuBusy}/${stats.workers.cpu.length}, GPU ${gpuBusy}/${stats.workers.gpu.length}, WebNN ${webnnBusy}/${stats.workers.webnn.length}`);
+        console.log(`👥 Workers: CPU ${cpuBusy}/${stats.workers.cpu.total}, GPU ${gpuBusy}/${stats.workers.gpu.total}, WebNN ${webnnBusy}/${stats.workers.webnn.total}`);
         
         // Check if all tasks are complete
         if (stats.tasksCompleted >= tasks.length) {
@@ -106,11 +196,43 @@ async function testWorkerCommunication() {
 
     // Test if workers are properly initialized
     const stats = manager.getStats();
-    console.log(`CPU workers: ${stats.workers.cpu.length} (real: ${stats.workers.cpu.filter(w => w.actualWorker).length})`);
-    console.log(`GPU workers: ${stats.workers.gpu.length} (real: ${stats.workers.gpu.filter(w => w.actualWorker).length})`);
+    
+    // Defensive check for stats structure
+    if (stats && stats.workers) {
+        console.log(`CPU workers: ${stats.workers.cpu?.total || 0} (busy: ${stats.workers.cpu?.busy || 0})`);
+        console.log(`GPU workers: ${stats.workers.gpu?.total || 0} (busy: ${stats.workers.gpu?.busy || 0})`);
+        
+        // Additional validation that stats are in correct format
+        if (typeof stats.workers.cpu === 'object' && !Array.isArray(stats.workers.cpu)) {
+            console.log('✅ Worker pool stats structure is correct');
+        } else {
+            console.log('⚠️ Unexpected worker pool stats structure:', typeof stats.workers.cpu);
+        }
+    } else {
+        console.log('❌ Stats object structure is invalid');
+        console.log('Stats:', stats);
+    }
 
     // Schedule a simple task to test communication
-    const task = manager.scheduleTask(new JobA('communication-test', 1000), 10);
+    let task;
+    
+    if (typeof JobA !== 'undefined') {
+        task = manager.scheduleTask(new JobA('communication-test', 1000), 10);
+    } else {
+        // Fallback to simple job
+        task = manager.scheduleTask({
+            id: 'communication-test',
+            type: 'CommunicationTest',
+            execute: async (progress, shouldStop) => {
+                for (let i = 0; i < 10; i++) {
+                    if (shouldStop()) return null;
+                    if (progress) progress((i + 1) * 10);
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                return { success: true, duration: 1000 };
+            }
+        }, 10);
+    }
     
     // Wait for task completion
     return new Promise((resolve) => {

@@ -272,8 +272,60 @@ if (isWorkerContext) {
 
         _init() {
             try {
-                // Create the worker
-                this.worker = new Worker(new URL('./cpu-worker.js', import.meta.url));
+                // Create the worker using a blob URL for self-contained execution
+                const workerCode = `
+                    // CPU Worker Implementation
+                    self.addEventListener('message', function(e) {
+                        const { taskId, taskData, command } = e.data;
+                        
+                        try {
+                            let result;
+                            switch (command) {
+                                case 'execute':
+                                    result = executeCPUTask(taskData);
+                                    break;
+                                case 'cancel':
+                                    // Handle cancellation
+                                    self.postMessage({ taskId, status: 'cancelled' });
+                                    return;
+                                default:
+                                    throw new Error('Unknown command: ' + command);
+                            }
+                            
+                            self.postMessage({ 
+                                taskId, 
+                                status: 'completed', 
+                                result 
+                            });
+                            
+                        } catch (error) {
+                            self.postMessage({ 
+                                taskId, 
+                                status: 'error', 
+                                error: error.message 
+                            });
+                        }
+                    });
+                    
+                    function executeCPUTask(taskData) {
+                        // Simulate CPU-intensive work
+                        const iterations = taskData.iterations || 1000000;
+                        let result = 0;
+                        
+                        for (let i = 0; i < iterations; i++) {
+                            result += Math.sqrt(i) * Math.sin(i);
+                        }
+                        
+                        return { 
+                            iterations, 
+                            result, 
+                            timestamp: Date.now() 
+                        };
+                    }
+                `;
+                
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                this.worker = new Worker(URL.createObjectURL(blob));
                 
                 this.worker.addEventListener('message', (e) => {
                     this._handleMessage(e.data);

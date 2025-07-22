@@ -446,8 +446,70 @@ if (isWorkerContext) {
 
         _init() {
             try {
-                // Create the worker
-                this.worker = new Worker(new URL('./gpu-worker.js', import.meta.url));
+                // Create the worker using a blob URL for self-contained execution
+                const workerCode = `
+                    // GPU Worker Implementation (WebGL simulation)
+                    self.addEventListener('message', function(e) {
+                        const { taskId, taskData, command } = e.data;
+                        
+                        try {
+                            let result;
+                            switch (command) {
+                                case 'execute':
+                                    result = executeGPUTask(taskData);
+                                    break;
+                                case 'cancel':
+                                    self.postMessage({ taskId, status: 'cancelled' });
+                                    return;
+                                default:
+                                    throw new Error('Unknown command: ' + command);
+                            }
+                            
+                            self.postMessage({ 
+                                taskId, 
+                                status: 'completed', 
+                                result 
+                            });
+                            
+                        } catch (error) {
+                            self.postMessage({ 
+                                taskId, 
+                                status: 'error', 
+                                error: error.message 
+                            });
+                        }
+                    });
+                    
+                    function executeGPUTask(taskData) {
+                        // Simulate GPU-like parallel computation
+                        const width = taskData.width || 512;
+                        const height = taskData.height || 512;
+                        const channels = taskData.channels || 4;
+                        
+                        // Simulate matrix operations
+                        const dataSize = width * height * channels;
+                        const buffer = new Float32Array(dataSize);
+                        
+                        for (let i = 0; i < dataSize; i += 4) {
+                            // Simulate RGBA processing
+                            buffer[i] = Math.random();     // R
+                            buffer[i + 1] = Math.random(); // G  
+                            buffer[i + 2] = Math.random(); // B
+                            buffer[i + 3] = 1.0;           // A
+                        }
+                        
+                        return { 
+                            width, 
+                            height, 
+                            channels,
+                            processedPixels: dataSize / 4,
+                            timestamp: Date.now() 
+                        };
+                    }
+                `;
+                
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                this.worker = new Worker(URL.createObjectURL(blob));
                 
                 this.worker.addEventListener('message', (e) => {
                     this._handleMessage(e.data);

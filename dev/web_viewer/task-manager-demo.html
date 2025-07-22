@@ -6,7 +6,13 @@
     <title>Task Management Engine Demo</title>
     <style>
         body {
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                     <button class="btn btn-primary" onclick="runEnhancedWorkerTest()" style="background: #8b5cf6;">
+                🚀 Run Enhanced Worker Test
+            </button>
+            <button class="btn btn-primary" onclick="runValidationTest()" style="background: #059669;">
+                🔍 Validate Integration
+            </button>
+            <button class="btn" onclick="clearConsole()" style="background: #666; color: white;">ont-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             background: #1e1e1e;
             color: #d4d4d4;
             margin: 0;
@@ -224,9 +230,20 @@
                 🎮 Interactive Demo
             </button>
             <button class="btn btn-primary" onclick="runEnhancedWorkerTest()" style="background: #8b5cf6;">
-                🔧 Enhanced Worker Test
+                � Run Enhanced Worker Test
+            </button>
+            <button class="btn btn-primary" onclick="runValidationTest()" style="background: #059669;">
+                🔍 Validate Integration
+            </button>
+            <button class="btn btn-primary" onclick="runRealWorkloadTest()" style="background: #dc2626;">
+                🚀 Real WASM/GPU/WebNN Workload
+            </button>
+            <button class="btn btn-primary" onclick="runMLPipelineTest()" style="background: #7c3aed;">
+                🧠 ML Pipeline Test
             </button>
             <button class="btn" onclick="clearConsole()" style="background: #666; color: white;">
+                🧹 Clear Console
+            </button>
                 🗑️ Clear Console
             </button>
         </div>
@@ -280,9 +297,14 @@ Console output will appear here...</pre>
     <!-- Load our task management system -->
     <script src="./js/FibonacciHeap.js"></script>
     <script src="./js/MockGPUJobs.js"></script>
+    <script src="./js/RealWASMJobs.js"></script>
+    <script src="./js/RealWebGPUJobs.js"></script>
+    <script src="./js/RealWebNNJobs.js"></script>
+    <script src="./js/RealJobFactory.js"></script>
     <script src="./js/TaskManager.js"></script>
     <script src="./js/TaskManagerTestSuite.js"></script>
     <script src="./js/EnhancedTaskManagerTestDemo.js"></script>
+    <script src="./js/ValidationTest.js"></script>
     
     <script>
         // Console management
@@ -566,6 +588,228 @@ Console output will appear here...</pre>
             } catch (error) {
                 log(`❌ Enhanced Worker Tests Failed: ${error.message}`, 'error');
                 updateSystemStatus('Enhanced Tests Failed');
+            }
+        }
+
+        async function runValidationTest() {
+            updateSystemStatus('Running Validation', true);
+            log('🔍 Starting Validation Test...', 'info');
+            
+            try {
+                // Redirect console.log to our display
+                const originalConsoleLog = console.log;
+                console.log = function(...args) {
+                    log(args.join(' '), 'debug');
+                    originalConsoleLog.apply(console, args);
+                };
+                
+                const result = await validateEnhancedTaskManager();
+                
+                // Restore console.log
+                console.log = originalConsoleLog;
+                
+                if (result.passedTests === result.totalTests) {
+                    log('✅ Validation Test Completed Successfully!', 'success');
+                    updateSystemStatus('Validation Passed');
+                } else {
+                    log(`⚠️ Validation Partial: ${result.passedTests}/${result.totalTests} tests passed`, 'warning');
+                    updateSystemStatus('Validation Partial');
+                }
+                
+            } catch (error) {
+                log(`❌ Validation Test Failed: ${error.message}`, 'error');
+                updateSystemStatus('Validation Failed');
+            }
+        }
+
+        async function runRealWorkloadTest() {
+            updateSystemStatus('Running Real Workload Test', true);
+            log('🚀 Starting Real WASM/WebGPU/WebNN Workload Test...', 'info');
+            
+            try {
+                const manager = new TaskManager({
+                    maxConcurrentTasks: 6,
+                    preemptionEnabled: true,
+                    schedulingInterval: 50,
+                    workerPools: {
+                        cpu: { size: 3 },
+                        gpu: { size: 2 },
+                        webnn: { size: 2 }
+                    }
+                });
+
+                // Set up event listeners
+                manager.on('taskStarted', (task) => {
+                    log(`🎯 Started: ${task.job.type} (ID: ${task.id}) on ${task.worker.type} worker`, 'info');
+                });
+
+                manager.on('taskCompleted', (task) => {
+                    const duration = task.endTime - task.startTime;
+                    log(`✅ Completed: ${task.job.type} in ${duration}ms (Worker: ${task.worker.type})`, 'success');
+                });
+
+                manager.on('taskProgress', (data) => {
+                    if (data.progress % 25 === 0) { // Log every 25%
+                        log(`📊 ${data.task.job.type}: ${data.progress}% complete`, 'debug');
+                    }
+                });
+
+                manager.on('taskFailed', (task) => {
+                    log(`❌ Failed: ${task.job.type} - ${task.error}`, 'error');
+                });
+
+                await manager.start();
+                
+                // Create realistic workload
+                log('📋 Creating realistic computational workload...', 'info');
+                const workload = createRealisticWorkload('heavy'); // 100 jobs
+                
+                log(`📦 Generated ${workload.length} real computational jobs:`, 'info');
+                
+                // Count job types
+                const jobCounts = {};
+                workload.forEach(w => {
+                    jobCounts[w.job.type] = (jobCounts[w.job.type] || 0) + 1;
+                });
+                
+                Object.entries(jobCounts).forEach(([type, count]) => {
+                    log(`   ${type}: ${count} jobs`, 'debug');
+                });
+
+                // Schedule all jobs
+                const startTime = Date.now();
+                workload.forEach(w => {
+                    manager.scheduleTask(w.job, w.priority, w.scheduledTime, w.options);
+                });
+
+                log(`🎬 All jobs scheduled! Queue processing started...`, 'info');
+                
+                // Monitor progress
+                const monitorInterval = setInterval(() => {
+                    const stats = manager.getStats();
+                    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                    
+                    log(`⏱️  [${elapsed}s] Queue: ${stats.queue.size} pending, ${stats.queue.running} running, ${stats.queue.completed} completed`, 'info');
+                    
+                    // Worker utilization
+                    const cpuUtil = `${stats.workers.cpu.busy}/${stats.workers.cpu.total}`;
+                    const gpuUtil = `${stats.workers.gpu.busy}/${stats.workers.gpu.total}`;
+                    const webnnUtil = `${stats.workers.webnn.busy}/${stats.workers.webnn.total}`;
+                    
+                    log(`👥 Workers: CPU ${cpuUtil}, GPU ${gpuUtil}, WebNN ${webnnUtil}`, 'debug');
+                    
+                    // Check completion
+                    if (stats.queue.completed >= workload.length) {
+                        clearInterval(monitorInterval);
+                        
+                        const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                        log(`🎉 Real workload test completed in ${totalTime}s!`, 'success');
+                        log(`📈 Final stats: ${stats.queue.completed} completed, ${stats.queue.failed} failed`, 'info');
+                        log(`⚡ Average execution time: ${stats.performance.averageExecutionTime.toFixed(1)}ms`, 'info');
+                        
+                        manager.stop();
+                        updateSystemStatus('Real Workload Test Complete');
+                    }
+                }, 2000);
+
+                // Timeout after 5 minutes
+                setTimeout(() => {
+                    if (monitorInterval) {
+                        clearInterval(monitorInterval);
+                        log('⏰ Real workload test timeout (5 minutes)', 'warning');
+                        manager.stop();
+                        updateSystemStatus('Real Workload Test Timeout');
+                    }
+                }, 300000);
+                
+            } catch (error) {
+                log(`❌ Real Workload Test Failed: ${error.message}`, 'error');
+                updateSystemStatus('Real Workload Test Failed');
+            }
+        }
+
+        async function runMLPipelineTest() {
+            updateSystemStatus('Running ML Pipeline Test', true);
+            log('🧠 Starting ML Pipeline Test...', 'info');
+            
+            try {
+                const manager = new TaskManager({
+                    maxConcurrentTasks: 8,
+                    preemptionEnabled: true,
+                    schedulingInterval: 30,
+                    workerPools: {
+                        cpu: { size: 2 },
+                        gpu: { size: 3 },
+                        webnn: { size: 4 }
+                    }
+                });
+
+                // Enhanced event listeners for ML pipeline
+                manager.on('taskStarted', (task) => {
+                    log(`🎯 ML Task Started: ${task.job.type} (Priority: ${task.priority})`, 'info');
+                });
+
+                manager.on('taskCompleted', (task) => {
+                    const duration = task.endTime - task.startTime;
+                    log(`✅ ML Task Completed: ${task.job.type} in ${duration}ms`, 'success');
+                });
+
+                await manager.start();
+                
+                // Create ML pipeline workload
+                log('🔬 Creating ML pipeline workload...', 'info');
+                const pipeline = createMLPipelineWorkload();
+                
+                log(`🧬 Generated ${pipeline.length} ML pipeline jobs:`, 'info');
+                log('   📊 Data preprocessing (priority 1)', 'debug');
+                log('   🔍 Feature extraction (priority 3)', 'debug');
+                log('   🧠 Model training/inference (priority 2-5)', 'debug');
+                log('   🎵 Audio processing (priority 0 - real-time)', 'debug');
+                log('   💻 Background computation (priority 8)', 'debug');
+
+                // Schedule pipeline jobs
+                const startTime = Date.now();
+                pipeline.forEach(p => {
+                    manager.scheduleTask(p.job, p.priority, p.scheduledTime);
+                });
+
+                log(`🚀 ML Pipeline started! Processing ${pipeline.length} jobs...`, 'info');
+                
+                // Monitor ML pipeline progress
+                const pipelineMonitor = setInterval(() => {
+                    const stats = manager.getStats();
+                    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                    
+                    log(`🧠 [${elapsed}s] ML Pipeline: ${stats.queue.size} queued, ${stats.queue.running} active, ${stats.queue.completed} done`, 'info');
+                    
+                    // Worker specialization
+                    log(`🔧 Specialized workers: CPU ${stats.workers.cpu.busy}/${stats.workers.cpu.total}, GPU ${stats.workers.gpu.busy}/${stats.workers.gpu.total}, WebNN ${stats.workers.webnn.busy}/${stats.workers.webnn.total}`, 'debug');
+                    
+                    if (stats.queue.completed >= pipeline.length) {
+                        clearInterval(pipelineMonitor);
+                        
+                        const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                        log(`🎉 ML Pipeline completed in ${totalTime}s!`, 'success');
+                        log(`📊 Pipeline efficiency: ${(stats.queue.completed / parseFloat(totalTime)).toFixed(1)} jobs/second`, 'info');
+                        
+                        manager.stop();
+                        updateSystemStatus('ML Pipeline Test Complete');
+                    }
+                }, 1500);
+
+                // Timeout after 10 minutes
+                setTimeout(() => {
+                    if (pipelineMonitor) {
+                        clearInterval(pipelineMonitor);
+                        log('⏰ ML Pipeline test timeout (10 minutes)', 'warning');
+                        manager.stop();
+                        updateSystemStatus('ML Pipeline Test Timeout');
+                    }
+                }, 600000);
+                
+            } catch (error) {
+                log(`❌ ML Pipeline Test Failed: ${error.message}`, 'error');
+                updateSystemStatus('ML Pipeline Test Failed');
             }
         }
         

@@ -25,7 +25,8 @@ class Task {
         this.maxRetries = options.maxRetries || 3;
         this.timeout = options.timeout || 30000; // 30 seconds default
         this.canPreempt = options.canPreempt !== false; // Default to true
-        this.resourceRequirements = options.resourceRequirements || { cpu: 1, gpu: 0, memory: 100 };
+        // Use job's resource requirements if available, otherwise use options or defaults
+        this.resourceRequirements = job.resourceRequirements || options.resourceRequirements || { cpu: 1, gpu: 0, webnn: 0, memory: 100 };
         this.dependencies = options.dependencies || [];
         this.callbacks = {
             onProgress: options.onProgress,
@@ -86,17 +87,22 @@ class WorkerPool {
             switch (this.workerType) {
                 case 'cpu':
                     if (typeof Worker !== 'undefined') {
-                        actualWorker = new Worker('./js/workers/cpu-worker.js');
+                        actualWorker = new Worker('./js/workers/cpu-worker-simple.js');
                     }
                     break;
                 case 'gpu':
                     if (typeof Worker !== 'undefined') {
-                        actualWorker = new Worker('./js/workers/gpu-worker.js');
+                        actualWorker = new Worker('./js/workers/gpu-worker-simple.js');
                     }
                     break;
                 case 'webnn':
                     if (typeof Worker !== 'undefined') {
-                        actualWorker = new Worker('./js/workers/webnn-worker.js');
+                        actualWorker = new Worker('./js/workers/webnn-worker-simple.js');
+                    }
+                    break;
+                case 'wasm':
+                    if (typeof Worker !== 'undefined') {
+                        actualWorker = new Worker('./js/workers/wasm-worker-simple.js');
                     }
                     break;
                 default:
@@ -189,11 +195,12 @@ class TaskManager {
         this.completedTasks = new Map(); // taskId -> task
         this.failedTasks = new Map(); // taskId -> task
         
-        // Worker pools
+        // Worker pools (now includes WASM)
         this.workerPools = {
             cpu: new WorkerPool(options.cpuWorkers || 2, 'cpu'),
             gpu: new WorkerPool(options.gpuWorkers || 1, 'gpu'),
-            webnn: new WorkerPool(options.webnnWorkers || 1, 'webnn')
+            webnn: new WorkerPool(options.webnnWorkers || 1, 'webnn'),
+            wasm: new WorkerPool(options.wasmWorkers || 1, 'wasm')
         };
 
         // Configuration
@@ -355,35 +362,40 @@ class TaskManager {
         // Update priorities for aging
         this._updateTaskPriorities();
         
-        // Process tasks while we have available workers and tasks
-        while (this.runningTasks.size < this.maxConcurrentTasks && !this.heap.isEmpty()) {
-            const next = this.heap.peek();
-            if (!next) break;
-            
-            const task = next.value;
-            
-            // Check if task is ready to run
-            if (!task.isReadyToRun()) {
-                break; // Tasks are ordered by priority, so stop here
-            }
-
-            // Get appropriate worker
-            const worker = this._getAvailableWorker(task);
-            if (!worker) {
-                // Try preemption if enabled
-                if (this.preemptionEnabled) {
-                    const preemptedWorker = this._attemptPreemption(task);
-                    if (preemptedWorker) {
-                        this._runTask(task, preemptedWorker);
-                    }
+        // Defensive loop: catch heap errors
+        try {
+            // Process tasks while we have available workers and tasks
+            while (this.runningTasks.size < this.maxConcurrentTasks && !this.heap.isEmpty()) {
+                const next = this.heap.peek();
+                if (!next) break;
+                
+                const task = next.value;
+                
+                // Check if task is ready to run
+                if (!task.isReadyToRun()) {
+                    break; // Tasks are ordered by priority, so stop here
                 }
-                break; // No workers available
-            }
 
-            // Remove from heap and run
-            this.heap.extractMin();
-            this.taskNodes.delete(task.id);
-            this._runTask(task, worker);
+                // Get appropriate worker
+                const worker = this._getAvailableWorker(task);
+                if (!worker) {
+                    // Try preemption if enabled
+                    if (this.preemptionEnabled) {
+                        const preemptedWorker = this._attemptPreemption(task);
+                        if (preemptedWorker) {
+                            this._runTask(task, preemptedWorker);
+                        }
+                    }
+                    break; // No workers available
+                }
+
+                // Remove from heap and run
+                this.heap.extractMin();
+                this.taskNodes.delete(task.id);
+                this._runTask(task, worker);
+            }
+        } catch (err) {
+            console.error('Error in _processQueue:', err);
         }
 
         // Check if queue is empty
@@ -406,16 +418,46 @@ class TaskManager {
     }
 
     _getAvailableWorker(task) {
-        // Simple resource allocation - prefer specialized workers
-        const requirements = task.resourceRequirements;
+        // Explicit backend assignment based on task.backend or job.backend
+        const backend = task.backend || (task.job && task.job.backend);
         
-        if (requirements.gpu > 0) {
-            return this.workerPools.gpu.getAvailableWorker();
-        } else if (requirements.webnn > 0) {
-            return this.workerPools.webnn.getAvailableWorker();
+        let selectedWorkerType;
+        let worker;
+        
+        if (backend === 'gpu') {
+            selectedWorkerType = 'GPU';
+            worker = this.workerPools.gpu.getAvailableWorker();
+        } else if (backend === 'webnn') {
+            selectedWorkerType = 'WebNN';
+            worker = this.workerPools.webnn.getAvailableWorker();
+        } else if (backend === 'wasm') {
+            selectedWorkerType = 'WASM';
+            worker = this.workerPools.wasm.getAvailableWorker();
         } else {
-            return this.workerPools.cpu.getAvailableWorker();
+            // Fallback to resource requirements if backend not specified
+            const requirements = task.resourceRequirements || {};
+            if (requirements.gpu && requirements.gpu > 0) {
+                selectedWorkerType = 'GPU';
+                worker = this.workerPools.gpu.getAvailableWorker();
+            } else if (requirements.webnn && requirements.webnn > 0) {
+                selectedWorkerType = 'WebNN';
+                worker = this.workerPools.webnn.getAvailableWorker();
+            } else if (requirements.wasm && requirements.wasm > 0) {
+                selectedWorkerType = 'WASM';
+                worker = this.workerPools.wasm.getAvailableWorker();
+            } else {
+                selectedWorkerType = 'CPU';
+                worker = this.workerPools.cpu.getAvailableWorker();
+            }
         }
+        
+        if (worker) {
+            console.log(`Task ${task.id} (${task.job.type}) assigned to ${selectedWorkerType} worker: ${worker.id}`);
+        } else {
+            console.log(`No available ${selectedWorkerType} worker for task ${task.id} (${task.job.type})`);
+        }
+        
+        return worker;
     }
 
     _attemptPreemption(newTask) {
@@ -553,6 +595,8 @@ class TaskManager {
             this.workerPools.gpu.assignWorker(worker, task);
         } else if (worker.type === 'webnn') {
             this.workerPools.webnn.assignWorker(worker, task);
+        } else if (worker.type === 'wasm') {
+            this.workerPools.wasm.assignWorker(worker, task);
         }
     }
 
@@ -563,6 +607,8 @@ class TaskManager {
             this.workerPools.gpu.releaseWorker(worker);
         } else if (worker.type === 'webnn') {
             this.workerPools.webnn.releaseWorker(worker);
+        } else if (worker.type === 'wasm') {
+            this.workerPools.wasm.releaseWorker(worker);
         }
     }
 
@@ -658,20 +704,24 @@ class TaskManager {
      * Get comprehensive statistics
      */
     getStats() {
-        const queueSize = this.heap.size();
-        const runningCount = this.runningTasks.size;
+        // Defensive stats reporting
+        const queueSize = typeof this.heap.size === 'function' ? this.heap.size() : 0;
+        const runningCount = typeof this.runningTasks.size === 'number' ? this.runningTasks.size : 0;
+        const completedCount = typeof this.completedTasks.size === 'number' ? this.completedTasks.size : 0;
+        const failedCount = typeof this.failedTasks.size === 'number' ? this.failedTasks.size : 0;
         
         return {
             queue: {
                 size: queueSize,
                 running: runningCount,
-                completed: this.completedTasks.size,
-                failed: this.failedTasks.size
+                completed: completedCount,
+                failed: failedCount
             },
             workers: {
                 cpu: this.workerPools.cpu.getStats(),
                 gpu: this.workerPools.gpu.getStats(),
-                webnn: this.workerPools.webnn.getStats()
+                webnn: this.workerPools.webnn.getStats(),
+                wasm: this.workerPools.wasm.getStats()
             },
             performance: {
                 tasksScheduled: this.stats.tasksScheduled,

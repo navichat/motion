@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Management Engine Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background: #2d2d30;
+        }
+        .button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background: #1177bb;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .stat-card {
+            background: #383838;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .log {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Task Management Engine - Real Workload Test</h1>
+        
+        <div class="section">
+            <h2>📊 System Status</h2>
+            <div class="stats" id="stats">
+                <div class="stat-card">
+                    <strong>Queue Status</strong><br>
+                    <span id="queue-stats">Pending: 0, Running: 0</span>
+                </div>
+                <div class="stat-card">
+                    <strong>Tasks Completed</strong><br>
+                    <span id="completed-stats">0 / 0</span>
+                </div>
+                <div class="stat-card">
+                    <strong>Workers</strong><br>
+                    <span id="worker-stats">CPU: 0/0, GPU: 0/0, WebNN: 0/0</span>
+                </div>
+                <div class="stat-card">
+                    <strong>Performance</strong><br>
+                    <span id="perf-stats">Avg: 0ms, Total: 0ms</span>
+                </div>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="overall-progress"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🎮 Controls</h2>
+            <button class="button" onclick="runBasicTest()">🧪 Basic Validation Test</button>
+            <button class="button" onclick="testWorkerAssignment()">🎯 Worker Assignment Test</button>
+            <button class="button" onclick="runMultiBackendDemo()">🚀 Multi-Backend Demo</button>
+            <button class="button" onclick="runLightWorkload()">💡 Light Workload (10 tasks)</button>
+            <button class="button" onclick="runHeavyWorkload()">🔥 Heavy Workload (50 tasks)</button>
+            <button class="button" onclick="runStressTest()">💥 Stress Test (100+ tasks)</button>
+            <button class="button" onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+
+        <div class="section">
+            <h2>📝 Activity Log</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <!-- Load our task management system -->
+    <script src="FibonacciHeap.js"></script>
+    <script src="RealWASMJobs.js"></script>
+    <script src="RealWebGPUJobs.js"></script>
+    <script src="RealWebNNJobs.js"></script>
+    <script src="RealJobFactory.js"></script>
+    <script src="TaskManager.js"></script>
+    <script src="ValidationTest.js"></script>
+    <script src="WorkerAssignmentTest.js"></script>
+    <script src="MultiBackendDemo.js"></script>
+
+    <script>
+        let taskManager;
+        let currentTasks = [];
+        let updateInterval;
+
+        // Initialize the task manager
+        async function initializeSystem() {
+            try {
+                log('🚀 Initializing Task Management Engine...');
+                
+                taskManager = new TaskManager();
+                await taskManager.initialize();
+                
+                log('✅ Task Manager initialized successfully');
+                log('🔧 Worker capabilities:');
+                
+                const stats = taskManager.getStatistics();
+                log(`   CPU Workers: ${stats.workers.cpu.total}`);
+                log(`   GPU Workers: ${stats.workers.gpu.total} (WebGPU: ${stats.workers.gpu.hasWebGPU ? 'Available' : 'Not Available'})`);
+                log(`   WebNN Workers: ${stats.workers.webnn.total} (WebNN: ${stats.workers.webnn.hasWebNN ? 'Available' : 'Not Available'})`);
+                
+                updateDisplay();
+                
+            } catch (error) {
+                log('❌ Initialization failed: ' + error.message);
+                console.error('Initialization error:', error);
+            }
+        }
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function updateDisplay() {
+            if (!taskManager) return;
+
+            const stats = taskManager.getStatistics();
+            
+            // Update stats display
+            document.getElementById('queue-stats').textContent = 
+                `Pending: ${stats.queue.pending}, Running: ${stats.queue.running}`;
+            
+            document.getElementById('completed-stats').textContent = 
+                `${stats.tasksCompleted} / ${currentTasks.length}`;
+            
+            document.getElementById('worker-stats').textContent = 
+                `CPU: ${stats.workers.cpu.busy}/${stats.workers.cpu.total}, GPU: ${stats.workers.gpu.busy}/${stats.workers.gpu.total}, WebNN: ${stats.workers.webnn.busy}/${stats.workers.webnn.total}`;
+            
+            document.getElementById('perf-stats').textContent = 
+                `Avg: ${stats.averageTaskTime}ms, Total: ${stats.totalExecutionTime}ms`;
+
+            // Update progress bar
+            const progress = currentTasks.length > 0 ? (stats.tasksCompleted / currentTasks.length) * 100 : 0;
+            document.getElementById('overall-progress').style.width = progress + '%';
+        }
+
+        async function runBasicTest() {
+            if (!taskManager) {
+                log('❌ Task manager not initialized');
+                return;
+            }
+
+            log('🧪 Running basic validation test...');
+            
+            try {
+                const validator = new TaskManagerValidator(taskManager);
+                const results = await validator.runAllTests();
+                
+                log('📊 Validation Results:');
+                results.forEach(result => {
+                    const status = result.passed ? '✅' : '❌';
+                    log(`   ${status} ${result.testName}: ${result.message}`);
+                });
+                
+                const passed = results.filter(r => r.passed).length;
+                const total = results.length;
+                log(`📈 Overall: ${passed}/${total} tests passed`);
+                
+            } catch (error) {
+                log('❌ Validation test failed: ' + error.message);
+                console.error('Validation error:', error);
+            }
+        }
+
+        async function runLightWorkload() {
+            await runWorkload(10, 'Light');
+        }
+
+        async function runHeavyWorkload() {
+            await runWorkload(50, 'Heavy');
+        }
+
+        async function runStressTest() {
+            await runWorkload(120, 'Stress');
+        }
+
+        async function runWorkload(taskCount, workloadType) {
+            if (!taskManager) {
+                log('❌ Task manager not initialized');
+                return;
+            }
+
+            log(`🔥 Starting ${workloadType} Workload Test (${taskCount} tasks)...`);
+            
+            try {
+                // Clear previous tasks
+                currentTasks = [];
+                
+                // Generate realistic workload
+                const jobFactory = new RealJobFactory();
+                const tasks = jobFactory.generateWorkload(taskCount);
+                
+                log(`📝 Generated ${tasks.length} realistic computational tasks`);
+                log('   Mix includes: WASM matrix ops, GPU shaders, WebNN inference simulations');
+                
+                // Schedule all tasks
+                currentTasks = tasks.map(task => taskManager.scheduleTask(task.job, task.priority));
+                
+                log(`⏰ Scheduled ${currentTasks.length} tasks for execution`);
+                
+                // Start monitoring
+                startMonitoring();
+                
+            } catch (error) {
+                log('❌ Workload test failed: ' + error.message);
+                console.error('Workload error:', error);
+            }
+        }
+
+        function startMonitoring() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+
+            const startTime = Date.now();
+            
+            updateInterval = setInterval(() => {
+                updateDisplay();
+                
+                const stats = taskManager.getStatistics();
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                
+                // Check if all tasks completed
+                if (stats.tasksCompleted >= currentTasks.length && stats.queue.running === 0) {
+                    clearInterval(updateInterval);
+                    updateInterval = null;
+                    
+                    log(`🎉 Workload completed in ${elapsed}s!`);
+                    log(`📊 Final stats: ${stats.tasksCompleted} completed, ${stats.tasksFailed} failed`);
+                    log(`⚡ Average task time: ${stats.averageTaskTime}ms`);
+                    log(`🏆 Peak concurrent tasks: ${Math.max(stats.workers.cpu.total, stats.workers.gpu.total, stats.workers.webnn.total)}`);
+                }
+                
+            }, 500);
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', initializeSystem);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            if (taskManager) {
+                taskManager.shutdown();
+            }
+        });
+    </script>
+</body>
+</html>

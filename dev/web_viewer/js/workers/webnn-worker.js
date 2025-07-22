@@ -451,8 +451,84 @@ if (isWorkerContext) {
 
         _init() {
             try {
-                // Create the worker
-                this.worker = new Worker(new URL('./webnn-worker.js', import.meta.url));
+                // Create the worker using a blob URL for self-contained execution
+                const workerCode = `
+                    // WebNN Worker Implementation (Neural Network simulation)
+                    self.addEventListener('message', function(e) {
+                        const { taskId, taskData, command } = e.data;
+                        
+                        try {
+                            let result;
+                            switch (command) {
+                                case 'execute':
+                                    result = executeWebNNTask(taskData);
+                                    break;
+                                case 'cancel':
+                                    self.postMessage({ taskId, status: 'cancelled' });
+                                    return;
+                                default:
+                                    throw new Error('Unknown command: ' + command);
+                            }
+                            
+                            self.postMessage({ 
+                                taskId, 
+                                status: 'completed', 
+                                result 
+                            });
+                            
+                        } catch (error) {
+                            self.postMessage({ 
+                                taskId, 
+                                status: 'error', 
+                                error: error.message 
+                            });
+                        }
+                    });
+                    
+                    function executeWebNNTask(taskData) {
+                        // Simulate neural network inference
+                        const inputSize = taskData.inputSize || 128;
+                        const hiddenSize = taskData.hiddenSize || 256;
+                        const outputSize = taskData.outputSize || 64;
+                        
+                        // Simulate forward pass
+                        const input = new Float32Array(inputSize);
+                        for (let i = 0; i < inputSize; i++) {
+                            input[i] = Math.random() * 2 - 1; // [-1, 1]
+                        }
+                        
+                        // Simulate hidden layer computation
+                        const hidden = new Float32Array(hiddenSize);
+                        for (let i = 0; i < hiddenSize; i++) {
+                            let sum = 0;
+                            for (let j = 0; j < inputSize; j++) {
+                                sum += input[j] * (Math.random() * 2 - 1);
+                            }
+                            hidden[i] = Math.tanh(sum); // Activation
+                        }
+                        
+                        // Simulate output layer
+                        const output = new Float32Array(outputSize);
+                        for (let i = 0; i < outputSize; i++) {
+                            let sum = 0;
+                            for (let j = 0; j < hiddenSize; j++) {
+                                sum += hidden[j] * (Math.random() * 2 - 1);
+                            }
+                            output[i] = sum;
+                        }
+                        
+                        return { 
+                            inputSize, 
+                            hiddenSize, 
+                            outputSize,
+                            inferenceTime: Math.random() * 50 + 10, // 10-60ms
+                            timestamp: Date.now() 
+                        };
+                    }
+                `;
+                
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                this.worker = new Worker(URL.createObjectURL(blob));
                 
                 this.worker.addEventListener('message', (e) => {
                     this._handleMessage(e.data);

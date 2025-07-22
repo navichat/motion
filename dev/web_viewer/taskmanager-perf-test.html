@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskManager Performance Testing Suite</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .metric-title {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 1.5em;
+            color: #007bff;
+            font-weight: bold;
+        }
+        
+        .metric-unit {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .log {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 15px;
+        }
+        
+        .worker-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .worker-item {
+            background: #e9ecef;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .worker-item.busy {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .worker-item.available {
+            background: #28a745;
+            color: white;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #0056b3);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TaskManager Performance Testing Suite</h1>
+        <p>This page provides a testing environment for TaskManager performance optimization, including FLOPS measurement, memory bandwidth analysis, and worker efficiency testing.</p>
+        
+        <div>
+            <h3>Test Controls</h3>
+            <button onclick="runBasicTest()">Basic Functionality Test</button>
+            <button onclick="runCPUIntensiveTest()">CPU-Intensive Workload</button>
+            <button onclick="runMixedWorkloadTest()">Mixed Workload Test</button>
+            <button onclick="runMemoryBandwidthTest()">Memory Bandwidth Test</button>
+            <button onclick="runScalabilityTest()">Scalability Stress Test</button>
+            <button onclick="runBenchmarkSuite()">Full Benchmark Suite</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+        </div>
+        
+        <div class="metrics-grid" id="metricsGrid">
+            <div class="metric-card">
+                <div class="metric-title">Tasks Completed</div>
+                <div class="metric-value" id="tasksCompleted">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Tasks per Second</div>
+                <div class="metric-value" id="tasksPerSecond">0.0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">FLOPS</div>
+                <div class="metric-value" id="flops">0</div>
+                <div class="metric-unit">operations/sec</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Memory Bandwidth</div>
+                <div class="metric-value" id="memoryBandwidth">0</div>
+                <div class="metric-unit">MB/sec</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Peak Memory Usage</div>
+                <div class="metric-value" id="peakMemory">0</div>
+                <div class="metric-unit">MB</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Avg Execution Time</div>
+                <div class="metric-value" id="avgExecTime">0</div>
+                <div class="metric-unit">ms</div>
+            </div>
+        </div>
+        
+        <div class="container">
+            <h3>Worker Status</h3>
+            <div class="worker-status" id="workerStatus">
+                <!-- Worker status will be populated here -->
+            </div>
+        </div>
+        
+        <div class="container">
+            <h3>Test Log</h3>
+            <div class="log" id="testLog"></div>
+        </div>
+    </div>
+
+    <!-- Load dependencies -->
+    <script src="./js/FibonacciHeap.js"></script>
+    <script src="./js/TaskManager.js"></script>
+    
+    <script>
+        // Global variables for testing
+        let currentTaskManager = null;
+        let testInProgress = false;
+        let logElement = document.getElementById('testLog');
+        
+        // Logging function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            logElement.textContent += logLine;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+        
+        // Update progress bar
+        function updateProgress(percentage) {
+            document.getElementById('progressBar').style.width = percentage + '%';
+        }
+        
+        // Update metrics display
+        function updateMetrics(perfResults, stats = null) {
+            document.getElementById('tasksCompleted').textContent = perfResults.totalTasks || 0;
+            document.getElementById('tasksPerSecond').textContent = (perfResults.tasksPerSecond || 0).toFixed(2);
+            document.getElementById('flops').textContent = formatNumber(perfResults.avgFlopsPerSecond || 0);
+            document.getElementById('memoryBandwidth').textContent = formatNumber((perfResults.avgBandwidthPerSecond || 0) / (1024 * 1024));
+            document.getElementById('peakMemory').textContent = (perfResults.peakMemoryUsageMB || 0).toFixed(1);
+            document.getElementById('avgExecTime').textContent = (perfResults.avgTaskExecutionTime || 0).toFixed(1);
+            
+            if (stats) {
+                updateWorkerStatus(stats.workers);
+            }
+        }
+        
+        // Update worker status display
+        function updateWorkerStatus(workers) {
+            const statusElement = document.getElementById('workerStatus');
+            statusElement.innerHTML = '';
+            
+            Object.entries(workers).forEach(([type, worker]) => {
+                for (let i = 0; i < worker.total; i++) {
+                    const workerDiv = document.createElement('div');
+                    workerDiv.className = `worker-item ${i < worker.busy ? 'busy' : 'available'}`;
+                    workerDiv.textContent = `${type.toUpperCase()} ${i + 1}`;
+                    statusElement.appendChild(workerDiv);
+                }
+            });
+        }
+        
+        // Format large numbers
+        function formatNumber(num) {
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'G';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+            return num.toFixed(0);
+        }
+        
+        // Mock job classes (same as in tests)
+        class MockCPUJob {
+            constructor(options = {}) {
+                this.type = 'MockCPU';
+                this.duration = options.duration || 1000;
+                this.complexity = options.complexity || 1;
+                this.resourceRequirements = { cpu: 1, memory: 50 };
+                this.progress = 0;
+                this.flops = 0;
+                this.memoryBandwidth = 0;
+            }
+
+            async execute(progressCallback, shouldStop) {
+                const start = performance.now();
+                const steps = 100;
+                const operations = 1000000 * this.complexity;
+                
+                for (let i = 0; i < steps && !shouldStop(); i++) {
+                    let result = 0;
+                    for (let j = 0; j < operations / steps; j++) {
+                        result += Math.sqrt(j) * Math.sin(j);
+                    }
+                    
+                    this.progress = (i + 1) / steps;
+                    this.flops += operations / steps;
+                    
+                    if (progressCallback) {
+                        progressCallback(this.progress * 100, {
+                            flops: this.flops,
+                            memoryBandwidth: this.memoryBandwidth,
+                            operations: operations
+                        });
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, this.duration / steps));
+                }
+                
+                const executionTime = performance.now() - start;
+                return {
+                    success: true,
+                    executionTime,
+                    flops: this.flops,
+                    operations,
+                    flopsPerSecond: this.flops / (executionTime / 1000)
+                };
+            }
+
+            interrupt() {}
+        }
+
+        class MockGPUJob {
+            constructor(options = {}) {
+                this.type = 'MockGPU';
+                this.duration = options.duration || 500;
+                this.complexity = options.complexity || 1;
+                this.resourceRequirements = { gpu: 1, memory: 100 };
+                this.backend = 'gpu';
+                this.progress = 0;
+                this.flops = 0;
+                this.memoryBandwidth = 0;
+            }
+
+            async execute(progressCallback, shouldStop) {
+                const start = performance.now();
+                const steps = 50;
+                const matrixSize = 1000 * this.complexity;
+                const memoryOps = matrixSize * matrixSize * 4;
+                
+                for (let i = 0; i < steps && !shouldStop(); i++) {
+                    const operations = matrixSize * matrixSize * 2;
+                    this.flops += operations;
+                    this.memoryBandwidth += memoryOps;
+                    
+                    this.progress = (i + 1) / steps;
+                    
+                    if (progressCallback) {
+                        progressCallback(this.progress * 100, {
+                            flops: this.flops,
+                            memoryBandwidth: this.memoryBandwidth,
+                            matrixSize
+                        });
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, this.duration / steps));
+                }
+                
+                const executionTime = performance.now() - start;
+                return {
+                    success: true,
+                    executionTime,
+                    flops: this.flops,
+                    memoryBandwidth: this.memoryBandwidth,
+                    flopsPerSecond: this.flops / (executionTime / 1000),
+                    bandwidthPerSecond: this.memoryBandwidth / (executionTime / 1000)
+                };
+            }
+
+            interrupt() {}
+        }
+
+        class MockWebNNJob {
+            constructor(options = {}) {
+                this.type = 'MockWebNN';
+                this.duration = options.duration || 800;
+                this.complexity = options.complexity || 1;
+                this.resourceRequirements = { webnn: 1, memory: 200 };
+                this.backend = 'webnn';
+                this.progress = 0;
+                this.flops = 0;
+                this.inferences = 0;
+            }
+
+            async execute(progressCallback, shouldStop) {
+                const start = performance.now();
+                const steps = 20;
+                const inferenceOps = 50000000 * this.complexity;
+                
+                for (let i = 0; i < steps && !shouldStop(); i++) {
+                    this.flops += inferenceOps;
+                    this.inferences++;
+                    this.progress = (i + 1) / steps;
+                    
+                    if (progressCallback) {
+                        progressCallback(this.progress * 100, {
+                            flops: this.flops,
+                            inferences: this.inferences,
+                            inferenceOps
+                        });
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, this.duration / steps));
+                }
+                
+                const executionTime = performance.now() - start;
+                return {
+                    success: true,
+                    executionTime,
+                    flops: this.flops,
+                    inferences: this.inferences,
+                    flopsPerSecond: this.flops / (executionTime / 1000),
+                    inferencesPerSecond: this.inferences / (executionTime / 1000)
+                };
+            }
+
+            interrupt() {}
+        }
+
+        // Performance measurement utility
+        class PerfMeasure {
+            constructor() {
+                this.metrics = {
+                    totalFlops: 0,
+                    totalMemoryBandwidth: 0,
+                    totalTasks: 0,
+                    totalExecutionTime: 0,
+                    peakMemoryUsage: 0,
+                    startTime: null,
+                    endTime: null
+                };
+            }
+
+            start() {
+                this.metrics.startTime = performance.now();
+                if (performance.memory) {
+                    this.memoryInterval = setInterval(() => {
+                        const memUsage = performance.memory.usedJSHeapSize / 1024 / 1024;
+                        this.metrics.peakMemoryUsage = Math.max(this.metrics.peakMemoryUsage, memUsage);
+                    }, 100);
+                }
+            }
+
+            recordTask(result) {
+                this.metrics.totalTasks++;
+                this.metrics.totalExecutionTime += result.executionTime || 0;
+                this.metrics.totalFlops += result.flops || 0;
+                this.metrics.totalMemoryBandwidth += result.memoryBandwidth || 0;
+            }
+
+            finish() {
+                this.metrics.endTime = performance.now();
+                if (this.memoryInterval) {
+                    clearInterval(this.memoryInterval);
+                }
+                
+                const totalTime = (this.metrics.endTime - this.metrics.startTime) / 1000;
+                
+                return {
+                    ...this.metrics,
+                    totalTimeSeconds: totalTime,
+                    tasksPerSecond: this.metrics.totalTasks / totalTime,
+                    avgFlopsPerSecond: this.metrics.totalFlops / totalTime,
+                    avgBandwidthPerSecond: this.metrics.totalMemoryBandwidth / totalTime,
+                    avgTaskExecutionTime: this.metrics.totalExecutionTime / this.metrics.totalTasks,
+                    peakMemoryUsageMB: this.metrics.peakMemoryUsage
+                };
+            }
+        }
+        
+        // Test functions
+        async function runBasicTest() {
+            if (testInProgress) return;
+            testInProgress = true;
+            
+            log('Starting basic functionality test...');
+            updateProgress(0);
+            
+            const taskManager = new TaskManager({
+                cpuWorkers: 2,
+                gpuWorkers: 1,
+                webnnWorkers: 1
+            });
+            
+            taskManager.start();
+            
+            const job = new MockCPUJob({ duration: 100, complexity: 1 });
+            const taskId = taskManager.scheduleTask(job, 1);
+            
+            await new Promise(resolve => {
+                taskManager.on('taskCompleted', (task) => {
+                    if (task.id === taskId) {
+                        log(`Task ${taskId} completed successfully`);
+                        resolve();
+                    }
+                });
+            });
+            
+            const stats = taskManager.getStats();
+            taskManager.stop();
+            
+            updateProgress(100);
+            updateMetrics({ totalTasks: 1, tasksPerSecond: 10 }, stats);
+            log('Basic test completed successfully');
+            
+            testInProgress = false;
+        }
+        
+        async function runCPUIntensiveTest() {
+            if (testInProgress) return;
+            testInProgress = true;
+            
+            log('Starting CPU-intensive workload test...');
+            updateProgress(0);
+            
+            const perfMeasure = new PerfMeasure();
+            const taskManager = new TaskManager({
+                cpuWorkers: 4,
+                maxConcurrentTasks: 4
+            });
+            
+            taskManager.start();
+            perfMeasure.start();
+            
+            const numTasks = 20;
+            let completedTasks = 0;
+            
+            for (let i = 0; i < numTasks; i++) {
+                const job = new MockCPUJob({ 
+                    duration: 200, 
+                    complexity: Math.floor(Math.random() * 3) + 1 
+                });
+                taskManager.scheduleTask(job, Math.floor(Math.random() * 10));
+            }
+            
+            await new Promise(resolve => {
+                taskManager.on('taskCompleted', (task) => {
+                    perfMeasure.recordTask(task.result);
+                    completedTasks++;
+                    updateProgress((completedTasks / numTasks) * 100);
+                    log(`Completed task ${completedTasks}/${numTasks} - FLOPS: ${formatNumber(task.result.flopsPerSecond || 0)}`);
+                    
+                    if (completedTasks === numTasks) resolve();
+                });
+            });
+            
+            const perfResults = perfMeasure.finish();
+            const stats = taskManager.getStats();
+            taskManager.stop();
+            
+            updateMetrics(perfResults, stats);
+            log(`CPU test completed - Total FLOPS: ${formatNumber(perfResults.avgFlopsPerSecond)}`);
+            
+            testInProgress = false;
+        }
+        
+        async function runMixedWorkloadTest() {
+            if (testInProgress) return;
+            testInProgress = true;
+            
+            log('Starting mixed workload test...');
+            updateProgress(0);
+            
+            const perfMeasure = new PerfMeasure();
+            const taskManager = new TaskManager({
+                cpuWorkers: 2,
+                gpuWorkers: 2,
+                webnnWorkers: 1,
+                maxConcurrentTasks: 5
+            });
+            
+            taskManager.start();
+            perfMeasure.start();
+            
+            const workloadMix = [
+                { type: 'cpu', count: 10, JobClass: MockCPUJob },
+                { type: 'gpu', count: 8, JobClass: MockGPUJob },
+                { type: 'webnn', count: 5, JobClass: MockWebNNJob }
+            ];
+            
+            let totalTasks = 0;
+            let completedTasks = 0;
+            
+            for (const workload of workloadMix) {
+                totalTasks += workload.count;
+                for (let i = 0; i < workload.count; i++) {
+                    const job = new workload.JobClass({ 
+                        duration: 150 + Math.random() * 200,
+                        complexity: Math.floor(Math.random() * 2) + 1
+                    });
+                    taskManager.scheduleTask(job, Math.floor(Math.random() * 10));
+                }
+            }
+            
+            await new Promise(resolve => {
+                taskManager.on('taskCompleted', (task) => {
+                    perfMeasure.recordTask(task.result);
+                    completedTasks++;
+                    updateProgress((completedTasks / totalTasks) * 100);
+                    log(`Completed ${task.job.type} task ${completedTasks}/${totalTasks}`);
+                    
+                    if (completedTasks === totalTasks) resolve();
+                });
+            });
+            
+            const perfResults = perfMeasure.finish();
+            const stats = taskManager.getStats();
+            taskManager.stop();
+            
+            updateMetrics(perfResults, stats);
+            log(`Mixed workload test completed - Throughput: ${perfResults.tasksPerSecond.toFixed(2)} tasks/sec`);
+            
+            testInProgress = false;
+        }
+        
+        async function runMemoryBandwidthTest() {
+            if (testInProgress) return;
+            testInProgress = true;
+            
+            log('Starting memory bandwidth test...');
+            updateProgress(0);
+            
+            const perfMeasure = new PerfMeasure();
+            const taskManager = new TaskManager({
+                gpuWorkers: 2,
+                maxConcurrentTasks: 4
+            });
+            
+            taskManager.start();
+            perfMeasure.start();
+            
+            const numTasks = 10;
+            let completedTasks = 0;
+            
+            for (let i = 0; i < numTasks; i++) {
+                const job = new MockGPUJob({ 
+                    duration: 300,
+                    complexity: 2 + i % 3
+                });
+                taskManager.scheduleTask(job, Math.floor(Math.random() * 5));
+            }
+            
+            await new Promise(resolve => {
+                taskManager.on('taskCompleted', (task) => {
+                    perfMeasure.recordTask(task.result);
+                    completedTasks++;
+                    updateProgress((completedTasks / numTasks) * 100);
+                    log(`Memory task ${completedTasks}/${numTasks} - Bandwidth: ${formatNumber(task.result.bandwidthPerSecond || 0)} B/s`);
+                    
+                    if (completedTasks === numTasks) resolve();
+                });
+            });
+            
+            const perfResults = perfMeasure.finish();
+            const stats = taskManager.getStats();
+            taskManager.stop();
+            
+            updateMetrics(perfResults, stats);
+            log(`Memory bandwidth test completed - Avg bandwidth: ${formatNumber(perfResults.avgBandwidthPerSecond)} B/s`);
+            
+            testInProgress = false;
+        }
+        
+        async function runScalabilityTest() {
+            if (testInProgress) return;
+            testInProgress = true;
+            
+            log('Starting scalability stress test...');
+            updateProgress(0);
+            
+            const perfMeasure = new PerfMeasure();
+            const taskManager = new TaskManager({
+                cpuWorkers: 4,
+                gpuWorkers: 2,
+                webnnWorkers: 2,
+                maxConcurrentTasks: 8
+            });
+            
+            taskManager.start();
+            perfMeasure.start();
+            
+            const numTasks = 100;
+            let completedTasks = 0;
+            let failedTasks = 0;
+            
+            for (let i = 0; i < numTasks; i++) {
+                const jobTypes = [MockCPUJob, MockGPUJob, MockWebNNJob];
+                const JobClass = jobTypes[i % jobTypes.length];
+                
+                const job = new JobClass({ 
+                    duration: 50 + Math.random() * 100,
+                    complexity: 1
+                });
+                
+                taskManager.scheduleTask(job, Math.floor(Math.random() * 20));
+            }
+            
+            await new Promise(resolve => {
+                taskManager.on('taskCompleted', (task) => {
+                    perfMeasure.recordTask(task.result);
+                    completedTasks++;
+                    updateProgress(((completedTasks + failedTasks) / numTasks) * 100);
+                    
+                    if (completedTasks % 10 === 0) {
+                        log(`Completed ${completedTasks}/${numTasks} tasks`);
+                    }
+                    
+                    if (completedTasks + failedTasks >= numTasks) resolve();
+                });
+                
+                taskManager.on('taskFailed', (task) => {
+                    failedTasks++;
+                    updateProgress(((completedTasks + failedTasks) / numTasks) * 100);
+                    if (completedTasks + failedTasks >= numTasks) resolve();
+                });
+            });
+            
+            const perfResults = perfMeasure.finish();
+            const stats = taskManager.getStats();
+            taskManager.stop();
+            
+            updateMetrics(perfResults, stats);
+            const successRate = (completedTasks / numTasks * 100).toFixed(1);
+            log(`Scalability test completed - Success rate: ${successRate}%, Throughput: ${perfResults.tasksPerSecond.toFixed(2)} tasks/sec`);
+            
+            testInProgress = false;
+        }
+        
+        async function runBenchmarkSuite() {
+            if (testInProgress) return;
+            testInProgress = true;
+            
+            log('Starting full benchmark suite...');
+            updateProgress(0);
+            
+            const configs = [
+                { name: 'Single CPU', cpuWorkers: 1, gpuWorkers: 0, webnnWorkers: 0 },
+                { name: 'Multi CPU', cpuWorkers: 4, gpuWorkers: 0, webnnWorkers: 0 },
+                { name: 'CPU+GPU Mix', cpuWorkers: 2, gpuWorkers: 2, webnnWorkers: 0 },
+                { name: 'Full Stack', cpuWorkers: 2, gpuWorkers: 1, webnnWorkers: 1 }
+            ];
+            
+            const benchmarkResults = {};
+            
+            for (let configIndex = 0; configIndex < configs.length; configIndex++) {
+                const config = configs[configIndex];
+                log(`Running benchmark: ${config.name}`);
+                
+                const perfMeasure = new PerfMeasure();
+                const taskManager = new TaskManager({
+                    cpuWorkers: config.cpuWorkers,
+                    gpuWorkers: config.gpuWorkers,
+                    webnnWorkers: config.webnnWorkers,
+                    maxConcurrentTasks: config.cpuWorkers + config.gpuWorkers + config.webnnWorkers
+                });
+                
+                taskManager.start();
+                perfMeasure.start();
+                
+                const numTasks = 15;
+                let completedTasks = 0;
+                
+                for (let i = 0; i < numTasks; i++) {
+                    let job;
+                    if (config.gpuWorkers > 0 && i % 3 === 0) {
+                        job = new MockGPUJob({ duration: 200, complexity: 2 });
+                    } else if (config.webnnWorkers > 0 && i % 4 === 0) {
+                        job = new MockWebNNJob({ duration: 300, complexity: 1 });
+                    } else {
+                        job = new MockCPUJob({ duration: 250, complexity: 2 });
+                    }
+                    
+                    taskManager.scheduleTask(job, Math.floor(Math.random() * 5));
+                }
+                
+                await new Promise(resolve => {
+                    taskManager.on('taskCompleted', (task) => {
+                        perfMeasure.recordTask(task.result);
+                        completedTasks++;
+                        if (completedTasks === numTasks) resolve();
+                    });
+                });
+                
+                const perfResults = perfMeasure.finish();
+                taskManager.stop();
+                
+                benchmarkResults[config.name] = {
+                    flopsPerSecond: perfResults.avgFlopsPerSecond,
+                    tasksPerSecond: perfResults.tasksPerSecond,
+                    avgExecutionTime: perfResults.avgTaskExecutionTime,
+                    memoryUsage: perfResults.peakMemoryUsageMB
+                };
+                
+                updateProgress(((configIndex + 1) / configs.length) * 100);
+                updateMetrics(perfResults);
+                log(`${config.name} completed - FLOPS: ${formatNumber(perfResults.avgFlopsPerSecond)}, Throughput: ${perfResults.tasksPerSecond.toFixed(2)} tasks/sec`);
+            }
+            
+            log('=== BENCHMARK RESULTS ===');
+            Object.entries(benchmarkResults).forEach(([name, results]) => {
+                log(`${name}: ${formatNumber(results.flopsPerSecond)} FLOPS/s, ${results.tasksPerSecond.toFixed(2)} tasks/s`);
+            });
+            
+            testInProgress = false;
+        }
+        
+        function clearLog() {
+            logElement.textContent = '';
+        }
+        
+        // Initialize display
+        updateProgress(0);
+        updateMetrics({ totalTasks: 0, tasksPerSecond: 0 });
+        log('TaskManager Performance Testing Suite ready');
+    </script>
+</body>
+</html>
