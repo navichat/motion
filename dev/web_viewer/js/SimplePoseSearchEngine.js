@@ -36,18 +36,7 @@ class SimplePoseSearchEngine {
     computeDistance(pose1, pose2) {
         let sum = 0;
         const length = Math.min(pose1.length, pose2.length);
-
-        for (let i = 0; i < length; i++) { // BUG: Starts at i=0, including root position
-            const diff = pose1[i] - pose2[i];
-            sum += diff * diff;
-        }
-
-        return Math.sqrt(sum / length);
-    }
-
-    computeDistance_new(pose1, pose2) {
-        let sum = 0;
-        const length = Math.min(pose1.length, pose2.length);
+        //console.log(`pose1.length = ${pose1.length} , pose2.length = ${pose2.length}`);
 
         // *** FIX: Start loop at index 6 to IGNORE root position/rotation ***
         // We only care about the similarity of the body's posture.
@@ -58,6 +47,8 @@ class SimplePoseSearchEngine {
 
         // Avoid division by zero if there are no rotational channels
         const rotationalChannels = Math.max(1, length - 6);
+        //console.log(`rotationalChannels = ${rotationalChannels}`);
+
         return Math.sqrt(sum / rotationalChannels);
     }
 }

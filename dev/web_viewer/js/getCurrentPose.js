@@ -1,11 +1,11 @@
-async function getCurrentPose() {
-    const sourceAnim = this.animations.get(this.currentAnimationId);
+function getCurrentPose(timeline) {
+    const sourceAnim = timeline.animations.get(timeline.currentAnimationId);
     if (!sourceAnim) return new Float32Array(72).fill(0);
 
     // ✅ ALWAYS get the current pose from the playing animation
-    const frameIndex = Math.floor(this.currentFrame);
+    const frameIndex = Math.floor(timeline.currentFrame);
     const nextFrameIndex = (frameIndex + 1) % sourceAnim.poses.length;
-    const t_frame = this.currentFrame - frameIndex;
+    const t_frame = timeline.currentFrame - frameIndex;
 
     // Interpolate between current and next frame for smooth playback
     const currentFramePose = sourceAnim.poses[frameIndex];
@@ -16,21 +16,23 @@ async function getCurrentPose() {
         sourcePose[i] = currentFramePose[i] + (nextFramePose[i] - currentFramePose[i]) * t_frame;
     }
 
-    if (!this.isTransitioning) {
+    if (!timeline.isTransitioning) {
         return sourcePose; // Return the smoothly interpolated pose for normal playback
     }
 
     // --- TRANSITION LOGIC WITH DYNAMIC SOURCE ---
-    let t_blend = Math.min(this.transitionProgress, 1.0);
+    let t_blend = Math.min(timeline.transitionProgress, 1.0);
 
     // Apply smoothing
     t_blend = t_blend < 0.5 ? 8 * t_blend * t_blend * t_blend * t_blend : 1 - Math.pow(-2 * t_blend + 2, 4) / 2;
 
-    const targetPose = this.transitionTarget.pose;
+    const targetPose = timeline.transitionTarget.pose;
     const interpolatedPose = new Float32Array(sourcePose.length);
 
     // ✅ Use THREE.js for consistent quaternion operations
-    const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js');
+    //const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js');
+    // *** CRITICAL CHANGE: Get THREE from the bound 'timeline' context, not with await import ***
+    const THREE = timeline.THREE;
 
     if (!THREE) {
         // Fallback to linear interpolation if THREE.js not available

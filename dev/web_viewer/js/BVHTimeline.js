@@ -11,8 +11,9 @@
 
 // 1) Pull in our three helpers as ES modules
 import SimplePoseSearchEngine from './SimplePoseSearchEngine.js';
-import getCurrentPose            from './getCurrentPose.js';
+//import getCurrentPose            from './getCurrentPose.js';
 import smartTransition           from './smartTransition.js';
+import { requestAnimationFrame, cancelAnimationFrame } from './animation_frame.js';
 
 // now BVHTimeline can bind to them
 
@@ -26,8 +27,8 @@ class BVHTimeline {
         this.animations    = new Map( animations.map(a=>[a.animationId, a]) );
         this.searchEngine  = new SimplePoseSearchEngine();
         this.searchEngine.indexAnimations(animations);
-        this.getCurrentPose  = getCurrentPose.bind(this);
-        this.smartTransition = smartTransition.bind(this);
+        //this.getCurrentPose  = getCurrentPose.bind(this);
+        //this.smartTransition = smartTransition.bind(this);
 
         // transition‐state defaults
         this.isTransitioning   = false;
@@ -93,6 +94,24 @@ class BVHTimeline {
         console.log('[BVHTimeline] Frame buffer initialized with lookahead:', options.lookaheadFrames || 60);
     }
     
+
+    // *** ADD THIS NEW ASYNC INIT METHOD ***
+    async init() {
+        // Load the THREE.js library from the CDN once
+        //this.THREE = await import('https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js');
+        // In Node.js, import the locally installed 'three' package from `npm install three`
+        this.THREE = await import('three');
+
+        // Now that `this.THREE` exists, we can safely import and bind the helpers
+        const { default: getCurrentPose } = await import('./getCurrentPose.js');
+        const { default: smartTransition } = await import('./smartTransition.js');
+
+        this.getCurrentPose = getCurrentPose.bind(this);
+        this.smartTransition = smartTransition.bind(this);
+
+        console.log('[BVHTimeline] THREE.js loaded and helpers initialized.');
+    }
+
     /**
      * Add a BVH animation clip to a specific track
      */
@@ -483,18 +502,21 @@ class BVHTimeline {
       // the smartTransition helper returns
       // [ newAnimId, bestFrameIndex, distance, fullResults ]
       const [ newId, frameIndex, distance, results ] =
-        await this.smartTransition(targetAnimationId);
+        await smartTransition(this, targetAnimationId);
 
       // flip our state over to transitioning
       this.isTransitioning    = true;
       this.transitionProgress = 0;
+
       this.transitionTarget   = {
+        animationId: newId, // Store the ID for later
+        frameIndex: frameIndex, // Store the index for later
         pose: this.animations.get(newId).poses[frameIndex]
       };
 
-      this.currentAnimationId = newId;
-      this.currentFrame       = frameIndex;
-      console.log(`↳ blended in at frame ${frameIndex} (dist ${distance.toFixed(3)})`);
+      // We DO NOT change the currentAnimationId or currentFrame here.
+      // The animate loop will continue using the OLD animation as the source.
+      console.log(`↳ Starting blend to ${newId} frame ${frameIndex} (dist ${distance.toFixed(3)})`);
       return results;
     }
 
@@ -709,14 +731,40 @@ class BVHTimeline {
         
         const now = performance.now();
         this.currentTime = (now - this.startTime) / 1000;
-        
-        const currentFrame = await this.getCurrentFrame();
-        
+
+        const deltaTime = this.frameTime; // Approximate time since last frame
+
+        // --- STATE UPDATE LOGIC ---
+        // Advance the current animation frame to keep the source pose dynamic
+        const anim = this.animations.get(this.currentAnimationId);
+        if (anim) {
+            this.currentFrame = (this.currentFrame + (deltaTime * anim.fps));
+            if (this.currentFrame >= anim.poses.length) {
+                this.currentFrame = 0; // Simple loop
+            }
+        }
+
+        // If a transition is active, advance its progress
+        if (this.isTransitioning) {
+            this.transitionProgress += deltaTime / 3.0; // Assuming a 3s transition duration for now
+
+            if (this.transitionProgress >= 1.0) {
+                // --- COMPLETE THE TRANSITION ---
+                this.isTransitioning = false;
+                this.currentAnimationId = this.transitionTarget.animationId;
+                this.currentFrame = this.transitionTarget.frameIndex;
+            }
+        }
+
+        // --- POSE CALCULATION & CALLBACK ---
+        const currentPose = this.getCurrentPose(this);
+
         if (this.onFrameUpdate) {
-            this.onFrameUpdate(currentFrame, this.currentTime);
+            this.onFrameUpdate(currentPose, this.currentTime);
         }
     }
-    
+
+
     /**
      * Generate RSMT transition frame
      */
@@ -1182,17 +1230,17 @@ class BVHClip {
     }
     
     getStaticFrame(localTime) {
-        // Parse BVH data to get frame at specific time
-        // This is a simplified implementation
-        if (!this.bvhData) return this.getDefaultFrame();
-        
-        // TODO: Implement proper BVH parsing and frame extraction
-        // For now, return a placeholder
-        return {
-            time: localTime,
-            motionData: [],
-            metadata: { type: 'static', source: this.id }
-        };
+      const data = this.bvhData;
+      if (!data || !data.poses || !data.poses.length) {
+        return this.getDefaultFrame();
+      }
+      // wrap or clamp the time to the duration of the clip
+      const frameIndex = Math.floor(localTime / data.frameTime) % data.poses.length;
+      return {
+        time: localTime,
+        motionData: data.poses[frameIndex],
+        metadata: { type: 'static', source: this.id }
+      };
     }
     
     getDefaultFrame() {
@@ -1510,6 +1558,134 @@ class BVHFrameBuffer {
         console.log('[BVHFrameBuffer] Buffer disposed');
     }
 }
+
+
+
+// =================================================================================
+//  3. IMPLEMENTATION OF MISSING LOADER FUNCTIONS
+// =================================================================================
+
+/**
+ * A basic BVH parser. In a real application, this would be more robust.
+ * @param {string} bvhText - The text content of a .bvh file.
+ * @returns {object} Parsed animation data.
+ */
+function yourBVHParser(bvhText) {
+    const lines = bvhText.split('\n');
+    let motionIndex = lines.findIndex(line => line.trim().startsWith('MOTION'));
+    if (motionIndex === -1) throw new Error('No MOTION section in BVH file');
+
+    let frameCountLine = lines.find(line => line.trim().startsWith('Frames:'));
+    let frameTimeLine = lines.find(line => line.trim().startsWith('Frame Time:'));
+
+    const frameCount = frameCountLine ? parseInt(frameCountLine.split(':')[1]) : 0;
+    const frameTime = frameTimeLine ? parseFloat(frameTimeLine.split(':')[1]) : 0.0333;
+
+    const frames = [];
+    const motionDataStartIndex = lines.indexOf(frameTimeLine) + 1;
+
+    for (let i = motionDataStartIndex; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line) {
+            const values = line.split(/\s+/).filter(Boolean).map(v => parseFloat(v));
+
+            // *** THE FIX: Check if EVERY value in the array is a valid number. ***
+            const hasNaN = values.some(v => isNaN(v));
+
+            if (values.length > 1 && !hasNaN) {
+                frames.push(new Float32Array(values));
+            } else if (hasNaN) {
+                // Optional but recommended: log the corrupted line for debugging.
+                console.warn(`[BVHParser] Discarded corrupted data line: "${line}"`);
+            }
+        }
+    }
+
+    // Generate a timestamp for each frame.
+    const timestamps = frames.map((_, index) => index * frameTime);
+
+    return {
+        poses: frames,
+        timestamps: timestamps,
+        frameTime: frameTime,
+        fps: 1 / frameTime
+    };
+}
+
+let fs, path;
+fs = await import('fs/promises');
+path = await import('path');
+
+/**
+ * Loads a list of BVH files.
+ * @param {Array<object>} fileList - Array of objects with { url, id }.
+ * @param {Function} parser - The parser function to process the BVH text.
+ * @returns {Promise<Array<object>>} A promise that resolves to an array of animation objects.
+ */
+async function loadAnimations(fileList, parser) {
+    let text;
+    const animationPromises = fileList.map(async (fileInfo) => {
+        try {
+            const scriptDir = path.dirname(import.meta.url.replace('file://', ''));
+            const filePath = path.resolve(scriptDir, '..', fileInfo.url); // Go up one dir from /js
+            console.log("filePath = ", filePath);
+            text = await fs.readFile(filePath, 'utf-8');
+
+            const parsedData = parser(text);
+            return {
+                animationId: fileInfo.id,
+                ...parsedData
+            };
+        } catch (error) {
+            console.error(`Error loading animation ${fileInfo.id}:`, error);
+            return null; // Return null for failed loads
+        }
+    });
+
+    const animations = await Promise.all(animationPromises);
+    return animations.filter(anim => anim !== null); // Filter out any that failed to load
+}
+
+
+// =================================================================================
+//  4. EXAMPLE USAGE (MODIFIED TO WORK)
+// =================================================================================
+
+(async () => {
+  // Load motions
+  const list = [
+    { url: './angry_reference.bvh', id: 'angry' },
+    { url: './robot_reference.bvh',  id: 'robot'  }
+    // Add other animations here
+  ];
+
+  console.log("Loading animations...");
+  const animations = await loadAnimations(list, yourBVHParser);
+  console.log("Animations loaded:", animations);
+
+  // Instantiate and start
+  // 1. Create the timeline instance (it's not ready yet)
+  const timeline = new BVHTimeline(animations, { framerate: 30 });
+
+  // 2. *** CALL THE NEW ASYNC INIT METHOD AND WAIT FOR IT ***
+  await timeline.init();
+
+  // 3. Now it's safe to use the timeline
+  timeline.play();
+
+  // Example onFrameUpdate callback
+  timeline.onFrameUpdate = (frame, time) => {
+    // In a real app, you would send this frame to your renderer
+    // console.log(`Time: ${time.toFixed(2)}s, Pose Root:`, frame.slice(0, 3));
+  };
+
+  // Optionally trigger a transition later
+  setTimeout(() => {
+      console.log("\n>>> TRIGGERING SMART TRANSITION TO 'robot' <<<\n");
+      timeline.transitionTo('robot');
+  }, 3000); // Transition after 3 seconds
+})();
+
 
 // Export for use in other modules
 // — ESM exports ——

@@ -6,9 +6,6 @@
   "directories": {
     "doc": "docs"
   },
-  {
-    "type": "module",
-  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -26,7 +23,8 @@
   "homepage": "https://github.com/navichat/motion#readme",
   "dependencies": {
     "@playwright/test": "^1.54.1",
+    "kokoro-js": "^1.2.1",
     "playwright": "^1.54.1",
-    "kokoro-js": "^1.2.1"
+    "three": "^0.178.0"
   }
 }
