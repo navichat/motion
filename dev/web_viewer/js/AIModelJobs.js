@@ -190,6 +190,18 @@ class KokoroJob extends AIModelJob {
     }
 }
 
+class SpeechT5Job extends AIModelJob {
+    constructor(id, complexity = 1, backend = null) {
+        // Try WebGPU as fallback if WebNN is not available and no backend specified
+        const selectedBackend = backend || (window.navigator?.ml ? 'webnn' : 'gpu');
+        super(id, 'SpeechT5', selectedBackend, complexity);
+        this.text = 'This is SpeechT5 text-to-speech synthesis test.';
+        this.speaker = 'default';
+        this.speed = 1.0;
+        console.log(`🎙️ SpeechT5 job created with ${selectedBackend} backend`);
+    }
+}
+
 class WhisperJob extends AIModelJob {
     constructor(id, complexity = 1) {
         super(id, 'Whisper', 'gpu', complexity);
@@ -225,6 +237,34 @@ class DiabloGPTJob extends AIModelJob {
     }
 }
 
+class WASMMatrixJob extends AIModelJob {
+    constructor(id, complexity = 1) {
+        super(id, 'WASMMatrix', 'cpu', complexity);
+        this.matrixSize = 512 * complexity;
+        this.operations = ['multiply', 'transpose', 'inverse'];
+        console.log(`🔢 WASMMatrix job created with CPU backend`);
+    }
+}
+
+class WASMPrimeJob extends AIModelJob {
+    constructor(id, complexity = 1) {
+        super(id, 'WASMPrime', 'cpu', complexity);
+        this.maxNumber = 10000 * complexity;
+        this.algorithm = 'sieve';
+        console.log(`🔍 WASMPrime job created with CPU backend`);
+    }
+}
+
+class WASMFractalJob extends AIModelJob {
+    constructor(id, complexity = 1) {
+        super(id, 'WASMFractal', 'cpu', complexity);
+        this.iterations = 1000 * complexity;
+        this.fractalType = 'mandelbrot';
+        this.resolution = 256;
+        console.log(`🌀 WASMFractal job created with CPU backend`);
+    }
+}
+
 // AI Model Job Factory
 class AIModelJobFactory {
     constructor() {
@@ -246,6 +286,8 @@ class AIModelJobFactory {
                 return new RSMTJob(id, complexity);
             case 'Kokoro':
                 return new KokoroJob(id, complexity);
+            case 'SpeechT5':
+                return new SpeechT5Job(id, complexity);
             case 'Whisper':
                 return new WhisperJob(id, complexity);
             case 'VAD':
@@ -254,6 +296,12 @@ class AIModelJobFactory {
                 return new TinyLlamaJob(id, complexity);
             case 'DiabloGPT':
                 return new DiabloGPTJob(id, complexity);
+            case 'WASMMatrix':
+                return new WASMMatrixJob(id, complexity);
+            case 'WASMPrime':
+                return new WASMPrimeJob(id, complexity);
+            case 'WASMFractal':
+                return new WASMFractalJob(id, complexity);
             default:
                 console.warn(`Unknown AI model type: ${modelType}`);
                 return new AIModelJob(id, modelType, 'cpu', complexity);
@@ -263,7 +311,8 @@ class AIModelJobFactory {
     createRandomAIJob() {
         const modelTypes = [
             'DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 
-            'Kokoro', 'Whisper', 'VAD', 'TinyLlama', 'DiabloGPT'
+            'Kokoro', 'SpeechT5', 'Whisper', 'VAD', 'TinyLlama', 'DiabloGPT',
+            'WASMMatrix', 'WASMPrime', 'WASMFractal'
         ];
         const modelType = modelTypes[Math.floor(Math.random() * modelTypes.length)];
         const complexity = Math.floor(Math.random() * 3) + 1;

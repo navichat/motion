@@ -150,7 +150,7 @@ async function executeTask(taskData) {
     }
     
     // Handle AI model jobs with real inference
-    if (jobType === 'FaceFormer' || jobType === 'RSMT' || jobType === 'Kokoro' || jobType === 'TinyLlama') {
+    if (jobType === 'FaceFormer' || jobType === 'RSMT' || jobType === 'Kokoro' || jobType === 'SpeechT5' || jobType === 'TinyLlama') {
         // Use real AI model inference for WebNN fallback models
         await runRealAIModelInference(taskId, jobType, taskData);
     } else if (jobType === 'Whisper' || jobType === 'Audio2Gesture' || jobType === 'DeepMimic') {

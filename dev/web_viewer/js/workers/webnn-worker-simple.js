@@ -123,7 +123,7 @@ async function executeTask(taskData) {
     // Handle WebNN-specific job types and AI models
     if (jobType === 'WebNNImageClassification' || jobType === 'WebNNTextProcessing' || jobType === 'WebNNAudioProcessing') {
         simulateWebNNSpecificWork(taskId, duration, complexity, jobType);
-    } else if (jobType === 'FaceFormer' || jobType === 'RSMT' || jobType === 'Kokoro' || jobType === 'TinyLlama') {
+    } else if (jobType === 'FaceFormer' || jobType === 'RSMT' || jobType === 'Kokoro' || jobType === 'SpeechT5' || jobType === 'TinyLlama') {
         // Try real AI model inference first
         if (taskData.useRealInference && onnxRuntimeAvailable) {
             try {
@@ -647,6 +647,10 @@ async function simulateAIModelWork(taskId, duration, complexity, jobType) {
                     modelResult = await simulateKokoro(complexity);
                     console.log(`[WebNN Worker] 🗣️  ${webnnContext ? 'REAL' : 'SIMULATED'} Kokoro TTS step ${i+1}/${steps}, speech quality: ${modelResult.toFixed(4)}`);
                     break;
+                case 'SpeechT5':
+                    modelResult = await simulateSpeechT5(complexity);
+                    console.log(`[WebNN Worker] 🎙️ ${webnnContext ? 'REAL' : 'SIMULATED'} SpeechT5 TTS step ${i+1}/${steps}, synthesis quality: ${modelResult.toFixed(4)}`);
+                    break;
                 case 'TinyLlama':
                     modelResult = await simulateTinyLlama(complexity);
                     console.log(`[WebNN Worker] 🦙 ${webnnContext ? 'REAL' : 'SIMULATED'} TinyLlama step ${i+1}/${steps}, text coherence: ${modelResult.toFixed(4)}`);
@@ -799,6 +803,39 @@ async function simulateKokoro(complexity) {
             }
             resolve(speechQuality / textLength);
         }, 10 + complexity * 8);
+    });
+}
+
+async function simulateSpeechT5(complexity) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            // Simulate SpeechT5 text-to-speech synthesis
+            const textLength = 80 * complexity; // characters
+            const encoderLayers = 12; // SpeechT5 encoder layers
+            const decoderLayers = 6; // SpeechT5 decoder layers
+            const melFrames = 200 * complexity; // Mel-spectrogram frames
+            let synthesisQuality = 0;
+            
+            // Simulate encoder processing
+            for (let pos = 0; pos < textLength; pos++) {
+                for (let layer = 0; layer < encoderLayers; layer++) {
+                    const textEmbedding = Math.sin(pos * 0.1 + layer * 0.2);
+                    const positionEncoding = Math.cos(pos / 100);
+                    synthesisQuality += textEmbedding * positionEncoding;
+                }
+            }
+            
+            // Simulate decoder processing for speech generation
+            for (let frame = 0; frame < melFrames; frame++) {
+                for (let layer = 0; layer < decoderLayers; layer++) {
+                    const speechEmbedding = Math.tanh(frame * 0.05 + layer * 0.3);
+                    const attentionWeight = Math.exp(-Math.abs(frame - melFrames/2) / 50);
+                    synthesisQuality += speechEmbedding * attentionWeight;
+                }
+            }
+            
+            resolve(synthesisQuality / (textLength + melFrames));
+        }, 15 + complexity * 12);
     });
 }
 

@@ -72,6 +72,7 @@ const MODEL_PATHS = {
     'RSMT': '../../../RSMT-Realtime-Stylized-Motion-Transition/output/web_viewer/deepphase.onnx',
     'DeepMimic': '../../../deepmimic/data/policies_onnx/compatible_humanoid3d_humanoid3d_walk.onnx',
     'Kokoro': '../models/Kokoro-82M-v1.0-ONNX/model_uint8.onnx',
+    'SpeechT5': '../models/SpeechT5/speecht5_tts.onnx',
     'TinyLlama': '../models/TinyLlama-1.1B-Chat-v1.0/onnx/model_uint8.onnx',
     'Whisper': '../models/whisper-tiny.en/encoder_model.onnx',
     'VAD': '../models/silero-vad/onnx/model.onnx'
@@ -206,6 +207,22 @@ function prepareModelInputs(modelType, inputData, complexity) {
             inputs['input_ids'] = new ort.Tensor('int64', textTokens, [1, 128]);
             break;
             
+        case 'SpeechT5':
+            // Text tokens and speaker embeddings for SpeechT5 TTS
+            const speechTokens = new BigInt64Array(1 * 100);
+            for (let i = 0; i < speechTokens.length; i++) {
+                speechTokens[i] = BigInt(Math.floor(Math.random() * 1000));
+            }
+            inputs['input_ids'] = new ort.Tensor('int64', speechTokens, [1, 100]);
+            
+            // Speaker embeddings
+            const speakerEmbeddings = new Float32Array(1 * 512);
+            for (let i = 0; i < speakerEmbeddings.length; i++) {
+                speakerEmbeddings[i] = Math.random() * 2 - 1;
+            }
+            inputs['speaker_embeddings'] = new ort.Tensor('float32', speakerEmbeddings, [1, 512]);
+            break;
+            
         case 'TinyLlama':
             // Text tokens for language model
             const llamaTokens = new BigInt64Array(1 * 256);
@@ -294,6 +311,17 @@ function processModelOutputs(modelType, results, complexity) {
                 duration_seconds: data.length / 22050 // Assuming 22kHz sample rate
             };
             
+        case 'SpeechT5':
+            // SpeechT5 text-to-speech synthesis
+            const synthesisPower = Array.from(data).reduce((sum, val) => sum + val * val, 0) / data.length;
+            return {
+                type: 'speech_synthesis',
+                synthesis_quality: Math.sqrt(synthesisPower),
+                mel_frames: data.length / 80, // Mel-spectrogram frames
+                audio_duration: data.length / 80 * 0.0125, // Frame duration ~12.5ms
+                naturalness: 1.0 - Math.abs(synthesisPower - 0.25)
+            };
+            
         case 'TinyLlama':
             // Text generation coherence
             const tokenConfidence = Array.from(data).reduce((sum, val) => sum + Math.exp(val), 0) / data.length;
@@ -371,6 +399,27 @@ function generateRealisticMockOutput(modelType, complexity) {
                 quality_metrics: {
                     clarity: 0.85 + Math.random() * 0.15,
                     naturalness: 0.75 + Math.random() * 0.25
+                }
+            };
+            
+        case 'SpeechT5':
+            const speechLength = 15 + complexity * 8;
+            return {
+                type: 'speech_synthesis',
+                mel_spectrogram: Array.from({length: speechLength * 80}, (_, i) => 
+                    Math.sin(i * 0.02) * Math.exp(-i * 0.001) + Math.random() * 0.1
+                ),
+                audio_samples: Array.from({length: speechLength * 800}, () => 
+                    Math.sin(Math.random() * Math.PI * 2) * 0.3
+                ),
+                sample_rate: 16000,
+                duration_seconds: speechLength * 0.0125,
+                speaker_embeddings: Array.from({length: 512}, () => Math.random() * 2 - 1),
+                synthesis_metrics: {
+                    mel_frame_count: speechLength,
+                    synthesis_quality: 0.88 + Math.random() * 0.12,
+                    speaker_similarity: 0.82 + Math.random() * 0.18,
+                    naturalness: 0.79 + Math.random() * 0.21
                 }
             };
             

@@ -147,12 +147,16 @@ class RealJobFactory {
         // Add WebNN-preferring models if WebNN is available
         if (this.capabilities.webnn) {
             this.jobTypes.push('WebNNImageClassification', 'WebNNTextProcessing', 'WebNNAudioProcessing');
-            this.jobTypes.push('DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 'Kokoro');
+            this.jobTypes.push('DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 'Kokoro', 'SpeechT5');
         } else if (this.capabilities.webgpu) {
             // If WebNN is not available but WebGPU is, test WebNN models with WebGPU fallback
             console.log('🔄 WebNN not available, testing WebNN models with WebGPU fallback');
-            this.jobTypes.push('FaceFormer', 'RSMT', 'Kokoro', 'TinyLlama');
+            this.jobTypes.push('FaceFormer', 'RSMT', 'Kokoro', 'SpeechT5', 'TinyLlama');
             this.jobTypes.push('DeepMimic', 'Audio2Gesture'); // These already use GPU
+        } else {
+            // FORCE ALL MODELS TO BE AVAILABLE - Even without WebNN/WebGPU, run with CPU fallback
+            console.log('🔄 No WebNN/WebGPU available, but forcing ALL AI models with CPU fallback for comprehensive testing');
+            this.jobTypes.push('DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 'Kokoro', 'SpeechT5');
         }
         
         console.log('🔧 Updated job types based on capabilities:', this.jobTypes);
@@ -188,7 +192,7 @@ class RealJobFactory {
         
         // Handle AI Model jobs first
         if (['DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 
-             'Whisper', 'VAD', 'TinyLlama', 'DiabloGPT', 'Kokoro'].includes(jobType)) {
+             'Whisper', 'VAD', 'TinyLlama', 'DiabloGPT', 'Kokoro', 'SpeechT5'].includes(jobType)) {
             return this.aiModelFactory.createJob(jobType, { complexity });
         }
         
