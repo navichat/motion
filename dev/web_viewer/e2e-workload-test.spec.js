@@ -13,12 +13,31 @@ test.describe('Real Workload Test with Timeout and Enhanced Logging', () => {
     // Array to store console messages with timestamps
     const consoleMessages = [];
     const errorMessages = [];
+    const aiModelOutputs = []; // New array to store AI model outputs
     
     page.on('console', msg => {
       const timestamp = new Date().toISOString();
       const logEntry = `[${timestamp}] ${msg.text()}`;
       consoleMessages.push(logEntry);
       console.log(`[PAGE CONSOLE]: ${logEntry}`);
+
+      // Attempt to parse modelOutput from console messages
+      try {
+        const msgText = msg.text();
+        if (msgText.includes('"modelOutput"')) {
+          // Find the start of the JSON object
+          const jsonStartIndex = msgText.indexOf('{');
+          if (jsonStartIndex !== -1) {
+            const jsonString = msgText.substring(jsonStartIndex);
+            const parsed = JSON.parse(jsonString);
+            if (parsed.type === 'completed' && parsed.result && parsed.result.modelOutput) {
+              aiModelOutputs.push(parsed.result.modelOutput);
+            }
+          }
+        }
+      } catch (e) {
+        // console.error('Failed to parse console message as JSON:', e);
+      }
     });
     
     page.on('pageerror', error => {
@@ -156,6 +175,16 @@ test.describe('Real Workload Test with Timeout and Enhanced Logging', () => {
     const logs = consoleMessages.join('\n');
     console.log('📊 Analyzing captured logs...');
     console.log('📋 Full logs preview:', logs.substring(0, 500) + '...');
+
+    // Log collected AI model outputs
+    console.log('🤖 Collected AI Model Outputs:');
+    if (aiModelOutputs.length > 0) {
+      aiModelOutputs.forEach((output, index) => {
+        console.log(`   Output ${index + 1}:`, JSON.stringify(output, null, 2));
+      });
+    } else {
+      console.log('   No AI model outputs collected.');
+    }
 
     // Make assertions more flexible to handle test environment differences
     const hasWorkloadStart = logs.includes('🚀 Starting Real WASM') || logs.includes('Starting Real WASM') || logs.includes('🔧 Global createRealisticWorkload called');
