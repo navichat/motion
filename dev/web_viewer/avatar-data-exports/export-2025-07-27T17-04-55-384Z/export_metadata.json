@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-07-27T17:04:55.706Z",
+  "totalFiles": 130,
+  "exportDirectory": "/home/barberb/motion/dev/web_viewer/avatar-data-exports/export-2025-07-27T17-04-55-384Z",
+  "formatCounts": {
+    "txt": 4,
+    "json": 52,
+    "wav": 22,
+    "bvh": 17,
+    "csv": 0,
+    "png": 1
+  },
+  "collectionDuration": 7.058
+}

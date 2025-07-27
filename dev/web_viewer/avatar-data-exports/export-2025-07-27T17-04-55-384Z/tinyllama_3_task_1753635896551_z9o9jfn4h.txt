@@ -1,0 +1,51 @@
+TinyLlama Language Model Output
+================================
+Task ID: task_1753635896551_z9o9jfn4h
+Timestamp: 2025-07-27T17:05:00.682Z
+Execution Time: 245.79999995231628ms
+Worker Type: gpu
+
+Generated Text:
+Artificial Intelligence is the simulation of human intelligence in machines programmed to think and learn.
+
+Model Confidence: 0.8748046516005589
+Tokens Generated: N/A
+Inference Time: 300ms
+
+Metadata:
+{
+  "type": "text_generation",
+  "generated_text": "Artificial Intelligence is the simulation of human intelligence in machines programmed to think and learn.",
+  "tokens": [
+    {
+      "text": "Artificial",
+      "probability": 0.95
+    },
+    {
+      "text": " Intelligence",
+      "probability": 0.92
+    },
+    {
+      "text": " is",
+      "probability": 0.88
+    },
+    {
+      "text": " a",
+      "probability": 0.85
+    }
+  ],
+  "completion_reason": "length",
+  "model_confidence": 0.8748046516005589,
+  "processing_tokens": 20,
+  "inference_time_ms": 300,
+  "executionTime": 245.79999995231628,
+  "timestamp": "2025-07-27T17:05:00.682Z",
+  "taskId": "task_1753635896551_z9o9jfn4h",
+  "workerType": "gpu",
+  "success": true,
+  "inferenceTime": 245,
+  "executionProvider": [
+    "webgpu",
+    "cpu"
+  ]
+}

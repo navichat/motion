@@ -1,5 +1,25 @@
 # Motion Workspace Documentation
 
+## 🤖 Avatar AI Inference System (Latest)
+
+**NEW ADDITION**: Complete Avatar AI inference collection system with 13 AI models for avatar applications:
+
+**Location**: `/dev/web_viewer/` - Avatar AI inference and motion visualization  
+**Models**: Language processing (TinyLlama, DiabloGPT), audio synthesis (Whisper, VAD, Kokoro, SpeechT5), motion generation (RSMT, DeepMimic, FaceFormer, Audio2Gesture), computational tasks (WASMMatrix, WASMPrime, WASMFractal)  
+**Export**: Production-ready formats (BVH, WAV, JSON, CSV, PNG, TXT) with 132+ files per test  
+**Testing**: Automated Playwright tests with comprehensive data collection  
+**Documentation**: [Complete Avatar AI System Guide](../dev/web_viewer/AVATAR_AI_SYSTEM.md)
+
+**Quick Start Avatar AI:**
+```bash
+cd dev/web_viewer/
+python3 -m http.server 8000
+npx playwright test e2e-avatar-data-export.spec.js --headed
+open http://localhost:8000/task-manager-demo.html
+```
+
+---
+
 ## 🚀 Development Status Update
 
 ### ✅ Phase 1 COMPLETED: Foundation Migration
@@ -44,6 +64,8 @@ This workspace contains multiple projects related to motion capture, character a
 ```
 motion/
 ├── docs/                                    # Documentation (this folder)
+├── dev/                                     # 🤖 Avatar AI System & Development Environment
+│   └── web_viewer/                          # Avatar AI inference (13 models), motion visualization
 ├── BvhToDeepMimic/                         # BVH to DeepMimic converter
 ├── pytorch_DeepMimic/                      # PyTorch implementation of DeepMimic
 ├── RSMT-Realtime-Stylized-Motion-Transition/  # Real-time stylized motion transitions

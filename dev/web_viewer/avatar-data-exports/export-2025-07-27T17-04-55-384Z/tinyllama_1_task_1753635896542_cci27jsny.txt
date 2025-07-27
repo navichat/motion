@@ -1,0 +1,51 @@
+TinyLlama Language Model Output
+================================
+Task ID: task_1753635896542_cci27jsny
+Timestamp: 2025-07-27T17:05:00.428Z
+Execution Time: 285.10000002384186ms
+Worker Type: gpu
+
+Generated Text:
+Artificial Intelligence is revolutionizing industries from healthcare to transportation.
+
+Model Confidence: 0.8619364662710838
+Tokens Generated: N/A
+Inference Time: 300ms
+
+Metadata:
+{
+  "type": "text_generation",
+  "generated_text": "Artificial Intelligence is revolutionizing industries from healthcare to transportation.",
+  "tokens": [
+    {
+      "text": "Artificial",
+      "probability": 0.95
+    },
+    {
+      "text": " Intelligence",
+      "probability": 0.92
+    },
+    {
+      "text": " is",
+      "probability": 0.88
+    },
+    {
+      "text": " a",
+      "probability": 0.85
+    }
+  ],
+  "completion_reason": "length",
+  "model_confidence": 0.8619364662710838,
+  "processing_tokens": 20,
+  "inference_time_ms": 300,
+  "executionTime": 285.10000002384186,
+  "timestamp": "2025-07-27T17:05:00.428Z",
+  "taskId": "task_1753635896542_cci27jsny",
+  "workerType": "gpu",
+  "success": true,
+  "inferenceTime": 284.1999999284744,
+  "executionProvider": [
+    "webgpu",
+    "cpu"
+  ]
+}

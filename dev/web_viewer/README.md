@@ -1,6 +1,39 @@
-# RSMT Motion Visualization Showcase
+# RSMT Motion Visualization & Avatar AI System
 
-This directory contains web-based visualization tools for the RSMT (Real-time Stylized Motion Transition) project using the 100STYLE dataset.
+This directory contains web-based visualization tools for the RSMT (Real-time Stylized Motion Transition) project using the 100STYLE dataset, plus a comprehensive Avatar AI inference system supporting 13 different AI models.
+
+## 🤖 Avatar AI Inference System
+
+**NEW**: Complete AI inference collection system for avatar applications with multi-modal AI processing:
+
+### 13 Supported AI Models:
+- **Language Models**: TinyLlama, DiabloGPT for conversation and personality
+- **Audio Processing**: Whisper, VAD, Kokoro, **SpeechT5** for speech recognition and synthesis  
+- **Motion Models**: RSMT, DeepMimic, FaceFormer, Audio2Gesture for animation generation
+- **Compute Models**: WASMMatrix, WASMPrime, WASMFractal for physics and visual effects
+
+### Key Features:
+- **Comprehensive Testing**: Automated Playwright tests with 4-5 minute collection cycles
+- **Multi-format Export**: Export to BVH, WAV, JSON, CSV, PNG, TXT formats (132+ files per test)
+- **Production Ready**: Real-time inference with export to avatar-compatible file formats
+- **Fixed SpeechT5**: Advanced voice synthesis now fully functional across all worker types
+
+📚 **[Complete Avatar AI Documentation](AVATAR_AI_SYSTEM.md)**
+
+### Quick Start Avatar AI:
+```bash
+# Start development server
+python3 -m http.server 8000
+
+# Run comprehensive AI inference collection
+npx playwright test e2e-workload-test.spec.js --headed
+
+# Run data export test (creates 132+ files in avatar-data-exports/)
+npx playwright test e2e-avatar-data-export.spec.js --headed
+
+# View live demo
+open http://localhost:8000/task-manager-demo.html
+```
 
 ## ⚠️ Important Note About Transitions
 
