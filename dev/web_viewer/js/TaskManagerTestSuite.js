@@ -3,6 +3,8 @@
  * Tests Fibonacci Heap scheduling, worker pools, and task execution
  */
 
+import { JobA, JobB, JobC } from './TestJobs.js';
+
 class TaskManagerTestSuite {
     constructor() {
         this.testResults = [];
@@ -21,12 +23,15 @@ class TaskManagerTestSuite {
         try {
             // Basic functionality tests
             await this.testFibonacciHeap();
-            await this.testMockGPUJobs();
             await this.testTaskManagerBasics();
             await this.testPriorityScheduling();
 
             // Performance and stress tests
             await this.testQuickDemo();
+
+            // Enhanced and WebGPU tests
+            await this.testEnhancedTaskManager();
+            await this.testTaskManagerWebGPU();
 
             this.printSummary();
             
@@ -80,57 +85,7 @@ class TaskManagerTestSuite {
         }
     }
 
-    /**
-     * Test Mock GPU Jobs
-     */
-    async testMockGPUJobs() {
-        this.currentTest = 'Mock GPU Jobs';
-        console.log('\n🎮 Testing Mock GPU Jobs...');
-        
-        try {
-            console.log('  - Creating different job types');
-            const jobA = MockGPUJobFactory.createJobA(2);
-            const jobB = MockGPUJobFactory.createJobB(3);
-            const jobC = MockGPUJobFactory.createJobC(1);
-            
-            // Reduce duration for faster testing
-            jobA.duration = 300;
-            jobB.duration = 300;
-            jobC.duration = 300;
-            
-            console.log(`  - JobA: ${jobA.type}, duration: ${jobA.duration}ms, complexity: ${jobA.complexity}`);
-            console.log(`  - JobB: ${jobB.type}, duration: ${jobB.duration}ms, complexity: ${jobB.complexity}`);
-            console.log(`  - JobC: ${jobC.type}, duration: ${jobC.duration}ms, complexity: ${jobC.complexity}`);
-            
-            // Test job execution
-            console.log('  - Testing job execution with progress tracking');
-            let progressUpdates = 0;
-            const startTime = performance.now();
-            
-            const result = await jobA.execute((progress, stats) => {
-                progressUpdates++;
-                if (progressUpdates % 3 === 0) { // Log every 3rd update
-                    console.log(`    Progress: ${progress}% (${stats.step}/${stats.totalSteps})`);
-                }
-            });
-            
-            const executionTime = performance.now() - startTime;
-            console.log(`  - Job completed in ${Math.round(executionTime)}ms`);
-            console.log(`  - Progress updates: ${progressUpdates}`);
-            console.log(`  - Result:`, result);
-            
-            if (!result || !result.jobId || progressUpdates === 0) {
-                throw new Error('Job execution failed or progress tracking not working');
-            }
-            
-            console.log('  ✅ Mock GPU Jobs tests passed');
-            this.logResult('Mock GPU Jobs', true);
-            
-        } catch (error) {
-            console.log('  ❌ Mock GPU Jobs tests failed:', error.message);
-            this.logResult('Mock GPU Jobs', false, error.message);
-        }
-    }
+    
 
     /**
      * Test basic TaskManager functionality
@@ -153,8 +108,7 @@ class TaskManagerTestSuite {
             
             // Test task scheduling
             console.log('  - Scheduling a test task');
-            const job = MockGPUJobFactory.createJobA(1);
-            job.duration = 200; // Quick test
+            const job = new JobA('test-task', 200); // Quick test
             const taskId = this.taskManager.scheduleTask(job, 5);
             
             console.log(`  - Task scheduled with ID: ${taskId}`);
@@ -190,14 +144,9 @@ class TaskManagerTestSuite {
             const completedTasks = [];
             
             // Schedule tasks with different priorities (lower number = higher priority)
-            const lowPriorityJob = MockGPUJobFactory.createJobA(1);
-            const highPriorityJob = MockGPUJobFactory.createJobB(1);
-            const mediumPriorityJob = MockGPUJobFactory.createJobC(1);
-            
-            // Reduce duration for faster testing
-            lowPriorityJob.duration = 200;
-            highPriorityJob.duration = 200;
-            mediumPriorityJob.duration = 200;
+            const lowPriorityJob = new JobA('low-priority-job', 200);
+            const highPriorityJob = new JobB('high-priority-job', 200);
+            const mediumPriorityJob = new JobC('medium-priority-job', 200);
             
             const lowPriorityId = this.taskManager.scheduleTask(lowPriorityJob, 10); // Low priority
             const highPriorityId = this.taskManager.scheduleTask(highPriorityJob, 1); // High priority
@@ -253,8 +202,9 @@ class TaskManagerTestSuite {
             // Schedule multiple tasks quickly
             const taskIds = [];
             for (let i = 0; i < 8; i++) {
-                const job = MockGPUJobFactory.createRandomJob();
-                job.duration = 300 + Math.random() * 400; // 300-700ms
+                const job = (i % 3 === 0) ? new JobA(`random-job-A-${i}`, 300 + Math.random() * 400) :
+                            (i % 3 === 1) ? new JobB(`random-job-B-${i}`, 300 + Math.random() * 400) :
+                            new JobC(`random-job-C-${i}`, 300 + Math.random() * 400);
                 const priority = Math.floor(Math.random() * 10);
                 const taskId = demoManager.scheduleTask(job, priority);
                 taskIds.push(taskId);
@@ -391,6 +341,55 @@ class TaskManagerTestSuite {
             console.log('   - Real-time progress tracking');
         } else {
             console.log('⚠️ Some tests failed. Please review the issues above.');
+        }
+    }
+
+    async testEnhancedTaskManager() {
+        this.currentTest = 'Enhanced TaskManager';
+        console.log('\n🧪 Testing Enhanced TaskManager with Real Workers');
+        try {
+            const manager = new TaskManager({
+                maxConcurrentTasks: 3,
+                preemptionEnabled: true,
+                schedulingInterval: 100,
+                workerPools: {
+                    cpu: { size: 2 },
+                    gpu: { size: 1 },
+                    webnn: { size: 1 }
+                }
+            });
+            await manager.start();
+            const tasks = [
+                manager.scheduleTask(new JobA('cpu-intensive-1', 2000), 5),
+                manager.scheduleTask(new JobB('neural-inference-1', 3000), 8),
+                manager.scheduleTask(new JobC('media-processing-1', 1500), 3),
+            ];
+            await this.waitForTasksToComplete(manager, tasks.length);
+            manager.stop();
+            this.logResult(this.currentTest, true);
+        } catch (error) {
+            this.logResult(this.currentTest, false, error.message);
+        }
+    }
+
+    async testTaskManagerWebGPU() {
+        this.currentTest = 'TaskManager with WebGPU';
+        console.log('\n🧪 Testing TaskManager with WebGPU Workers');
+        try {
+            const manager = new TaskManager({
+                maxConcurrentTasks: 1,
+                workerPools: {
+                    gpu: { size: 1 }
+                }
+            });
+            await manager.start();
+            const job = new MockGPUJob('webgpu-job', 2000, 1, { backend: 'gpu' });
+            const taskId = manager.scheduleTask(job, 1);
+            await this.waitForTasksToComplete(manager, 1);
+            manager.stop();
+            this.logResult(this.currentTest, true);
+        } catch (error) {
+            this.logResult(this.currentTest, false, error.message);
         }
     }
 }

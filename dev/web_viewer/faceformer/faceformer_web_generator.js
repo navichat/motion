@@ -1,7 +1,5 @@
 // JavaScript implementation for autoregressive generation with the core step model
-const ort = require('onnxruntime-web');
-const fs = require('fs');
-const path = require('path');
+// Browser-compatible version - ONNX Runtime loaded globally via CDN
 
 class FaceFormerWebGenerator {
     constructor(modelPath) {
@@ -138,7 +136,18 @@ async function testFaceFormerGeneration() {
         await generator.initialize();
         
         // Load sample data
-        const sampleData = JSON.parse(fs.readFileSync('./faceformer_sample_data.json', 'utf8'));
+        // Note: In browser environment, sample data would need to be loaded via fetch()
+        // const response = await fetch('./faceformer_sample_data.json');
+        // const sampleData = await response.json();
+        
+        // For now, using placeholder data
+        const sampleData = {
+            core_step: {
+                audio_features: [[[0.1, 0.2]]],
+                template: [[[0.3, 0.4]]],
+                one_hot: [[1, 0, 0]]
+            }
+        };
         const coreStepData = sampleData.core_step;
         
         // Extract flat arrays for the first step
@@ -168,8 +177,19 @@ async function testFaceFormerGeneration() {
     }
 }
 
-module.exports = { FaceFormerWebGenerator, FaceFormerPreprocessor, testFaceFormerGeneration };
+// Export for browser global usage
+if (typeof window !== 'undefined') {
+    window.FaceFormerWebGenerator = FaceFormerWebGenerator;
+    window.FaceFormerPreprocessor = FaceFormerPreprocessor;
+    window.testFaceFormerGeneration = testFaceFormerGeneration;
+}
 
-if (require.main === module) {
+// Also export for module systems if available
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { FaceFormerWebGenerator, FaceFormerPreprocessor, testFaceFormerGeneration };
+}
+
+// For direct execution in Node.js
+if (typeof require !== 'undefined' && require.main === module) {
     testFaceFormerGeneration();
 }

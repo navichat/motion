@@ -17,6 +17,7 @@ class WASMMatrixJob {
     }
 
     async execute(progressCallback, shouldStop) {
+        console.log(`[WASMJob] Starting ${this.type} job ${this.id} with complexity ${this.complexity}`);
         const startTime = Date.now();
         const steps = Math.max(8, Math.floor(this.complexity * 4));
         
@@ -50,7 +51,7 @@ class WASMMatrixJob {
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
             
-            return {
+            const finalResult = {
                 jobId: this.id,
                 type: this.type,
                 executionTime: Date.now() - startTime,
@@ -58,8 +59,11 @@ class WASMMatrixJob {
                 complexity: this.complexity,
                 elementsProcessed: this.size * this.size * steps
             };
+            console.log(`[WASMJob] ${this.type} job ${this.id} completed. Result:`, finalResult);
+            return finalResult;
             
         } catch (error) {
+            console.error(`[WASMJob] ${this.type} job ${this.id} failed:`, error);
             throw new Error(`WASM Matrix job failed: ${error.message}`);
         }
     }
@@ -112,6 +116,7 @@ class WASMPrimeJob {
     }
 
     async execute(progressCallback, shouldStop) {
+        console.log(`[WASMJob] Starting ${this.type} job ${this.id} with limit ${this.limit}`);
         const startTime = Date.now();
         const primes = [];
         const batchSize = Math.max(1000, Math.floor(this.limit / 20));
@@ -141,7 +146,7 @@ class WASMPrimeJob {
                 await new Promise(resolve => setTimeout(resolve, 10));
             }
             
-            return {
+            const finalResult = {
                 jobId: this.id,
                 type: this.type,
                 executionTime: Date.now() - startTime,
@@ -149,8 +154,11 @@ class WASMPrimeJob {
                 primesFound: primes.length,
                 largestPrime: primes[primes.length - 1] || 0
             };
+            console.log(`[WASMJob] ${this.type} job ${this.id} completed. Result:`, finalResult);
+            return finalResult;
             
         } catch (error) {
+            console.error(`[WASMJob] ${this.type} job ${this.id} failed:`, error);
             throw new Error(`WASM Prime job failed: ${error.message}`);
         }
     }
@@ -196,6 +204,7 @@ class WASMFractalJob {
     }
 
     async execute(progressCallback, shouldStop) {
+        console.log(`[WASMJob] Starting ${this.type} job ${this.id} with size ${this.size} and iterations ${this.iterations}`);
         const startTime = Date.now();
         const mandelbrotData = new Uint8Array(this.size * this.size);
         const batchSize = Math.max(1, Math.floor(this.size / 10));
@@ -225,7 +234,7 @@ class WASMFractalJob {
                 await new Promise(resolve => setTimeout(resolve, 5));
             }
             
-            return {
+            const finalResult = {
                 jobId: this.id,
                 type: this.type,
                 executionTime: Date.now() - startTime,
@@ -233,8 +242,11 @@ class WASMFractalJob {
                 iterations: this.iterations,
                 pixelsComputed: mandelbrotData.length
             };
+            console.log(`[WASMJob] ${this.type} job ${this.id} completed. Result:`, finalResult);
+            return finalResult;
             
         } catch (error) {
+            console.error(`[WASMJob] ${this.type} job ${this.id} failed:`, error);
             throw new Error(`WASM Fractal job failed: ${error.message}`);
         }
     }

@@ -309,16 +309,4 @@ class MockGPUJobFactory {
     }
 }
 
-// Export for both Node.js and browser environments
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MockGPUJob, MockGPUJobFactory, JobA, JobB, JobC };
-} else if (typeof window !== 'undefined') {
-    window.MockGPUJob = MockGPUJob;
-    window.MockGPUJobFactory = MockGPUJobFactory;
-    window.JobA = JobA;
-    window.JobB = JobB;
-    window.JobC = JobC;
-}
-
-// ES6 module exports for modern browser imports
 export { MockGPUJob, MockGPUJobFactory, JobA, JobB, JobC };

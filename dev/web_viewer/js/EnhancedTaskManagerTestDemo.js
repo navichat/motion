@@ -3,8 +3,8 @@
  */
 
 // Test job classes if not already defined
-if (typeof JobA === 'undefined') {
-    class JobA {
+if (typeof EnhancedJobA === 'undefined') {
+    class EnhancedJobA {
         constructor(id, duration = 500) {
             this.id = id;
             this.duration = duration;
@@ -47,7 +47,7 @@ if (typeof JobA === 'undefined') {
     }
 
     // Make classes globally available
-    window.JobA = JobA;
+    window.EnhancedJobA = EnhancedJobA;
     window.JobB = JobB;
 }
 
@@ -91,13 +91,13 @@ async function testEnhancedTaskManager() {
     // Schedule mixed workload - use available job types
     let tasks = [];
     
-    if (typeof JobA !== 'undefined') {
-        // Use original mock jobs if available
+    if (typeof EnhancedJobA !== 'undefined') {
+        // Use enhanced mock jobs if available
         tasks = [
-            manager.scheduleTask(new JobA('cpu-intensive-1', 2000), 5),
+            manager.scheduleTask(new EnhancedJobA('cpu-intensive-1', 2000), 5),
             manager.scheduleTask(new JobB('neural-inference-1', 3000), 8),
             manager.scheduleTask(new JobC('media-processing-1', 1500), 3),
-            manager.scheduleTask(new JobA('cpu-intensive-2', 1000), 7),
+            manager.scheduleTask(new EnhancedJobA('cpu-intensive-2', 1000), 7),
             manager.scheduleTask(new JobB('neural-inference-2', 2500), 9),
             manager.scheduleTask(new JobC('media-processing-2', 1800), 4)
         ];
@@ -216,8 +216,8 @@ async function testWorkerCommunication() {
     // Schedule a simple task to test communication
     let task;
     
-    if (typeof JobA !== 'undefined') {
-        task = manager.scheduleTask(new JobA('communication-test', 1000), 10);
+    if (typeof EnhancedJobA !== 'undefined') {
+        task = manager.scheduleTask(new EnhancedJobA('communication-test', 1000), 10);
     } else {
         // Fallback to simple job
         task = manager.scheduleTask({

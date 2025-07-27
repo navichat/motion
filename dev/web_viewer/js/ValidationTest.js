@@ -2,8 +2,10 @@
  * Validation Test - Comprehensive testing of the enhanced TaskManager
  */
 
+import { JobC } from './TestJobs.js';
+
 // Test job classes for validation
-class JobA {
+class ValidationJobA {
     constructor(id, duration = 500) {
         this.id = id;
         this.duration = duration;
@@ -16,7 +18,7 @@ class JobA {
             setTimeout(() => {
                 resolve({
                     jobId: this.id,
-                    result: `JobA ${this.id} completed`,
+                    result: `ValidationJobA ${this.id} completed`,
                     executionTime: this.duration
                 });
             }, this.duration);
@@ -24,20 +26,41 @@ class JobA {
     }
 }
 
-class JobB {
-    constructor(id, duration = 700) {
+class ValidationJobB {
+    constructor(id, duration = 300) {
         this.id = id;
         this.duration = duration;
-        this.type = 'gpu';
+        this.type = 'io';
     }
 
     async execute(worker) {
-        // Simulate GPU work
+        // Simulate I/O work
         return new Promise((resolve) => {
             setTimeout(() => {
                 resolve({
                     jobId: this.id,
-                    result: `JobB ${this.id} completed`,
+                    result: `ValidationJobB ${this.id} completed`,
+                    executionTime: this.duration
+                });
+            }, this.duration);
+        });
+    }
+}
+
+class ValidationJobC {
+    constructor(id, duration = 700) {
+        this.id = id;
+        this.duration = duration;
+        this.type = 'memory';
+    }
+
+    async execute(worker) {
+        // Simulate memory-intensive work
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve({
+                    jobId: this.id,
+                    result: `ValidationJobC ${this.id} completed`,
                     executionTime: this.duration
                 });
             }, this.duration);
@@ -93,8 +116,8 @@ async function validateEnhancedTaskManager() {
         // Use available job types - mix of CPU and GPU/WebNN jobs
         let task1, task2;
         
-        if (typeof JobA !== 'undefined') {
-            task1 = manager.scheduleTask(new JobA('validation-task-1', 500), 5);
+        if (typeof ValidationJobA !== 'undefined') {
+            task1 = manager.scheduleTask(new ValidationJobA('validation-task-1', 500), 5);
             task2 = manager.scheduleTask(new JobB('validation-task-2', 700), 8);
         } else if (typeof WASMMatrixJob !== 'undefined' && typeof WebGPUMatrixJob !== 'undefined') {
             // Use real mix of CPU and GPU jobs
@@ -209,41 +232,18 @@ async function validateEnhancedTaskManager() {
         console.log('\n📋 Test 4: Priority Handling');
         
         let highPriorityTask, lowPriorityTask;
-        
-        if (typeof JobC !== 'undefined') {
-            highPriorityTask = manager.scheduleTask(new JobC('high-priority', 300), 10);
-            lowPriorityTask = manager.scheduleTask(new JobA('low-priority', 300), 1);
-        } else if (typeof WebNNTextProcessingJob !== 'undefined' && typeof WASMMatrixJob !== 'undefined') {
-            // High priority WebNN job, low priority CPU job
-            highPriorityTask = manager.scheduleTask(new WebNNTextProcessingJob('high-priority-webnn', 128, 8, 1), 10);
-            lowPriorityTask = manager.scheduleTask(new WASMMatrixJob('low-priority-cpu', 128, 1), 1);
-        } else if (typeof WASMFractalJob !== 'undefined') {
-            highPriorityTask = manager.scheduleTask(new WASMFractalJob('high-priority', 128, 50, 1), 10);
-            lowPriorityTask = manager.scheduleTask(new WASMMatrixJob('low-priority', 128, 1), 1);
-        } else {
-            // Simple fallback jobs
-            highPriorityTask = manager.scheduleTask({
-                id: 'high-priority',
-                type: 'HighPriorityJob',
-                execute: async () => {
-                    await new Promise(r => setTimeout(r, 300));
-                    return { success: true };
-                }
-            }, 10);
-            
-            lowPriorityTask = manager.scheduleTask({
-                id: 'low-priority',
-                type: 'LowPriorityJob', 
-                execute: async () => {
-                    await new Promise(r => setTimeout(r, 300));
-                    return { success: true };
-                }
-            }, 1);
-        }
-        
+
+        // Schedule tasks with different priorities using imported JobC and ValidationJobA
+        highPriorityTask = manager.scheduleTask(new JobC('high-priority', 300), 10);
+        lowPriorityTask = manager.scheduleTask(new ValidationJobA('low-priority', 300), 1);
+
+        // If the tasks were successfully scheduled, mark priorityHandling as true
         if (highPriorityTask && lowPriorityTask) {
             console.log('✅ Priority tasks scheduled');
             testResults.priorityHandling = true;
+        } else {
+            console.log('❌ Priority task scheduling failed');
+            testResults.priorityHandling = false;
         }
 
         // Test 5: Worker Communication (check if workers support real communication)
@@ -331,7 +331,7 @@ async function quickIntegrationTest() {
 
     await manager.start();
     
-    const task = manager.scheduleTask(new JobA('quick-test', 500), 5);
+    const task = manager.scheduleTask(new ValidationJobA('quick-test', 500), 5);
     
     return new Promise((resolve) => {
         manager.on('taskCompleted', (completedTask) => {

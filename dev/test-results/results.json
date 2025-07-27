@@ -1,0 +1,216 @@
+{
+  "config": {
+    "configFile": "/home/barberb/motion/dev/playwright.config.js",
+    "rootDir": "/home/barberb/motion/dev",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ],
+      [
+        "line",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/home/barberb/motion/dev/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/barberb/motion/dev",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 300000
+      },
+      {
+        "outputDir": "/home/barberb/motion/dev/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium-webgpu",
+        "name": "chromium-webgpu",
+        "testDir": "/home/barberb/motion/dev",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 300000
+      },
+      {
+        "outputDir": "/home/barberb/motion/dev/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "/home/barberb/motion/dev",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 300000
+      },
+      {
+        "outputDir": "/home/barberb/motion/dev/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "/home/barberb/motion/dev",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 300000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.54.1",
+    "workers": 20,
+    "webServer": {
+      "command": "python3 web_viewer/serve_with_headers.py",
+      "port": 8080,
+      "reuseExistingServer": true
+    }
+  },
+  "suites": [
+    {
+      "title": "web_viewer/e2e-all-9-models-test.spec.js",
+      "file": "web_viewer/e2e-all-9-models-test.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Complete AI Model WebGPU Testing - All 9 Models",
+          "file": "web_viewer/e2e-all-9-models-test.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should test all 9 AI models with WebGPU and verify complete inference",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 300000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-webgpu",
+                  "projectName": "chromium-webgpu",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 1268,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:8000/dev/web_viewer/task-manager-demo.html\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/dev/web_viewer/task-manager-demo.html\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:8000/dev/web_viewer/task-manager-demo.html\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/dev/web_viewer/task-manager-demo.html\", waiting until \"load\"\u001b[22m\n\n    at /home/barberb/motion/dev/web_viewer/e2e-all-9-models-test.spec.js:8:16",
+                        "location": {
+                          "file": "/home/barberb/motion/dev/web_viewer/e2e-all-9-models-test.spec.js",
+                          "column": 16,
+                          "line": 8
+                        },
+                        "snippet": "\u001b[0m \u001b[90m  6 |\u001b[39m     \n \u001b[90m  7 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'🌐 Navigating to task-manager-demo.html...'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  8 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:8000/dev/web_viewer/task-manager-demo.html'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m  9 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mbringToFront()\u001b[33m;\u001b[39m\n \u001b[90m 10 |\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// Track all console messages and outputs\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/home/barberb/motion/dev/web_viewer/e2e-all-9-models-test.spec.js",
+                            "column": 16,
+                            "line": 8
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:8000/dev/web_viewer/task-manager-demo.html\nCall log:\n\u001b[2m  - navigating to \"http://localhost:8000/dev/web_viewer/task-manager-demo.html\", waiting until \"load\"\u001b[22m\n\n\n\u001b[0m \u001b[90m  6 |\u001b[39m     \n \u001b[90m  7 |\u001b[39m     console\u001b[33m.\u001b[39mlog(\u001b[32m'🌐 Navigating to task-manager-demo.html...'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  8 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:8000/dev/web_viewer/task-manager-demo.html'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m  9 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mbringToFront()\u001b[33m;\u001b[39m\n \u001b[90m 10 |\u001b[39m\n \u001b[90m 11 |\u001b[39m     \u001b[90m// Track all console messages and outputs\u001b[39m\u001b[0m\n\u001b[2m    at /home/barberb/motion/dev/web_viewer/e2e-all-9-models-test.spec.js:8:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🌐 Navigating to task-manager-demo.html...\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-07-27T01:57:29.705Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/home/barberb/motion/dev/test-results/web_viewer-e2e-all-9-model-fd1d0-d-verify-complete-inference-chromium-webgpu/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/home/barberb/motion/dev/test-results/web_viewer-e2e-all-9-model-fd1d0-d-verify-complete-inference-chromium-webgpu/video.webm"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/home/barberb/motion/dev/web_viewer/e2e-all-9-models-test.spec.js",
+                        "column": 16,
+                        "line": 8
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "2813aa205f1bad501b5e-2c2bf0526e885c4a8d8c",
+              "file": "web_viewer/e2e-all-9-models-test.spec.js",
+              "line": 4,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-07-27T01:57:28.420Z",
+    "duration": 2824.251,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

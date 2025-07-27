@@ -11,19 +11,34 @@ class WebGPUMatrixJob {
         this.complexity = complexity;
         this.duration = size * complexity * 5; // GPU is faster
         this.resourceRequirements = {
-            memory: size * size * 16, // GPU memory
+            memory: size * size * 4 * 2, // Two matrices
             gpu: 0.8
         };
     }
 
     async execute(progressCallback, shouldStop) {
+        console.log(`[WebGPUJob] Starting ${this.type} job ${this.id} with size ${this.size} and complexity ${this.complexity}`);
         const startTime = Date.now();
         
         try {
             // Initialize WebGPU
             const gpu = await this.initWebGPU();
             if (!gpu) {
-                throw new Error('WebGPU not available, falling back to CPU');
+                console.warn(`[WebGPUJob] WebGPU not available for ${this.id}, falling back to CPU simulation.`);
+                // Fallback to CPU simulation if WebGPU is not available
+                const fallbackResult = await this.simulateCPUFallback(progressCallback, shouldStop);
+                const finalResult = {
+                    jobId: this.id,
+                    type: this.type,
+                    executionTime: Date.now() - startTime,
+                    matrixSize: this.size,
+                    iterations: this.complexity,
+                    complexity: this.complexity,
+                    backend: 'CPU_Fallback',
+                    simulationResult: fallbackResult
+                };
+                console.log(`[WebGPUJob] ${this.type} job ${this.id} completed via CPU fallback. Result:`, finalResult);
+                return finalResult;
             }
 
             const iterations = Math.max(4, this.complexity * 2);
@@ -53,19 +68,37 @@ class WebGPUMatrixJob {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
             
-            return {
+            const finalResult = {
                 jobId: this.id,
                 type: this.type,
                 executionTime: Date.now() - startTime,
                 matrixSize: this.size,
                 iterations,
                 complexity: this.complexity,
-                backend: 'WebGPU'
+                backend: 'WebGPU',
+                simulationResult: 'WebGPU Matrix Multiplication Done'
             };
+            console.log(`[WebGPUJob] ${this.type} job ${this.id} completed. Result:`, finalResult);
+            return finalResult;
             
         } catch (error) {
+            console.error(`[WebGPUJob] ${this.type} job ${this.id} failed:`, error);
             throw new Error(`WebGPU Matrix job failed: ${error.message}`);
         }
+    }
+
+    async simulateCPUFallback(progressCallback, shouldStop) {
+        // Simple CPU fallback for matrix multiplication
+        let result = 0;
+        const iterations = this.size * this.size * this.complexity / 1000;
+        for (let i = 0; i < iterations; i++) {
+            result += Math.random();
+            if (shouldStop && shouldStop()) return { cancelled: true };
+            if (progressCallback && i % (Math.floor(iterations / 10)) === 0) {
+                progressCallback((i / iterations) * 100);
+            }
+        }
+        return `CPU Fallback Matrix Result: ${result.toFixed(2)}`;
     }
 
     async initWebGPU() {
@@ -194,12 +227,25 @@ class WebGPUImageJob {
     }
 
     async execute(progressCallback, shouldStop) {
+        console.log(`[WebGPUJob] Starting ${this.type} job ${this.id} with size ${this.width}x${this.height} and complexity ${this.complexity}`);
         const startTime = Date.now();
         
         try {
             const gpu = await this.initWebGPU();
             if (!gpu) {
-                throw new Error('WebGPU not available');
+                console.warn(`[WebGPUJob] WebGPU not available for ${this.id}, falling back to CPU simulation.`);
+                const fallbackResult = await this.simulateCPUFallback(progressCallback, shouldStop);
+                const finalResult = {
+                    jobId: this.id,
+                    type: this.type,
+                    executionTime: Date.now() - startTime,
+                    imageSize: `${this.width}x${this.height}`,
+                    filtersApplied: this.complexity,
+                    backend: 'CPU_Fallback',
+                    simulationResult: fallbackResult
+                };
+                console.log(`[WebGPUJob] ${this.type} job ${this.id} completed via CPU fallback. Result:`, finalResult);
+                return finalResult;
             }
 
             const filters = ['blur', 'sharpen', 'edge_detect', 'emboss'];
@@ -227,18 +273,36 @@ class WebGPUImageJob {
                 await new Promise(resolve => setTimeout(resolve, 150));
             }
             
-            return {
+            const finalResult = {
                 jobId: this.id,
                 type: this.type,
                 executionTime: Date.now() - startTime,
                 imageSize: `${this.width}x${this.height}`,
                 filtersApplied: totalFilters,
-                backend: 'WebGPU'
+                backend: 'WebGPU',
+                simulationResult: 'WebGPU Image Processing Done'
             };
+            console.log(`[WebGPUJob] ${this.type} job ${this.id} completed. Result:`, finalResult);
+            return finalResult;
             
         } catch (error) {
+            console.error(`[WebGPUJob] ${this.type} job ${this.id} failed:`, error);
             throw new Error(`WebGPU Image job failed: ${error.message}`);
         }
+    }
+
+    async simulateCPUFallback(progressCallback, shouldStop) {
+        // Simple CPU fallback for image processing
+        let result = 0;
+        const pixels = this.width * this.height * this.complexity;
+        for (let i = 0; i < pixels; i++) {
+            result += Math.random();
+            if (shouldStop && shouldStop()) return { cancelled: true };
+            if (progressCallback && i % (Math.floor(pixels / 10)) === 0) {
+                progressCallback((i / pixels) * 100);
+            }
+        }
+        return `CPU Fallback Image Result: ${result.toFixed(2)}`;
     }
 
     async initWebGPU() {
@@ -285,12 +349,26 @@ class WebGPUParticleJob {
     }
 
     async execute(progressCallback, shouldStop) {
+        console.log(`[WebGPUJob] Starting ${this.type} job ${this.id} with ${this.particleCount} particles and ${this.steps} steps`);
         const startTime = Date.now();
         
         try {
             const gpu = await this.initWebGPU();
             if (!gpu) {
-                throw new Error('WebGPU not available');
+                console.warn(`[WebGPUJob] WebGPU not available for ${this.id}, falling back to CPU simulation.`);
+                const fallbackResult = await this.simulateCPUFallback(progressCallback, shouldStop);
+                const finalResult = {
+                    jobId: this.id,
+                    type: this.type,
+                    executionTime: Date.now() - startTime,
+                    particleCount: this.particleCount,
+                    steps: this.steps,
+                    complexity: this.complexity,
+                    backend: 'CPU_Fallback',
+                    simulationResult: fallbackResult
+                };
+                console.log(`[WebGPUJob] ${this.type} job ${this.id} completed via CPU fallback. Result:`, finalResult);
+                return finalResult;
             }
 
             // Initialize particle system
@@ -315,19 +393,37 @@ class WebGPUParticleJob {
                 await new Promise(resolve => setTimeout(resolve, 20));
             }
             
-            return {
+            const finalResult = {
                 jobId: this.id,
                 type: this.type,
                 executionTime: Date.now() - startTime,
                 particleCount: this.particleCount,
                 steps: this.steps,
                 complexity: this.complexity,
-                backend: 'WebGPU'
+                backend: 'WebGPU',
+                simulationResult: 'WebGPU Particle Simulation Done'
             };
+            console.log(`[WebGPUJob] ${this.type} job ${this.id} completed. Result:`, finalResult);
+            return finalResult;
             
         } catch (error) {
+            console.error(`[WebGPUJob] ${this.type} job ${this.id} failed:`, error);
             throw new Error(`WebGPU Particle job failed: ${error.message}`);
         }
+    }
+
+    async simulateCPUFallback(progressCallback, shouldStop) {
+        // Simple CPU fallback for particle simulation
+        let result = 0;
+        const particles = this.particleCount * this.complexity / 100;
+        for (let i = 0; i < particles; i++) {
+            result += Math.random();
+            if (shouldStop && shouldStop()) return { cancelled: true };
+            if (progressCallback && i % (Math.floor(particles / 10)) === 0) {
+                progressCallback((i / particles) * 100);
+            }
+        }
+        return `CPU Fallback Particle Result: ${result.toFixed(2)}`;
     }
 
     async initWebGPU() {

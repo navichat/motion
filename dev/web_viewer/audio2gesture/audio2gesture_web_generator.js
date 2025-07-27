@@ -1,5 +1,8 @@
-const ort = require('onnxruntime-web');
-const fs = require('fs');
+// Browser-compatible Audio2Gesture generator
+// ort is loaded globally via script tag
+
+// Avoid redeclaring ort if it's already declared
+if (typeof window !== 'undefined' && !window.Audio2GestureWebGenerator) {
 
 class Audio2GestureWebGenerator {
     constructor(modelPath) {
@@ -11,6 +14,9 @@ class Audio2GestureWebGenerator {
     async initialize() {
         try {
             console.log('🎭 Initializing Audio2Gesture Web Generator...');
+            if (typeof ort === 'undefined') {
+                throw new Error('ONNX Runtime not loaded. Please ensure ort.min.js is loaded first.');
+            }
             this.session = await ort.InferenceSession.create(this.modelPath, {
                 executionProviders: ['cpu']
             });
@@ -215,8 +221,7 @@ async function demoAudio2GestureGeneration() {
             timestamp: new Date().toISOString()
         };
         
-        fs.writeFileSync('audio2gesture_demo_results.json', JSON.stringify(demoResults, null, 2));
-        console.log('\n💾 Demo results saved to audio2gesture_demo_results.json');
+        console.log('\n💾 Demo results would be saved (browser version)');
         
         console.log('\n🎉 Audio2Gesture Web Generator Demo Complete!');
         console.log('✅ Multi-step autoregressive generation working');
@@ -227,9 +232,13 @@ async function demoAudio2GestureGeneration() {
     }
 }
 
-// Run demo if called directly
-if (require.main === module) {
-    demoAudio2GestureGeneration();
+// Export for browser use
+if (typeof window !== 'undefined') {
+    window.Audio2GestureWebGenerator = Audio2GestureWebGenerator;
+    window.demoAudio2GestureGeneration = demoAudio2GestureGeneration;
 }
 
-module.exports = { Audio2GestureWebGenerator };
+// Remove the module.exports to avoid Node.js conflicts
+// module.exports = { Audio2GestureWebGenerator };
+
+} // End of the conditional block to avoid redeclaration

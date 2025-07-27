@@ -1,13 +1,20 @@
+import { MockGPUJob } from './MockGPUJobs.js';
+
 /**
  * TaskManager WebGPU Test - Testing integration with WebGPU workers and performance
  */
 
-import { TaskManager } from './TaskManager.js';
-import { MockGPUJob } from './MockGPUJobs.js';
-
 // Test TaskManager with WebGPU functionality and performance
 async function testTaskManagerWebGPU() {
     console.log('🧪 Testing TaskManager with WebGPU Workers and Performance');
+
+    // Check if required classes are available
+    if (typeof TaskManager === 'undefined') {
+        throw new Error('TaskManager class not available');
+    }
+    if (typeof MockGPUJob === 'undefined') {
+        throw new Error('MockGPUJob class not available');
+    }
 
     const manager = new TaskManager({
         maxConcurrentTasks: 1,
@@ -70,18 +77,10 @@ async function runWebGPUTests() {
     }
 }
 
-// Export for use
-export { testTaskManagerWebGPU, runWebGPUTests };
-
-// Export functions for ES6 modules
-export { testTaskManagerWebGPU, runWebGPUTests };
-
-// Auto-run if this file is loaded directly
+// Make functions available globally
 if (typeof window !== 'undefined') {
     window.testTaskManagerWebGPU = testTaskManagerWebGPU;
     window.runWebGPUTests = runWebGPUTests;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('🚀 TaskManager WebGPU tests loaded. Run with: runWebGPUTests()');
-    });
+    console.log('🚀 TaskManager WebGPU tests loaded. Run with: runWebGPUTests()');
 }

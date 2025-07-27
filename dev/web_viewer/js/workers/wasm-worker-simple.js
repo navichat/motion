@@ -8,9 +8,17 @@ let activeTasks = new Map();
 
 // Handle messages from main thread
 self.onmessage = function(event) {
-    const { type, data } = event.data;
+    const { type, data, capabilities } = event.data;
     
     switch (type) {
+        case 'init':
+            // WASM workers are always ready
+            self.postMessage({
+                type: 'ready',
+                workerType: 'wasm',
+                capabilities: { wasm: true, onnx: false } 
+            });
+            break;
         case 'execute':
             executeTask(data);
             break;
@@ -25,6 +33,8 @@ self.onmessage = function(event) {
 async function executeTask(taskData) {
     const { taskId, jobType, duration, complexity } = taskData;
     
+    console.log(`[WASM Worker] Received task: ${taskId} (${jobType})`);
+
     try {
         // Store active task
         activeTasks.set(taskId, { cancelled: false });
@@ -54,7 +64,7 @@ async function executeTask(taskData) {
         }, 100);
         
         // Simulate WASM computation with WebAssembly-style operations
-        await simulateWasmComputation(taskData);
+        const result = await simulateWasmComputation(taskData);
         
         // Check if task was cancelled
         if (activeTasks.has(taskId) && activeTasks.get(taskId).cancelled) {
@@ -71,6 +81,7 @@ async function executeTask(taskData) {
         activeTasks.delete(taskId);
         
         // Send completion
+        console.log(`[WASM Worker] Task ${taskId} completed with result:`, result);
         self.postMessage({
             type: 'completed',
             taskId: taskId,
@@ -80,7 +91,8 @@ async function executeTask(taskData) {
                 jobType: jobType,
                 wasmOptimized: true,
                 memoryUsage: getMemoryUsage(),
-                computeIntensity: complexity || 1
+                computeIntensity: complexity || 1,
+                simulationResult: result
             }
         });
         

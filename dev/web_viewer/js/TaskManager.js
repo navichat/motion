@@ -61,19 +61,27 @@ class Task {
 }
 
 class WorkerPool {
-    constructor(size = 4, workerType = 'cpu') {
+    constructor(size = 4, workerType = 'cpu', manager, capabilities) {
         this.size = size;
         this.workerType = workerType;
+        this.manager = manager;
         this.workers = [];
         this.availableWorkers = [];
         this.busyWorkers = new Map(); // worker -> task
         this.terminated = false;
+        this.capabilities = capabilities || {}; // New: store worker capabilities
         this._initializeWorkers();
     }
 
     _initializeWorkers() {
         for (let i = 0; i < this.size; i++) {
             const worker = this._createWorker(i);
+            if (worker.actualWorker) {
+                worker.actualWorker.postMessage({
+                    type: 'init',
+                    capabilities: this.capabilities
+                });
+            }
             this.workers.push(worker);
             this.availableWorkers.push(worker);
         }
@@ -109,13 +117,13 @@ class WorkerPool {
                     console.warn(`Unknown worker type: ${this.workerType}`);
             }
 
-            // Wrap the worker with our interface
-            return {
+            const workerWrapper = {
                 id: `${this.workerType}_worker_${id}`,
                 type: this.workerType,
                 busy: false,
                 currentTask: null,
                 actualWorker: actualWorker,
+                capabilities: {},
                 terminate: () => {
                     if (actualWorker) {
                         actualWorker.terminate();
@@ -132,6 +140,26 @@ class WorkerPool {
                     }
                 }
             };
+
+            if (actualWorker) {
+                actualWorker.addEventListener('message', (event) => {
+                    if (event.data.type === 'ready') {
+                        workerWrapper.capabilities = event.data.capabilities;
+                        console.log(`Worker ${workerWrapper.id} ready with capabilities:`, workerWrapper.capabilities);
+                        this.manager.workerReady();
+                    }
+                });
+                
+                actualWorker.addEventListener('error', (error) => {
+                    console.error(`Worker ${workerWrapper.id} error:`, error);
+                });
+                
+                actualWorker.addEventListener('messageerror', (error) => {
+                    console.error(`Worker ${workerWrapper.id} message error:`, error);
+                });
+            }
+
+            return workerWrapper;
         } catch (error) {
             console.warn(`Failed to create ${this.workerType} worker:`, error);
             // Fallback to mock worker
@@ -197,18 +225,23 @@ class TaskManager {
         
         // Worker pools (now includes WASM)
         this.workerPools = {
-            cpu: new WorkerPool(options.cpuWorkers || 2, 'cpu'),
-            gpu: new WorkerPool(options.gpuWorkers || 1, 'gpu'),
-            webnn: new WorkerPool(options.webnnWorkers || 1, 'webnn'),
-            wasm: new WorkerPool(options.wasmWorkers || 1, 'wasm')
+            cpu: new WorkerPool(options.cpuWorkers || 2, 'cpu', this, options.capabilities),
+            gpu: new WorkerPool(options.gpuWorkers || 1, 'gpu', this, options.capabilities),
+            webnn: new WorkerPool(options.webnnWorkers || 1, 'webnn', this, options.capabilities),
+            wasm: new WorkerPool(options.wasmWorkers || 1, 'wasm', this, options.capabilities)
         };
 
         // Configuration
         this.maxConcurrentTasks = options.maxConcurrentTasks || 4;
         this.preemptionEnabled = options.preemptionEnabled !== false;
-        this.schedulingInterval = options.schedulingInterval || 100; // ms
+        this.schedulingInterval = options.schedulingInterval || 200; // Reduced for better responsiveness
+        this.taskTimeout = options.taskTimeout || 60000; // Default 60 second timeout per task
         this.running = false;
         this.schedulerTimer = null;
+        this.taskTimeouts = new Map(); // Track timeouts for running tasks
+
+        // Add a logger for better observability
+        this.logger = options.logger || ((message, type) => console.log(`[${type.toUpperCase()}] ${message}`));
 
         // Statistics
         this.stats = {
@@ -231,7 +264,14 @@ class TaskManager {
             queueFull: []
         };
 
+        this.readyWorkers = 0;
+        this.totalWorkers = 0;
+        for (const pool of Object.values(this.workerPools)) {
+            this.totalWorkers += pool.size;
+        }
+
         this._bindMethods();
+        this._startPromise = null;
     }
 
     _bindMethods() {
@@ -255,7 +295,14 @@ class TaskManager {
         this.stats.tasksScheduled++;
         this._emit('taskQueued', task);
         
-        console.log(`Task ${task.id} queued with priority ${effectivePriority}`);
+        console.log(`Task ${task.id} queued with priority ${effectivePriority}. Heap size: ${this.heap.size()}`);
+        
+        // Trigger immediate processing if the manager is running
+        if (this.running) {
+            console.log(`🚀 Task ${task.id} queued, triggering immediate processing`);
+            this._processQueue();
+        }
+        
         return task.id;
     }
 
@@ -319,10 +366,66 @@ class TaskManager {
      * Start the task manager
      */
     start() {
-        if (this.running) return;
+        if (this.running) return Promise.resolve();
+        if (this._startPromise) return this._startPromise;
+
+        console.log('Task Manager starting...');
+
+        this._startPromise = new Promise(resolve => {
+            console.log('DEBUG: Creating start promise, totalWorkers:', this.totalWorkers);
+            
+            if (this.totalWorkers === 0) {
+                console.log('No workers configured, starting processing immediately.');
+                this.startProcessing();
+                resolve();
+                return;
+            }
+
+            // Check if all workers are already ready
+            if (this.readyWorkers >= this.totalWorkers) {
+                console.log('DEBUG: All workers already ready. Calling startProcessing directly.');
+                this.startProcessing();
+                resolve();
+            } else {
+                // Otherwise, wait for all workers to be ready
+                const allWorkersReadyHandler = () => {
+                console.log('*** DEBUG: allWorkersReadyHandler entered. Minimal. ***');
+                this.startProcessing();
+                resolve();
+            };
+                
+                console.log('DEBUG: Setting up allWorkersReady event listener');
+                this.on('allWorkersReady', allWorkersReadyHandler);
+            }
+        });
+
+        // This part is crucial. We need to trigger the worker initialization
+        // which in turn will lead to the 'allWorkersReady' event.
+        // The WorkerPool constructor already sends the 'init' message.
+
+        return this._startPromise;
+    }
+
+    workerReady() {
+        this.readyWorkers++;
+        console.log(`Worker ready. Total ready: ${this.readyWorkers}/${this.totalWorkers}`);
+        console.log('DEBUG: workerReady called, current counts:', { ready: this.readyWorkers, total: this.totalWorkers });
         
+        if (this.readyWorkers >= this.totalWorkers) {
+            console.log('All workers are ready.');
+            console.log('DEBUG: About to emit allWorkersReady event');
+            this._emit('allWorkersReady');
+            console.log('DEBUG: allWorkersReady event emitted');
+        }
+    }
+
+    startProcessing() {
+        console.log(`*** DEBUG: startProcessing - before setting this.running: ${this.running} ***`);
         this.running = true;
+        console.log(`*** DEBUG: startProcessing - after setting this.running: ${this.running} ***`);
         console.log('Task Manager started');
+        console.log('*** DEBUG: startProcessing entered. ***');
+        this.logger('DEBUG: Calling _scheduleNextProcess from startProcessing', 'debug');
         this._scheduleNextProcess();
     }
 
@@ -352,54 +455,104 @@ class TaskManager {
     _scheduleNextProcess() {
         if (!this.running) return;
         
+        console.log(`*** DEBUG: _scheduleNextProcess called. Setting timer. ***`);
         this.schedulerTimer = setTimeout(() => {
+            console.log(`*** DEBUG: Inside setTimeout callback. this.running: ${this.running} ***`);
             this._processQueue();
-            this._scheduleNextProcess();
+            
+            // Continue scheduling if we have tasks in any state or workers might finish soon
+            if (!this.heap.isEmpty() || this.runningTasks.size > 0 || this.tasks.size > (this.completedTasks.size + this.failedTasks.size)) {
+                console.log(`*** DEBUG: Continuing scheduling. Heap size: ${this.heap.size()}, Running tasks: ${this.runningTasks.size}, Total tasks: ${this.tasks.size} ***`);
+                this._scheduleNextProcess();
+            } else {
+                console.log(`*** DEBUG: Stopping scheduler - no tasks in queue and no running tasks ***`);
+            }
         }, this.schedulingInterval);
     }
 
     _processQueue() {
+        console.log('*** DEBUG: Entering _processQueue. ***');
+        this.logger(`Processing queue. Running tasks: ${this.runningTasks.size}, Max concurrent: ${this.maxConcurrentTasks}, Heap size: ${this.heap.size()}`, 'info');
         // Update priorities for aging
         this._updateTaskPriorities();
         
         // Defensive loop: catch heap errors
         try {
             // Process tasks while we have available workers and tasks
-            while (this.runningTasks.size < this.maxConcurrentTasks && !this.heap.isEmpty()) {
+            let consecutiveSkips = 0;
+            const maxSkips = this.heap.size(); // Prevent infinite loops
+            
+            while (this.runningTasks.size < this.maxConcurrentTasks && !this.heap.isEmpty() && consecutiveSkips < maxSkips) {
+                console.log(`🔄 Processing loop - Running: ${this.runningTasks.size}, Max: ${this.maxConcurrentTasks}, Heap size: ${this.heap.size()}`);
                 const next = this.heap.peek();
-                if (!next) break;
+                if (!next) {
+                    this.logger('Heap is empty, breaking loop.', 'debug');
+                    break;
+                }
                 
                 const task = next.value;
+                console.log(`🔍 Evaluating task ${task.id} (${task.job.type}) with priority ${task.getEffectivePriority()}`);
                 
                 // Check if task is ready to run
                 if (!task.isReadyToRun()) {
-                    break; // Tasks are ordered by priority, so stop here
+                    console.log(`⏸️ Task ${task.id} is not ready to run (status: ${task.status}, scheduled: ${new Date(task.scheduledTime).toLocaleTimeString()})`);
+                    consecutiveSkips++;
+                    
+                    // If all tasks in heap are not ready, break to avoid infinite loop
+                    if (consecutiveSkips >= maxSkips) {
+                        console.log(`⚠️ All tasks in heap are not ready to run, breaking processing loop`);
+                        break;
+                    }
+                    
+                    // Remove from heap and try next task
+                    this.heap.extractMin();
+                    this.taskNodes.delete(task.id);
+                    
+                    // Re-insert the task back into the heap with a small delay
+                    // This allows other ready tasks to be processed first
+                    setTimeout(() => {
+                        if (this.tasks.has(task.id) && task.status === 'queued' && this.running) {
+                            console.log(`♻️ Re-inserting task ${task.id} back into queue`);
+                            const newHeapNode = this.heap.insert(task.getEffectivePriority(), task);
+                            this.taskNodes.set(task.id, newHeapNode);
+                        }
+                    }, 10); // Small delay to allow other processing
+                    continue;
+                } else {
+                    consecutiveSkips = 0; // Reset skip counter when we find a ready task
                 }
 
+                console.log(`✅ Task ${task.id} is ready to run, looking for worker...`);
                 // Get appropriate worker
                 const worker = this._getAvailableWorker(task);
                 if (!worker) {
+                    console.log(`❌ No available worker for task ${task.id}. Attempting preemption.`);
                     // Try preemption if enabled
                     if (this.preemptionEnabled) {
                         const preemptedWorker = this._attemptPreemption(task);
                         if (preemptedWorker) {
+                            this.logger(`Preempted worker ${preemptedWorker.id} for task ${task.id}`, 'info');
                             this._runTask(task, preemptedWorker);
+                        } else {
+                            this.logger(`No suitable worker to preempt for task ${task.id}`, 'debug');
                         }
                     }
                     break; // No workers available
                 }
 
+                console.log(`🎯 Found worker ${worker.id} for task ${task.id}, starting execution...`);
                 // Remove from heap and run
                 this.heap.extractMin();
                 this.taskNodes.delete(task.id);
                 this._runTask(task, worker);
             }
         } catch (err) {
-            console.error('Error in _processQueue:', err);
+            this.logger(`Error in _processQueue: ${err}`, 'error');
         }
 
         // Check if queue is empty
         if (this.heap.isEmpty() && this.runningTasks.size === 0) {
+            this.logger('Queue is empty and no tasks are running.', 'info');
             this._emit('queueEmpty');
         }
     }
@@ -418,37 +571,60 @@ class TaskManager {
     }
 
     _getAvailableWorker(task) {
-        // Explicit backend assignment based on task.backend or job.backend
-        const backend = task.backend || (task.job && task.job.backend);
+        const requirements = task.resourceRequirements || {};
+        console.log(`🔍 Searching for worker for task ${task.id} (${task.job.type}) with requirements:`, requirements);
 
-        let workerPool;
-        if (backend === 'gpu') {
-            workerPool = this.workerPools.gpu;
-        } else if (backend === 'webnn') {
-            workerPool = this.workerPools.webnn;
-        } else if (backend === 'wasm') {
-            workerPool = this.workerPools.wasm;
-        } else {
-            const requirements = task.resourceRequirements || {};
-            if (requirements.gpu && requirements.gpu > 0) {
-                workerPool = this.workerPools.gpu;
-            } else if (requirements.webnn && requirements.webnn > 0) {
-                workerPool = this.workerPools.webnn;
-            } else if (requirements.wasm && requirements.wasm > 0) {
-                workerPool = this.workerPools.wasm;
-            } else {
-                workerPool = this.workerPools.cpu;
+        const potentialPools = [];
+        if (requirements.gpu) potentialPools.push(this.workerPools.gpu);
+        if (requirements.webnn) potentialPools.push(this.workerPools.webnn);
+        if (requirements.wasm) potentialPools.push(this.workerPools.wasm);
+        potentialPools.push(this.workerPools.cpu); // Always consider CPU as a fallback
+
+        console.log(`🔍 Potential pools for task ${task.id}:`, potentialPools.map(p => p.workerType));
+
+        for (const pool of potentialPools) {
+            console.log(`🔍 Checking pool: ${pool.workerType}. Available workers: ${pool.availableWorkers.length}`);
+            for (const worker of pool.availableWorkers) {
+                console.log(`🔍 Attempting to match task ${task.id} with worker ${worker.id} (type: ${worker.type})`);
+                if (this._workerSatisfiesRequirements(worker, requirements)) {
+                    console.log(`✅ Task ${task.id} (${task.job.type}) assigned to ${worker.type} worker: ${worker.id}`);
+                    return worker;
+                } else {
+                    console.log(`❌ Worker ${worker.id} does not satisfy requirements for task ${task.id}`);
+                }
             }
         }
 
-        const worker = workerPool.getAvailableWorker();
-        if (worker) {
-            console.log(`Task ${task.id} (${task.job.type}) assigned to ${worker.type} worker: ${worker.id}`);
-        } else {
-            console.log(`No available ${workerPool.workerType} worker for task ${task.id} (${task.job.type})`);
-        }
+        this.logger(`No available worker for task ${task.id} (${task.job.type})`, 'warn');
+        return null;
+    }
 
-        return worker;
+    _workerSatisfiesRequirements(worker, requirements) {
+        if (!worker.capabilities) {
+            console.log(`❌ Worker ${worker.id} has no capabilities object. Cannot satisfy requirements.`);
+            return false;
+        }
+        console.log(`🔍 Checking worker ${worker.id} capabilities:`, worker.capabilities, 'against requirements:', requirements);
+
+        if (requirements.gpu && !worker.capabilities.webgpu) {
+            console.log(`❌ Worker ${worker.id} fails GPU requirement (needs webgpu:true, has webgpu:${worker.capabilities.webgpu})`);
+            return false;
+        }
+        if (requirements.webnn && !worker.capabilities.webnn) {
+            console.log(`❌ Worker ${worker.id} fails WebNN requirement (needs webnn:true, has webnn:${worker.capabilities.webnn})`);
+            return false;
+        }
+        if (requirements.onnx && !worker.capabilities.onnx) {
+            console.log(`❌ Worker ${worker.id} fails ONNX requirement (needs onnx:true, has onnx:${worker.capabilities.onnx})`);
+            return false;
+        }
+        // If a WASM job, check if worker has WASM capability
+        if (requirements.wasm && !worker.capabilities.wasm) {
+            console.log(`❌ Worker ${worker.id} fails WASM requirement (needs wasm:true, has wasm:${worker.capabilities.wasm})`);
+            return false;
+        }
+        console.log(`✅ Worker ${worker.id} satisfies all requirements.`);
+        return true;
     }
 
     _attemptPreemption(newTask) {
@@ -501,6 +677,13 @@ class TaskManager {
         this.runningTasks.set(task.id, task);
         this._assignWorker(worker, task);
         
+        // Set up task timeout
+        const timeoutId = setTimeout(() => {
+            console.log(`⏰ Task ${task.id} timed out after ${this.taskTimeout}ms`);
+            this._handleTaskTimeout(task);
+        }, this.taskTimeout);
+        this.taskTimeouts.set(task.id, timeoutId);
+        
         console.log(`Starting task ${task.id} on worker ${worker.id}`);
         this._emit('taskStarted', task);
 
@@ -536,6 +719,12 @@ class TaskManager {
                 task.endTime = Date.now();
                 task.result = result;
                 
+                // Clear timeout
+                if (this.taskTimeouts.has(task.id)) {
+                    clearTimeout(this.taskTimeouts.get(task.id));
+                    this.taskTimeouts.delete(task.id);
+                }
+                
                 this.runningTasks.delete(task.id);
                 this.completedTasks.set(task.id, task);
                 this._releaseWorker(worker);
@@ -556,6 +745,12 @@ class TaskManager {
                 task.status = 'failed';
                 task.endTime = Date.now();
                 task.error = error.message;
+                
+                // Clear timeout
+                if (this.taskTimeouts.has(task.id)) {
+                    clearTimeout(this.taskTimeouts.get(task.id));
+                    this.taskTimeouts.delete(task.id);
+                }
                 
                 this.runningTasks.delete(task.id);
                 this._releaseWorker(worker);
@@ -582,6 +777,41 @@ class TaskManager {
                     }
                     this._emit('taskFailed', task);
                 }
+            }
+        }
+    }
+
+    _handleTaskTimeout(task) {
+        console.log(`⏰ Handling timeout for task ${task.id}`);
+        
+        if (task.status === 'running') {
+            task.status = 'failed';
+            task.endTime = Date.now();
+            task.error = new Error(`Task timed out after ${this.taskTimeout}ms`);
+            
+            // Clear the timeout
+            if (this.taskTimeouts.has(task.id)) {
+                clearTimeout(this.taskTimeouts.get(task.id));
+                this.taskTimeouts.delete(task.id);
+            }
+            
+            // Release worker and clean up
+            if (task.worker) {
+                this._releaseWorker(task.worker);
+            }
+            
+            this.runningTasks.delete(task.id);
+            this.failedTasks.set(task.id, task);
+            this.stats.tasksFailed++;
+            
+            if (task.callbacks.onError) {
+                task.callbacks.onError(task.error, task);
+            }
+            this._emit('taskFailed', task);
+            
+            // Trigger immediate processing to handle queued tasks
+            if (this.running) {
+                this._processQueue();
             }
         }
     }
@@ -621,19 +851,25 @@ class TaskManager {
                 const { type, taskId, result, error, progress, stats } = event.data;
                 
                 if (taskId !== task.id) return; // Ignore messages for other tasks
+
+                console.log(`[TaskManager] Worker ${worker.id} message:`, event.data);
+                this.logger(`[Worker ${worker.id}] ${JSON.stringify(event.data)}`, 'worker');
                 
                 switch (type) {
                     case 'completed':
                         clearTimeout(timeout);
                         worker.actualWorker.removeEventListener('message', messageHandler);
+                        console.log(`[TaskManager] Task ${task.id} completed successfully`);
                         resolve(result);
                         break;
                     case 'error':
                         clearTimeout(timeout);
                         worker.actualWorker.removeEventListener('message', messageHandler);
+                        console.error(`[TaskManager] Task ${task.id} failed:`, error);
                         reject(new Error(error));
                         break;
                     case 'progress':
+                        console.log(`[TaskManager] Task ${task.id} progress: ${progress}%`);
                         if (progressCallback) {
                             progressCallback(progress, stats);
                         }
@@ -648,14 +884,37 @@ class TaskManager {
                     case 'cancelled':
                         clearTimeout(timeout);
                         worker.actualWorker.removeEventListener('message', messageHandler);
+                        console.log(`[TaskManager] Task ${task.id} was cancelled`);
                         resolve({ cancelled: true });
                         break;
+                    default:
+                        console.warn(`[TaskManager] Unknown message type from worker:`, type);
                 }
             };
 
             worker.actualWorker.addEventListener('message', messageHandler);
+            
+            // Add error handlers for the worker
+            const errorHandler = (error) => {
+                console.error(`[TaskManager] Worker ${worker.id} error during task execution:`, error);
+                clearTimeout(timeout);
+                worker.actualWorker.removeEventListener('message', messageHandler);
+                worker.actualWorker.removeEventListener('error', errorHandler);
+                reject(new Error(`Worker error: ${error.message || 'Unknown worker error'}`));
+            };
+            
+            worker.actualWorker.addEventListener('error', errorHandler);
 
             // Send task to worker
+            console.log(`[TaskManager] Sending task ${task.id} to worker ${worker.id}`);
+            console.log(`[TaskManager] Task data:`, {
+                taskId: task.id,
+                jobType: task.job.type,
+                useRealInference: task.job.useRealInference,
+                backend: task.job.backend,
+                duration: task.job.duration,
+                complexity: task.job.complexity
+            });
             worker.actualWorker.postMessage({
                 type: 'execute',
                 data: {
@@ -672,9 +931,11 @@ class TaskManager {
 
     // Event system
     on(event, handler) {
-        if (this.eventHandlers[event]) {
-            this.eventHandlers[event].push(handler);
+        if (!this.eventHandlers[event]) {
+            this.eventHandlers[event] = [];
         }
+        this.eventHandlers[event].push(handler);
+        console.log(`DEBUG: Added event handler for '${event}', total handlers: ${this.eventHandlers[event].length}`);
     }
 
     off(event, handler) {
@@ -687,14 +948,19 @@ class TaskManager {
     }
 
     _emit(event, data) {
+        console.log(`DEBUG: Attempting to emit '${event}' event, handlers available: ${this.eventHandlers[event] ? this.eventHandlers[event].length : 0}`);
         if (this.eventHandlers[event]) {
-            this.eventHandlers[event].forEach(handler => {
+            this.eventHandlers[event].forEach((handler, index) => {
+                console.log(`DEBUG: Calling handler ${index + 1} for '${event}' event`);
                 try {
                     handler(data);
+                    console.log(`DEBUG: Handler ${index + 1} for '${event}' completed successfully`);
                 } catch (error) {
                     console.error(`Error in event handler for ${event}:`, error);
                 }
             });
+        } else {
+            console.warn(`DEBUG: No handlers registered for event '${event}'`);
         }
     }
 
@@ -783,6 +1049,3 @@ if (typeof module !== 'undefined' && module.exports) {
     window.Task = Task;
     window.WorkerPool = WorkerPool;
 }
-
-// ES6 module exports for modern browser imports
-export { TaskManager, Task, WorkerPool };

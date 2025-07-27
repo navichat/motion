@@ -18,10 +18,35 @@ class WebNNImageClassificationJob {
     }
 
     async execute(progressCallback, shouldStop) {
+        console.log(`[WebNNJob] Starting ${this.type} job ${this.id} with batch size ${this.batchSize} and image size ${this.imageSize}`);
         const startTime = Date.now();
         
         try {
-            const webnn = await this.initWebNN();
+            let webnnAvailable = false;
+            try {
+                const webnn = await this.initWebNN();
+                if (webnn) webnnAvailable = true;
+            } catch (e) {
+                console.warn(`[WebNNJob] WebNN not fully available for ${this.id}: ${e.message}`);
+            }
+
+            if (!webnnAvailable) {
+                console.warn(`[WebNNJob] WebNN not available for ${this.id}, falling back to CPU simulation.`);
+                const fallbackResult = await this.simulateCPUFallback(progressCallback, shouldStop);
+                const finalResult = {
+                    jobId: this.id,
+                    type: this.type,
+                    executionTime: Date.now() - startTime,
+                    batchSize: this.batchSize,
+                    totalImages: this.complexity * 3 * this.batchSize,
+                    complexity: this.complexity,
+                    backend: 'CPU_Fallback',
+                    simulationResult: fallbackResult
+                };
+                console.log(`[WebNNJob] ${this.type} job ${this.id} completed via CPU fallback. Result:`, finalResult);
+                return finalResult;
+            }
+
             const model = await this.loadImageClassificationModel(webnn);
             
             const totalBatches = Math.max(4, this.complexity * 3);
@@ -50,19 +75,37 @@ class WebNNImageClassificationJob {
                 await new Promise(resolve => setTimeout(resolve, 200));
             }
             
-            return {
+            const finalResult = {
                 jobId: this.id,
                 type: this.type,
                 executionTime: Date.now() - startTime,
                 batchSize: this.batchSize,
                 totalImages: totalBatches * this.batchSize,
                 complexity: this.complexity,
-                backend: 'WebNN'
+                backend: 'WebNN',
+                simulationResult: 'WebNN Image Classification Done'
             };
+            console.log(`[WebNNJob] ${this.type} job ${this.id} completed. Result:`, finalResult);
+            return finalResult;
             
         } catch (error) {
+            console.error(`[WebNNJob] ${this.type} job ${this.id} failed:`, error);
             throw new Error(`WebNN Image Classification job failed: ${error.message}`);
         }
+    }
+
+    async simulateCPUFallback(progressCallback, shouldStop) {
+        // Simple CPU fallback for image classification
+        let result = 0;
+        const images = this.batchSize * this.complexity * 3;
+        for (let i = 0; i < images; i++) {
+            result += Math.random();
+            if (shouldStop && shouldStop()) return { cancelled: true };
+            if (progressCallback && i % (Math.floor(images / 10)) === 0) {
+                progressCallback((i / images) * 100);
+            }
+        }
+        return `CPU Fallback Image Classification Result: ${result.toFixed(2)}`;
     }
 
     async initWebNN() {
@@ -129,10 +172,35 @@ class WebNNTextProcessingJob {
     }
 
     async execute(progressCallback, shouldStop) {
+        console.log(`[WebNNJob] Starting ${this.type} job ${this.id} with sequence length ${this.sequenceLength} and batch size ${this.batchSize}`);
         const startTime = Date.now();
         
         try {
-            const webnn = await this.initWebNN();
+            let webnnAvailable = false;
+            try {
+                const webnn = await this.initWebNN();
+                if (webnn) webnnAvailable = true;
+            } catch (e) {
+                console.warn(`[WebNNJob] WebNN not fully available for ${this.id}: ${e.message}`);
+            }
+
+            if (!webnnAvailable) {
+                console.warn(`[WebNNJob] WebNN not available for ${this.id}, falling back to CPU simulation.`);
+                const fallbackResult = await this.simulateCPUFallback(progressCallback, shouldStop);
+                const finalResult = {
+                    jobId: this.id,
+                    type: this.type,
+                    executionTime: Date.now() - startTime,
+                    sequenceLength: this.sequenceLength,
+                    batchSize: this.batchSize,
+                    totalTokens: this.complexity * 4 * this.batchSize * this.sequenceLength,
+                    backend: 'CPU_Fallback',
+                    simulationResult: fallbackResult
+                };
+                console.log(`[WebNNJob] ${this.type} job ${this.id} completed via CPU fallback. Result:`, finalResult);
+                return finalResult;
+            }
+
             const model = await this.loadLanguageModel(webnn);
             
             const totalSequences = Math.max(6, this.complexity * 4);
@@ -161,19 +229,37 @@ class WebNNTextProcessingJob {
                 await new Promise(resolve => setTimeout(resolve, 300));
             }
             
-            return {
+            const finalResult = {
                 jobId: this.id,
                 type: this.type,
                 executionTime: Date.now() - startTime,
                 sequenceLength: this.sequenceLength,
                 batchSize: this.batchSize,
                 totalTokens: totalSequences * this.batchSize * this.sequenceLength,
-                backend: 'WebNN'
+                backend: 'WebNN',
+                simulationResult: 'WebNN Text Processing Done'
             };
+            console.log(`[WebNNJob] ${this.type} job ${this.id} completed. Result:`, finalResult);
+            return finalResult;
             
         } catch (error) {
+            console.error(`[WebNNJob] ${this.type} job ${this.id} failed:`, error);
             throw new Error(`WebNN Text Processing job failed: ${error.message}`);
         }
+    }
+
+    async simulateCPUFallback(progressCallback, shouldStop) {
+        // Simple CPU fallback for text processing
+        let result = 0;
+        const tokens = this.batchSize * this.sequenceLength * this.complexity * 4;
+        for (let i = 0; i < tokens; i++) {
+            result += Math.random();
+            if (shouldStop && shouldStop()) return { cancelled: true };
+            if (progressCallback && i % (Math.floor(tokens / 10)) === 0) {
+                progressCallback((i / tokens) * 100);
+            }
+        }
+        return `CPU Fallback Text Processing Result: ${result.toFixed(2)}`;
     }
 
     async initWebNN() {
@@ -240,10 +326,35 @@ class WebNNAudioProcessingJob {
     }
 
     async execute(progressCallback, shouldStop) {
+        console.log(`[WebNNJob] Starting ${this.type} job ${this.id} with audio length ${this.audioLength} and batch size ${this.batchSize}`);
         const startTime = Date.now();
         
         try {
-            const webnn = await this.initWebNN();
+            let webnnAvailable = false;
+            try {
+                const webnn = await this.initWebNN();
+                if (webnn) webnnAvailable = true;
+            } catch (e) {
+                console.warn(`[WebNNJob] WebNN not fully available for ${this.id}: ${e.message}`);
+            }
+
+            if (!webnnAvailable) {
+                console.warn(`[WebNNJob] WebNN not available for ${this.id}, falling back to CPU simulation.`);
+                const fallbackResult = await this.simulateCPUFallback(progressCallback, shouldStop);
+                const finalResult = {
+                    jobId: this.id,
+                    type: this.type,
+                    executionTime: Date.now() - startTime,
+                    audioLength: this.audioLength,
+                    batchSize: this.batchSize,
+                    totalSamples: this.complexity * 5 * this.audioLength,
+                    backend: 'CPU_Fallback',
+                    simulationResult: fallbackResult
+                };
+                console.log(`[WebNNJob] ${this.type} job ${this.id} completed via CPU fallback. Result:`, finalResult);
+                return finalResult;
+            }
+
             const model = await this.loadAudioModel(webnn);
             
             const totalChunks = Math.max(8, this.complexity * 5);
@@ -273,19 +384,37 @@ class WebNNAudioProcessingJob {
                 await new Promise(resolve => setTimeout(resolve, 250));
             }
             
-            return {
+            const finalResult = {
                 jobId: this.id,
                 type: this.type,
                 executionTime: Date.now() - startTime,
                 audioLength: this.audioLength,
                 batchSize: this.batchSize,
                 totalSamples: totalChunks * this.audioLength,
-                backend: 'WebNN'
+                backend: 'WebNN',
+                simulationResult: 'WebNN Audio Processing Done'
             };
+            console.log(`[WebNNJob] ${this.type} job ${this.id} completed. Result:`, finalResult);
+            return finalResult;
             
         } catch (error) {
+            console.error(`[WebNNJob] ${this.type} job ${this.id} failed:`, error);
             throw new Error(`WebNN Audio Processing job failed: ${error.message}`);
         }
+    }
+
+    async simulateCPUFallback(progressCallback, shouldStop) {
+        // Simple CPU fallback for audio processing
+        let result = 0;
+        const samples = this.audioLength * this.complexity * 5;
+        for (let i = 0; i < samples; i++) {
+            result += Math.random();
+            if (shouldStop && shouldStop()) return { cancelled: true };
+            if (progressCallback && i % (Math.floor(samples / 10)) === 0) {
+                progressCallback((i / samples) * 100);
+            }
+        }
+        return `CPU Fallback Audio Processing Result: ${result.toFixed(2)}`;
     }
 
     async initWebNN() {

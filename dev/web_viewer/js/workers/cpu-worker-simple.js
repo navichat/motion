@@ -4,9 +4,21 @@
 
 // Worker message handling
 self.addEventListener('message', function(event) {
-    const { type, data } = event.data;
+    const { type, data, capabilities } = event.data;
     
     switch (type) {
+        case 'init':
+            // CPU workers are always ready
+            self.postMessage({
+                type: 'ready',
+                workerType: 'cpu',
+                capabilities: { 
+                    cpu: true, 
+                    webgpu: false,  // Explicitly set to false for CPU workers
+                    onnx: false 
+                } 
+            });
+            break;
         case 'execute':
             executeTask(data);
             break;
@@ -27,11 +39,12 @@ function executeTask(taskData) {
     currentTask = taskId;
     cancelled = false; // Reset cancelled flag for new task
     
-    console.log(`CPU Worker: Starting task ${taskId} (${jobType})`);
+    console.log(`[CPU Worker] Received task: ${taskId} (${jobType})`);
     
     // Handle test error case
     if (shouldFail || jobType === 'ErrorTestJob') {
         setTimeout(() => {
+            console.log(`[CPU Worker] Task ${taskId} is a test error, failing intentionally.`);
             self.postMessage({
                 type: 'error',
                 taskId: taskId,
@@ -44,8 +57,8 @@ function executeTask(taskData) {
         return;
     }
     
-    // Handle WASM-specific job types
-    if (jobType === 'WASMMatrix' || jobType === 'WASMPrime' || jobType === 'WASMFractal') {
+    // Handle WASM-specific job types and AI models
+    if (jobType === 'WASMMatrix' || jobType === 'WASMPrime' || jobType === 'WASMFractal' || jobType === 'VAD') {
         simulateWASMWork(taskId, duration, complexity, jobType);
     } else {
         // Fallback to generic CPU simulation
@@ -69,11 +82,15 @@ async function simulateCPUWork(taskId, duration, complexity) {
     const steps = Math.max(10, Math.floor(duration / 100)); // At least 10 steps
     const stepDuration = duration / steps;
     
+    console.log(`[CPU Worker] ⚙️  Starting CPU compute for task ${taskId} - Type: SIMULATED CPU, Duration: ${duration}ms, Complexity: ${complexity}`);
+    
     try {
         for (let i = 0; i < steps && !cancelled; i++) {
             // Simulate CPU work based on complexity
             const workAmount = 1000 * complexity;
-            await simulateWork(workAmount);
+            const result = await simulateWork(workAmount);
+            
+            console.log(`[CPU Worker] 🖥️  SIMULATED CPU compute step ${i+1}/${steps} for task ${taskId}, work amount: ${workAmount}`);
             
             // Check if cancelled
             if (cancelled) {
@@ -105,6 +122,8 @@ async function simulateCPUWork(taskId, duration, complexity) {
             // Task completed successfully
             const totalTime = Date.now() - startTime;
             
+            console.log(`[CPU Worker] ✅ CPU compute COMPLETED for task ${taskId} in ${totalTime}ms - Type: SIMULATED CPU`);
+            
             self.postMessage({
                 type: 'completed',
                 taskId: taskId,
@@ -113,7 +132,8 @@ async function simulateCPUWork(taskId, duration, complexity) {
                     executionTime: totalTime,
                     workerType: 'cpu',
                     steps: steps,
-                    complexity: complexity
+                    complexity: complexity,
+                    inferenceType: 'SIMULATED_CPU'
                 }
             });
             
@@ -139,6 +159,8 @@ async function simulateWASMWork(taskId, duration, complexity, jobType) {
     const steps = Math.max(8, Math.floor(duration / 125)); // WASM optimized steps
     const stepDuration = duration / steps;
     
+    console.log(`[CPU Worker] 🔧 Starting WASM/AI model ${jobType} for task ${taskId} - Type: SIMULATED, Duration: ${duration}ms`);
+    
     try {
         for (let i = 0; i < steps && !cancelled; i++) {
             // Simulate job-type specific WASM computation
@@ -146,15 +168,23 @@ async function simulateWASMWork(taskId, duration, complexity, jobType) {
             switch (jobType) {
                 case 'WASMMatrix':
                     workAmount = await simulateMatrixMultiplication(complexity);
+                    console.log(`[CPU Worker] 📊 SIMULATED WASM Matrix step ${i+1}/${steps}, operations: ${workAmount}`);
                     break;
                 case 'WASMPrime':
                     workAmount = await simulatePrimeComputation(complexity);
+                    console.log(`[CPU Worker] 🔢 SIMULATED WASM Prime step ${i+1}/${steps}, primes found: ${workAmount}`);
                     break;
                 case 'WASMFractal':
                     workAmount = await simulateFractalGeneration(complexity);
+                    console.log(`[CPU Worker] 🌀 SIMULATED WASM Fractal step ${i+1}/${steps}, iterations: ${workAmount}`);
+                    break;
+                case 'VAD':
+                    workAmount = await simulateVAD(complexity);
+                    console.log(`[CPU Worker] 🎙️  SIMULATED VAD step ${i+1}/${steps}, voice activity: ${workAmount ? workAmount.toFixed(4) : 'N/A'}`);
                     break;
                 default:
                     workAmount = await simulateWork(1000 * complexity);
+                    console.log(`[CPU Worker] ⚙️  SIMULATED CPU work step ${i+1}/${steps}, work amount: ${workAmount}`);
             }
             
             // Check if cancelled
@@ -190,6 +220,8 @@ async function simulateWASMWork(taskId, duration, complexity, jobType) {
             // Task completed successfully
             const totalTime = Date.now() - startTime;
             
+            console.log(`[CPU Worker] ✅ WASM/AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Type: SIMULATED`);
+            
             self.postMessage({
                 type: 'completed',
                 taskId: taskId,
@@ -200,7 +232,8 @@ async function simulateWASMWork(taskId, duration, complexity, jobType) {
                     steps: steps,
                     complexity: complexity,
                     jobType: jobType,
-                    wasmOptimized: true
+                    wasmOptimized: true,
+                    inferenceType: 'SIMULATED_WASM'
                 }
             });
             
@@ -279,6 +312,53 @@ async function simulateFractalGeneration(complexity) {
     });
 }
 
+async function simulateVAD(complexity) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            // Simulate Voice Activity Detection processing
+            const audioFrames = 1000 * complexity; // Number of audio frames
+            const frameSize = 160; // Samples per frame (10ms at 16kHz)
+            let voiceActivityScore = 0;
+            
+            for (let frame = 0; frame < audioFrames; frame++) {
+                let energy = 0;
+                let zeroCrossings = 0;
+                let prevSample = 0;
+                
+                // Simulate frame-level VAD features
+                for (let sample = 0; sample < frameSize; sample++) {
+                    // Simulate audio sample
+                    const audioSample = Math.sin(frame * 0.1 + sample * 0.01) + 
+                                       Math.random() * 0.1 - 0.05; // Add noise
+                    
+                    // Energy calculation
+                    energy += audioSample * audioSample;
+                    
+                    // Zero crossing rate
+                    if ((audioSample > 0 && prevSample <= 0) || 
+                        (audioSample <= 0 && prevSample > 0)) {
+                        zeroCrossings++;
+                    }
+                    prevSample = audioSample;
+                }
+                
+                // Combine features for VAD decision
+                const energyNorm = energy / frameSize;
+                const zcrNorm = zeroCrossings / frameSize;
+                
+                // Simple VAD threshold logic
+                if (energyNorm > 0.01 && zcrNorm < 0.3) {
+                    voiceActivityScore += 1.0;
+                } else {
+                    voiceActivityScore += 0.1; // Background noise
+                }
+            }
+            
+            resolve(voiceActivityScore / audioFrames);
+        }, 30 + complexity * 20);
+    });
+}
+
 // Simulate CPU-intensive work
 async function simulateWork(iterations) {
     return new Promise((resolve) => {
@@ -293,8 +373,4 @@ async function simulateWork(iterations) {
     });
 }
 
-// Worker ready notification
-self.postMessage({
-    type: 'ready',
-    workerType: 'cpu'
-});
+

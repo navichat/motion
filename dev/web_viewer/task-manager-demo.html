@@ -6,13 +6,7 @@
     <title>Task Management Engine Demo</title>
     <style>
         body {
-                     <button class="btn btn-primary" onclick="runEnhancedWorkerTest()" style="background: #8b5cf6;">
-                🚀 Run Enhanced Worker Test
-            </button>
-            <button class="btn btn-primary" onclick="runValidationTest()" style="background: #059669;">
-                🔍 Validate Integration
-            </button>
-            <button class="btn" onclick="clearConsole()" style="background: #666; color: white;">ont-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             background: #1e1e1e;
             color: #d4d4d4;
             margin: 0;
@@ -46,7 +40,6 @@
         .controls {
             display: flex;
             gap: 15px;
-            margin-bottom: 30px;
             flex-wrap: wrap;
         }
         
@@ -165,6 +158,7 @@
         .log-warning { color: #ffcc02; }
         .log-error { color: #f14c4c; }
         .log-debug { color: #9cdcfe; }
+        .log-worker { color: #f59e0b; }
         
         .status-indicator {
             display: inline-block;
@@ -220,6 +214,12 @@
         </div>
         
         <div class="controls">
+            <button class="btn btn-success" onclick="checkSystemAvailability()" style="background: #16a085;">
+                🔍 Check System
+            </button>
+            <button class="btn btn-warning" onclick="debugTaskManager()" style="background: #e67e22;">
+                🔧 Debug Test
+            </button>
             <button class="btn btn-primary" onclick="runFullTestSuite()">
                 📋 Run Full Test Suite
             </button>
@@ -230,7 +230,7 @@
                 🎮 Interactive Demo
             </button>
             <button class="btn btn-primary" onclick="runEnhancedWorkerTest()" style="background: #8b5cf6;">
-                � Run Enhanced Worker Test
+                 Run Enhanced Worker Test
             </button>
             <button class="btn btn-primary" onclick="runValidationTest()" style="background: #059669;">
                 🔍 Validate Integration
@@ -272,7 +272,7 @@
                 🦙 TinyLlama
             </button>
             <button class="btn btn-warning" onclick="runDiabloGPTTest()" style="background: #991b1b;">
-                � DiabloGPT
+                 DiabloGPT
             </button>
             <button class="btn" onclick="clearConsole()" style="background: #666; color: white;">
                 🧹 Clear Console
@@ -326,17 +326,30 @@ Console output will appear here...</pre>
     </div>
 
     <!-- Load our task management system -->
+    <!-- ONNX Runtime Web for AI model inference -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    
+    <!-- Real AI Model Inference Engines (load synchronously) -->
+    <script src="./kokoro.web.js"></script>
+    
+    <!-- Task Management System (non-module versions for demo) -->
     <script src="./js/FibonacciHeap.js" type="module"></script>
     <script src="./js/MockGPUJobs.js" type="module"></script>
+    <script type="module">
+        import { MockGPUJobFactory } from './js/MockGPUJobs.js';
+        window.MockGPUJobFactory = MockGPUJobFactory;
+    </script>
     <script src="./js/RealWASMJobs.js" type="module"></script>
     <script src="./js/RealWebGPUJobs.js" type="module"></script>
     <script src="./js/RealWebNNJobs.js" type="module"></script>
+    <script src="./js/AIModelJobs.js" type="module"></script>
     <script src="./js/RealJobFactory.js" type="module"></script>
     <script src="./js/TaskManager.js" type="module"></script>
     <script src="./js/TaskManagerTestSuite.js" type="module"></script>
     <script src="./js/EnhancedTaskManagerTestDemo.js" type="module"></script>
     <script src="./js/ValidationTest.js" type="module"></script>
     <script src="./js/TaskManagerWebGPUTest.js" type="module"></script>
+    <script src="./js/debug-test.js" type="module"></script>
     
     <script>
         // Console management
@@ -408,24 +421,53 @@ Console output will appear here...</pre>
             log('🚀 Starting Full Test Suite...', 'info');
             
             try {
+                // Check if required classes are available
+                if (typeof TaskManager === 'undefined') {
+                    throw new Error('TaskManager class not loaded');
+                }
+                if (typeof FibonacciHeap === 'undefined') {
+                    throw new Error('FibonacciHeap class not loaded');
+                }
+                if (typeof MockGPUJobFactory === 'undefined') {
+                    throw new Error('MockGPUJobFactory class not loaded');
+                }
+                
+                log('✅ All required classes are loaded', 'success');
+                
                 // Redirect console.log to our display
                 const originalConsoleLog = console.log;
+                const originalConsoleError = console.error;
+                const originalConsoleWarn = console.warn;
+                
                 console.log = function(...args) {
                     log(args.join(' '), 'debug');
                     originalConsoleLog.apply(console, args);
                 };
                 
+                console.error = function(...args) {
+                    log(args.join(' '), 'error');
+                    originalConsoleError.apply(console, args);
+                };
+                
+                console.warn = function(...args) {
+                    log(args.join(' '), 'warning');
+                    originalConsoleWarn.apply(console, args);
+                };
+                
                 const testSuite = new TaskManagerTestSuite();
                 await testSuite.runAllTests();
                 
-                // Restore console.log
+                // Restore console methods
                 console.log = originalConsoleLog;
+                console.error = originalConsoleError;
+                console.warn = originalConsoleWarn;
                 
                 log('✅ Test Suite Completed!', 'success');
                 updateSystemStatus('Tests Completed');
                 
             } catch (error) {
                 log(`❌ Test Suite Failed: ${error.message}`, 'error');
+                log(`Stack trace: ${error.stack}`, 'error');
                 updateSystemStatus('Tests Failed');
             }
         }
@@ -435,34 +477,61 @@ Console output will appear here...</pre>
             log('⚡ Starting Quick Demo...', 'info');
             
             try {
+                // Check if required classes are available
+                if (typeof TaskManager === 'undefined') {
+                    throw new Error('TaskManager class not loaded');
+                }
+                if (typeof MockGPUJobFactory === 'undefined') {
+                    throw new Error('MockGPUJobFactory class not loaded');
+                }
+                
+                log('✅ Required classes loaded, creating TaskManager...', 'info');
+
+                const capabilities = {
+                    webgpu: !!navigator.gpu,
+                    webnn: !!navigator.ml
+                };
+                
+                log(`🔧 Capabilities: WebGPU=${capabilities.webgpu}, WebNN=${capabilities.webnn}`, 'info');
+
                 const manager = new TaskManager({
                     maxConcurrentTasks: 3,
                     cpuWorkers: 3,
-                    schedulingInterval: 100
+                    schedulingInterval: 100,
+                    capabilities: capabilities,
+                    logger: (message, type) => log(`[TaskManager] ${message}`, type)
                 });
+                
+                log('✅ TaskManager created successfully', 'success');
                 
                 // Create and schedule tasks
                 const tasks = [];
                 for (let i = 0; i < 6; i++) {
-                    const job = MockGPUJobFactory.createRandomJob();
-                    job.duration = 500 + Math.random() * 1000;
-                    const priority = Math.floor(Math.random() * 10);
-                    const taskId = manager.scheduleTask(job, priority);
-                    
-                    tasks.push({
-                        id: taskId,
-                        type: job.type,
-                        priority: priority,
-                        status: 'queued'
-                    });
+                    try {
+                        const job = MockGPUJobFactory.createRandomJob();
+                        job.duration = 500 + Math.random() * 1000;
+                        const priority = Math.floor(Math.random() * 10);
+                        const taskId = manager.scheduleTask(job, priority);
+                        
+                        tasks.push({
+                            id: taskId,
+                            type: job.type,
+                            priority: priority,
+                            status: 'queued'
+                        });
+                        
+                        log(`📋 Scheduled task ${i+1}: ${job.type} (priority: ${priority})`, 'info');
+                    } catch (jobError) {
+                        log(`❌ Error creating job ${i+1}: ${jobError.message}`, 'error');
+                    }
                 }
                 
-                log(`📋 Scheduled ${tasks.length} tasks`, 'info');
+                log(`📋 Scheduled ${tasks.length} tasks total`, 'info');
                 updateQueueVisualization(tasks);
                 
                 // Monitor progress
                 manager.on('taskStarted', (task) => {
-                    log(`▶️ Started: ${task.job.type}`, 'info');
+                    log(`▶️ Started: ${task.job.type} (Worker: ${task.worker?.type || 'unknown'})`, 'info');
                     const taskIndex = tasks.findIndex(t => t.id === task.id);
                     if (taskIndex >= 0) {
                         tasks[taskIndex].status = 'running';
@@ -471,10 +540,20 @@ Console output will appear here...</pre>
                 });
                 
                 manager.on('taskCompleted', (task) => {
-                    log(`✅ Completed: ${task.job.type}`, 'success');
+                    log(`✅ Completed: ${task.job.type} in ${task.endTime - task.startTime}ms`, 'success');
                     const taskIndex = tasks.findIndex(t => t.id === task.id);
                     if (taskIndex >= 0) {
                         tasks[taskIndex].status = 'completed';
+                        updateQueueVisualization(tasks);
+                    }
+                    updateStats(manager.getStats());
+                });
+                
+                manager.on('taskFailed', (task) => {
+                    log(`❌ Failed: ${task.job.type} - ${task.error}`, 'error');
+                    const taskIndex = tasks.findIndex(t => t.id === task.id);
+                    if (taskIndex >= 0) {
+                        tasks[taskIndex].status = 'failed';
                         updateQueueVisualization(tasks);
                     }
                     updateStats(manager.getStats());
@@ -485,7 +564,11 @@ Console output will appear here...</pre>
                     updateStats(manager.getStats());
                 }, 200);
                 
-                manager.start();
+                log('🚀 Starting TaskManager...', 'info');
+                await manager.start();
+                log('✅ TaskManager started successfully', 'success');
+                log(`[TaskManager] State after start: Running=${manager.running}, Total Workers=${manager.totalWorkers}, Ready Workers=${manager.readyWorkers}`, 'debug');
+                log(`[TaskManager] Current queue size: ${manager.getStats().queue.size}`, 'debug');
                 
                 // Wait for completion
                 await new Promise(resolve => {
@@ -497,6 +580,14 @@ Console output will appear here...</pre>
                         }
                     };
                     const completionInterval = setInterval(checkCompletion, 100);
+                    
+                    // Timeout after 30 seconds
+                    setTimeout(() => {
+                        clearInterval(completionInterval);
+                        clearInterval(statsInterval);
+                        log('⏰ Demo timeout after 30 seconds', 'warning');
+                        resolve();
+                    }, 30000);
                 });
                 
                 manager.stop();
@@ -505,6 +596,7 @@ Console output will appear here...</pre>
                 
             } catch (error) {
                 log(`❌ Demo Failed: ${error.message}`, 'error');
+                log(`Stack trace: ${error.stack}`, 'error');
                 updateSystemStatus('Demo Failed');
             }
         }
@@ -521,10 +613,16 @@ Console output will appear here...</pre>
             log('🎮 Interactive Demo Started', 'info');
             log('Use browser console to run: addTask(), addHighPriorityTask(), showStats()', 'info');
             
+            const capabilities = {
+                webgpu: !!navigator.gpu,
+                webnn: !!navigator.ml
+            };
+
             interactiveManager = new TaskManager({
                 maxConcurrentTasks: 2,
                 cpuWorkers: 2,
-                schedulingInterval: 100
+                schedulingInterval: 100,
+                capabilities: capabilities
             });
             
             interactiveTasks = [];
@@ -541,7 +639,7 @@ Console output will appear here...</pre>
                 updateStats(interactiveManager.getStats());
             });
             
-            interactiveManager.start();
+            await interactiveManager.start();
             
             // Expose functions to global scope for console access
             window.addTask = function(priority = Math.floor(Math.random() * 10)) {
@@ -685,44 +783,100 @@ Console output will appear here...</pre>
             log('🚀 Starting Real WASM/WebGPU/WebNN Workload Test...', 'info');
             
             try {
+                log('🔧 Step 1: Checking capabilities...', 'debug');
+                const capabilities = {
+                    webgpu: !!navigator.gpu,
+                    webnn: !!navigator.ml,
+                    workers: typeof Worker !== 'undefined',
+                    wasm: typeof WebAssembly !== 'undefined'
+                };
+                log(`🔧 Capabilities: WebGPU=${capabilities.webgpu}, WebNN=${capabilities.webnn}, Workers=${capabilities.workers}, WASM=${capabilities.wasm}`, 'debug');
+
+                log('🔧 Step 2: Creating TaskManager...', 'debug');
+                console.log('DEBUG: About to create TaskManager');
                 const manager = new TaskManager({
                     maxConcurrentTasks: 6,
                     preemptionEnabled: true,
                     schedulingInterval: 50,
+                    taskTimeout: 30000, // 30 second timeout per task
                     workerPools: {
                         cpu: { size: 3 },
                         gpu: { size: 2 },
                         webnn: { size: 2 }
-                    }
+                    },
+                    capabilities: capabilities
                 });
+                log('🔧 TaskManager created successfully', 'debug');
+                console.log('DEBUG: TaskManager created:', manager);
 
-                // Set up event listeners
+                log('🔧 Step 3: Setting up event listeners...', 'debug');
+                // Set up event listeners with enhanced logging
                 manager.on('taskStarted', (task) => {
-                    log(`🎯 Started: ${task.job.type} (ID: ${task.id}) on ${task.worker.type} worker`, 'info');
+                    log(`🎯 Started: ${task.job.type} (ID: ${task.id}) on ${task.worker?.type || 'unknown'} worker`, 'info');
+                    console.log('DEBUG: Task started:', { taskId: task.id, jobType: task.job.type, workerType: task.worker?.type });
                 });
 
                 manager.on('taskCompleted', (task) => {
                     const duration = task.endTime - task.startTime;
-                    log(`✅ Completed: ${task.job.type} in ${duration}ms (Worker: ${task.worker.type})`, 'success');
+                    log(`✅ Completed: ${task.job.type} in ${duration}ms (Worker: ${task.worker?.type || 'unknown'})`, 'success');
+                    console.log('DEBUG: Task completed:', { taskId: task.id, jobType: task.job.type, duration, result: task.result });
+                    if (task.result && typeof task.result === 'object' && task.result.simulationResult !== undefined) {
+                        log(`   Simulation Result: ${JSON.stringify(task.result.simulationResult)}`, 'worker');
+                    }
                 });
 
                 manager.on('taskProgress', (data) => {
                     if (data.progress % 25 === 0) { // Log every 25%
                         log(`📊 ${data.task.job.type}: ${data.progress}% complete`, 'debug');
+                        console.log('DEBUG: Task progress:', { taskId: data.task.id, progress: data.progress });
                     }
                 });
 
                 manager.on('taskFailed', (task) => {
                     log(`❌ Failed: ${task.job.type} - ${task.error}`, 'error');
+                    console.error('DEBUG: Task failed:', { taskId: task.id, jobType: task.job.type, error: task.error });
                 });
+                
+                // Add worker event logging
+                manager.on('workerReady', (worker) => {
+                    log(`👷 Worker ready: ${worker.type} (ID: ${worker.id})`, 'debug');
+                    console.log('DEBUG: Worker ready:', worker);
+                });
+                
+                log('🔧 Event listeners set up', 'debug');
 
-                await manager.start();
+                log('🔧 Step 4: Starting TaskManager...', 'debug');
+                console.log('DEBUG: About to start TaskManager');
+                
+                try {
+                    // Add a timeout to the start() call to catch hanging issues
+                    const startTimeout = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('TaskManager.start() timed out after 30 seconds')), 30000);
+                    });
+                    
+                    await Promise.race([manager.start(), startTimeout]);
+                    log('🔧 TaskManager started successfully', 'debug');
+                    console.log('DEBUG: TaskManager started successfully');
+                } catch (startError) {
+                    log(`❌ Failed to start TaskManager: ${startError.message}`, 'error');
+                    console.error('DEBUG: TaskManager start failed:', startError);
+                    throw startError;
+                }
                 
                 // Create realistic workload
                 log('📋 Creating realistic computational workload...', 'info');
-                const workload = createRealisticWorkload('heavy'); // 100 jobs
+                console.log('DEBUG: About to create workload');
                 
-                log(`📦 Generated ${workload.length} real computational jobs:`, 'info');
+                let workload;
+                try {
+                    workload = await window.createRealisticWorkload('heavy'); // Use the global async function
+                    log(`📦 Generated ${workload.length} real computational jobs:`, 'info');
+                    console.log('DEBUG: Workload created:', workload.length, 'jobs');
+                } catch (workloadError) {
+                    log(`❌ Failed to create workload: ${workloadError.message}`, 'error');
+                    console.error('DEBUG: Workload creation failed:', workloadError);
+                    throw workloadError;
+                }
                 
                 // Count job types
                 const jobCounts = {};
@@ -733,38 +887,71 @@ Console output will appear here...</pre>
                 Object.entries(jobCounts).forEach(([type, count]) => {
                     log(`   ${type}: ${count} jobs`, 'debug');
                 });
+                console.log('DEBUG: Job type counts:', jobCounts);
 
                 // Schedule all jobs
                 const startTime = Date.now();
-                workload.forEach(w => {
-                    manager.scheduleTask(w.job, w.priority, w.scheduledTime, w.options);
+                log(`🎬 Scheduling ${workload.length} jobs...`, 'info');
+                console.log('DEBUG: About to schedule jobs');
+                
+                let scheduledCount = 0;
+                let scheduleErrors = 0;
+                
+                workload.forEach((w, index) => {
+                    try {
+                        const taskId = manager.scheduleTask(w.job, w.priority, w.scheduledTime, w.options);
+                        scheduledCount++;
+                        
+                        if (index < 5) { // Log first 5 scheduled jobs
+                            console.log(`DEBUG: Scheduled job ${index + 1}:`, { taskId, jobType: w.job.type, priority: w.priority });
+                        }
+                    } catch (scheduleError) {
+                        scheduleErrors++;
+                        console.error(`DEBUG: Failed to schedule job ${index + 1}:`, scheduleError);
+                        log(`❌ Failed to schedule job ${index + 1}: ${scheduleError.message}`, 'error');
+                    }
                 });
 
-                log(`🎬 All jobs scheduled! Queue processing started...`, 'info');
+                log(`🎬 All jobs scheduled! ${scheduledCount} successful, ${scheduleErrors} failed. Queue processing started...`, 'info');
+                console.log(`DEBUG: Job scheduling complete: ${scheduledCount} scheduled, ${scheduleErrors} errors`);
                 
-                // Monitor progress
+                // Get initial stats
+                const initialStats = manager.getStats();
+                log(`📊 Initial queue stats: ${initialStats.queue.size} pending, ${initialStats.queue.running} running`, 'info');
+                console.log('DEBUG: Initial stats:', initialStats);
+                
+                // Monitor progress with enhanced logging
                 const monitorInterval = setInterval(() => {
                     const stats = manager.getStats();
                     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                     
-                    log(`⏱️  [${elapsed}s] Queue: ${stats.queue.size} pending, ${stats.queue.running} running, ${stats.queue.completed} completed`, 'info');
+                    log(`⏱️  [${elapsed}s] Queue: ${stats.queue.size} pending, ${stats.queue.running} running, ${stats.queue.completed} completed, ${stats.queue.failed} failed`, 'info');
+                    console.log(`DEBUG: [${elapsed}s] Stats:`, stats);
                     
                     // Worker utilization
                     const cpuUtil = `${stats.workers.cpu.busy}/${stats.workers.cpu.total}`;
                     const gpuUtil = `${stats.workers.gpu.busy}/${stats.workers.gpu.total}`;
                     const webnnUtil = `${stats.workers.webnn.busy}/${stats.workers.webnn.total}`;
+                    const wasmUtil = `${stats.workers.wasm?.busy || 0}/${stats.workers.wasm?.total || 0}`;
                     
-                    log(`👥 Workers: CPU ${cpuUtil}, GPU ${gpuUtil}, WebNN ${webnnUtil}`, 'debug');
+                    log(`👥 Workers: CPU ${cpuUtil}, GPU ${gpuUtil}, WebNN ${webnnUtil}, WASM ${wasmUtil}`, 'debug');
+                    
+                    // Check for stuck state
+                    if (stats.queue.running === 0 && stats.queue.size > 0) {
+                        log(`⚠️ Warning: ${stats.queue.size} jobs pending but no jobs running - possible worker issue`, 'warning');
+                        console.warn('DEBUG: Potential deadlock detected - jobs pending but none running');
+                    }
                     
                     // Check completion
-                    if (stats.queue.completed >= workload.length) {
+                    if (stats.queue.completed + stats.queue.failed >= workload.length) {
                         clearInterval(monitorInterval);
                         
                         const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
                         log(`🎉 Real workload test completed in ${totalTime}s!`, 'success');
                         log(`📈 Final stats: ${stats.queue.completed} completed, ${stats.queue.failed} failed`, 'info');
-                        log(`⚡ Average execution time: ${stats.performance.averageExecutionTime.toFixed(1)}ms`, 'info');
+                        log(`⚡ Average execution time: ${stats.performance?.averageExecutionTime?.toFixed(1) || 'N/A'}ms`, 'info');
                         
+                        console.log('DEBUG: Test completed successfully');
                         manager.stop();
                         updateSystemStatus('Real Workload Test Complete');
                     }
@@ -791,6 +978,11 @@ Console output will appear here...</pre>
             log('🧠 Starting ML Pipeline Test...', 'info');
             
             try {
+                const capabilities = {
+                    webgpu: !!navigator.gpu,
+                    webnn: !!navigator.ml
+                };
+
                 const manager = new TaskManager({
                     maxConcurrentTasks: 8,
                     preemptionEnabled: true,
@@ -799,7 +991,8 @@ Console output will appear here...</pre>
                         cpu: { size: 2 },
                         gpu: { size: 3 },
                         webnn: { size: 4 }
-                    }
+                    },
+                    capabilities: capabilities
                 });
 
                 // Enhanced event listeners for ML pipeline
@@ -831,7 +1024,7 @@ Console output will appear here...</pre>
                     manager.scheduleTask(p.job, p.priority, p.scheduledTime);
                 });
 
-                log(`🚀 ML Pipeline started! Processing ${pipeline.length} jobs...`, 'info');
+                log(`🎬 All jobs scheduled! Queue processing started...`, 'info');
                 
                 // Monitor ML pipeline progress
                 const pipelineMonitor = setInterval(() => {
@@ -872,7 +1065,7 @@ Console output will appear here...</pre>
         }
 
         // Helper functions for workload creation
-        function createRealisticWorkload(intensity = 'medium') {
+        function createRealisticWorkload(intensity = 'medium', capabilities = {}) {
             const workloadSizes = {
                 'light': 20,
                 'medium': 50,
@@ -882,9 +1075,26 @@ Console output will appear here...</pre>
             const jobCount = workloadSizes[intensity] || 50;
             const workload = [];
             
+            // Filter job types based on capabilities
+            let availableJobTypes = [];
+            if (capabilities.webgpu) {
+                availableJobTypes.push('WebGPU_Compute');
+            }
+            if (capabilities.webnn) {
+                availableJobTypes.push('WebNN_Inference');
+            }
+            // Always include CPU and WASM as fallbacks or general compute
+            availableJobTypes.push('WASM_Process');
+            availableJobTypes.push('CPU_Task');
+
+            // Ensure there's at least one job type available
+            if (availableJobTypes.length === 0) {
+                console.warn('No suitable job types available based on capabilities. Defaulting to CPU_Task.');
+                availableJobTypes.push('CPU_Task');
+            }
+
             for (let i = 0; i < jobCount; i++) {
-                const jobTypes = ['WebGPU_Compute', 'WASM_Process', 'WebNN_Inference', 'CPU_Task'];
-                const jobType = jobTypes[Math.floor(Math.random() * jobTypes.length)];
+                const jobType = availableJobTypes[Math.floor(Math.random() * availableJobTypes.length)];
                 
                 const job = RealJobFactory.createJob(jobType, {
                     complexity: Math.floor(Math.random() * 10) + 1,
@@ -975,6 +1185,11 @@ Console output will appear here...</pre>
             log('🤖 Starting Comprehensive AI Model Tests...', 'info');
             
             try {
+                const capabilities = {
+                    webgpu: !!navigator.gpu,
+                    webnn: !!navigator.ml
+                };
+
                 const manager = new TaskManager({
                     maxConcurrentTasks: 8,
                     preemptionEnabled: true,
@@ -983,29 +1198,31 @@ Console output will appear here...</pre>
                         cpu: { size: 3 },
                         gpu: { size: 4 },
                         webnn: { size: 6 }
-                    }
+                    },
+                    capabilities: capabilities,
+                    logger: log
                 });
 
                 await manager.start();
                 
                 // Create AI model workload
                 const aiModels = [
-                    { type: 'DeepMimic', priority: 2, backend: 'gpu' },
-                    { type: 'FaceFormer', priority: 1, backend: 'webnn' },
-                    { type: 'Audio2Gesture', priority: 3, backend: 'gpu' },
-                    { type: 'RSMT', priority: 2, backend: 'webnn' },
-                    { type: 'Kokoro', priority: 0, backend: 'webnn' },
-                    { type: 'Whisper', priority: 1, backend: 'gpu' },
+                    { type: 'DeepMimic', priority: 2, backend: 'onnx' },
+                    { type: 'FaceFormer', priority: 1, backend: 'onnx' },
+                    { type: 'Audio2Gesture', priority: 3, backend: 'onnx' },
+                    { type: 'RSMT', priority: 2, backend: 'onnx' },
+                    { type: 'Kokoro', priority: 0, backend: 'onnx' },
+                    { type: 'Whisper', priority: 1, backend: 'onnx' },
                     { type: 'VAD', priority: 0, backend: 'cpu' },
-                    { type: 'TinyLlama', priority: 4, backend: 'webnn' },
-                    { type: 'DiabloGPT', priority: 5, backend: 'gpu' }
+                    { type: 'TinyLlama', priority: 4, backend: 'onnx' },
+                    { type: 'DiabloGPT', priority: 5, backend: 'onnx' }
                 ];
 
                 log(`🚀 Scheduling ${aiModels.length} AI model tasks...`, 'info');
 
                 const tasks = [];
                 aiModels.forEach(model => {
-                    const job = createAIModelJob(model.type, model.backend);
+                    const job = createSerializableAIModelJob(model.type, model.backend);
                     const taskId = manager.scheduleTask(job, model.priority);
                     tasks.push({ id: taskId, ...model });
                 });
@@ -1018,6 +1235,7 @@ Console output will appear here...</pre>
                 manager.on('taskCompleted', (task) => {
                     const duration = task.endTime - task.startTime;
                     log(`✅ AI Model Completed: ${task.job.type} in ${duration}ms`, 'success');
+                    log(`   Inference Result: ${JSON.stringify(task.result)}`, 'worker');
                 });
 
                 // Wait for completion
@@ -1072,7 +1290,7 @@ Console output will appear here...</pre>
         }
 
         async function runKokoroTest() {
-            await runSingleAIModel('Kokoro', 'webnn', 0, {
+            await runSingleAIModel('Kokoro', 'onnx', 0, {
                 description: 'Real-time emotional speech synthesis',
                 computeIntensity: 'low',
                 memoryRequirement: 'small'
@@ -1118,6 +1336,11 @@ Console output will appear here...</pre>
             log(`⚙️ Backend: ${backend}, Priority: ${priority}, Compute: ${config.computeIntensity}`, 'debug');
             
             try {
+                const capabilities = {
+                    webgpu: !!navigator.gpu,
+                    webnn: !!navigator.ml
+                };
+
                 const manager = new TaskManager({
                     maxConcurrentTasks: 4,
                     preemptionEnabled: true,
@@ -1126,12 +1349,13 @@ Console output will appear here...</pre>
                         cpu: { size: 2 },
                         gpu: { size: 2 },
                         webnn: { size: 3 }
-                    }
+                    },
+                    capabilities: capabilities
                 });
 
                 await manager.start();
 
-                const job = createAIModelJob(modelType, backend, config);
+                const job = createSerializableAIModelJob(modelType, backend, config);
                 const taskId = manager.scheduleTask(job, priority);
 
                 manager.on('taskStarted', (task) => {
@@ -1177,7 +1401,87 @@ Console output will appear here...</pre>
             }
         }
 
+        // Serializable AI Model Job Factory (for worker communication)
+        function createSerializableAIModelJob(modelType, backend, config = {}) {
+            return {
+                type: modelType,
+                jobType: modelType,
+                backend: backend,
+                duration: getModelDuration(modelType),
+                complexity: getModelComplexity(modelType),
+                memorySize: getModelMemorySize(modelType),
+                computeIntensity: config.computeIntensity || 'medium',
+                realTimeConstraint: isRealTimeModel(modelType),
+                batchSize: getOptimalBatchSize(modelType, backend),
+                precision: getModelPrecision(modelType, backend),
+                resourceRequirements: {
+                    cpu: backend === 'cpu' ? 100 : 25,
+                    gpu: backend === 'gpu' ? 100 : 0,
+                    webnn: backend === 'webnn' ? 100 : 0,
+                    memory: getModelMemorySize(modelType)
+                },
+                // Simple metadata for logging and tracking
+                metadata: {
+                    description: getModelDescription(modelType),
+                    flopsEstimate: getModelFLOPS(modelType)
+                },
+                // Real inference flag to distinguish from simulation
+                useRealInference: true,
+                modelPaths: getModelPaths(modelType)
+            };
+        }
+
+        function getModelPaths(modelType) {
+            const paths = {
+                'DeepMimic': './deepmimic/compatible_humanoid3d_humanoid3d_walk.onnx',
+                'FaceFormer': './faceformer/faceformer_core_step.onnx',
+                'Audio2Gesture': './audio2gesture/audio2gesture_step_fixed.onnx',
+                'RSMT': {
+                    deepPhase: './rsmt/deepphase.onnx',
+                    styleVAE: './rsmt/stylevae.onnx',
+                    transitionNet: './rsmt/transitionnet.onnx'
+                },
+                'Kokoro': './kokoro.js/dist/', // Kokoro uses different structure
+                'Whisper': './models/whisper.onnx', // Assuming Whisper model exists
+                'VAD': './models/vad.onnx', // Assuming VAD model exists
+                'TinyLlama': './models/tinyllama.onnx', // Assuming TinyLlama model exists
+                'DiabloGPT': './models/diablogpt.onnx' // Assuming DiabloGPT model exists
+            };
+            return paths[modelType] || null;
+        }
+
+        function getModelDescription(modelType) {
+            const descriptions = {
+                'DeepMimic': 'Physics-based character animation with reinforcement learning',
+                'FaceFormer': 'Real-time facial animation from audio',
+                'Audio2Gesture': 'Full-body gesture generation from speech audio',
+                'RSMT': 'Real-time Stylized Motion Transition',
+                'Kokoro': 'Real-time emotional speech synthesis',
+                'Whisper': 'Automatic speech recognition and transcription',
+                'VAD': 'Voice Activity Detection for real-time processing',
+                'TinyLlama': 'Lightweight language model for text generation',
+                'DiabloGPT': 'Conversational AI model for dialogue generation'
+            };
+            return descriptions[modelType] || 'AI Model Task';
+        }
+
+        function getModelFLOPS(modelType) {
+            const baseFLOPS = {
+                'DeepMimic': 2.5e12,    // 2.5 TFLOPS - physics simulation
+                'FaceFormer': 0.8e12,   // 800 GFLOPS - transformer
+                'Audio2Gesture': 1.5e12, // 1.5 TFLOPS - diffusion
+                'RSMT': 0.6e12,         // 600 GFLOPS - motion
+                'Kokoro': 0.3e12,       // 300 GFLOPS - TTS
+                'Whisper': 1.2e12,      // 1.2 TFLOPS - ASR
+                'VAD': 0.1e12,          // 100 GFLOPS - detection
+                'TinyLlama': 0.5e12,    // 500 GFLOPS - small LLM
+                'DiabloGPT': 2.0e12     // 2.0 TFLOPS - large LLM
+            };
+            return baseFLOPS[modelType] || 1.0e12;
+        }
+
         function createAIModelJob(modelType, backend, config = {}) {
+            // Create a serializable job object (no functions)
             const baseConfig = {
                 type: modelType,
                 backend: backend,
@@ -1187,65 +1491,19 @@ Console output will appear here...</pre>
                 computeIntensity: config.computeIntensity || 'medium',
                 realTimeConstraint: isRealTimeModel(modelType),
                 batchSize: getOptimalBatchSize(modelType, backend),
-                precision: getModelPrecision(modelType, backend)
+                precision: getModelPrecision(modelType, backend),
+                // Add a unique ID
+                id: `${modelType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                // Status tracking
+                status: 'pending',
+                progress: 0,
+                startTime: null,
+                endTime: null,
+                result: null,
+                error: null
             };
 
-            return {
-                ...baseConfig,
-                execute: async function(worker, onProgress) {
-                    const startTime = Date.now();
-                    log(`🚀 Executing ${this.type} on ${this.backend} worker`, 'debug');
-                    
-                    // Simulate model loading
-                    onProgress?.(10);
-                    await this._simulateModelLoad();
-                    
-                    // Simulate preprocessing
-                    onProgress?.(30);
-                    await this._simulatePreprocessing();
-                    
-                    // Simulate inference
-                    onProgress?.(50);
-                    await this._simulateInference();
-                    
-                    // Simulate postprocessing
-                    onProgress?.(80);
-                    await this._simulatePostprocessing();
-                    
-                    onProgress?.(100);
-                    
-                    const executionTime = Date.now() - startTime;
-                    return {
-                        success: true,
-                        executionTime,
-                        backend: this.backend,
-                        modelType: this.type,
-                        throughput: this.batchSize / (executionTime / 1000),
-                        memoryUsed: this.memorySize,
-                        precision: this.precision
-                    };
-                },
-                
-                _simulateModelLoad: async function() {
-                    const loadTime = this.memorySize * 10; // Larger models take longer to load
-                    await new Promise(resolve => setTimeout(resolve, loadTime));
-                },
-                
-                _simulatePreprocessing: async function() {
-                    const prepTime = this.complexity * 50;
-                    await new Promise(resolve => setTimeout(resolve, prepTime));
-                },
-                
-                _simulateInference: async function() {
-                    const inferenceTime = this.duration * 0.6; // Main computation
-                    await new Promise(resolve => setTimeout(resolve, inferenceTime));
-                },
-                
-                _simulatePostprocessing: async function() {
-                    const postTime = this.complexity * 30;
-                    await new Promise(resolve => setTimeout(resolve, postTime));
-                }
-            };
+            return baseConfig;
         }
 
         function getModelDuration(modelType) {
@@ -1331,6 +1589,48 @@ Console output will appear here...</pre>
         log('🎯 Task Management Engine Demo Ready!', 'success');
         log('🤖 AI Models: DeepMimic, FaceFormer, Audio2Gesture, RSMT, Kokoro, Whisper, VAD, TinyLlama, DiabloGPT', 'info');
         log('Click the buttons above to start testing', 'info');
+        
+        // Quick availability check
+        function checkSystemAvailability() {
+            log('🔍 Checking system availability...', 'info');
+            
+            // Check required classes
+            const requiredClasses = [
+                'TaskManager', 'FibonacciHeap', 'MockGPUJobFactory', 
+                'RealJobFactory', 'AIModelJobFactory', 'TaskManagerTestSuite'
+            ];
+            
+            let allAvailable = true;
+            for (const className of requiredClasses) {
+                if (typeof window[className] !== 'undefined') {
+                    log(`✅ ${className} is available`, 'success');
+                } else {
+                    log(`❌ ${className} is missing`, 'error');
+                    allAvailable = false;
+                }
+            }
+            
+            // Check browser capabilities
+            log(`🌐 Browser capabilities:`, 'info');
+            log(`   WebGPU: ${navigator.gpu ? '✅ Available' : '❌ Not available'}`, navigator.gpu ? 'success' : 'warning');
+            log(`   WebNN: ${navigator.ml ? '✅ Available' : '❌ Not available'}`, navigator.ml ? 'success' : 'warning');
+            log(`   Web Workers: ${typeof Worker !== 'undefined' ? '✅ Available' : '❌ Not available'}`, typeof Worker !== 'undefined' ? 'success' : 'error');
+            log(`   ONNX Runtime: ${typeof ort !== 'undefined' ? '✅ Available' : '❌ Not available'}`, typeof ort !== 'undefined' ? 'success' : 'warning');
+            
+            if (allAvailable) {
+                log('🎉 System check passed! Ready to run tests.', 'success');
+            } else {
+                log('⚠️ Some components are missing. Tests may fail.', 'warning');
+            }
+            
+            return allAvailable;
+        }
+        
+        // Make check function available globally
+        window.checkSystemAvailability = checkSystemAvailability;
+        
+        // Run initial check
+        setTimeout(checkSystemAvailability, 1000);
     </script>
 </body>
 </html>

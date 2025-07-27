@@ -1,22 +1,167 @@
 /**
- * Real Job Factory - Creates diverse computational jobs for realistic queue testing
+ * RealJobFactory creates diverse computational jobs for realistic queue testing
  */
 
 class RealJobFactory {
     constructor() {
+        // Initialize with base job types that always work
         this.jobTypes = [
-            // WASM CPU Jobs
             'WASMMatrix', 'WASMPrime', 'WASMFractal',
-            // WebGPU Jobs  
-            'WebGPUMatrix', 'WebGPUImage', 'WebGPUParticle',
-            // WebNN Jobs
-            'WebNNImageClassification', 'WebNNTextProcessing', 'WebNNAudioProcessing'
+            // AI Model Jobs that can fallback to CPU/WASM
+            'Whisper', 'VAD', 'TinyLlama', 'DiabloGPT'
         ];
         
         this.jobCounter = 0;
+        this.aiModelFactory = new AIModelJobFactory();
+        
+        // Capabilities (will be populated asynchronously)
+        this.capabilities = {
+            webgpu: false,
+            webnn: false,
+            onnxWebGL: false,
+            onnxWasm: true // WASM is always available
+        };
+        
+        // Start capability detection (non-blocking)
+        this.capabilityPromise = this.detectCapabilities();
     }
 
-    createRealisticWorkload(jobCount = 50) {
+    async detectCapabilities() {
+        console.log('🔧 Starting hardware capability detection...');
+        
+        const capabilities = {
+            webgpu: false,
+            webnn: false,
+            onnxWebGL: false,
+            onnxWasm: true
+        };
+
+        // Test WebGPU with actual GPU adapter request
+        if (typeof navigator !== 'undefined' && navigator.gpu) {
+            try {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (adapter) {
+                    // Try to create a device to verify it actually works
+                    const device = await adapter.requestDevice();
+                    if (device) {
+                        capabilities.webgpu = true;
+                        console.log('✅ WebGPU: Available and working');
+                        device.destroy(); // Clean up
+                    }
+                }
+            } catch (error) {
+                console.log('❌ WebGPU: Failed adapter/device test:', error.message);
+            }
+        } else {
+            console.log('❌ WebGPU: Navigator.gpu not available');
+        }
+
+        // Test WebNN if available
+        if (typeof navigator !== 'undefined' && navigator.ml) {
+            try {
+                // Try to create a simple WebNN context
+                const context = await navigator.ml.createContext();
+                if (context) {
+                    capabilities.webnn = true;
+                    console.log('✅ WebNN: Available and working');
+                }
+            } catch (error) {
+                console.log('❌ WebNN: Failed context test:', error.message);
+            }
+        } else {
+            console.log('❌ WebNN: Navigator.ml not available');
+        }
+
+        // Test ONNX Runtime providers (if ONNX Runtime is loaded)
+        if (typeof ort !== 'undefined') {
+            try {
+                const providers = ort.env.availableProviders || [];
+                console.log('🔧 ONNX Runtime providers:', providers);
+                
+                // Test WebGL provider with a dummy session
+                if (providers.includes('webgl')) {
+                    try {
+                        // Create a minimal model to test WebGL provider
+                        await this.testONNXProvider('webgl');
+                        capabilities.onnxWebGL = true;
+                        console.log('✅ ONNX WebGL: Available and working');
+                    } catch (error) {
+                        console.log('❌ ONNX WebGL: Failed test:', error.message);
+                    }
+                }
+                
+                // WASM provider should always work
+                if (providers.includes('wasm')) {
+                    console.log('✅ ONNX WASM: Available');
+                }
+            } catch (error) {
+                console.log('❌ ONNX Runtime: Error checking providers:', error.message);
+            }
+        } else {
+            console.log('❌ ONNX Runtime: Not loaded globally');
+        }
+
+        // Update capabilities
+        this.capabilities = capabilities;
+        
+        // Update job types based on detected capabilities
+        this.updateJobTypes();
+        
+        console.log('🔧 Final capabilities:', this.capabilities);
+        console.log('🔧 Available job types:', this.jobTypes);
+        
+        return capabilities;
+    }
+
+    async testONNXProvider(provider) {
+        // Create a minimal identity model to test the provider
+        const modelData = new Uint8Array([
+            // Minimal ONNX model bytes (identity operation)
+            8, 1, 18, 12, 10, 10, 18, 8, 10, 1, 120, 18, 3, 121, 58, 1
+        ]);
+        
+        const session = await ort.InferenceSession.create(modelData, {
+            executionProviders: [provider]
+        });
+        
+        // Test with dummy input
+        const input = new ort.Tensor('float32', [1.0], [1]);
+        const output = await session.run({ x: input });
+        
+        session.release();
+        return output;
+    }
+
+    updateJobTypes() {
+        // Start with base job types
+        this.jobTypes = [
+            'WASMMatrix', 'WASMPrime', 'WASMFractal',
+            'Whisper', 'VAD', 'TinyLlama', 'DiabloGPT'
+        ];
+        
+        // Add WebGPU jobs if available
+        if (this.capabilities.webgpu) {
+            this.jobTypes.push('WebGPUMatrix', 'WebGPUImage', 'WebGPUParticle');
+        }
+        
+        // Add WebNN-preferring models if WebNN is available
+        if (this.capabilities.webnn) {
+            this.jobTypes.push('WebNNImageClassification', 'WebNNTextProcessing', 'WebNNAudioProcessing');
+            this.jobTypes.push('DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 'Kokoro');
+        } else if (this.capabilities.webgpu) {
+            // If WebNN is not available but WebGPU is, test WebNN models with WebGPU fallback
+            console.log('🔄 WebNN not available, testing WebNN models with WebGPU fallback');
+            this.jobTypes.push('FaceFormer', 'RSMT', 'Kokoro', 'TinyLlama');
+            this.jobTypes.push('DeepMimic', 'Audio2Gesture'); // These already use GPU
+        }
+        
+        console.log('🔧 Updated job types based on capabilities:', this.jobTypes);
+    }
+
+    async createRealisticWorkload(jobCount = 50) {
+        // Wait for capability detection to complete
+        await this.capabilityPromise;
+        
         const jobs = [];
         
         for (let i = 0; i < jobCount; i++) {
@@ -37,8 +182,15 @@ class RealJobFactory {
 
     createRandomJob() {
         const jobType = this.jobTypes[Math.floor(Math.random() * this.jobTypes.length)];
+        console.log('🔧 createRandomJob selected jobType:', jobType, 'from available:', this.jobTypes);
         const complexity = Math.floor(Math.random() * 3) + 1; // 1-3
         const id = `job_${Date.now()}_${this.jobCounter++}`;
+        
+        // Handle AI Model jobs first
+        if (['DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 
+             'Whisper', 'VAD', 'TinyLlama', 'DiabloGPT', 'Kokoro'].includes(jobType)) {
+            return this.aiModelFactory.createJob(jobType, { complexity });
+        }
         
         switch (jobType) {
             case 'WASMMatrix':
@@ -100,13 +252,28 @@ class RealJobFactory {
     generateRealisticPriority(jobType) {
         // Assign realistic priorities based on job types
         const priorityMaps = {
+            // Real-time AI models (highest priority = lower number)
+            'VAD': () => Math.floor(Math.random() * 2), // 0-1 (highest)
+            'Kokoro': () => Math.floor(Math.random() * 2), // 0-1 (real-time TTS)
+            'FaceFormer': () => 1 + Math.floor(Math.random() * 2), // 1-2
+            'RSMT': () => 2 + Math.floor(Math.random() * 2), // 2-3
+            
             // Real-time jobs (higher priority = lower number)
             'WebNNAudioProcessing': () => Math.floor(Math.random() * 3), // 0-2 (highest)
             'WebGPUParticle': () => Math.floor(Math.random() * 3), // 0-2 (real-time sim)
             
+            // Interactive AI models
+            'Whisper': () => 3 + Math.floor(Math.random() * 2), // 3-4
+            'Audio2Gesture': () => 4 + Math.floor(Math.random() * 2), // 4-5
+            
             // Interactive jobs
             'WebNNImageClassification': () => 2 + Math.floor(Math.random() * 3), // 2-4
             'WebGPUImage': () => 2 + Math.floor(Math.random() * 3), // 2-4
+            
+            // Batch AI models
+            'TinyLlama': () => 5 + Math.floor(Math.random() * 2), // 5-6
+            'DeepMimic': () => 6 + Math.floor(Math.random() * 2), // 6-7
+            'DiabloGPT': () => 7 + Math.floor(Math.random() * 2), // 7-8
             
             // Batch processing jobs
             'WebNNTextProcessing': () => 4 + Math.floor(Math.random() * 3), // 4-6
@@ -136,7 +303,10 @@ class RealJobFactory {
         }
     }
 
-    createStressTestWorkload(intensity = 'medium') {
+    async createStressTestWorkload(intensity = 'medium') {
+        // Wait for capability detection to complete
+        await this.capabilityPromise;
+        
         const intensitySettings = {
             light: { jobCount: 20, maxComplexity: 1 },
             medium: { jobCount: 50, maxComplexity: 2 },
@@ -222,15 +392,33 @@ class RealJobFactory {
         
         return jobs;
     }
+
+    // Static method for creating AI model jobs
+    static createJob(jobType, options = {}) {
+        const factory = new RealJobFactory();
+        if (['DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 
+             'Whisper', 'VAD', 'TinyLlama', 'DiabloGPT', 'Kokoro'].includes(jobType)) {
+            return factory.aiModelFactory.createJob(jobType, options);
+        } else {
+            return factory.createRandomJob();
+        }
+    }
 }
 
 // Export factory
 window.RealJobFactory = RealJobFactory;
 
 // Convenience function for testing
-window.createRealisticWorkload = function(intensity = 'medium') {
+window.createRealisticWorkload = async function(intensity = 'medium') {
+    console.log('🔧 Global createRealisticWorkload called with intensity:', intensity);
     const factory = new RealJobFactory();
-    return factory.createStressTestWorkload(intensity);
+    
+    // Wait for capability detection and then log results
+    await factory.capabilityPromise;
+    console.log('🔧 Factory capabilities detected:', factory.capabilities);
+    console.log('🔧 Factory jobTypes:', factory.jobTypes);
+    
+    return await factory.createStressTestWorkload(intensity);
 };
 
 window.createMLPipelineWorkload = function() {
