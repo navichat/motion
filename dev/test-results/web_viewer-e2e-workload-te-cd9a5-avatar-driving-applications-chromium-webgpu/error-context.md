@@ -1,0 +1,37 @@
+# Page snapshot
+
+```yaml
+- heading "🚀 Task Management Engine Demo" [level=1]
+- paragraph: Fibonacci Heap Scheduling with WebGPU/WebNN Worker Pools
+- button "🔍 Check System"
+- button "🔧 Debug Test"
+- button "📋 Run Full Test Suite"
+- button "⚡ Quick Demo"
+- button "🎮 Interactive Demo"
+- button "Run Enhanced Worker Test"
+- button "🔍 Validate Integration"
+- button "🧪 Run WebGPU Tests"
+- button "🚀 Real WASM/GPU/WebNN Workload"
+- button "🧠 ML Pipeline Test"
+- button "🤖 AI Model Tests"
+- button "🏃 DeepMimic"
+- button "😊 FaceFormer"
+- button "🎵 Audio2Gesture"
+- button "🎬 RSMT"
+- button "💖 Kokoro"
+- button "🎙️ Whisper"
+- button "🔊 VAD"
+- button "🦙 TinyLlama"
+- button "DiabloGPT"
+- button "🧹 Clear Console"
+- heading "System Status" [level=3]
+- text: Running Real Workload Test
+- heading "Queue Size" [level=3]
+- text: 0 Pending Tasks
+- heading "Running Tasks" [level=3]
+- text: 0 Currently Executing
+- heading "Completed" [level=3]
+- text: 0 Total Finished
+- heading "Task Queue Visualization" [level=3]
+- text: "Waiting for tasks... Task Management Engine Demo loaded. Ready to run tests and demonstrations. Click \"Run Full Test Suite\" to test all components Click \"Quick Demo\" for a fast demonstration Click \"Interactive Demo\" to manually control tasks Console output will appear here... [11:12:55 PM] 🎯 Task Management Engine Demo Ready! [11:12:55 PM] 🤖 AI Models: DeepMimic, FaceFormer, Audio2Gesture, RSMT, Kokoro, Whisper, VAD, TinyLlama, DiabloGPT [11:12:55 PM] 🔍 KNN Models: CloseVector, HNSW, UnifiedKNN for accuracy vs speed benchmarking [11:12:55 PM] Click the buttons above to start testing [11:12:56 PM] 🚀 Starting Real WASM/WebGPU/WebNN Workload Test... [11:12:56 PM] 🔧 Step 1: Checking capabilities... [11:12:56 PM] 🔧 Capabilities: WebGPU=true, WebNN=false, Workers=true, WASM=true [11:12:56 PM] 🔧 Step 2: Creating TaskManager... [11:12:56 PM] 🔧 TaskManager created successfully [11:12:56 PM] 🔧 Step 3: Setting up event listeners... [11:12:56 PM] 🔧 Event listeners set up [11:12:56 PM] 🔧 Step 4: Starting TaskManager... [11:12:56 PM] 🔧 TaskManager started successfully [11:12:56 PM] 📋 Creating realistic computational workload... [11:12:56 PM] 🔍 Checking system availability... [11:12:56 PM] ✅ TaskManager is available [11:12:56 PM] ✅ FibonacciHeap is available [11:12:56 PM] ✅ MockGPUJobFactory is available [11:12:56 PM] ✅ RealJobFactory is available [11:12:56 PM] ✅ AIModelJobFactory is available [11:12:56 PM] ✅ TaskManagerTestSuite is available [11:12:56 PM] ✅ CloseVectorJob is available [11:12:56 PM] ✅ HNSWJob is available [11:12:56 PM] ✅ UnifiedKNNJob is available [11:12:56 PM] 🌐 Browser capabilities: [11:12:56 PM] WebGPU: ✅ Available [11:12:56 PM] WebNN: ❌ Not available [11:12:56 PM] Web Workers: ✅ Available [11:12:56 PM] ONNX Runtime: ✅ Available [11:12:56 PM] 🎉 System check passed! Ready to run tests. [11:12:56 PM] 📦 Generated 100 real computational jobs: [11:12:56 PM] WASMMatrix: 8 jobs [11:12:56 PM] SpeechT5: 7 jobs [11:12:56 PM] DiabloGPT: 6 jobs [11:12:56 PM] FaceFormer: 12 jobs [11:12:56 PM] WASMFractal: 7 jobs [11:12:56 PM] Kokoro: 6 jobs [11:12:56 PM] WASMPrime: 11 jobs [11:12:56 PM] WebGPUParticle: 6 jobs [11:12:56 PM] Audio2Gesture: 4 jobs [11:12:56 PM] WebGPUImage: 6 jobs [11:12:56 PM] WebGPUMatrix: 3 jobs [11:12:56 PM] RSMT: 8 jobs [11:12:56 PM] Whisper: 5 jobs [11:12:56 PM] DeepMimic: 6 jobs [11:12:56 PM] TinyLlama: 5 jobs [11:12:56 PM] 🎬 Scheduling 100 jobs... [11:12:56 PM] 🎯 Started: SpeechT5 (ID: task_1753683176986_lv1jsgqnt) on gpu worker [11:12:56 PM] 🎯 Started: DiabloGPT (ID: task_1753683176997_nf8cp0ki3) on gpu worker [11:12:57 PM] 🎯 Started: WASMMatrix (ID: task_1753683177003_17wwmr683) on cpu worker [11:12:57 PM] 🎯 Started: FaceFormer (ID: task_1753683177009_bghm5a7rh) on gpu worker [11:12:57 PM] 🎯 Started: Kokoro (ID: task_1753683177019_2bps6unjj) on gpu worker [11:12:57 PM] 🎯 Started: WebGPUParticle (ID: task_1753683177025_2n7jxqptl) on gpu worker [11:12:57 PM] 🎬 All jobs scheduled! 100 successful, 0 failed. Queue processing started... [11:12:57 PM] 📊 Initial queue stats: 92 pending, 6 running [11:12:59 PM] ⏱️ [2.1s] Queue: 97 pending, 3 running, 0 completed, 0 failed [11:12:59 PM] 👥 Workers: CPU 1/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:01 PM] ⏱️ [4.1s] Queue: 98 pending, 2 running, 0 completed, 0 failed [11:13:01 PM] 👥 Workers: CPU 1/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:02 PM] ✅ Completed: WASMMatrix in 5539ms (Worker: cpu) [11:13:03 PM] ⏱️ [6.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:03 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:03 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:05 PM] ⏱️ [8.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:05 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:05 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:07 PM] ⏱️ [10.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:07 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:07 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:09 PM] ⏱️ [12.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:09 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:09 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:11 PM] ⏱️ [14.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:11 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:11 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:13 PM] ⏱️ [16.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:13 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:13 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:15 PM] ⏱️ [18.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:15 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:15 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:17 PM] ⏱️ [20.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:17 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:17 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:19 PM] ⏱️ [22.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:19 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:19 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:21 PM] ⏱️ [24.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:21 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:21 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:23 PM] ⏱️ [26.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:23 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:23 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:25 PM] ⏱️ [28.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:25 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:25 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue [11:13:27 PM] ⏱️ [30.1s] Queue: 99 pending, 0 running, 1 completed, 0 failed [11:13:27 PM] 👥 Workers: CPU 0/2, GPU 0/1, WebNN 0/1, WASM 0/1 [11:13:27 PM] ⚠️ Warning: 99 jobs pending but no jobs running - possible worker issue"
+```
