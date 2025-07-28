@@ -28,8 +28,13 @@ export default defineConfig({
         launchOptions: {
           args: [
             '--enable-precise-memory-info',
-            '--enable-blink-features=MemoryMeasurement',
-            '--enable-features=WebGPU,UseWebGPUAdapterNameInWebGLExtension'
+            '--enable-blink-features=MemoryMeasurement,SharedArrayBuffer',
+            '--enable-features=WebGPU,UseWebGPUAdapterNameInWebGLExtension,SharedArrayBuffer',
+            '--enable-unsafe-swiftshader',
+            '--enable-webgl',
+            '--enable-accelerated-2d-canvas',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor'
           ]
         }
       },

@@ -6,7 +6,7 @@
     <title>Task Management Engine Demo</title>
     
     <!-- KNN Dependencies for accuracy vs speed benchmarking -->
-    <script src="https://unpkg.com/hnswlib-wasm@0.8.2/dist/hnswlib-wasm.js" 
+    <script src="js/hnswlib-wasm.js" 
             onload="console.log('✅ hnswlib-wasm loaded')"
             onerror="console.warn('❌ hnswlib-wasm failed to load')"></script>
     <style>
@@ -942,10 +942,18 @@ Console output will appear here...</pre>
                     
                     log(`👥 Workers: CPU ${cpuUtil}, GPU ${gpuUtil}, WebNN ${webnnUtil}, WASM ${wasmUtil}`, 'debug');
                     
-                    // Check for stuck state
+                    // Check for stuck state with improved deadlock detection
                     if (stats.queue.running === 0 && stats.queue.size > 0) {
-                        log(`⚠️ Warning: ${stats.queue.size} jobs pending but no jobs running - possible worker issue`, 'warning');
-                        console.warn('DEBUG: Potential deadlock detected - jobs pending but none running');
+                        // Only warn if this state persists for multiple monitoring cycles
+                        if (!this.deadlockDetectionStart) {
+                            this.deadlockDetectionStart = Date.now();
+                        } else if (Date.now() - this.deadlockDetectionStart > 8000) { // 8 seconds of true deadlock
+                            log(`⚠️ Warning: ${stats.queue.size} jobs pending but no jobs running - possible worker issue`, 'warning');
+                            console.warn('DEBUG: Potential deadlock detected - jobs pending but none running');
+                        }
+                    } else {
+                        // Reset deadlock detection when tasks are running or queue is empty
+                        this.deadlockDetectionStart = null;
                     }
                     
                     // Check completion

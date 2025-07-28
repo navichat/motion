@@ -245,9 +245,9 @@ class HNSWJob extends BaseKNNJob {
         // Import hnswlib-wasm dynamically
         if (typeof HnswlibWasm === 'undefined') {
             try {
-                // Load hnswlib-wasm from CDN
+                // Load hnswlib-wasm from local server
                 const script = document.createElement('script');
-                script.src = 'https://unpkg.com/hnswlib-wasm@0.8.2/dist/hnswlib-wasm.js';
+                script.src = 'js/hnswlib-wasm.js';
                 document.head.appendChild(script);
                 
                 await new Promise((resolve, reject) => {
