@@ -1,7 +1,29 @@
 /**
  * AI Model Inference Module for Workers
  * Handles real AI model inference using ONNX Runtime Web
+ * Now supports dependency injection for ort instance
  */
+
+// Initialize ONNX Runtime with dependency injection (AI Inference scope)
+self.aiInferenceInjectedOrt = null;
+
+// Accept ort via dependency injection
+function injectONNXRuntime(ortInstance) {
+    self.aiInferenceInjectedOrt = ortInstance;
+    console.log('[AI Inference Worker] ONNX Runtime injected via dependency injection');
+    return true;
+}
+
+// Handle messages from main thread for dependency injection
+self.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'injectOrt') {
+        injectONNXRuntime(e.data.ortInstance);
+    }
+    // Continue with other message handling...
+});
+
+// Export the dependency injection function for external use
+self.injectONNXRuntime = injectONNXRuntime;
 
 class AIModelInferenceWorker {
     constructor() {
@@ -13,9 +35,19 @@ class AIModelInferenceWorker {
         if (this.initialized) return true;
         
         try {
-            // Import ONNX Runtime Web if available
-            if (typeof importScripts !== 'undefined') {
-                importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js');
+            // Prefer injected ort instance over runtime imports
+            if (self.aiInferenceInjectedOrt) {
+                window.ort = self.aiInferenceInjectedOrt;
+                console.log('[AI Inference Worker] Using injected ONNX Runtime instance');
+            } else if (typeof ort !== 'undefined') {
+                console.log('[AI Inference Worker] Using globally available ONNX Runtime');
+            } else {
+                // Fallback to runtime import only if no injection available
+                console.log('[AI Inference Worker] Falling back to runtime import...');
+                if (typeof importScripts !== 'undefined') {
+                    importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js');
+                    console.log('[AI Inference Worker] ONNX Runtime loaded via runtime import');
+                }
             }
             
             this.initialized = true;

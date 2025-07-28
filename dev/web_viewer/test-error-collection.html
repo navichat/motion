@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error Collection Test</title>
+</head>
+<body>
+    <h1>Error Collection Test Page</h1>
+    <button id="triggerError" onclick="triggerJSError()">Trigger JS Error</button>
+    <button id="triggerRejection" onclick="triggerRejection()">Trigger Promise Rejection</button>
+    <button id="triggerNetworkError" onclick="triggerNetworkError()">Trigger Network Error</button>
+    
+    <div id="output"></div>
+    
+    <script>
+        // Test functions to trigger different types of errors
+        function triggerJSError() {
+            console.log('Triggering JavaScript error...');
+            try {
+                nonExistentFunction(); // This will cause a ReferenceError
+            } catch (e) {
+                console.error('Caught error:', e);
+                throw e; // Re-throw to test error handling
+            }
+        }
+        
+        function triggerRejection() {
+            console.log('Triggering unhandled promise rejection...');
+            Promise.reject(new Error('Test unhandled rejection'));
+        }
+        
+        function triggerNetworkError() {
+            console.log('Triggering network error...');
+            fetch('/nonexistent-resource.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .catch(error => {
+                    console.error('Network error:', error);
+                });
+        }
+        
+        // Simulate some normal console output
+        console.log('Page loaded successfully');
+        console.info('This is an info message');
+        console.warn('This is a warning message');
+        
+        // Test error that should be caught by window.onerror
+        setTimeout(() => {
+            console.log('About to throw a delayed error...');
+            setTimeout(() => {
+                throw new Error('Delayed runtime error for testing');
+            }, 100);
+        }, 1000);
+        
+        // Test unhandled rejection
+        setTimeout(() => {
+            console.log('About to create unhandled rejection...');
+            Promise.reject(new Error('Delayed unhandled rejection'));
+        }, 2000);
+    </script>
+</body>
+</html>

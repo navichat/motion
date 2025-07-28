@@ -133,10 +133,14 @@ class RealJobFactory {
     }
 
     updateJobTypes() {
-        // Start with base job types
+        // FORCE ALL AI MODELS TO BE AVAILABLE - Always include all models for comprehensive testing
         this.jobTypes = [
+            // Base computational jobs
             'WASMMatrix', 'WASMPrime', 'WASMFractal',
-            'Whisper', 'VAD', 'TinyLlama', 'DiabloGPT'
+            // Core AI models - ALWAYS AVAILABLE
+            'TinyLlama', 'DiabloGPT', 'Whisper', 'VAD',
+            // Advanced AI models - FORCE AVAILABILITY 
+            'Kokoro', 'SpeechT5', 'FaceFormer', 'RSMT', 'DeepMimic', 'Audio2Gesture'
         ];
         
         // Add WebGPU jobs if available
@@ -144,22 +148,15 @@ class RealJobFactory {
             this.jobTypes.push('WebGPUMatrix', 'WebGPUImage', 'WebGPUParticle');
         }
         
-        // Add WebNN-preferring models if WebNN is available
+        // Add WebNN-specific jobs if available
         if (this.capabilities.webnn) {
             this.jobTypes.push('WebNNImageClassification', 'WebNNTextProcessing', 'WebNNAudioProcessing');
-            this.jobTypes.push('DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 'Kokoro', 'SpeechT5');
-        } else if (this.capabilities.webgpu) {
-            // If WebNN is not available but WebGPU is, test WebNN models with WebGPU fallback
-            console.log('🔄 WebNN not available, testing WebNN models with WebGPU fallback');
-            this.jobTypes.push('FaceFormer', 'RSMT', 'Kokoro', 'SpeechT5', 'TinyLlama');
-            this.jobTypes.push('DeepMimic', 'Audio2Gesture'); // These already use GPU
-        } else {
-            // FORCE ALL MODELS TO BE AVAILABLE - Even without WebNN/WebGPU, run with CPU fallback
-            console.log('🔄 No WebNN/WebGPU available, but forcing ALL AI models with CPU fallback for comprehensive testing');
-            this.jobTypes.push('DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 'Kokoro', 'SpeechT5');
         }
         
-        console.log('🔧 Updated job types based on capabilities:', this.jobTypes);
+        console.log('� FORCED ALL AI models to be available for comprehensive testing:', this.jobTypes);
+        console.log('🎭 Total AI models available:', this.jobTypes.filter(t => 
+            ['TinyLlama', 'DiabloGPT', 'Whisper', 'VAD', 'Kokoro', 'SpeechT5', 
+             'FaceFormer', 'RSMT', 'DeepMimic', 'Audio2Gesture'].includes(t)).length);
     }
 
     async createRealisticWorkload(jobCount = 50) {
@@ -190,66 +187,95 @@ class RealJobFactory {
         const complexity = Math.floor(Math.random() * 3) + 1; // 1-3
         const id = `job_${Date.now()}_${this.jobCounter++}`;
         
-        // Handle AI Model jobs first
+        // Handle AI Model jobs first - these will have varied parameters
         if (['DeepMimic', 'FaceFormer', 'Audio2Gesture', 'RSMT', 
              'Whisper', 'VAD', 'TinyLlama', 'DiabloGPT', 'Kokoro', 'SpeechT5'].includes(jobType)) {
-            return this.aiModelFactory.createJob(jobType, { complexity });
+            const aiJob = this.aiModelFactory.createJob(jobType, { complexity });
+            
+            // Ensure AI jobs have their parameter data available for workers
+            aiJob.jobData = {
+                ...aiJob, // Include all job properties
+                useRealInference: true,
+                parametersForValidation: true
+            };
+            
+            return aiJob;
         }
         
         switch (jobType) {
             case 'WASMMatrix':
-                return new WASMMatrixJob(id, 
+                const matrixJob = new WASMMatrixJob(id, 
                     128 + Math.random() * 256, // Size 128-384
                     complexity);
+                matrixJob.jobData = { ...matrixJob };
+                return matrixJob;
                     
             case 'WASMPrime':
-                return new WASMPrimeJob(id,
+                const primeJob = new WASMPrimeJob(id,
                     50000 + Math.random() * 100000, // Limit 50k-150k
                     complexity);
+                primeJob.jobData = { ...primeJob };
+                return primeJob;
                     
             case 'WASMFractal':
-                return new WASMFractalJob(id,
+                const fractalJob = new WASMFractalJob(id,
                     256 + Math.random() * 256, // Size 256-512
                     50 + Math.random() * 100, // Iterations 50-150
                     complexity);
+                fractalJob.jobData = { ...fractalJob };
+                return fractalJob;
                     
             case 'WebGPUMatrix':
-                return new WebGPUMatrixJob(id,
+                const gpuMatrixJob = new WebGPUMatrixJob(id,
                     256 + Math.random() * 512, // Size 256-768
                     complexity);
+                gpuMatrixJob.jobData = { ...gpuMatrixJob };
+                return gpuMatrixJob;
                     
             case 'WebGPUImage':
-                return new WebGPUImageJob(id,
+                const imageJob = new WebGPUImageJob(id,
                     512 + Math.random() * 512, // Width 512-1024
                     512 + Math.random() * 512, // Height 512-1024
                     complexity);
+                imageJob.jobData = { ...imageJob };
+                return imageJob;
                     
             case 'WebGPUParticle':
-                return new WebGPUParticleJob(id,
+                const particleJob = new WebGPUParticleJob(id,
                     10000 + Math.random() * 40000, // Particles 10k-50k
                     50 + Math.random() * 100, // Steps 50-150
                     complexity);
+                particleJob.jobData = { ...particleJob };
+                return particleJob;
                     
             case 'WebNNImageClassification':
-                return new WebNNImageClassificationJob(id,
+                const classificationJob = new WebNNImageClassificationJob(id,
                     8 + Math.random() * 24, // Batch size 8-32
                     224, // Standard ImageNet size
                     complexity);
+                classificationJob.jobData = { ...classificationJob };
+                return classificationJob;
                     
             case 'WebNNTextProcessing':
-                return new WebNNTextProcessingJob(id,
+                const textJob = new WebNNTextProcessingJob(id,
                     256 + Math.random() * 256, // Sequence length 256-512
                     4 + Math.random() * 12, // Batch size 4-16
                     complexity);
+                textJob.jobData = { ...textJob };
+                return textJob;
                     
             case 'WebNNAudioProcessing':
-                return new WebNNAudioProcessingJob(id,
+                const audioJob = new WebNNAudioProcessingJob(id,
                     8000 + Math.random() * 16000, // Audio length 0.5-1.5s
                     4 + Math.random() * 8, // Batch size 4-12
                     complexity);
+                audioJob.jobData = { ...audioJob };
+                return audioJob;
                     
             default:
-                return new WASMMatrixJob(id, 256, 1);
+                const defaultJob = new WASMMatrixJob(id, 256, 1);
+                defaultJob.jobData = { ...defaultJob };
+                return defaultJob;
         }
     }
 

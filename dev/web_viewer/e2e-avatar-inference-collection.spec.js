@@ -10,7 +10,7 @@ test.describe('Avatar AI Inference Collection Test', () => {
     await page.goto('http://localhost:8000/dev/web_viewer/task-manager-demo.html');
     await page.bringToFront();
 
-    // Container for collected AI inference results
+    // Container for collected AI inference results and error tracking
     const aiInferenceResults = {
       tinyLlama: [],
       diabloGPT: [],
@@ -22,13 +22,44 @@ test.describe('Avatar AI Inference Collection Test', () => {
       wasmResults: []
     };
 
-    // Array to store console messages and extract inference results
+    // Enhanced error tracking arrays
     const consoleMessages = [];
     const errorMessages = [];
+    const jsErrors = [];
+    const networkErrors = [];
+    const unhandledRejections = [];
     
+    // Enhanced console and error monitoring
     page.on('console', msg => {
       const timestamp = new Date().toISOString();
-      const logEntry = `[${timestamp}] ${msg.text()}`;
+      const msgType = msg.type();
+      const msgText = msg.text();
+      const location = msg.location();
+      
+      const logEntry = {
+        timestamp,
+        type: msgType,
+        text: msgText,
+        location: location,
+        url: location.url,
+        lineNumber: location.lineNumber,
+        columnNumber: location.columnNumber
+      };
+      
+      consoleMessages.push(logEntry);
+      
+      // Enhanced error categorization
+      if (msgType === 'error') {
+        jsErrors.push({
+          ...logEntry,
+          stack: msg.args().length > 0 ? msg.args().map(arg => arg.toString()).join(' ') : null
+        });
+        console.error(`[JS ERROR]: ${timestamp} ${msgText} at ${location.url}:${location.lineNumber}:${location.columnNumber}`);
+      } else if (msgType === 'warning') {
+        console.warn(`[JS WARNING]: ${timestamp} ${msgText}`);
+      } else {
+        console.log(`[PAGE CONSOLE ${msgType.toUpperCase()}]: ${timestamp} ${msgText}`);
+      }
       consoleMessages.push(logEntry);
       
       // Extract AI inference results from console messages
@@ -109,14 +140,78 @@ test.describe('Avatar AI Inference Collection Test', () => {
         }
       }
       
-      console.log(`[PAGE CONSOLE]: ${logEntry}`);
+      console.log(`[PAGE CONSOLE]: ${logEntry.timestamp} ${logEntry.text}`);
     });
     
+    // Comprehensive error handling system
     page.on('pageerror', error => {
       const timestamp = new Date().toISOString();
-      const errorEntry = `[${timestamp}] PAGE ERROR: ${error.toString()}`;
-      errorMessages.push(errorEntry);
-      console.error(`[PAGE ERROR]: ${errorEntry}`);
+      const errorInfo = {
+        timestamp,
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        toString: error.toString()
+      };
+      
+      errorMessages.push(errorInfo);
+      jsErrors.push(errorInfo);
+      
+      console.error(`[PAGE ERROR]: ${timestamp} ${error.name}: ${error.message}`);
+      if (error.stack) {
+        console.error(`[STACK TRACE]: ${error.stack}`);
+      }
+    });
+
+    // Network request failure tracking
+    page.on('requestfailed', request => {
+      const timestamp = new Date().toISOString();
+      const networkError = {
+        timestamp,
+        url: request.url(),
+        method: request.method(),
+        failure: request.failure()?.errorText || 'Unknown network error',
+        resourceType: request.resourceType()
+      };
+      
+      networkErrors.push(networkError);
+      console.error(`[NETWORK ERROR]: ${timestamp} ${request.method()} ${request.url()} - ${networkError.failure}`);
+    });
+
+    // Enhanced JavaScript error detection via window.onerror injection
+    await page.addInitScript(() => {
+      window.jsErrorsCollected = [];
+      
+      // Override window.onerror
+      window.onerror = function(message, source, lineno, colno, error) {
+        const errorInfo = {
+          timestamp: new Date().toISOString(),
+          message: message,
+          source: source,
+          lineno: lineno,
+          colno: colno,
+          stack: error ? error.stack : null,
+          type: 'runtime_error'
+        };
+        
+        window.jsErrorsCollected.push(errorInfo);
+        console.error('[WINDOW.ONERROR]:', message, 'at', source, lineno, colno);
+        return false;
+      };
+      
+      // Override window.onunhandledrejection
+      window.addEventListener('unhandledrejection', function(event) {
+        const errorInfo = {
+          timestamp: new Date().toISOString(),
+          reason: event.reason ? event.reason.toString() : 'Unknown rejection',
+          stack: event.reason && event.reason.stack ? event.reason.stack : null,
+          type: 'unhandled_rejection'
+        };
+        
+        window.jsErrorsCollected.push(errorInfo);
+        unhandledRejections.push(errorInfo);
+        console.error('[UNHANDLED REJECTION]:', event.reason);
+      });
     });
 
     // Inject custom JavaScript to intercept task completion events
@@ -421,6 +516,65 @@ test.describe('Avatar AI Inference Collection Test', () => {
     console.log(`🗣️  Language Models: ${hasLanguageModel ? '✅ Available' : '⚠️  Executed but not collected'}`);
     console.log(`🎵 Audio Processing: ${hasAudioProcessing ? '✅ Available' : '⚠️  Executed but not collected'}`);
     console.log(`⚡ Compute Results: ${hasComputeResults ? '✅ Available' : '⚠️  Executed but not collected'}`);
+    
+    // Collect all JavaScript errors from the page before ending
+    const pageJSErrors = await page.evaluate(() => {
+      return window.jsErrorsCollected || [];
+    });
+    
+    // Merge page-collected errors with Playwright-collected errors
+    jsErrors.push(...pageJSErrors);
+
+    // COMPREHENSIVE ERROR REPORTING AND DIAGNOSTICS  
+    console.log('\n🔍 COMPREHENSIVE ERROR ANALYSIS:');
+    console.log('=' .repeat(60));
+    
+    const totalErrors = jsErrors.length + networkErrors.length + unhandledRejections.length;
+    
+    if (totalErrors === 0) {
+      console.log('✅ NO ERRORS DETECTED - All JavaScript executed successfully!');
+    } else {
+      console.log(`⚠️  TOTAL ERRORS DETECTED: ${totalErrors}`);
+      
+      // JavaScript Runtime Errors
+      if (jsErrors.length > 0) {
+        console.log(`\n❌ JAVASCRIPT ERRORS (${jsErrors.length}):`);
+        jsErrors.slice(0, 5).forEach((error, index) => { // Show max 5 errors
+          console.log(`\n  ${index + 1}. ${error.name || 'Error'}: ${error.message || error.text || 'Unknown error'}`);
+          if (error.location || error.source) {
+            const location = error.location || {};
+            console.log(`     📍 Location: ${error.source || location.url || 'Unknown'}:${error.lineno || location.lineNumber || '?'}:${error.colno || location.columnNumber || '?'}`);
+          }
+        });
+        if (jsErrors.length > 5) {
+          console.log(`     ... and ${jsErrors.length - 5} more errors`);
+        }
+      }
+      
+      // Network Errors
+      if (networkErrors.length > 0) {
+        console.log(`\n🌐 NETWORK ERRORS (${networkErrors.length}):`);
+        networkErrors.slice(0, 3).forEach((error, index) => {
+          console.log(`  ${index + 1}. ${error.method || 'GET'} ${error.url} - ${error.failure}`);
+        });
+      }
+      
+      // Error Pattern Analysis
+      const errorsByType = {};
+      jsErrors.forEach(error => {
+        const errorType = error.name || error.type || 'Unknown';
+        errorsByType[errorType] = (errorsByType[errorType] || 0) + 1;
+      });
+      
+      if (Object.keys(errorsByType).length > 0) {
+        console.log(`\n📊 Error Types:`);
+        Object.entries(errorsByType).forEach(([type, count]) => {
+          console.log(`   - ${type}: ${count} occurrence${count > 1 ? 's' : ''}`);
+        });
+      }
+    }
+    
+    console.log('=' .repeat(60));
     
     // Less strict assertions - we know AI models are working from console output
     expect(totalResults).toBeGreaterThanOrEqual(0); // Allow 0 results while debugging collection

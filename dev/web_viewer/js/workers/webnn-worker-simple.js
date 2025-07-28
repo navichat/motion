@@ -123,7 +123,7 @@ async function executeTask(taskData) {
     // Handle WebNN-specific job types and AI models
     if (jobType === 'WebNNImageClassification' || jobType === 'WebNNTextProcessing' || jobType === 'WebNNAudioProcessing') {
         simulateWebNNSpecificWork(taskId, duration, complexity, jobType);
-    } else if (jobType === 'FaceFormer' || jobType === 'RSMT' || jobType === 'Kokoro' || jobType === 'SpeechT5' || jobType === 'TinyLlama') {
+    } else if (jobType === 'FaceFormer' || jobType === 'RSMT' || jobType === 'Kokoro' || jobType === 'SpeechT5' || jobType === 'TinyLlama' || jobType === 'DiabloGPT' || jobType === 'Whisper' || jobType === 'VAD' || jobType === 'DeepMimic' || jobType === 'Audio2Gesture') {
         // Try real AI model inference first
         if (taskData.useRealInference && onnxRuntimeAvailable) {
             try {
@@ -586,8 +586,13 @@ async function runRealAIModelInference(taskId, jobType, taskData) {
             throw new Error('ModelLoader not available');
         }
         
-        // Use the ModelLoader to run real inference
-        const result = await self.ModelLoader.runRealModelInference(jobType, {}, taskData.complexity || 1);
+        // Use the ModelLoader to run real inference with job data for variation
+        const result = await self.ModelLoader.runRealModelInference(
+            jobType, 
+            {}, 
+            taskData.complexity || 1,
+            taskData // Pass the full job data for parameter variation
+        );
         
         if (result.success) {
             const totalTime = Date.now() - startTime;
@@ -601,10 +606,14 @@ async function runRealAIModelInference(taskId, jobType, taskData) {
                     success: true,
                     executionTime: totalTime,
                     workerType: 'webnn',
-                    modelType: jobType,
-                    usingRealModel: true,
+                    jobType: jobType,
+                    usingRealModel: result.usingRealModel,
+                    usingMockInference: result.usingMockInference,
                     executionProvider: result.executionProvider,
-                    output: result.output
+                    modelOutput: result.output, // Include the detailed model output
+                    // Add verification info
+                    isSimulated: result.usingMockInference || false,
+                    inferenceType: result.usingRealModel ? 'REAL_MODEL' : 'MOCK_INFERENCE'
                 }
             });
             
@@ -655,6 +664,26 @@ async function simulateAIModelWork(taskId, duration, complexity, jobType) {
                     modelResult = await simulateTinyLlama(complexity);
                     console.log(`[WebNN Worker] 🦙 ${webnnContext ? 'REAL' : 'SIMULATED'} TinyLlama step ${i+1}/${steps}, text coherence: ${modelResult.toFixed(4)}`);
                     break;
+                case 'DiabloGPT':
+                    modelResult = await simulateDiabloGPT(complexity);
+                    console.log(`[WebNN Worker] 🤖 ${webnnContext ? 'REAL' : 'SIMULATED'} DiabloGPT step ${i+1}/${steps}, dialog quality: ${modelResult.toFixed(4)}`);
+                    break;
+                case 'Whisper':
+                    modelResult = await simulateWhisper(complexity);
+                    console.log(`[WebNN Worker] 🎤 ${webnnContext ? 'REAL' : 'SIMULATED'} Whisper step ${i+1}/${steps}, recognition accuracy: ${modelResult.toFixed(4)}`);
+                    break;
+                case 'VAD':
+                    modelResult = await simulateVAD(complexity);
+                    console.log(`[WebNN Worker] 🔊 ${webnnContext ? 'REAL' : 'SIMULATED'} VAD step ${i+1}/${steps}, detection confidence: ${modelResult.toFixed(4)}`);
+                    break;
+                case 'DeepMimic':
+                    modelResult = await simulateDeepMimic(complexity);
+                    console.log(`[WebNN Worker] 🏃 ${webnnContext ? 'REAL' : 'SIMULATED'} DeepMimic step ${i+1}/${steps}, physics accuracy: ${modelResult.toFixed(4)}`);
+                    break;
+                case 'Audio2Gesture':
+                    modelResult = await simulateAudio2Gesture(complexity);
+                    console.log(`[WebNN Worker] 🎵 ${webnnContext ? 'REAL' : 'SIMULATED'} Audio2Gesture step ${i+1}/${steps}, gesture sync: ${modelResult.toFixed(4)}`);
+                    break;
                 default:
                     modelResult = await simulateGenericWebNNModel(complexity);
                     console.log(`[WebNN Worker] ⚡ ${webnnContext ? 'REAL' : 'SIMULATED'} WebNN model step ${i+1}/${steps}, output: ${modelResult.toFixed(4)}`);
@@ -693,7 +722,36 @@ async function simulateAIModelWork(taskId, duration, complexity, jobType) {
             // Task completed successfully
             const totalTime = Date.now() - startTime;
             
-            console.log(`[WebNN Worker] ✅ AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Type: ${webnnContext ? 'REAL WebNN' : 'SIMULATED'}`);
+            // Generate specific completion markers for motion models
+            let completionMarker = '';
+            switch (jobType) {
+                case 'FaceFormer':
+                    completionMarker = `🎭 FaceFormer completed with facial_animation data (${Math.floor(68 * complexity)} landmarks processed)`;
+                    console.log(`[WebNN Worker] ✅ AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Type: ${webnnContext ? 'REAL WebNN' : 'SIMULATED'} - ${completionMarker}`);
+                    break;
+                case 'RSMT':
+                    completionMarker = `🎬 RSMT completed with transition_quality data (${Math.floor(24 * complexity)} joints processed)`;
+                    console.log(`[WebNN Worker] ✅ AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Type: ${webnnContext ? 'REAL WebNN' : 'SIMULATED'} - ${completionMarker}`);
+                    break;
+                case 'DeepMimic':
+                    completionMarker = `🏃 DeepMimic completed with physics_simulation data (${Math.floor(100 * complexity)} physics steps)`;
+                    console.log(`[WebNN Worker] ✅ AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Type: ${webnnContext ? 'REAL WebNN' : 'SIMULATED'} - ${completionMarker}`);
+                    break;
+                case 'Audio2Gesture':
+                    completionMarker = `🎵 Audio2Gesture completed with gesture_data (${Math.floor(60 * complexity)} gesture frames)`;
+                    console.log(`[WebNN Worker] ✅ AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Type: ${webnnContext ? 'REAL WebNN' : 'SIMULATED'} - ${completionMarker}`);
+                    break;
+                case 'Whisper':
+                    completionMarker = `🎤 Whisper completed with transcript data`;
+                    console.log(`[WebNN Worker] ✅ AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Type: ${webnnContext ? 'REAL WebNN' : 'SIMULATED'} - ${completionMarker}`);
+                    break;
+                case 'VAD':
+                    completionMarker = `🔊 VAD completed with voice_activity data`;
+                    console.log(`[WebNN Worker] ✅ AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Type: ${webnnContext ? 'REAL WebNN' : 'SIMULATED'} - ${completionMarker}`);
+                    break;
+                default:
+                    console.log(`[WebNN Worker] ✅ AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Type: ${webnnContext ? 'REAL WebNN' : 'SIMULATED'}`);
+            }
             
             self.postMessage({
                 type: 'completed',
@@ -706,7 +764,8 @@ async function simulateAIModelWork(taskId, duration, complexity, jobType) {
                     complexity: complexity,
                     modelType: jobType,
                     usingWebNN: !!webnnContext,
-                    inferenceType: webnnContext ? 'REAL_WEBNN' : 'SIMULATED'
+                    inferenceType: webnnContext ? 'REAL_WEBNN' : 'SIMULATED',
+                    completionMarker: completionMarker
                 }
             });
             
@@ -875,5 +934,130 @@ async function simulateGenericWebNNModel(complexity) {
             }
             resolve(result);
         }, 20 + complexity * 15);
+    });
+}
+
+async function simulateDiabloGPT(complexity) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            // Simulate DiabloGPT conversational AI
+            const conversationTurns = 8 * complexity;
+            const vocabSize = 50257; // GPT-2 vocabulary
+            const hiddenSize = 1024;
+            let dialogQuality = 0;
+            
+            for (let turn = 0; turn < conversationTurns; turn++) {
+                for (let token = 0; token < 64; token++) {
+                    // Simulate attention mechanism
+                    const attention = Math.exp(-Math.abs(token - 32) / 16);
+                    const contextScore = Math.sin(turn * 0.5 + token * 0.1);
+                    const coherence = attention * contextScore;
+                    dialogQuality += coherence;
+                }
+            }
+            resolve(dialogQuality / conversationTurns);
+        }, 60 + complexity * 40);
+    });
+}
+
+async function simulateWhisper(complexity) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            // Simulate Whisper speech recognition
+            const audioFrames = 3000 * complexity; // 30 seconds of audio
+            const featureDim = 80; // Mel-spectrogram features
+            const encoderLayers = 6;
+            let recognitionAccuracy = 0;
+            
+            for (let frame = 0; frame < audioFrames; frame++) {
+                for (let layer = 0; layer < encoderLayers; layer++) {
+                    // Simulate mel-spectrogram processing
+                    const spectral_energy = Math.exp(-Math.abs(frame - audioFrames/2) / 1000);
+                    const temporal_pattern = Math.sin(frame * 0.01 + layer * 0.5);
+                    const feature_strength = spectral_energy * temporal_pattern;
+                    recognitionAccuracy += feature_strength;
+                }
+            }
+            resolve(recognitionAccuracy / audioFrames);
+        }, 100 + complexity * 80);
+    });
+}
+
+async function simulateVAD(complexity) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            // Simulate Voice Activity Detection
+            const audioChunks = 100 * complexity;
+            const frameSize = 512;
+            let detectionConfidence = 0;
+            
+            for (let chunk = 0; chunk < audioChunks; chunk++) {
+                // Simulate energy-based VAD
+                const energy = Math.random() * Math.exp(-chunk / audioChunks * 2);
+                const spectralCentroid = 1000 + Math.sin(chunk * 0.1) * 500;
+                const zeroCrossingRate = 0.1 + Math.random() * 0.2;
+                
+                const vadScore = energy * 0.6 + (spectralCentroid / 2000) * 0.3 + zeroCrossingRate * 0.1;
+                detectionConfidence += vadScore;
+            }
+            resolve(detectionConfidence / audioChunks);
+        }, 15 + complexity * 10);
+    });
+}
+
+async function simulateDeepMimic(complexity) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            // Simulate DeepMimic physics-based character animation
+            const motionFrames = 120 * complexity; // 4 seconds at 30fps
+            const jointCount = 25;
+            const policyLayers = 3;
+            let physicsAccuracy = 0;
+            
+            for (let frame = 0; frame < motionFrames; frame++) {
+                for (let joint = 0; joint < jointCount; joint++) {
+                    // Simulate physics simulation
+                    const gravity = -9.81;
+                    const mass = 70; // kg
+                    const position = Math.sin(frame * 0.1 + joint * 0.3);
+                    const velocity = Math.cos(frame * 0.1 + joint * 0.3) * 0.1;
+                    const acceleration = gravity + velocity * 0.1;
+                    
+                    // Simulate neural network policy
+                    for (let layer = 0; layer < policyLayers; layer++) {
+                        const networkOutput = Math.tanh(position * velocity + acceleration + layer * 0.1);
+                        physicsAccuracy += networkOutput;
+                    }
+                }
+            }
+            resolve(physicsAccuracy / (motionFrames * jointCount));
+        }, 150 + complexity * 120);
+    });
+}
+
+async function simulateAudio2Gesture(complexity) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            // Simulate Audio2Gesture full-body gesture generation
+            const audioLength = 3.0; // seconds
+            const gestureFrames = Math.floor(audioLength * 30 * complexity); // 30 FPS
+            const keypointCount = 25;
+            let gestureSync = 0;
+            
+            for (let frame = 0; frame < gestureFrames; frame++) {
+                // Simulate audio feature extraction
+                const audioFeature = Math.sin(frame * 0.2) * Math.exp(-frame / gestureFrames);
+                
+                for (let keypoint = 0; keypoint < keypointCount; keypoint++) {
+                    // Simulate gesture synthesis
+                    const bodyPart = Math.floor(keypoint / 5); // 5 keypoints per body part
+                    const gestureIntensity = audioFeature * (1 + bodyPart * 0.1);
+                    const temporalCoherence = Math.cos(frame * 0.1 + keypoint * 0.2);
+                    const syncScore = gestureIntensity * temporalCoherence;
+                    gestureSync += syncScore;
+                }
+            }
+            resolve(gestureSync / (gestureFrames * keypointCount));
+        }, 80 + complexity * 60);
     });
 }

@@ -1,0 +1,119 @@
+{
+  "timestamp": "2025-07-28T00:49:25.037Z",
+  "testSource": "Playwright AI Model Output Collection Test",
+  "totalOutputLines": 1,
+  "aiModelsDetected": {
+    "TinyLlama": {
+      "taskId": "task_1753663638597_5d9w1qu6l",
+      "status": "scheduled_but_failed_worker_assignment",
+      "requirements": {
+        "cpu": 25,
+        "gpu": 0,
+        "webnn": 100,
+        "memory": 96
+      },
+      "issue": "WebNN requirement not met - needs webnn:true, workers have webnn:false"
+    },
+    "FaceFormer": {
+      "taskId": "task_1753663614610_n4288r13n",
+      "status": "scheduled_but_failed_worker_assignment",
+      "requirements": {
+        "cpu": 25,
+        "gpu": 0,
+        "webnn": 100,
+        "memory": 128
+      },
+      "priority": -2,
+      "issue": "WebNN requirement not met"
+    },
+    "RSMT": {
+      "taskId": "task_1753663622816_reo0eky1o",
+      "status": "scheduled_but_failed_worker_assignment",
+      "requirements": {
+        "cpu": 25,
+        "gpu": 0,
+        "webnn": 100,
+        "memory": 164
+      },
+      "priority": -1,
+      "issue": "WebNN requirement not met"
+    },
+    "WebNNAudioProcessing": {
+      "taskId": "task_1753663579561_mxjqxavcl",
+      "status": "scheduled_but_failed_worker_assignment",
+      "requirements": {
+        "memory": 256000,
+        "webnn": 0.85
+      },
+      "priority": -7,
+      "issue": "WebNN requirement not met"
+    }
+  },
+  "workerCapabilities": {
+    "webnn_worker_0": {
+      "type": "webnn",
+      "capabilities": {
+        "webnn": false,
+        "onnx": true
+      },
+      "issue": "WebNN capability disabled or not supported"
+    },
+    "cpu_worker_0": {
+      "type": "cpu",
+      "capabilities": {
+        "cpu": true,
+        "webgpu": false,
+        "onnx": false
+      },
+      "issue": "No WebNN support"
+    },
+    "cpu_worker_1": {
+      "type": "cpu",
+      "capabilities": {
+        "cpu": true,
+        "webgpu": false,
+        "onnx": false
+      },
+      "issue": "No WebNN support"
+    }
+  },
+  "taskSchedulerInfo": {
+    "maxConcurrent": [
+      4,
+      8
+    ],
+    "heapSizes": [
+      0,
+      1,
+      44
+    ],
+    "completedTasks": 8,
+    "queuedTasks": 0,
+    "runningTasks": 0,
+    "totalTasks": [
+      1,
+      44
+    ],
+    "deadlockDetected": true,
+    "schedulingLoopActive": true
+  },
+  "systemIssue": {
+    "primaryProblem": "WebNN Worker Capability Mismatch",
+    "description": "All AI models require WebNN support but available workers have webnn:false",
+    "impact": "No AI model inference can execute - all tasks fail worker assignment",
+    "technicalDetails": {
+      "requiredCapability": "webnn:true",
+      "actualCapability": "webnn:false",
+      "fallbackAttempted": "CPU workers checked but also lack WebNN support"
+    }
+  },
+  "rawOutput": "\n[COLLECT] [log] 🤖 Starting COMPREHENSIVE Avatar AI Model Output Collection...\n[COLLECT] [log] 🌐 Navigating to task-manager-demo.html...\n[COLLECT] [log] 📡 Page loaded, starting AI model output collection...\n[COLLECT] [log] 🔄 Triggering AI model activities...\n[COLLECT] [log] Found 0 buttons to interact with\n[COLLECT] [log] ⏳ Extended collection period for all AI model outputs...\n[COLLECT] [log] Collecting... 1/60 (1 total messages, 0 neural outputs)\n[COLLECT] [log] *** TASK SCHEDULER OUTPUT ***\n[COLLECT] [log] ✅ Starting AI Model Task Scheduling Loop...\n[COLLECT] [log] 🤖 Task TinyLlama inference initialized...\n[COLLECT] [log] 🤖 Task FaceFormer inference initialized...\n[COLLECT] [log] 🤖 Task RSMT inference initialized...\n[COLLECT] [log] 🤖 Task WebNNAudioProcessing inference initialized...\n[COLLECT] [log] 🔍 Checking worker webnn_worker_0 capabilities: {webnn: false, onnx: true} against requirements: {cpu: 25, gpu: 0, webnn: 100, memory: 96}\n[COLLECT] [log] ❌ Worker webnn_worker_0 fails WebNN requirement (needs webnn:true, has webnn:false)\n[COLLECT] [log] ❌ Worker webnn_worker_0 does not satisfy requirements for task task_1753663638597_5d9w1qu6l\n[COLLECT] [log] 🔍 Checking pool: cpu. Available workers: 2\n[COLLECT] [log] 🔍 Attempting to match task task_1753663638597_5d9w1qu6l with worker cpu_worker_0 (type: cpu)\n[COLLECT] [log] 🔍 Checking worker cpu_worker_0 capabilities: {cpu: true, webgpu: false, onnx: false} against requirements: {cpu: 25, gpu: 0, webnn: 100, memory: 96}\n[COLLECT] [log] ❌ Worker cpu_worker_0 fails WebNN requirement (needs webnn:true, has webnn:undefined)\n[COLLECT] [log] ❌ Worker cpu_worker_0 does not satisfy requirements for task task_1753663638597_5d9w1qu6l\n[COLLECT] [log] [WARN] No available worker for task task_1753663638597_5d9w1qu6l (TinyLlama)\n[COLLECT] [log] ❌ No available worker for task task_1753663638597_5d9w1qu6l. Attempting preemption.\n[COLLECT] [log] [DEBUG] No suitable worker to preempt for task task_1753663638597_5d9w1qu6l\n[COLLECT] [log] *** DEBUG: Continuing scheduling. Heap size: 1, Running tasks: 0, Total tasks: 1 ***\n[COLLECT] [log] *** DEBUG: _scheduleNextProcess called. Setting timer. ***\n[COLLECT] [log] *** DEBUG: Inside setTimeout callback. this.running: true ***\n[COLLECT] [log] *** DEBUG: Entering _processQueue. ***\n[COLLECT] [log] [INFO] Processing queue. Running tasks: 0, Max concurrent: 4, Heap size: 1\n[COLLECT] [log] 🔄 Processing loop - Running: 0, Max: 4, Heap size: 1\n[COLLECT] [log] 🔍 Evaluating task task_1753663614610_n4288r13n (FaceFormer) with priority -2\n[COLLECT] [log] ✅ Task task_1753663614610_n4288r13n is ready to run, looking for worker...\n[COLLECT] [log] 🔍 Searching for worker for task task_1753663614610_n4288r13n (FaceFormer) with requirements: {cpu: 25, gpu: 0, webnn: 100, memory: 128}\n[COLLECT] [log] DEBUG: [77.4s] Stats: {queue: Object, workers: Object, performance: Object, system: Object}\n[COLLECT] [warning] DEBUG: Potential deadlock detected - jobs pending but none running\n[COLLECT] [log] 🔍 Evaluating task task_1753663622816_reo0eky1o (RSMT) with priority -1\n[COLLECT] [log] ✅ Task task_1753663622816_reo0eky1o is ready to run, looking for worker...\n[COLLECT] [log] 🔍 Searching for worker for task task_1753663622816_reo0eky1o (RSMT) with requirements: {cpu: 25, gpu: 0, webnn: 100, memory: 164}\n[COLLECT] [log]   - Queue status: Queued(0) Running(0) Completed(8)\n[COLLECT] [log] 🔍 Evaluating task task_1753663579561_mxjqxavcl (WebNNAudioProcessing) with priority -7\n[COLLECT] [log] ✅ Task task_1753663579561_mxjqxavcl is ready to run, looking for worker...\n[COLLECT] [log] 🔍 Searching for worker for task task_1753663579561_mxjqxavcl (WebNNAudioProcessing) with requirements: {memory: 256000, webnn: 0.85}\n",
+  "analysis": {
+    "aiModelsPresent": 4,
+    "modelsSuccessfullyExecuted": 0,
+    "modelsFailedWorkerAssignment": 4,
+    "workerPoolsAvailable": 2,
+    "workersTotal": 3,
+    "primaryBlocker": "WebNN capability requirement vs availability mismatch"
+  }
+}

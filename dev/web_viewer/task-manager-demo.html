@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Management Engine Demo</title>
+    
+    <!-- KNN Dependencies for accuracy vs speed benchmarking -->
+    <script src="https://unpkg.com/hnswlib-wasm@0.8.2/dist/hnswlib-wasm.js" 
+            onload="console.log('✅ hnswlib-wasm loaded')"
+            onerror="console.warn('❌ hnswlib-wasm failed to load')"></script>
     <style>
         body {
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
@@ -343,7 +348,8 @@ Console output will appear here...</pre>
     <script src="./js/RealWebGPUJobs.js" type="module"></script>
     <script src="./js/RealWebNNJobs.js" type="module"></script>
     <script src="./js/AIModelJobs.js" type="module"></script>
-    <script src="./js/RealJobFactory.js" type="module"></script>
+    <script src="./js/KNNJobs.js" type="module"></script>
+    <script src="./js/RealJobFactory.js?v=1.0.5" type="module"></script>
     <script src="./js/TaskManager.js" type="module"></script>
     <script src="./js/TaskManagerTestSuite.js" type="module"></script>
     <script src="./js/EnhancedTaskManagerTestDemo.js" type="module"></script>
@@ -1064,54 +1070,7 @@ Console output will appear here...</pre>
             }
         }
 
-        // Helper functions for workload creation
-        function createRealisticWorkload(intensity = 'medium', capabilities = {}) {
-            const workloadSizes = {
-                'light': 20,
-                'medium': 50,
-                'heavy': 100
-            };
-            
-            const jobCount = workloadSizes[intensity] || 50;
-            const workload = [];
-            
-            // Filter job types based on capabilities
-            let availableJobTypes = [];
-            if (capabilities.webgpu) {
-                availableJobTypes.push('WebGPU_Compute');
-            }
-            if (capabilities.webnn) {
-                availableJobTypes.push('WebNN_Inference');
-            }
-            // Always include CPU and WASM as fallbacks or general compute
-            availableJobTypes.push('WASM_Process');
-            availableJobTypes.push('CPU_Task');
-
-            // Ensure there's at least one job type available
-            if (availableJobTypes.length === 0) {
-                console.warn('No suitable job types available based on capabilities. Defaulting to CPU_Task.');
-                availableJobTypes.push('CPU_Task');
-            }
-
-            for (let i = 0; i < jobCount; i++) {
-                const jobType = availableJobTypes[Math.floor(Math.random() * availableJobTypes.length)];
-                
-                const job = RealJobFactory.createJob(jobType, {
-                    complexity: Math.floor(Math.random() * 10) + 1,
-                    duration: 200 + Math.random() * 1800,
-                    memorySize: 32 + Math.random() * 256
-                });
-                
-                workload.push({
-                    job: job,
-                    priority: Math.floor(Math.random() * 10),
-                    scheduledTime: Date.now() + Math.random() * 5000,
-                    options: { retries: 2 }
-                });
-            }
-            
-            return workload;
-        }
+        // Helper functions for workload creation - REMOVED - Use window.createRealisticWorkload from RealJobFactory.js
 
         function createMLPipelineWorkload() {
             const pipeline = [];
@@ -1588,6 +1547,7 @@ Console output will appear here...</pre>
         // Initialize
         log('🎯 Task Management Engine Demo Ready!', 'success');
         log('🤖 AI Models: DeepMimic, FaceFormer, Audio2Gesture, RSMT, Kokoro, Whisper, VAD, TinyLlama, DiabloGPT', 'info');
+        log('🔍 KNN Models: CloseVector, HNSW, UnifiedKNN for accuracy vs speed benchmarking', 'info');
         log('Click the buttons above to start testing', 'info');
         
         // Quick availability check
@@ -1597,7 +1557,8 @@ Console output will appear here...</pre>
             // Check required classes
             const requiredClasses = [
                 'TaskManager', 'FibonacciHeap', 'MockGPUJobFactory', 
-                'RealJobFactory', 'AIModelJobFactory', 'TaskManagerTestSuite'
+                'RealJobFactory', 'AIModelJobFactory', 'TaskManagerTestSuite',
+                'CloseVectorJob', 'HNSWJob', 'UnifiedKNNJob'
             ];
             
             let allAvailable = true;
