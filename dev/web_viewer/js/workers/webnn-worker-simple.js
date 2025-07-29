@@ -3,6 +3,27 @@
  * Handles ML model execution and WebNN-specific benchmarks
  */
 
+// Import ONNX Runtime with a version that's more worker-friendly
+try {
+    // Try the newer version first
+    importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js');
+    console.log('[WebNN Worker] ONNX Runtime 1.19.0 imported successfully');
+} catch (error) {
+    try {
+        // Fallback to a more stable version for workers
+        importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js');
+        console.log('[WebNN Worker] ONNX Runtime 1.18.0 imported as fallback');
+    } catch (fallbackError) {
+        try {
+            // Final fallback to an even more stable version
+            importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/ort.min.js');
+            console.log('[WebNN Worker] ONNX Runtime 1.17.3 imported as final fallback');
+        } catch (finalError) {
+            console.warn('[WebNN Worker] Failed to import any version of ONNX Runtime:', finalError);
+        }
+    }
+}
+
 // Import real model loader
 importScripts('./model-loader-webnn.js');
 
@@ -583,8 +604,11 @@ async function runRealAIModelInference(taskId, jobType, taskData) {
     try {
         // Check if ModelLoader is available
         if (typeof self.ModelLoader === 'undefined' || !self.ModelLoader.runRealModelInference) {
+            console.warn(`[WebNN Worker] ModelLoader not available for ${jobType}, falling back to simulation`);
             throw new Error('ModelLoader not available');
         }
+        
+        console.log(`[WebNN Worker] Starting real AI inference for ${jobType} with complexity ${taskData.complexity}`);
         
         // Use the ModelLoader to run real inference with job data for variation
         const result = await self.ModelLoader.runRealModelInference(
@@ -594,32 +618,44 @@ async function runRealAIModelInference(taskId, jobType, taskData) {
             taskData // Pass the full job data for parameter variation
         );
         
-        if (result.success) {
+        if (result && result.success) {
             const totalTime = Date.now() - startTime;
             
-            console.log(`[WebNN Worker] ✅ REAL AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Using ${result.executionProvider}`);
+            console.log(`[WebNN Worker] ✅ REAL AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms`);
+            console.log(`[WebNN Worker] Model result details:`, {
+                executionProvider: result.executionProvider,
+                usingRealModel: result.usingRealModel,
+                usingMockInference: result.usingMockInference,
+                outputKeys: Object.keys(result.output || {})
+            });
+            
+            // Ensure we always send a complete result back to main process
+            const completeResult = {
+                success: true,
+                executionTime: totalTime,
+                workerType: 'webnn',
+                jobType: jobType,
+                usingRealModel: result.usingRealModel || false,
+                usingMockInference: result.usingMockInference || false,
+                executionProvider: result.executionProvider || 'unknown',
+                output: result.output || {},
+                metadata: result.metadata || {},
+                inferenceType: result.usingRealModel ? 'REAL_AI_INFERENCE' : 'MOCK_INFERENCE',
+                steps: taskData.steps || 1,
+                complexity: taskData.complexity || 1
+            };
             
             self.postMessage({
                 type: 'completed',
                 taskId: taskId,
-                result: {
-                    success: true,
-                    executionTime: totalTime,
-                    workerType: 'webnn',
-                    jobType: jobType,
-                    usingRealModel: result.usingRealModel,
-                    usingMockInference: result.usingMockInference,
-                    executionProvider: result.executionProvider,
-                    modelOutput: result.output, // Include the detailed model output
-                    // Add verification info
-                    isSimulated: result.usingMockInference || false,
-                    inferenceType: result.usingRealModel ? 'REAL_MODEL' : 'MOCK_INFERENCE'
-                }
+                result: completeResult
             });
             
-            currentTask = null;
+            console.log(`[WebNN Worker] Result successfully sent to main process for ${taskId}`);
+            return;
+            
         } else {
-            throw new Error('Real model inference failed');
+            throw new Error(result ? result.error || 'Unknown inference error' : 'No result returned');
         }
         
     } catch (error) {

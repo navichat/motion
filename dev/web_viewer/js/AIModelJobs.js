@@ -4,7 +4,7 @@
 
 // Base AI Model Job class
 class AIModelJob {
-    constructor(id, modelType, backend = 'cpu', complexity = 1) {
+    constructor(id, modelType, backend = 'webnn', complexity = 1) {
         this.id = id;
         this.type = modelType;
         this.jobType = modelType;

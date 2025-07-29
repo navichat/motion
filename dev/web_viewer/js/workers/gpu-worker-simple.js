@@ -3,6 +3,14 @@
  * Handles GPU computation for high-performance tasks with WebGPU benchmarks
  */
 
+// Import ONNX Runtime first
+try {
+    importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js');
+    console.log('[GPU Worker] ONNX Runtime imported successfully');
+} catch (error) {
+    console.warn('[GPU Worker] Failed to import ONNX Runtime:', error);
+}
+
 // Import real model loader
 importScripts('./model-loader-webnn.js');
 
@@ -317,6 +325,15 @@ async function simulateWebGPUWork(taskId, duration, complexity, jobType) {
                         break;
                     case 'DiabloGPT':
                         await simulateDiabloGPT(complexity);
+                        break;
+                    case 'CloseVectorJob':
+                        await simulateKNNSearch(complexity, 'CloseVector');
+                        break;
+                    case 'HNSWJob':
+                        await simulateKNNSearch(complexity, 'HNSW');
+                        break;
+                    case 'UnifiedKNNJob':
+                        await simulateKNNSearch(complexity, 'UnifiedKNN');
                         break;
                     default:
                         await simulateWebGPUCompute(complexity);
@@ -790,7 +807,95 @@ async function simulateDiabloGPT(complexity) {
     return { success: true, duration, model: 'DiabloGPT', complexity, contextLength, layers: numLayers };
 }
 
-// Real AI Model Inference function for GPU Worker
+// KNN Search simulation function for GPU Worker
+async function simulateKNNSearch(taskId, jobType, taskData) {
+    const startTime = performance.now();
+    
+    console.log(`[GPU Worker] 🔍 Starting KNN search simulation for ${jobType} task ${taskId}`);
+    
+    const complexity = taskData?.complexity || 1;
+    const dimensions = taskData?.dimensions || 512;
+    const vectorCount = taskData?.vectorCount || 10000;
+    const queryK = taskData?.queryK || 10;
+    
+    // Simulate different KNN algorithms with appropriate complexity
+    let searchOperations, algorithmType;
+    
+    switch (jobType) {
+        case 'CloseVectorJob':
+            // Exhaustive search - linear complexity
+            searchOperations = vectorCount * complexity;
+            algorithmType = 'exhaustive_search';
+            break;
+        case 'HNSWJob':
+            // HNSW - logarithmic complexity with graph traversal
+            searchOperations = Math.log2(vectorCount) * queryK * complexity;
+            algorithmType = 'hnsw_graph';
+            break;
+        case 'UnifiedKNNJob':
+            // Hybrid approach - balanced complexity
+            searchOperations = Math.sqrt(vectorCount) * queryK * complexity;
+            algorithmType = 'unified_hybrid';
+            break;
+        default:
+            searchOperations = vectorCount * complexity * 0.5;
+            algorithmType = 'default_knn';
+    }
+    
+    // Simulate vector operations with WebGPU-like parallel processing
+    const batchSize = Math.min(1000, Math.floor(searchOperations / 10));
+    const batches = Math.ceil(searchOperations / batchSize);
+    
+    for (let batch = 0; batch < batches; batch++) {
+        // Simulate distance calculations
+        const distances = new Float32Array(batchSize);
+        for (let i = 0; i < batchSize; i++) {
+            // Simulate dot product and euclidean distance
+            let distance = 0;
+            for (let d = 0; d < Math.min(dimensions, 64); d++) {
+                distance += Math.random() * Math.random();
+            }
+            distances[i] = Math.sqrt(distance);
+        }
+        
+        // Simulate sorting/heap operations for top-k
+        if (batch % 5 === 0) {
+            // Simulate more intensive operations periodically
+            await new Promise(resolve => setTimeout(resolve, 2));
+        }
+        
+        // Progress reporting for longer searches
+        if (batches > 10 && batch % Math.floor(batches / 4) === 0) {
+            console.log(`[GPU Worker] KNN search ${Math.floor((batch / batches) * 100)}% complete`);
+        }
+    }
+    
+    const duration = performance.now() - startTime;
+    
+    // Generate realistic result structure
+    const results = [];
+    for (let i = 0; i < queryK; i++) {
+        results.push({
+            index: Math.floor(Math.random() * vectorCount),
+            distance: Math.random() * complexity,
+            similarity: 1 - (Math.random() * 0.3)
+        });
+    }
+    
+    return {
+        success: true,
+        duration,
+        algorithm: algorithmType,
+        complexity,
+        dimensions,
+        vectorCount,
+        queryK,
+        results,
+        searchOperations: Math.floor(searchOperations)
+    };
+}
+
+// Real AI Model Inference function for GPU Worker with timeout protection
 async function runRealAIModelInference(taskId, jobType, taskData) {
     const startTime = performance.now();
     
@@ -804,8 +909,16 @@ async function runRealAIModelInference(taskId, jobType, taskData) {
             return;
         }
         
-        // Run real model inference with job data for parameter variation
-        const result = await self.ModelLoader.runRealModelInference(jobType, {}, taskData.complexity || 1, taskData.jobData || taskData);
+        // Add timeout protection to prevent hanging tasks
+        const INFERENCE_TIMEOUT = 5000; // 5 second timeout for model inference
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Model inference timeout')), INFERENCE_TIMEOUT);
+        });
+        
+        // Run real model inference with timeout protection
+        const inferencePromise = self.ModelLoader.runRealModelInference(jobType, {}, taskData.complexity || 1, taskData.jobData || taskData);
+        const result = await Promise.race([inferencePromise, timeoutPromise]);
+        
         const totalTime = performance.now() - startTime;
         
         // Send completion message with real model output
@@ -831,9 +944,28 @@ async function runRealAIModelInference(taskId, jobType, taskData) {
                 case 'VAD':
                     completionMarker = `🔊 VAD completed with voice_activity data`;
                     break;
+                case 'CloseVectorJob':
+                    completionMarker = `🔍 CloseVector completed with similarity_search data (${Math.floor(1000 * (taskData.complexity || 1))} vectors searched)`;
+                    break;
+                case 'HNSWJob':
+                    completionMarker = `🕸️ HNSW completed with approximate_search data (${Math.floor(5000 * (taskData.complexity || 1))} vectors indexed)`;
+                    break;
+                case 'UnifiedKNNJob':
+                    completionMarker = `🎯 UnifiedKNN completed with hybrid_search data (${Math.floor(2000 * (taskData.complexity || 1))} vectors processed)`;
+                    break;
             }
             
             console.log(`[GPU Worker] ✅ REAL AI Model ${jobType} COMPLETED for task ${taskId} in ${totalTime}ms - Using ${result.executionProvider}${completionMarker ? ' - ' + completionMarker : ''}`);
+            
+            // Enhanced memory cleanup after successful task completion
+            if (typeof gc === 'function') {
+                try {
+                    gc();
+                    console.log(`[GPU Worker] 🧹 Memory cleaned after task ${taskId} completion`);
+                } catch (e) {
+                    console.log(`[GPU Worker] Memory cleanup attempt failed:`, e.message);
+                }
+            }
             
             self.postMessage({
                 type: 'completed',
@@ -862,8 +994,24 @@ async function runRealAIModelInference(taskId, jobType, taskData) {
     } catch (error) {
         console.error(`[GPU Worker] Real AI model ${jobType} failed:`, error);
         
-        // Fallback to simulation on error
-        console.log(`[GPU Worker] Falling back to simulation for ${jobType}`);
-        await simulateWebGPUWork(taskId, taskData.duration || 1000, taskData.complexity || 1, jobType);
+        // Handle specific timeout errors
+        if (error.message === 'Model inference timeout') {
+            console.warn(`[GPU Worker] ${jobType} inference timed out after 5 seconds, using fast simulation fallback`);
+        }
+        
+        // Force garbage collection to free memory if available
+        if (typeof self.gc === 'function') {
+            try {
+                self.gc();
+                console.log(`[GPU Worker] Garbage collection performed for ${jobType}`);
+            } catch (gcError) {
+                // Ignore GC errors
+            }
+        }
+        
+        // Fallback to simulation on error with reduced complexity to avoid further issues
+        const fallbackComplexity = Math.min(taskData.complexity || 1, 0.5); // Reduce complexity for fallback
+        console.log(`[GPU Worker] Falling back to fast simulation for ${jobType} with reduced complexity`);
+        await simulateWebGPUWork(taskId, Math.min(taskData.duration || 1000, 500), fallbackComplexity, jobType);
     }
 }

@@ -23,7 +23,13 @@ class Task {
         this.error = null;
         this.retryCount = 0;
         this.maxRetries = options.maxRetries || 3;
-        this.timeout = options.timeout || 30000; // 30 seconds default
+        
+        // Set timeout based on job type - AI models need longer timeouts
+        const isAITask = job && (job.type || job.modelName || job.jobType || '').toLowerCase().includes('ai') ||
+                         (job.modelName && ['tinyllama', 'kokoro', 'whisper', 'speecht5', 'diablogpt'].some(model => 
+                           (job.modelName || '').toLowerCase().includes(model.toLowerCase())));
+        this.timeout = options.timeout || (isAITask ? 120000 : 30000); // 2 minutes for AI tasks, 30 seconds for others
+        
         this.canPreempt = options.canPreempt !== false; // Default to true
         // Use job's resource requirements if available, otherwise use options or defaults
         this.resourceRequirements = job.resourceRequirements || options.resourceRequirements || { cpu: 1, gpu: 0, webnn: 0, memory: 100 };
@@ -842,9 +848,10 @@ class TaskManager {
 
     async _executeTaskOnRealWorker(task, worker, progressCallback, shouldStop) {
         return new Promise((resolve, reject) => {
+            // Use task's own timeout setting, which is now AI-aware
             const timeout = setTimeout(() => {
                 reject(new Error('Task execution timeout'));
-            }, task.maxExecutionTime || 30000);
+            }, task.timeout);
 
             // Set up worker message handlers
             const messageHandler = (event) => {

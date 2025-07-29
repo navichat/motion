@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ONNX Runtime Debug</title>
+</head>
+<body>
+    <h1>ONNX Runtime Worker Debug Test</h1>
+    <div id="output"></div>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message) {
+            console.log(message);
+            output.innerHTML += message + '<br>';
+        }
+        
+        async function testONNXRuntime() {
+            try {
+                log('🔄 Testing ONNX Runtime loading...');
+                
+                // Test different versions of ONNX Runtime
+                const versions = ['1.19.0', '1.18.0', '1.17.3'];
+                
+                for (const version of versions) {
+                    try {
+                        log(`Testing ONNX Runtime ${version}...`);
+                        
+                        // Clear any existing ort
+                        if (typeof ort !== 'undefined') {
+                            delete window.ort;
+                        }
+                        
+                        // Import ONNX Runtime
+                        const ortModule = await import(`https://cdn.jsdelivr.net/npm/onnxruntime-web@${version}/dist/ort.min.js`);
+                        window.ort = ortModule.default || ortModule;
+                        
+                        log(`✅ ONNX Runtime ${version} imported successfully`);
+                        
+                        // Test WASM configuration
+                        ort.env.wasm.numThreads = 1;
+                        ort.env.wasm.simd = false;
+                        ort.env.wasm.proxy = false;
+                        
+                        log(`✅ WASM configuration set for ${version}`);
+                        
+                        // Try to create a simple session
+                        try {
+                            log(`Testing session creation with ${version}...`);
+                            
+                            // Create a simple test tensor
+                            const testData = new Float32Array([1, 2, 3, 4]);
+                            const testTensor = new ort.Tensor('float32', testData, [1, 4]);
+                            
+                            log(`✅ Tensor creation successful with ${version}`);
+                            
+                            // If we get here, this version is working
+                            log(`🎉 ONNX Runtime ${version} is working!`);
+                            return;
+                            
+                        } catch (sessionError) {
+                            log(`❌ Session test failed with ${version}: ${sessionError.message}`);
+                        }
+                        
+                    } catch (importError) {
+                        log(`❌ Failed to import ONNX Runtime ${version}: ${importError.message}`);
+                    }
+                }
+                
+                log('❌ All ONNX Runtime versions failed');
+                
+            } catch (error) {
+                log(`❌ Test failed: ${error.message}`);
+            }
+        }
+        
+        // Start test
+        testONNXRuntime();
+    </script>
+</body>
+</html>

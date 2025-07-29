@@ -140,7 +140,9 @@ class RealJobFactory {
             // Core AI models - ALWAYS AVAILABLE
             'TinyLlama', 'DiabloGPT', 'Whisper', 'VAD',
             // Advanced AI models - FORCE AVAILABILITY 
-            'Kokoro', 'SpeechT5', 'FaceFormer', 'RSMT', 'DeepMimic', 'Audio2Gesture'
+            'Kokoro', 'SpeechT5', 'FaceFormer', 'RSMT', 'DeepMimic', 'Audio2Gesture',
+            // KNN/Vector Search models - ALWAYS AVAILABLE
+            'CloseVectorJob', 'HNSWJob', 'UnifiedKNNJob'
         ];
         
         // Add WebGPU jobs if available
@@ -200,6 +202,33 @@ class RealJobFactory {
             };
             
             return aiJob;
+        }
+        
+        // Handle KNN/Vector Search jobs
+        if (['CloseVectorJob', 'HNSWJob', 'UnifiedKNNJob'].includes(jobType)) {
+            const knnClass = window[jobType];
+            if (knnClass) {
+                const knnJob = new knnClass(id, {
+                    dimensions: 128 + Math.floor(Math.random() * 384), // 128-512 dimensions
+                    vectorCount: 1000 + Math.floor(Math.random() * 9000), // 1k-10k vectors
+                    queryK: 5 + Math.floor(Math.random() * 15), // top 5-20 results
+                    complexity: complexity
+                });
+                
+                knnJob.jobData = {
+                    ...knnJob,
+                    useRealKNNSearch: true,
+                    parametersForValidation: true
+                };
+                
+                console.log(`🔍 Created KNN job: ${jobType} with ${knnJob.params.vectorCount} vectors, ${knnJob.params.dimensions} dimensions`);
+                return knnJob;
+            } else {
+                console.warn(`⚠️ KNN class ${jobType} not available, falling back to WASMMatrix`);
+                const fallbackJob = new WASMMatrixJob(id, 256, complexity);
+                fallbackJob.jobData = { ...fallbackJob };
+                return fallbackJob;
+            }
         }
         
         switch (jobType) {

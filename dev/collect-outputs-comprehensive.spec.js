@@ -88,13 +88,13 @@ test('Collect All AI Model Outputs', async ({ page }) => {
 
   console.log('🚀 Starting comprehensive AI model output collection...');
   
-  // Navigate to the test page
-  await page.goto('http://localhost:8000/web_viewer/');
+  // Navigate to the AI-enhanced platform
+  await page.goto('http://localhost:8000/dev/web_viewer/ai_enhanced_platform.html');
   
-  // Wait for page to load
-  await page.waitForTimeout(5000);
+  // Wait for page to load and AI system to initialize
+  await page.waitForTimeout(8000);
   
-  console.log('📡 Page loaded, listening for AI model outputs...');
+  console.log('📡 AI-Enhanced platform loaded, collecting AI model outputs...');
   
   // Click anywhere to potentially trigger model loading
   await page.click('body');
@@ -164,11 +164,33 @@ test('Collect All AI Model Outputs', async ({ page }) => {
     await page.waitForTimeout(3000);
   }
   
-  // Extended waiting period to collect outputs
-  console.log('⏳ Extended waiting period for model outputs...');
-  for (let i = 0; i < 30; i++) {
-    console.log(`Waiting... ${i + 1}/30 (${allModelOutputs.length} messages collected)`);
+  // Extended waiting period to collect outputs from AI-enhanced platform
+  console.log('⏳ Extended waiting period for AI model outputs...');
+  for (let i = 0; i < 60; i++) { // Increased to 60 iterations (2 minutes)
+    console.log(`Waiting... ${i + 1}/60 (${allModelOutputs.length} messages collected)`);
     await page.waitForTimeout(2000);
+    
+    // Check if we have sufficient AI model activity
+    if (allModelOutputs.length > 50) {
+      console.log(`🎉 Sufficient AI activity detected (${allModelOutputs.length} messages), continuing...`);
+      break;
+    }
+  }
+  
+  // Try to collect final results from the AI manager
+  const finalResults = await page.evaluate(() => {
+    return window.getAIModelResults ? window.getAIModelResults() : null;
+  });
+  
+  if (finalResults) {
+    console.log('🎯 Final AI Manager Results:', finalResults);
+    allModelOutputs.push({
+      type: 'final_summary',
+      text: `AI Manager Final Results: ${JSON.stringify(finalResults)}`,
+      timestamp: new Date().toISOString(),
+      isAIOutput: true,
+      aiIndicators: ['ai_manager_results']
+    });
   }
   
   // Final collection summary

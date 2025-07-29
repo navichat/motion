@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Model Fetch Test</title>
+</head>
+<body>
+    <h1>Model File Access Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testModelAccess() {
+            const results = document.getElementById('results');
+            
+            const testPaths = [
+                'engine/web_porting_poc/faceformer/faceformer_minimal.onnx',
+                'audio2gesture_step_fixed.onnx',
+                '/engine/web_porting_poc/faceformer/faceformer_minimal.onnx',
+                './engine/web_porting_poc/faceformer/faceformer_minimal.onnx'
+            ];
+            
+            for (const path of testPaths) {
+                try {
+                    console.log(`Testing path: ${path}`);
+                    const response = await fetch(path);
+                    const status = response.status;
+                    const contentLength = response.headers.get('Content-Length');
+                    
+                    results.innerHTML += `<p><strong>${path}</strong>: ${status} (${contentLength} bytes)</p>`;
+                    console.log(`${path}: ${status} (${contentLength} bytes)`);
+                } catch (error) {
+                    results.innerHTML += `<p><strong>${path}</strong>: ERROR - ${error.message}</p>`;
+                    console.error(`${path}: ERROR -`, error);
+                }
+            }
+        }
+        
+        // Test immediately
+        testModelAccess();
+    </script>
+</body>
+</html>
