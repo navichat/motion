@@ -100,13 +100,12 @@ let __tla = (async () => {
     }
   };
 })();
-export {
-  IDBFS_STORE_NAME,
-  __tla,
-  defaultParams,
-  hnswParamsForAda,
-  loadHnswlib,
-  syncFileSystem,
-  waitForFileSystemInitalized,
-  waitForFileSystemSynced
-};
+// Make functions available globally
+window.IDBFS_STORE_NAME = IDBFS_STORE_NAME;
+window.__tla = __tla;
+window.defaultParams = defaultParams;
+window.hnswParamsForAda = hnswParamsForAda;
+window.loadHnswlib = loadHnswlib;
+window.syncFileSystem = syncFileSystem;
+window.waitForFileSystemInitalized = waitForFileSystemInitalized;
+window.waitForFileSystemSynced = waitForFileSystemSynced;

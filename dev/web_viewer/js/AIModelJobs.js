@@ -24,7 +24,7 @@ class AIModelJob {
         const baseDurations = {
             'DeepMimic': 2000,      // Complex physics simulation
             'FaceFormer': 150,      // Real-time facial animation
-            'Audio2Gesture': 800,   // Full body gesture generation
+            'Audio2Gesture': 850,   // Full body gesture generation
             'RSMT': 300,           // Motion transition
             'Kokoro': 100,         // Real-time speech synthesis
             'Whisper': 500,        // Speech recognition
@@ -58,15 +58,15 @@ class AIModelJob {
 
     getModelPaths(modelType) {
         const paths = {
-            'DeepMimic': './deepmimic/compatible_humanoid3d_humanoid3d_walk.onnx',
-            'FaceFormer': './faceformer/faceformer_core_step.onnx',
-            'Audio2Gesture': '../../audio2gesture_step_fixed.onnx',
+            'DeepMimic': './models/deepmimic.onnx',
+            'FaceFormer': './models/faceformer.onnx',
+            'Audio2Gesture': './models/audio2gesture.onnx',
             'RSMT': {
-                deepPhase: './rsmt/deepphase.onnx',
-                styleVAE: './rsmt/stylevae.onnx',
-                transitionNet: './rsmt/transitionnet.onnx'
+                deepPhase: './models/rsmt_deepphase.onnx',
+                styleVAE: './models/rsmt_stylevae.onnx',
+                transitionNet: './models/rsmt_transitionnet.onnx'
             },
-            'Kokoro': './kokoro.js/dist/',
+            'Kokoro': './models/kokoro.onnx',
             'Whisper': './models/whisper.onnx',
             'VAD': './models/vad.onnx',
             'TinyLlama': './models/tinyllama.onnx',
@@ -106,36 +106,49 @@ class AIModelJob {
     }
 
     async execute(progressCallback, shouldStop) {
-        // This is just a placeholder - actual execution is handled by workers
         console.log(`Executing ${this.type} AI model job ${this.id} on ${this.backend} backend`);
-        
         const startTime = Date.now();
-        const steps = Math.max(5, Math.floor(this.complexity * 3));
-        
-        for (let step = 0; step < steps && !shouldStop(); step++) {
-            const progress = Math.round(((step + 1) / steps) * 100);
-            const elapsed = Date.now() - startTime;
-            
-            if (progressCallback) {
-                progressCallback(progress, {
-                    step: step + 1,
-                    totalSteps: steps,
-                    elapsed,
-                    modelType: this.type,
-                    backend: this.backend
-                });
+
+        try {
+            // Use ONNX runtime for model inference
+            const session = await ort.InferenceSession.create(this.modelPaths, {
+                executionProviders: [this.backend],
+                graphOptimizationLevel: 'all'
+            });
+
+            // Create dummy input tensors (replace with real data if available)
+            const inputs = {};
+            for (const input of session.inputNames) {
+                const dummyData = new Float32Array(1);
+                inputs[input] = new ort.Tensor('float32', dummyData, [1]);
             }
-            
-            await new Promise(resolve => setTimeout(resolve, this.duration / steps));
+
+            // Run inference
+            const outputs = await session.run(inputs);
+
+            // Process output (example, replace with actual logic)
+            const result = {};
+            for (const key in outputs) {
+                result[key] = outputs[key].data;
+            }
+
+            return {
+                success: true,
+                executionTime: Date.now() - startTime,
+                modelOutput: result,
+                modelType: this.type,
+                backend: this.backend
+            };
+        } catch (error) {
+            console.error(`Error executing ${this.type} model:`, error);
+            return {
+                success: false,
+                error: error.message,
+                executionTime: Date.now() - startTime,
+                modelType: this.type,
+                backend: this.backend
+            };
         }
-        
-        return {
-            success: true,
-            executionTime: Date.now() - startTime,
-            modelType: this.type,
-            backend: this.backend,
-            output: `Mock ${this.type} output`
-        };
     }
 }
 
@@ -253,7 +266,7 @@ class RSMTJob extends AIModelJob {
             uniqueId: Date.now() + Math.random()
         };
         
-        console.log(`� RSMT job created with ${selectedBackend} backend, style: ${this.motionStyle}, duration: ${this.transitionDuration.toFixed(2)}s`);
+        console.log(`🎬 RSMT job created with ${selectedBackend} backend, style: ${this.motionStyle}, duration: ${this.transitionDuration.toFixed(2)}s`);
     }
 }
 

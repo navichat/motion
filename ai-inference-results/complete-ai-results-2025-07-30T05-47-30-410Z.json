@@ -1,0 +1,179 @@
+{
+  "completedTasks": [
+    {
+      "jobType": "Whisper",
+      "result": {
+        "success": true,
+        "executionTime": 948,
+        "workerType": "cpu",
+        "steps": 12,
+        "complexity": 1,
+        "jobType": "Whisper",
+        "wasmOptimized": true,
+        "inferenceType": "SIMULATED_WASM",
+        "modelOutput": {
+          "simulated": true,
+          "jobType": "Whisper",
+          "complexity": 1,
+          "executionTime": 948,
+          "steps": 12,
+          "data": "Whisper_wasm_output_1753854271686",
+          "transcript": "Transcript for Whisper"
+        },
+        "outputData": {
+          "simulated": true,
+          "jobType": "Whisper",
+          "complexity": 1
+        },
+        "usingRealModel": false,
+        "usingMockInference": true,
+        "executionProvider": "wasm-simulation"
+      },
+      "executionTime": 950,
+      "success": true,
+      "worker": "cpu"
+    },
+    {
+      "jobType": "VAD",
+      "result": {
+        "success": true,
+        "executionTime": 1061,
+        "workerType": "cpu",
+        "steps": 8,
+        "complexity": 1,
+        "jobType": "VAD",
+        "wasmOptimized": true,
+        "inferenceType": "SIMULATED_WASM",
+        "modelOutput": {
+          "simulated": true,
+          "jobType": "VAD",
+          "complexity": 1,
+          "executionTime": 1061,
+          "steps": 8,
+          "data": "VAD_wasm_output_1753854271802",
+          "activity_detected": true
+        },
+        "outputData": {
+          "simulated": true,
+          "jobType": "VAD",
+          "complexity": 1
+        },
+        "usingRealModel": false,
+        "usingMockInference": true,
+        "executionProvider": "wasm-simulation"
+      },
+      "executionTime": 1063,
+      "success": true,
+      "worker": "cpu"
+    },
+    {
+      "jobType": "TinyLlama",
+      "result": {
+        "success": true,
+        "executionTime": 1261,
+        "workerType": "cpu",
+        "steps": 16,
+        "complexity": 1,
+        "jobType": "TinyLlama",
+        "wasmOptimized": true,
+        "inferenceType": "SIMULATED_WASM",
+        "modelOutput": {
+          "simulated": true,
+          "jobType": "TinyLlama",
+          "complexity": 1,
+          "executionTime": 1261,
+          "steps": 16,
+          "data": "TinyLlama_wasm_output_1753854271996",
+          "generated_text": "Generated text for TinyLlama"
+        },
+        "outputData": {
+          "simulated": true,
+          "jobType": "TinyLlama",
+          "complexity": 1
+        },
+        "usingRealModel": false,
+        "usingMockInference": true,
+        "executionProvider": "wasm-simulation"
+      },
+      "executionTime": 1264,
+      "success": true,
+      "worker": "cpu"
+    },
+    {
+      "jobType": "DiabloGPT",
+      "result": {
+        "success": true,
+        "executionTime": 1264,
+        "workerType": "cpu",
+        "steps": 16,
+        "complexity": 1,
+        "jobType": "DiabloGPT",
+        "wasmOptimized": true,
+        "inferenceType": "SIMULATED_WASM",
+        "modelOutput": {
+          "simulated": true,
+          "jobType": "DiabloGPT",
+          "complexity": 1,
+          "executionTime": 1264,
+          "steps": 16,
+          "data": "DiabloGPT_wasm_output_1753854272000",
+          "generated_text": "Generated text for DiabloGPT"
+        },
+        "outputData": {
+          "simulated": true,
+          "jobType": "DiabloGPT",
+          "complexity": 1
+        },
+        "usingRealModel": false,
+        "usingMockInference": true,
+        "executionProvider": "wasm-simulation"
+      },
+      "executionTime": 1264,
+      "success": true,
+      "worker": "cpu"
+    },
+    {
+      "jobType": "UnifiedKNN",
+      "result": {
+        "success": true,
+        "executionTime": 625,
+        "workerType": "cpu",
+        "steps": 8,
+        "complexity": 1,
+        "jobType": "UnifiedKNN",
+        "wasmOptimized": true,
+        "inferenceType": "SIMULATED_WASM",
+        "modelOutput": {
+          "simulated": true,
+          "jobType": "UnifiedKNN",
+          "complexity": 1,
+          "executionTime": 625,
+          "steps": 8,
+          "data": "UnifiedKNN_wasm_output_1753854272563"
+        },
+        "outputData": {
+          "simulated": true,
+          "jobType": "UnifiedKNN",
+          "complexity": 1
+        },
+        "usingRealModel": false,
+        "usingMockInference": true,
+        "executionProvider": "wasm-simulation"
+      },
+      "executionTime": 627,
+      "success": true,
+      "worker": "cpu"
+    }
+  ],
+  "taskManagerState": {
+    "pendingCount": 0
+  },
+  "allJobTypes": [
+    "Whisper",
+    "VAD",
+    "TinyLlama",
+    "DiabloGPT",
+    "UnifiedKNN"
+  ],
+  "timestamp": "2025-07-30T05:47:30.397Z"
+}

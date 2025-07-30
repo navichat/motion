@@ -26,7 +26,8 @@
 		"format": "prettier --write webapp/ viewer/ psyche/ server/*.js"
 	},
 	"dependencies": {
-		"@cloudkit/client": "^1.3.1",
+		"@navichat/psyche": "file:./psyche",
+		
 		"@mwni/events": "^3.0.0",
 		"@mwni/log": "^2.2.0",
 		"@mwni/random": "^1.0.1",

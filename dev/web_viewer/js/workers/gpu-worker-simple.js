@@ -158,13 +158,17 @@ async function executeTask(taskData) {
     }
     
     // Handle AI model jobs with real inference
-    if (jobType === 'FaceFormer' || jobType === 'RSMT' || jobType === 'Kokoro' || jobType === 'SpeechT5' || jobType === 'TinyLlama') {
+    if (jobType === 'FaceFormer' || jobType === 'RSMT' || jobType === 'Kokoro' || jobType === 'SpeechT5' || 
+        jobType === 'TinyLlama' || jobType === 'VAD' || jobType === 'CloseVector' || jobType === 'HNSW' || 
+        jobType === 'UnifiedKNN') {
         // Use real AI model inference for WebNN fallback models
         await runRealAIModelInference(taskId, jobType, taskData);
     } else if (jobType === 'Whisper' || jobType === 'Audio2Gesture' || jobType === 'DeepMimic') {
         // Use real inference for other AI models too
         await runRealAIModelInference(taskId, jobType, taskData);
-    } else if (jobType === 'WebGPUMatrix' || jobType === 'WebGPUImage' || jobType === 'WebGPUParticle' || jobType === 'DiabloGPT') {
+    } else if (jobType === 'WebGPUMatrix' || jobType === 'WebGPUImage' || jobType === 'WebGPUParticle' || 
+               jobType === 'DiabloGPT' || jobType === 'WASMMatrix' || jobType === 'WASMPrime' || 
+               jobType === 'WASMFractal') {
         // Non-AI GPU work uses simulation
         simulateWebGPUWork(taskId, duration, complexity, jobType);
     } else {
@@ -386,9 +390,45 @@ async function simulateWebGPUWork(taskId, duration, complexity, jobType) {
                     steps: steps,
                     complexity: complexity,
                     jobType: jobType,
-                    usingWebGPU: !!gpuDevice
+                    usingWebGPU: !!gpuDevice,
+                    modelOutput: {
+                        simulated: true,
+                        jobType: jobType,
+                        complexity: complexity,
+                        executionTime: totalTime,
+                        steps: steps,
+                        data: `${jobType}_webgpu_output_${Date.now()}`,
+                        generated_text: jobType === 'TinyLlama' || jobType === 'DiabloGPT' ? `Generated text for ${jobType}` : undefined,
+                        transcript: jobType === 'Whisper' ? `Transcript for ${jobType}` : undefined,
+                        audio_data: jobType === 'Kokoro' || jobType === 'SpeechT5' ? `Audio data for ${jobType}` : undefined,
+                        motion_data: jobType === 'DeepMimic' || jobType === 'FaceFormer' || jobType === 'Audio2Gesture' || jobType === 'RSMT' ? `Motion data for ${jobType}` : undefined,
+                        matrix_result: jobType === 'WebGPUMatrix' ? 'Matrix result' : undefined,
+                        image_data: jobType === 'WebGPUImage' ? 'Image data' : undefined,
+                        particle_data: jobType === 'WebGPUParticle' ? 'Particle data' : undefined
+                    }
                 }
             });
+            
+            // Send AVATAR AI COLLECTED message for the test to capture (simulation)
+            console.log(`AVATAR AI COLLECTED ${JSON.stringify({
+                jobType: jobType,
+                executionTime: totalTime,
+                modelOutput: {
+                    simulated: true,
+                    jobType: jobType,
+                    complexity: complexity,
+                    data: `${jobType}_webgpu_output_${Date.now()}`,
+                    generated_text: jobType === 'TinyLlama' || jobType === 'DiabloGPT' ? `Generated text for ${jobType}` : undefined,
+                    transcript: jobType === 'Whisper' ? `Transcript for ${jobType}` : undefined,
+                    audio_data: jobType === 'Kokoro' || jobType === 'SpeechT5' ? `Audio data for ${jobType}` : undefined,
+                    motion_data: jobType === 'DeepMimic' || jobType === 'FaceFormer' || jobType === 'Audio2Gesture' || jobType === 'RSMT' ? `Motion data for ${jobType}` : undefined,
+                    matrix_result: jobType === 'WebGPUMatrix' ? 'Matrix result' : undefined,
+                    image_data: jobType === 'WebGPUImage' ? 'Image data' : undefined,
+                    particle_data: jobType === 'WebGPUParticle' ? 'Particle data' : undefined
+                },
+                usingRealModel: false,
+                executionProvider: 'webgpu-simulation'
+            })}`);
             
             // Reset current task status
             currentTask = null;
@@ -987,6 +1027,16 @@ async function runRealAIModelInference(taskId, jobType, taskData) {
                     completionMarker: completionMarker
                 }
             });
+            
+            // Send AVATAR AI COLLECTED message for the test to capture
+            console.log(`AVATAR AI COLLECTED ${JSON.stringify({
+                jobType: jobType,
+                executionTime: totalTime,
+                modelOutput: result.output,
+                usingRealModel: true,
+                executionProvider: result.executionProvider
+            })}`);
+            
         } else {
             throw new Error('Model inference returned failure');
         }

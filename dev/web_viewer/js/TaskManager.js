@@ -4,9 +4,8 @@
  * Supports preemption, worker pools, and resource allocation
  */
 
-// Import dependencies (ensure these are loaded first)
-// import { FibonacciHeap } from './FibonacciHeap.js';
-// import { MockGPUJob, MockGPUJobFactory } from './MockGPUJobs.js';
+// Classes will be available from main.js loaded before this file
+// FibonacciHeap, MockGPUJob, MockGPUJobFactory are loaded globally
 
 class Task {
     constructor(job, priority = 0, scheduledTime = null, options = {}) {
@@ -222,7 +221,7 @@ class WorkerPool {
 
 class TaskManager {
     constructor(options = {}) {
-        this.heap = new FibonacciHeap();
+        this.heap = new window.FibonacciHeap();
         this.tasks = new Map(); // taskId -> task
         this.taskNodes = new Map(); // taskId -> heapNode
         this.runningTasks = new Map(); // taskId -> task
@@ -866,7 +865,7 @@ class TaskManager {
                     case 'completed':
                         clearTimeout(timeout);
                         worker.actualWorker.removeEventListener('message', messageHandler);
-                        console.log(`[TaskManager] Task ${task.id} completed successfully`);
+                        console.log(`[TaskManager] Task ${task.id} completed successfully with result: ${JSON.stringify(result)}`);
                         resolve(result);
                         break;
                     case 'error':
