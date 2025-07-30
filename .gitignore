@@ -30,7 +30,7 @@ venv.bak/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
-
+playwright-report/
 # NPM
 node_modules/
 npm-debug.log*
