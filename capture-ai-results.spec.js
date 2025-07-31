@@ -7,7 +7,7 @@ test('Capture and Save All AI Model Results', async ({ page }) => {
   
   // Navigate to the demo page
   console.log('🤖 Starting AI Model Results Capture...');
-  await page.goto('http://localhost:8080/dev/web_viewer/task-manager-demo.html');
+  await page.goto('http://localhost:8081/task-manager-demo.html');
   
   // Wait for page to fully load
   await page.waitForTimeout(5000);

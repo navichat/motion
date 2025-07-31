@@ -8,7 +8,7 @@ test.describe('Avatar AI Inference Collection from Real Workload Test', () => {
     // Navigate to the demo page
     console.log('🤖 Starting COMPREHENSIVE Avatar AI Inference Collection Test...');
     console.log('🌐 Navigating to task-manager-demo.html...');
-    await page.goto('http://localhost:8000/dev/web_viewer/task-manager-demo.html');
+    await page.goto('/dev/web_viewer/task-manager-demo.html');
     await page.bringToFront(); // Bring the page to the front to prevent throttling
 
     // Enhanced data structures for avatar AI inference collection
@@ -94,9 +94,47 @@ test.describe('Avatar AI Inference Collection from Real Workload Test', () => {
 
     // Wait much longer for all tasks to complete - our debug showed it needs more time
     console.log('⏰ Waiting for all AI model tasks to complete...');
-    await page.waitForTimeout(120000); // Increased to 2 minutes to ensure all 16 tasks complete
+    
+    // Wait until we have collected at least 15 AI model results (enough for all models including slow ones)
+    // AND wait an extra 5 seconds after reaching 13+ to ensure TinyLlama/DiabloGPT/Whisper complete
+    let attempts = 0;
+    let stableCount = 0;
+    let lastResultCount = 0;
+    
+    while (attempts < 150) { // Increased max wait time
+      await page.waitForTimeout(1000);
+      attempts++;
+      
+      // Check if results are still increasing
+      if (avatarInferenceResults.metadata.totalResults > lastResultCount) {
+        lastResultCount = avatarInferenceResults.metadata.totalResults;
+        stableCount = 0; // Reset stability counter
+      } else {
+        stableCount++;
+      }
+      
+      // Log progress every 10 seconds
+      if (attempts % 10 === 0) {
+        console.log(`⏰ Still waiting... collected ${avatarInferenceResults.metadata.totalResults} results so far (${attempts}s elapsed)`);
+      }
+      
+      // Break if we have 13+ results AND they've been stable for 5 seconds
+      if (avatarInferenceResults.metadata.totalResults >= 13 && stableCount >= 5) {
+        console.log(`✅ Results stabilized at ${avatarInferenceResults.metadata.totalResults} - waiting complete`);
+        break;
+      }
+    }
 
-    // Log the results
+    console.log(`🎉 Collected ${avatarInferenceResults.metadata.totalResults} AI model inference results!`);
     console.log(JSON.stringify(avatarInferenceResults, null, 2));
+    
+    // Verify we got all expected results including TinyLlama, DiabloGPT, Whisper
+    expect(avatarInferenceResults.metadata.totalResults).toBeGreaterThanOrEqual(13);
+    
+    // Check that we have the specific models that were previously missing
+    const allResults = JSON.stringify(avatarInferenceResults);
+    expect(allResults).toContain('TinyLlama');
+    expect(allResults).toContain('DiabloGPT'); 
+    expect(allResults).toContain('Whisper');
   });
 });

@@ -5,65 +5,7 @@
  */
 
 // Classes will be available from main.js loaded before this file
-// FibonacciHeap, MockGPUJob, MockGPUJobFactory are loaded globally
-
-class Task {
-    constructor(job, priority = 0, scheduledTime = null, options = {}) {
-        this.id = this._generateId();
-        this.job = job;
-        this.priority = priority; // Lower number = higher priority
-        this.scheduledTime = scheduledTime || Date.now();
-        this.createdTime = Date.now();
-        this.startTime = null;
-        this.endTime = null;
-        this.status = 'queued'; // queued, running, completed, failed, cancelled, preempted
-        this.worker = null;
-        this.result = null;
-        this.error = null;
-        this.retryCount = 0;
-        this.maxRetries = options.maxRetries || 3;
-        
-        // Set timeout based on job type - AI models need longer timeouts
-        const isAITask = job && (job.type || job.modelName || job.jobType || '').toLowerCase().includes('ai') ||
-                         (job.modelName && ['tinyllama', 'kokoro', 'whisper', 'speecht5', 'diablogpt'].some(model => 
-                           (job.modelName || '').toLowerCase().includes(model.toLowerCase())));
-        this.timeout = options.timeout || (isAITask ? 120000 : 30000); // 2 minutes for AI tasks, 30 seconds for others
-        
-        this.canPreempt = options.canPreempt !== false; // Default to true
-        // Use job's resource requirements if available, otherwise use options or defaults
-        this.resourceRequirements = job.resourceRequirements || options.resourceRequirements || { cpu: 1, gpu: 0, webnn: 0, memory: 100 };
-        this.dependencies = options.dependencies || [];
-        this.callbacks = {
-            onProgress: options.onProgress,
-            onComplete: options.onComplete,
-            onError: options.onError,
-            onPreempt: options.onPreempt
-        };
-        this.metadata = options.metadata || {};
-    }
-
-    _generateId() {
-        return `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    }
-
-    getEffectivePriority() {
-        // Lower number = higher priority
-        // Adjust priority based on wait time and retries
-        const waitTime = Date.now() - this.createdTime;
-        const agingBonus = Math.floor(waitTime / 10000); // +1 priority per 10 seconds
-        const retryPenalty = this.retryCount * 2;
-        return this.priority - agingBonus + retryPenalty;
-    }
-
-    canRun() {
-        const now = Date.now();
-        return this.scheduledTime <= now && this.status === 'queued';
-    }
-
-    isReadyToRun() {
-        return this.canRun() && this.dependencies.every(dep => dep.status === 'completed');
-    }
-}
+// FibonacciHeap, MockGPUJob, MockGPUJobFactory, Task are loaded globally
 
 class WorkerPool {
     constructor(size = 4, workerType = 'cpu', manager, capabilities) {
@@ -105,7 +47,7 @@ class WorkerPool {
                     break;
                 case 'gpu':
                     if (typeof Worker !== 'undefined') {
-                        actualWorker = new Worker('./js/workers/gpu-worker-simple.js');
+                        actualWorker = new Worker('./js/workers/gpu-worker-real.js'); // Use REAL WebGPU worker
                     }
                     break;
                 case 'webnn':
@@ -115,7 +57,7 @@ class WorkerPool {
                     break;
                 case 'wasm':
                     if (typeof Worker !== 'undefined') {
-                        actualWorker = new Worker('./js/workers/wasm-worker-simple.js');
+                        actualWorker = new Worker('./js/workers/wasm-worker-simple-real.js'); // Use REAL WASM worker
                     }
                     break;
                 default:
@@ -583,6 +525,8 @@ class TaskManager {
         if (requirements.gpu) potentialPools.push(this.workerPools.gpu);
         if (requirements.webnn) potentialPools.push(this.workerPools.webnn);
         if (requirements.wasm) potentialPools.push(this.workerPools.wasm);
+        // Check WebNN pool for ONNX requirements since WebNN workers have onnx:true
+        if (requirements.onnx && !requirements.webnn) potentialPools.push(this.workerPools.webnn);
         potentialPools.push(this.workerPools.cpu); // Always consider CPU as a fallback
 
         console.log(`🔍 Potential pools for task ${task.id}:`, potentialPools.map(p => p.workerType));
