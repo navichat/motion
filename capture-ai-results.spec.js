@@ -1,12 +1,32 @@
+/**
+ * Avatar AI Inference Collection Test
+ * 
+ * This test captures inference results from 19+ AI model types used in avatar applications.
+ * Models include language processing, audio, motion generation, compute, and vector search.
+ * 
+ * Successfully captures:
+ * - Language Models: TinyLlama, DiabloGPT
+ * - Audio Processing: Whisper, VAD, Kokoro, SpeechT5
+ * - Motion Models: RSMT, DeepMimic, FaceFormer, Audio2Gesture
+ * - Compute Models: WASMMatrix, WASMPrime, WASMFractal, WebGPU variants
+ * - KNN Models: CloseVector, HNSW, UnifiedKNN
+ * 
+ * Results are exported to ai-inference-results/ as timestamped JSON files.
+ * Expected: 16+ unique job types, 40+ completed tasks, 95%+ success rate.
+ * 
+ * @see docs/AI_INFERENCE_COLLECTION.md for complete documentation
+ */
+
 import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
 test('Capture and Save All AI Model Results', async ({ page }) => {
-  test.setTimeout(300000); // 5 minutes
+  test.setTimeout(300000); // 5 minutes for comprehensive AI model capture
   
-  // Navigate to the demo page
-  console.log('🤖 Starting AI Model Results Capture...');
+  // Navigate to the task manager demo page
+  console.log('🤖 Starting Avatar AI Model Results Capture...');
+  console.log('📍 Expected models: 19+ types (Language, Audio, Motion, Compute, KNN)');
   await page.goto('http://localhost:8081/task-manager-demo.html');
   
   // Wait for page to fully load

@@ -8,7 +8,7 @@ test.describe('Avatar AI Inference Collection from Real Workload Test', () => {
     // Navigate to the demo page
     console.log('🤖 Starting COMPREHENSIVE Avatar AI Inference Collection Test...');
     console.log('🌐 Navigating to task-manager-demo.html...');
-    await page.goto('/dev/web_viewer/task-manager-demo.html');
+    await page.goto('http://localhost:8082/dev/web_viewer/task-manager-demo.html');
     await page.bringToFront(); // Bring the page to the front to prevent throttling
 
     // Enhanced data structures for avatar AI inference collection
