@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Test</title>
+</head>
+<body>
+    <h1>Debug Test for Reorganized Structure</h1>
+    <button id="testBtn">Test Function</button>
+    <div id="output"></div>
+    
+    <script src="../../../js/hnswlib-wasm.js"></script>
+    <script src="../../../js/main.js"></script>
+    <script>
+        document.getElementById('testBtn').addEventListener('click', function() {
+            const output = document.getElementById('output');
+            
+            // Check if functions are available
+            if (typeof window.runRealWorkloadTest === 'function') {
+                output.innerHTML += '<p>✅ runRealWorkloadTest function found</p>';
+                
+                // Try to call it
+                window.runRealWorkloadTest().then(() => {
+                    output.innerHTML += '<p>✅ runRealWorkloadTest called successfully</p>';
+                }).catch(error => {
+                    output.innerHTML += '<p>❌ runRealWorkloadTest error: ' + error.message + '</p>';
+                });
+            } else {
+                output.innerHTML += '<p>❌ runRealWorkloadTest function not found</p>';
+            }
+            
+            if (typeof window.TaskManager !== 'undefined') {
+                output.innerHTML += '<p>✅ TaskManager class found</p>';
+            } else {
+                output.innerHTML += '<p>❌ TaskManager class not found</p>';
+            }
+            
+            // List all window properties related to our functions
+            const relevantProps = Object.keys(window).filter(key => 
+                key.includes('run') || key.includes('Task') || key.includes('AI') || key.includes('test')
+            );
+            output.innerHTML += '<p>Available functions: ' + relevantProps.join(', ') + '</p>';
+        });
+    </script>
+</body>
+</html>

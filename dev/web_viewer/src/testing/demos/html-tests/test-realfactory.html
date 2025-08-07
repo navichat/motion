@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test RealJobFactory</title>
+</head>
+<body>
+    <h1>Test RealJobFactory</h1>
+    <div id="output"></div>
+    
+    <script src="./src/ai/KNNJobs.js" type="module"></script>
+    <script src="./src/ai/AIModelJobs.js" type="module"></script>
+    <script src="./src/core/RealJobFactory.js" type="module"></script>
+    
+    <script>
+        window.addEventListener('load', () => {
+            console.log('=== Testing RealJobFactory instantiation ===');
+            console.log('CloseVectorJob available?', typeof window.CloseVectorJob);
+            console.log('HNSWJob available?', typeof window.HNSWJob);
+            console.log('UnifiedKNNJob available?', typeof window.UnifiedKNNJob);
+            console.log('AIModelJobFactory available?', typeof window.AIModelJobFactory);
+            console.log('RealJobFactory available?', typeof window.RealJobFactory);
+            
+            try {
+                console.log('=== Creating RealJobFactory ===');
+                const factory = new RealJobFactory({ webgpu: false, webnn: false, onnxWebGL: false, onnxWasm: true });
+                console.log('Factory created successfully:', factory);
+                console.log('Factory jobTypes:', factory.jobTypes);
+                console.log('KNN types in factory:', factory.jobTypes.filter(t => ['CloseVector', 'HNSW', 'UnifiedKNN'].includes(t)));
+                
+                document.getElementById('output').innerHTML = `
+                    <p>Factory created successfully!</p>
+                    <p>Job types: ${factory.jobTypes.join(', ')}</p>
+                    <p>KNN types: ${factory.jobTypes.filter(t => ['CloseVector', 'HNSW', 'UnifiedKNN'].includes(t)).join(', ')}</p>
+                `;
+            } catch (error) {
+                console.error('Error creating factory:', error);
+                document.getElementById('output').innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>

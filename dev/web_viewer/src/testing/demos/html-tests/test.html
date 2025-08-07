@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Manager Tests</title>
+    <script src="./src/core/TaskManager.js" type="module"></script>
+    <script src="./src/testing/MockGPUJobs.js" type="module"></script>
+    <script src="./src/testing/TaskManagerTestSuite.js" type="module"></script>
+    <script src="./src/testing/EnhancedTaskManagerTest.js" type="module"></script>
+    <script src="./src/testing/TaskManagerWebGPUTest.js" type="module"></script>
+</head>
+<body>
+    <h1>Task Manager Test Suite</h1>
+    <p>Open the console to see the test results.</p>
+    <script>
+        // Run all tests on page load
+        (async () => {
+            await window.runTaskManagerTests();
+            await window.runEnhancedTests();
+            await window.runWebGPUTests();
+        })();
+    </script>
+</body>
+</html>

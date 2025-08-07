@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskManager Integration Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>TaskManager Integration Test</h1>
+    <div id="status"></div>
+    
+    <button onclick="runBasicTest()">Run Basic Test</button>
+    <button onclick="runBackendTest()">Test Backend Assignment</button>
+    <button onclick="runStatsTest()">Test Statistics</button>
+    <button onclick="clearLogs()">Clear Logs</button>
+    
+    <div id="logs"></div>
+
+    <!-- Load dependencies -->
+    <script src="./src/core/FibonacciHeap.js"></script>
+    <script src="./src/core/TaskManager.js"></script>
+    
+    <script>
+        let taskManager;
+        
+        // Simple test jobs
+        class TestJob {
+            constructor(type, duration = 1000, backend = null) {
+                this.type = type;
+                this.duration = duration;
+                this.backend = backend;
+                this.progress = 0;
+                this.resourceRequirements = { cpu: 1 };
+            }
+            
+            async execute(progressCallback, shouldStop) {
+                const startTime = Date.now();
+                const endTime = startTime + this.duration;
+                
+                while (Date.now() < endTime && !shouldStop()) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    this.progress = (Date.now() - startTime) / this.duration;
+                    if (progressCallback) {
+                        progressCallback(this.progress, { type: this.type });
+                    }
+                }
+                
+                return { 
+                    type: this.type, 
+                    executionTime: Date.now() - startTime,
+                    backend: this.backend 
+                };
+            }
+            
+            interrupt() {
+                // Can be interrupted
+            }
+        }
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.textContent = message;
+        }
+        
+        async function initTaskManager() {
+            if (taskManager) {
+                taskManager.stop();
+            }
+            
+            taskManager = new TaskManager({
+                cpuWorkers: 2,
+                gpuWorkers: 1,
+                webnnWorkers: 1,
+                wasmWorkers: 1,
+                maxConcurrentTasks: 4
+            });
+            
+            // Set up event handlers
+            taskManager.on('taskCompleted', (task) => {
+                log(`Task ${task.id} completed: ${task.job.type}`, 'success');
+            });
+            
+            taskManager.on('taskFailed', (task) => {
+                log(`Task ${task.id} failed: ${task.error}`, 'error');
+            });
+            
+            taskManager.start();
+            log('TaskManager initialized and started', 'success');
+        }
+        
+        async function runBasicTest() {
+            updateStatus('Running basic test...', 'info');
+            
+            try {
+                await initTaskManager();
+                
+                // Schedule some basic tasks
+                const job1 = new TestJob('basic_cpu_task', 500);
+                const job2 = new TestJob('another_task', 800);
+                
+                const taskId1 = taskManager.scheduleTask(job1, 1);
+                const taskId2 = taskManager.scheduleTask(job2, 2);
+                
+                log(`Scheduled tasks: ${taskId1}, ${taskId2}`);
+                
+                // Wait for completion
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const stats = taskManager.getStats();
+                log(`Stats: ${JSON.stringify(stats, null, 2)}`);
+                
+                updateStatus('Basic test completed successfully', 'success');
+                
+            } catch (error) {
+                log(`Basic test failed: ${error.message}`, 'error');
+                updateStatus('Basic test failed', 'error');
+            }
+        }
+        
+        async function runBackendTest() {
+            updateStatus('Testing backend assignment...', 'info');
+            
+            try {
+                await initTaskManager();
+                
+                // Test explicit backend assignment
+                const cpuJob = new TestJob('cpu_task', 500, 'cpu');
+                const gpuJob = new TestJob('gpu_task', 600, 'gpu');
+                const webnnJob = new TestJob('webnn_task', 700, 'webnn');
+                const wasmJob = new TestJob('wasm_task', 800, 'wasm');
+                
+                const taskIds = [
+                    taskManager.scheduleTask(cpuJob, 1),
+                    taskManager.scheduleTask(gpuJob, 1),
+                    taskManager.scheduleTask(webnnJob, 1),
+                    taskManager.scheduleTask(wasmJob, 1)
+                ];
+                
+                log(`Scheduled backend-specific tasks: ${taskIds.join(', ')}`);
+                
+                // Wait for completion
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                const stats = taskManager.getStats();
+                log(`Backend stats: ${JSON.stringify(stats.workers, null, 2)}`);
+                
+                updateStatus('Backend assignment test completed', 'success');
+                
+            } catch (error) {
+                log(`Backend test failed: ${error.message}`, 'error');
+                updateStatus('Backend test failed', 'error');
+            }
+        }
+        
+        async function runStatsTest() {
+            updateStatus('Testing statistics reporting...', 'info');
+            
+            try {
+                await initTaskManager();
+                
+                // Schedule multiple tasks
+                for (let i = 0; i < 5; i++) {
+                    const job = new TestJob(`stats_test_task_${i}`, 300 + (i * 100));
+                    taskManager.scheduleTask(job, i);
+                }
+                
+                log('Scheduled 5 tasks for stats test');
+                
+                // Monitor stats over time
+                const statsInterval = setInterval(() => {
+                    const stats = taskManager.getStats();
+                    log(`Queue: ${stats.queue.size} | Running: ${stats.queue.running} | Completed: ${stats.queue.completed}`);
+                }, 500);
+                
+                // Wait for completion
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                clearInterval(statsInterval);
+                
+                const finalStats = taskManager.getStats();
+                log(`Final stats: ${JSON.stringify(finalStats, null, 2)}`);
+                
+                updateStatus('Statistics test completed', 'success');
+                
+            } catch (error) {
+                log(`Stats test failed: ${error.message}`, 'error');
+                updateStatus('Stats test failed', 'error');
+            }
+        }
+        
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            log('TaskManager Integration Test loaded', 'info');
+            updateStatus('Ready to run tests', 'info');
+        });
+    </script>
+</body>
+</html>

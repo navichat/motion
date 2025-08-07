@@ -1,0 +1,362 @@
+{
+  "config": {
+    "configFile": "/home/barberb/motion/dev/web_viewer/tests/config/playwright.config.js",
+    "rootDir": "/home/barberb/motion/dev/web_viewer/tests/e2e/playwright",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 3
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ],
+      [
+        "line",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/home/barberb/motion/dev/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 3
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/barberb/motion/dev/web_viewer/tests/e2e/playwright",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 180000
+      },
+      {
+        "outputDir": "/home/barberb/motion/dev/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 3
+        },
+        "id": "chromium-webgpu",
+        "name": "chromium-webgpu",
+        "testDir": "/home/barberb/motion/dev/web_viewer/tests/e2e/playwright",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 180000
+      },
+      {
+        "outputDir": "/home/barberb/motion/dev/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 3
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "/home/barberb/motion/dev/web_viewer/tests/e2e/playwright",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 180000
+      },
+      {
+        "outputDir": "/home/barberb/motion/dev/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 3
+        },
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "/home/barberb/motion/dev/web_viewer/tests/e2e/playwright",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 180000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.54.1",
+    "workers": 20,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "reorganized-components-test.spec.js",
+      "file": "reorganized-components-test.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Reorganized Avatar AI Component Testing",
+          "file": "reorganized-components-test.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should validate reorganized file structure and component accessibility",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-webgpu",
+                  "projectName": "chromium-webgpu",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 21288,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n    at /home/barberb/motion/dev/web_viewer/tests/e2e/playwright/reorganized-components-test.spec.js:156:25",
+                        "location": {
+                          "file": "/home/barberb/motion/dev/web_viewer/tests/e2e/playwright/reorganized-components-test.spec.js",
+                          "column": 25,
+                          "line": 156
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 154 |\u001b[39m     \n \u001b[90m 155 |\u001b[39m     \u001b[90m// Verify that reorganization is working\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 156 |\u001b[39m     expect(totalPassed)\u001b[33m.\u001b[39mtoBeGreaterThan(\u001b[35m0\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 157 |\u001b[39m     expect(totalPassed)\u001b[33m.\u001b[39mtoBeGreaterThanOrEqual(totalFailed)\u001b[33m;\u001b[39m\n \u001b[90m 158 |\u001b[39m     \n \u001b[90m 159 |\u001b[39m     \u001b[90m// Verify specific components are accessible\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/home/barberb/motion/dev/web_viewer/tests/e2e/playwright/reorganized-components-test.spec.js",
+                            "column": 25,
+                            "line": 156
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\n\u001b[0m \u001b[90m 154 |\u001b[39m     \n \u001b[90m 155 |\u001b[39m     \u001b[90m// Verify that reorganization is working\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 156 |\u001b[39m     expect(totalPassed)\u001b[33m.\u001b[39mtoBeGreaterThan(\u001b[35m0\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 157 |\u001b[39m     expect(totalPassed)\u001b[33m.\u001b[39mtoBeGreaterThanOrEqual(totalFailed)\u001b[33m;\u001b[39m\n \u001b[90m 158 |\u001b[39m     \n \u001b[90m 159 |\u001b[39m     \u001b[90m// Verify specific components are accessible\u001b[39m\u001b[0m\n\u001b[2m    at /home/barberb/motion/dev/web_viewer/tests/e2e/playwright/reorganized-components-test.spec.js:156:25\u001b[22m"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "🧪 Starting Reorganized Component Validation Test...\n"
+                        },
+                        {
+                          "text": "🎭 Testing Motion Models...\n"
+                        },
+                        {
+                          "text": "🎬 Testing Animation Components...\n"
+                        },
+                        {
+                          "text": "💬 Testing Conversation System...\n"
+                        },
+                        {
+                          "text": "🗺️ Testing Pathfinding System...\n"
+                        },
+                        {
+                          "text": "📦 Testing Import System...\n"
+                        },
+                        {
+                          "text": "✅ Testing Reorganization Validation...\n"
+                        },
+                        {
+                          "text": "🎉 Reorganization Test Results:\n"
+                        },
+                        {
+                          "text": "Total Tests: 8\n"
+                        },
+                        {
+                          "text": "Passed: 0\n"
+                        },
+                        {
+                          "text": "Failed: 8\n"
+                        },
+                        {
+                          "text": "Success Rate: 0.0%\n"
+                        },
+                        {
+                          "text": "Detailed Results: {\n  \"motionModels\": {\n    \"passed\": 0,\n    \"failed\": 2,\n    \"tests\": [\n      {\n        \"name\": \"Audio2Gesture\",\n        \"status\": \"failed\",\n        \"reason\": \"Ready to test motion models\"\n      },\n      {\n        \"name\": \"RSMT\",\n        \"status\": \"failed\",\n        \"reason\": \"Ready to test motion models\"\n      }\n    ]\n  },\n  \"animationComponents\": {\n    \"passed\": 0,\n    \"failed\": 2,\n    \"tests\": [\n      {\n        \"name\": \"Timeline Integration\",\n        \"status\": \"failed\",\n        \"reason\": \"Ready to test animation components\"\n      },\n      {\n        \"name\": \"BVH Processing\",\n        \"status\": \"failed\",\n        \"reason\": \"Ready to test animation components\"\n      }\n    ]\n  },\n  \"conversationSystem\": {\n    \"passed\": 0,\n    \"failed\": 1,\n    \"tests\": [\n      {\n        \"name\": \"VRM Conversation\",\n        \"status\": \"failed\",\n        \"reason\": \"Ready to test conversation system\"\n      }\n    ]\n  },\n  \"pathfindingSystem\": {\n    \"passed\": 0,\n    \"failed\": 1,\n    \"tests\": [\n      {\n        \"name\": \"BVH Pathfinding\",\n        \"status\": \"failed\",\n        \"reason\": \"Ready to test pathfinding\"\n      }\n    ]\n  },\n  \"testingFramework\": {\n    \"passed\": 0,\n    \"failed\": 0,\n    \"tests\": []\n  },\n  \"utilities\": {\n    \"passed\": 0,\n    \"failed\": 0,\n    \"tests\": []\n  },\n  \"globalActions\": {\n    \"passed\": 0,\n    \"failed\": 2,\n    \"tests\": [\n      {\n        \"name\": \"Import System\",\n        \"status\": \"failed\",\n        \"reason\": \"Ready for global testing\"\n      },\n      {\n        \"name\": \"Reorganization Validation\",\n        \"status\": \"failed\",\n        \"reason\": \"Ready for global testing\"\n      }\n    ]\n  }\n}\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-07T00:00:35.551Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/home/barberb/motion/dev/test-results/reorganized-components-tes-50bf2-and-component-accessibility-chromium-webgpu/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/home/barberb/motion/dev/test-results/reorganized-components-tes-50bf2-and-component-accessibility-chromium-webgpu/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/home/barberb/motion/dev/test-results/reorganized-components-tes-50bf2-and-component-accessibility-chromium-webgpu/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/home/barberb/motion/dev/web_viewer/tests/e2e/playwright/reorganized-components-test.spec.js",
+                        "column": 25,
+                        "line": 156
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "a95b4e401bd5e2a3468d-4eaf54c2c800f4ada45b",
+              "file": "reorganized-components-test.spec.js",
+              "line": 5,
+              "column": 3
+            },
+            {
+              "title": "should verify file organization and accessibility",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 180000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-webgpu",
+                  "projectName": "chromium-webgpu",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 2834,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "📁 Testing File Organization...\n"
+                        },
+                        {
+                          "text": "File Organization Results: {\n  srcStructureExists: \u001b[33mtrue\u001b[39m,\n  motionModelsAccessible: \u001b[33mfalse\u001b[39m,\n  animationComponentsAccessible: \u001b[33mfalse\u001b[39m,\n  testingFrameworkAccessible: \u001b[33mfalse\u001b[39m,\n  utilitiesAccessible: \u001b[33mfalse\u001b[39m\n}\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-07T00:00:35.537Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a95b4e401bd5e2a3468d-8d5aec30b77f8e36410f",
+              "file": "reorganized-components-test.spec.js",
+              "line": 170,
+              "column": 3
+            },
+            {
+              "title": "should test individual component loading",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 180000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium-webgpu",
+                  "projectName": "chromium-webgpu",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 13414,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🔍 Testing Individual Component Loading...\n"
+                        },
+                        {
+                          "text": "Testing Audio2Gesture...\n"
+                        },
+                        {
+                          "text": "Audio2Gesture status: Ready to test motion models\n"
+                        },
+                        {
+                          "text": "Testing RSMT...\n"
+                        },
+                        {
+                          "text": "RSMT status: Ready to test motion models\n"
+                        },
+                        {
+                          "text": "Testing Timeline Integration...\n"
+                        },
+                        {
+                          "text": "Timeline Integration status: Ready to test animation components\n"
+                        },
+                        {
+                          "text": "Testing VRM Conversation...\n"
+                        },
+                        {
+                          "text": "VRM Conversation status: Ready to test conversation system\n"
+                        },
+                        {
+                          "text": "Testing BVH Pathfinding...\n"
+                        },
+                        {
+                          "text": "BVH Pathfinding status: Ready to test pathfinding\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-07T00:00:35.566Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a95b4e401bd5e2a3468d-1ece1527ca558603977e",
+              "file": "reorganized-components-test.spec.js",
+              "line": 203,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-08-07T00:00:34.141Z",
+    "duration": 22991.166,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

@@ -2,13 +2,13 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   timeout: 300000, // 5 minutes
-  testDir: './',
+  testDir: './dev/web_viewer/tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
-    ['html'],
+    ['html', { outputFolder: 'test-results/html-report' }],
     ['json', { outputFile: 'test-results/results.json' }],
     ['line'],
   ],
@@ -22,6 +22,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testDir: './dev/web_viewer/tests/integration/e2e',
       use: { 
         browserName: 'chromium',
         // Enable performance APIs for FLOPS measurement
@@ -41,6 +42,7 @@ export default defineConfig({
     },
     {
       name: 'chromium-webgpu',
+      testDir: './dev/web_viewer/tests/integration/e2e',
       use: { 
         browserName: 'chromium',
         // Enhanced WebGPU and GPU acceleration for full compatibility testing
@@ -65,11 +67,29 @@ export default defineConfig({
       },
     },
     {
+      name: 'component-tests',
+      testDir: './dev/web_viewer/tests/unit',
+      use: { 
+        browserName: 'chromium',
+        // Optimized for individual component testing
+        launchOptions: {
+          args: [
+            '--enable-precise-memory-info',
+            '--enable-features=WebGPU,SharedArrayBuffer',
+            '--enable-webgl',
+            '--disable-web-security'
+          ]
+        }
+      },
+    },
+    {
       name: 'firefox',
+      testDir: './dev/web_viewer/tests/integration/e2e',
       use: { browserName: 'firefox' },
     },
     {
       name: 'webkit',
+      testDir: './dev/web_viewer/tests/integration/e2e',
       use: { browserName: 'webkit' },
     },
   ],
