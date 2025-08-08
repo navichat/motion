@@ -83,6 +83,21 @@ export default defineConfig({
       },
     },
     {
+      name: 'legacy-root',
+      testDir: './dev/web_viewer/tests/legacy-root-tests',
+      use: {
+        browserName: 'chromium',
+        launchOptions: {
+          args: [
+            '--enable-precise-memory-info',
+            '--enable-features=WebGPU,SharedArrayBuffer',
+            '--enable-webgl',
+            '--disable-web-security'
+          ]
+        }
+      }
+    },
+    {
       name: 'firefox',
       testDir: './dev/web_viewer/tests/integration/e2e',
       use: { browserName: 'firefox' },
