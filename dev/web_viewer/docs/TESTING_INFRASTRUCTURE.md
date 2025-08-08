@@ -1,5 +1,9 @@
 # Testing Infrastructure Documentation
 
+Note: For current test locations and run instructions, prefer:
+- docs/STRUCTURE.md (authoritative layout)
+- docs/readmes/testing-guide.md (run commands and patterns)
+
 ## Overview
 
 The testing infrastructure provides comprehensive validation for the WebNN/WebGPU/WASM powered avatar system. This multi-layered testing approach ensures component reliability, system integration, and performance validation across different compute backends and use cases.
@@ -9,7 +13,7 @@ The testing infrastructure provides comprehensive validation for the WebNN/WebGP
 ### Test Hierarchy
 
 ```
-tests/
+src/testing/
 ├── unit/                     # Component isolation tests
 │   ├── ai/                   # AI model component tests
 │   ├── avatar/               # Avatar system component tests
@@ -20,10 +24,10 @@ tests/
 ├── integration/              # Cross-component integration tests
 │   ├── e2e/                  # End-to-end workflow tests
 │   └── master-test-suite.spec.js  # Comprehensive system validation
-└── manual/                   # Interactive testing interfaces
-    ├── test_conversation.html # Manual conversation testing
-    ├── test_script.html      # Basic functionality testing
-    └── three_test_simple.html # 3D rendering validation
+├── performance/              # Benchmarks and performance tests
+├── demos/                    # Demo apps used by tests
+├── legacy/                   # Legacy test suites (kept for reference)
+└── legacy-root-tests/        # Migrated root-level tests (Playwright project: legacy-root)
 ```
 
 ### Testing Frameworks
@@ -277,45 +281,45 @@ test('should validate all test files exist and are accessible', async ({ page })
 #### Unit Tests
 ```bash
 # Run all unit tests
-npx playwright test tests/unit/
+npx playwright test dev/web_viewer/src/testing/unit/
 
 # Run specific component tests
-npx playwright test tests/unit/ai/
-npx playwright test tests/unit/avatar/
-npx playwright test tests/unit/audio/
-npx playwright test tests/unit/compute/
-npx playwright test tests/unit/motion/
-npx playwright test tests/unit/system/
+npx playwright test dev/web_viewer/src/testing/unit/ai/
+npx playwright test dev/web_viewer/src/testing/unit/avatar/
+npx playwright test dev/web_viewer/src/testing/unit/audio/
+npx playwright test dev/web_viewer/src/testing/unit/compute/
+npx playwright test dev/web_viewer/src/testing/unit/motion/
+npx playwright test dev/web_viewer/src/testing/unit/system/
 
 # Run with verbose output
-npx playwright test tests/unit/ --reporter=list
+npx playwright test dev/web_viewer/src/testing/unit/ --reporter=list
 ```
 
 #### Integration Tests
 ```bash
 # Run all integration tests
-npx playwright test tests/integration/
+npx playwright test dev/web_viewer/src/testing/integration/
 
 # Run E2E tests
-npx playwright test tests/integration/e2e/
+npx playwright test dev/web_viewer/src/testing/integration/e2e/
 
 # Run master test suite
-npx playwright test tests/integration/master-test-suite.spec.js
+npx playwright test dev/web_viewer/src/testing/integration/master-test-suite.spec.js
 
 # Run with debugging
-npx playwright test tests/integration/ --debug
+npx playwright test dev/web_viewer/src/testing/integration/ --debug
 ```
 
 #### Manual Tests
 ```bash
-# Start development server
-cd /home/barberb/motion/dev/web_viewer
-python3 -m http.server 8081
+# Start development server (Playwright config also auto-starts)
+cd dev/web_viewer
+python3 src/utils/serve_with_headers.py  # or: python3 -m http.server 8081
 
 # Access manual tests
-# http://localhost:8081/tests/manual/test_conversation.html
-# http://localhost:8081/tests/manual/test_script.html
-# http://localhost:8081/tests/manual/three_test_simple.html
+# http://localhost:8081/src/testing/manual/test_conversation.html
+# http://localhost:8081/src/testing/manual/test_script.html
+# http://localhost:8081/src/testing/manual/three_test_simple.html
 ```
 
 ### Continuous Integration
@@ -425,40 +429,21 @@ test('should not leak memory during extended operation', async ({ page }) => {
 
 ### Playwright Configuration
 ```javascript
-// playwright.config.js
-export default {
-  testDir: './tests',
-  timeout: 300000, // 5 minutes for AI model tests
-  expect: {
-    timeout: 30000
-  },
-  use: {
-    baseURL: 'http://localhost:8081',
-    headless: false, // Set to true for CI
-    viewport: { width: 1280, height: 720 },
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure'
-  },
+// playwright.config.js (excerpt)
+export default defineConfig({
+  testDir: './dev/web_viewer/tests',
   projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] }
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] }
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] }
-    }
+    { name: 'chromium', testDir: './dev/web_viewer/tests/integration/e2e' },
+    { name: 'chromium-webgpu', testDir: './dev/web_viewer/tests/integration/e2e' },
+    { name: 'component-tests', testDir: './dev/web_viewer/tests/unit' },
+    { name: 'legacy-root', testDir: './dev/web_viewer/tests/legacy-root-tests' },
   ],
   webServer: {
-    command: 'python3 -m http.server 8081',
-    port: 8081,
-    cwd: '/home/barberb/motion/dev/web_viewer'
-  }
-};
+    command: 'python3 dev/web_viewer/serve_with_headers.py',
+    port: 8080,
+    reuseExistingServer: true,
+  },
+});
 ```
 
 ### Test Environment Setup

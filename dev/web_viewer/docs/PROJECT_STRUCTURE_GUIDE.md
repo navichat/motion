@@ -1,5 +1,7 @@
 # Project Structure and Component Guide
 
+Note: This document predates the latest reorganization. For the authoritative, up-to-date structure, see docs/STRUCTURE.md. This file is kept for historical reference.
+
 ## Overview
 
 This document provides a comprehensive guide to the reorganized WebNN/WebGPU/WASM powered avatar system structure. The project has been systematically organized to enable component-based development, testing, and integration.
@@ -46,32 +48,29 @@ src/ai/
 - **Motion Generation**: RSMT, DeepMimic, Audio2Gesture, FaceFormer
 - **Vector Search**: CloseVector, HNSW, UnifiedKNN for semantic matching
 
-#### Avatar System (`src/avatar/`)
-**Purpose**: Character representation, animation, and motion processing.
+#### Components (`src/components/`)
+**Purpose**: UI-free building blocks for animation, avatar control, and navigation.
 
 ```
-src/avatar/
-├── vrm/                       # VRM character system
-│   ├── VRMLoader.js          # VRM file loading and parsing
-│   ├── VRMValidator.js       # VRM format validation
-│   └── VRMAnimator.js        # VRM-specific animation features
-├── animation/                 # Animation management
-│   ├── AnimationBlender.js   # Multi-animation blending
-│   ├── AnimationController.js # High-level animation control
-│   ├── TimelineManager.js    # Animation timing and synchronization
-│   └── ExpressionController.js # Facial expression management
-└── motion/                   # Motion processing
-    ├── BVHProcessor.js       # BVH motion capture parsing
-    ├── MotionAnalyzer.js     # Motion pattern analysis
-    ├── MotionRetargeter.js   # Cross-character motion adaptation
-    └── RSMTProcessor.js      # Motion transition processing
+src/components/
+├── animation/
+│   ├── AnimationBlender.js     # Multi-animation blending
+│   ├── AnimationSync.js        # Timeline/frame sync helpers
+│   ├── timeline/               # Animation timeline system
+│   │   └── BVHTimeline.js
+│   └── vrm/                    # VRM avatar system (25+ files)
+│       ├── VRMBVHAdapter.js    # Core VRM + BVH integration
+│       ├── conversation/       # Conversation/UX helpers for VRM
+│       └── diagnostics/        # Debug and validation utilities
+├── conversation/               # Conversation UI/logic helpers
+└── pathfinding/                # Navigation/path utilities
 ```
 
 **Capabilities:**
-- **VRM Support**: Full VRM 0.x/1.0 specification support with humanoid bone mapping
-- **Motion Capture**: BVH parsing, analysis, and real-time processing
-- **Animation Blending**: Smooth transitions between multiple animation layers
-- **Expression Control**: Facial morph targets and emotion expression
+- **VRM Support**: Humanoid bone mapping and VRM integration
+- **Motion Capture**: BVH parsing and timeline-driven playback
+- **Animation Blending**: Smooth transitions and layered control
+- **Diagnostics**: Built-in validation and debug utilities
 
 #### Audio Processing (`src/audio/`)
 **Purpose**: Speech synthesis, recognition, and audio manipulation.
