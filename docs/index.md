@@ -1,49 +1,110 @@
 # Motion Workspace Documentation Index
 
-Welcome to the comprehensive documentation for the Motion workspace - a collection of integrated projects for motion capture processing, character animation, and AI-driven movement synthesis.
+**✅ REORGANIZATION COMPLETE**: The `dev/web_viewer` directory has been completely reorganized for systematic component testing (August 2025).
 
-## 📁 Documentation Structure
+Welcome to the comprehensive documentation for the Motion workspace - featuring a reorganized avatar AI system with individual component testing capabilities.
 
-### Main Documentation
-- **[README.md](./README.md)** - Complete workspace overview and project summaries
-- **[Installation Guide](./installation.md)** - Step-by-step setup instructions for all components
-- **[Usage Examples](./usage_examples.md)** - Practical examples and integration workflows
+## 📁 Updated Documentation Structure
 
-### Project-Specific Documentation
+### Main Documentation (Recently Updated)
+- **[README.md](./README.md)** - Complete workspace overview with reorganized dev/web_viewer structure
+- **[Installation Guide](./installation.md)** - Setup instructions for all components
+- **[Usage Examples](./usage_examples.md)** - Practical examples using new organized structure
+
+### Avatar AI System (dev/web_viewer) - REORGANIZED
+- **[Avatar AI System Docs](../dev/web_viewer/docs/README.md)** - Complete reorganized system documentation
+- **[Component Testing Guide](../dev/web_viewer/docs/COMPONENT_TESTING_GUIDE.md)** - 🆕 Individual component testing workflow
+- **[Complete Cleanup Summary](../dev/web_viewer/COMPLETE_CLEANUP_SUMMARY.md)** - Details of reorganization process
+
+### Organized Component Documentation
+
+#### Motion Models (NEW Organized Structure)
+- **[Audio2Gesture](../dev/web_viewer/src/models/motion/audio2gesture/)** - Neural audio to gesture conversion (40+ files)
+- **[RSMT](../dev/web_viewer/src/models/motion/rsmt/)** - Realtime stylized motion transition (20+ files)
+- **[DeepMimic](../dev/web_viewer/src/models/motion/deepmimic/)** - Humanoid animation models (50+ files)
+- **[FaceFormer](../dev/web_viewer/src/models/motion/faceformer/)** - Facial animation from audio (80+ files)
+
+#### VRM Avatar System (Organized)
+- **[VRM Components](../dev/web_viewer/src/components/animation/vrm/)** - 25-file VRM avatar system
+- **[Timeline System](../dev/web_viewer/src/components/animation/timeline/)** - Animation timeline (6 files)
+
+#### Testing Infrastructure (Consolidated)
+- **[E2E Tests](../dev/web_viewer/src/testing/e2e/)** - End-to-end Playwright tests
+- **[Unit Tests](../dev/web_viewer/src/testing/unit/)** - Component unit tests
+- **[Integration Tests](../dev/web_viewer/src/testing/integration/)** - Multi-component tests
+- **[Performance Tests](../dev/web_viewer/src/testing/performance/)** - Performance benchmarks
+
+### Legacy Project Documentation
 - **[BvhToDeepMimic](./BvhToDeepMimic.md)** - BVH motion capture to DeepMimic conversion
 - **[PyTorch DeepMimic](./pytorch_DeepMimic.md)** - Reinforcement learning for motion imitation
 - **[RSMT](./RSMT.md)** - Real-time stylized motion transitions
 - **[Chat Interface](./chat_interface.md)** - Web-based character animation platform
 
-## 🚀 Quick Navigation
+## 🚀 Quick Navigation (Updated for Reorganized Structure)
 
-### For New Users
+### For Individual Component Testing (NEW)
+1. **[Component Testing Guide](../dev/web_viewer/docs/COMPONENT_TESTING_GUIDE.md)** - Complete testing workflow for reorganized components
+2. **[Motion Models Testing](../dev/web_viewer/src/models/motion/)** - Test each motion model separately
+3. **[VRM Components Testing](../dev/web_viewer/src/components/animation/vrm/)** - Individual VRM component testing
+
+### For System Integration
+1. **[Avatar AI System Overview](../dev/web_viewer/docs/README.md)** - Complete reorganized system documentation
+2. **[Integration Tests](../dev/web_viewer/src/testing/integration/)** - Multi-component testing
+3. **[Performance Benchmarks](../dev/web_viewer/src/testing/performance/)** - System performance validation
+
+### For Legacy Projects
 1. Start with the [Main README](./README.md) for an overview
 2. Follow the [Installation Guide](./installation.md) to set up your environment
 3. Try the [Basic Usage Examples](./usage_examples.md#basic-workflows)
 
-### For Developers
-1. Review [Project-Specific Documentation](#project-specific-documentation) for detailed APIs
-2. Explore [Advanced Integration Examples](./usage_examples.md#advanced-integration-examples)
-3. Check [Troubleshooting Guides](./usage_examples.md#troubleshooting-common-issues)
+### For Developers (Updated Workflow)
+1. **Organized Development** → Navigate to [src/](../dev/web_viewer/src/) for systematic component access
+2. **Individual Testing** → Use [Component Testing Guide](../dev/web_viewer/docs/COMPONENT_TESTING_GUIDE.md)
+3. **Integration** → Follow [Integration Testing](../dev/web_viewer/src/testing/integration/) procedures
 
-### For Researchers
-1. Read the [Technical Architecture](./README.md#detailed-project-documentation) sections
-2. Study [Training Pipelines](./usage_examples.md#training-custom-motion-models)
-3. Review [Performance Optimization](./chat_interface.md#performance-optimization) techniques
+## 🔧 Project Overview (Updated)
 
-## 🔧 Project Overview
+| Project | Purpose | Technology Stack | Status | Location |
+|---------|---------|------------------|--------|----------|
+| **Avatar AI System** | WebNN/WebGPU/WASM avatars | Organized components | ✅ Reorganized | `dev/web_viewer/src/` |
+| **Motion Models** | Individual motion AI | Neural networks | ✅ Organized | `src/models/motion/` |
+| **VRM System** | Avatar components | 25-file system | ✅ Organized | `src/components/animation/` |
+| **Testing Suite** | Comprehensive testing | Playwright, unit tests | ✅ Consolidated | `src/testing/` |
+| **BvhToDeepMimic** | Motion capture conversion | Python, NumPy | ✅ Stable | `BvhToDeepMimic/` |
+| **pytorch_DeepMimic** | RL-based motion learning | PyTorch, PyBullet | ✅ Stable | `pytorch_DeepMimic/` |
+| **RSMT** | Real-time motion synthesis | PyTorch, PyTorch3D | 🚧 Active | `RSMT-*/` |
+| **Chat Interface** | Web animation platform | Node.js, WebGL | 🚧 Active | `chat/` |
 
-| Project | Purpose | Technology Stack | Status |
-|---------|---------|------------------|--------|
-| **BvhToDeepMimic** | Motion capture conversion | Python, NumPy, PyQuaternion | ✅ Stable |
-| **pytorch_DeepMimic** | RL-based motion learning | PyTorch, PyBullet, MPI | ✅ Stable |
-| **RSMT** | Real-time motion synthesis | PyTorch, PyTorch3D | 🚧 Active Development |
-| **Chat Interface** | Web animation platform | Node.js, WebGL, MySQL | 🚧 Active Development |
+## 📋 Common Tasks (Updated for Reorganized Structure)
 
-## 📋 Common Tasks
+### Individual Component Testing (NEW)
+```bash
+# Test individual motion models
+cd dev/web_viewer/src/models/motion/audio2gesture/
+open test_webgpu_webnn.js
 
-### Motion Processing Pipeline
+cd ../rsmt/
+open test-complete-pipeline.js
+
+cd ../deepmimic/
+open validation_demo.html
+
+cd ../faceformer/
+open full_faceformer_demo.html
+
+# Test VRM avatar components
+cd ../../components/animation/vrm/
+# Browse 25 individual VRM files
+
+# Run organized test suites
+cd ../../testing/
+npx playwright test e2e/
+npx playwright test unit/
+npx playwright test integration/
+npx playwright test performance/
+```
+
+### Full Motion Processing Pipeline
 ```bash
 # 1. Convert BVH to DeepMimic format
 cd BvhToDeepMimic && python example_script.py
@@ -52,12 +113,13 @@ cd BvhToDeepMimic && python example_script.py
 cd ../pytorch_DeepMimic/deepmimic
 python DeepMimic_Optimizer.py --arg_file train_humanoid3d_walk_args.txt
 
-# 3. Generate style transitions
-cd ../../RSMT-Realtime-Stylized-Motion-Transition
-python process_dataset.py --preprocess
+# 3. Test with organized avatar system
+cd ../../dev/web_viewer/
+python3 src/utils/serve_with_headers.py
+# Test individual components or full integration
 
 # 4. Deploy in chat interface
-cd ../chat/webapp && npm run build
+cd ../../chat/webapp && npm run build
 cd ../server && node server.js
 ```
 
@@ -171,10 +233,10 @@ This documentation is actively maintained. Key update areas:
 4. **Community** → Join community discussions for support
 5. **Contribute** → Help improve documentation and code
 
-**Last Updated:** June 28, 2025  
-**Documentation Version:** 1.0  
-**Workspace Status:** Active Development
+**Last Updated:** August 7, 2025  
+**Documentation Version:** 2.0 (Reorganization Complete)  
+**Workspace Status:** Avatar AI System Reorganized ✅ | Legacy Projects Active Development
 
 ---
 
-*This documentation covers the complete Motion workspace ecosystem. For the most up-to-date information, check the individual project repositories and their specific documentation.*
+*This documentation reflects the complete reorganization of the dev/web_viewer avatar AI system. All components are now systematically organized for individual testing and development. For the most up-to-date information, check the organized component directories in [src/](../dev/web_viewer/src/).*

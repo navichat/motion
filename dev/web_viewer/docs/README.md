@@ -1,10 +1,34 @@
-# RSMT Motion Visualization & Avatar AI System
+# WebNN/WebGPU/WASM Avatar System
 
-This directory contains web-based visualization tools for the RSMT (Real-time Stylized Motion Transition) project using the 100STYLE dataset, plus a comprehensive Avatar AI inference system supporting 13 different AI models.
+This directory contains a comprehensive web-based avatar system supporting WebNN, WebGPU, and WASM technologies. The codebase has been completely reorganized for systematic testing and development of individual components.
+
+## 🗂️ Organized Project Structure
+
+**RECENTLY REORGANIZED**: All files have been systematically organized into a clean component-based structure:
+
+```
+src/
+├── models/motion/              # Motion model implementations
+│   ├── audio2gesture/          # Audio to gesture conversion
+│   ├── rsmt/                   # Realtime stylized motion transition  
+│   ├── deepmimic/              # DeepMimic humanoid animations
+│   └── faceformer/             # Facial animation from audio
+├── components/animation/       # Animation components
+│   ├── vrm/                    # VRM avatar system (25 files)
+│   └── timeline/               # Animation timeline system
+├── testing/                    # All test files consolidated
+│   ├── demos/                  # Demo applications
+│   ├── e2e/                    # End-to-end tests
+│   ├── unit/                   # Unit tests
+│   └── integration/            # Integration tests
+└── utils/                      # Utilities and tools
+    ├── kokoro.js/              # Audio processing
+    └── workers/                # Web workers
+```
 
 ## 🤖 Avatar AI Inference System
 
-**NEW**: Complete AI inference collection system for avatar applications with multi-modal AI processing:
+Complete AI inference collection system for avatar applications with multi-modal AI processing:
 
 ### 13 Supported AI Models:
 - **Language Models**: TinyLlama, DiabloGPT for conversation and personality
@@ -13,6 +37,8 @@ This directory contains web-based visualization tools for the RSMT (Real-time St
 - **Compute Models**: WASMMatrix, WASMPrime, WASMFractal for physics and visual effects
 
 ### Key Features:
+- **Individual Component Testing**: Each motion model can be tested separately
+- **Systematic Organization**: Clean separation between models, components, and testing
 - **Comprehensive Testing**: Automated Playwright tests with 4-5 minute collection cycles
 - **Multi-format Export**: Export to BVH, WAV, JSON, CSV, PNG, TXT formats (132+ files per test)
 - **Production Ready**: Real-time inference with export to avatar-compatible file formats
@@ -22,17 +48,57 @@ This directory contains web-based visualization tools for the RSMT (Real-time St
 
 ### Quick Start Avatar AI:
 ```bash
+# Navigate to the organized structure
+cd dev/web_viewer
+
 # Start development server
 python3 -m http.server 8000
 
 # Run comprehensive AI inference collection
-npx playwright test e2e-workload-test.spec.js --headed
+npx playwright test src/testing/e2e/e2e-workload-test.spec.js --headed
 
 # Run data export test (creates 132+ files in avatar-data-exports/)
-npx playwright test e2e-avatar-data-export.spec.js --headed
+npx playwright test src/testing/e2e/e2e-avatar-data-export.spec.js --headed
 
 # View live demo
-open http://localhost:8000/task-manager-demo.html
+open http://localhost:8000/index.html
+```
+
+## 🎯 Individual Component Testing
+
+**NEW CAPABILITY**: With the reorganized structure, you can now test each component individually:
+
+### Test Motion Models Separately:
+```bash
+# Test Audio2Gesture model
+open src/models/motion/audio2gesture/
+
+# Test RSMT transitions  
+open src/models/motion/rsmt/
+
+# Test DeepMimic animations
+open src/models/motion/deepmimic/
+
+# Test FaceFormer facial animation
+open src/models/motion/faceformer/
+```
+
+### Test VRM Avatar Components:
+```bash
+# Test VRM avatar system (25 files)
+open src/components/animation/vrm/
+
+# Test timeline system
+open src/components/animation/timeline/
+```
+
+### Run Organized Test Suites:
+```bash
+# Run specific test categories
+npx playwright test src/testing/unit/
+npx playwright test src/testing/integration/
+npx playwright test src/testing/performance/
+npx playwright test src/testing/demos/
 ```
 
 ## ⚠️ Important Note About Transitions
@@ -139,39 +205,82 @@ function createTransitionFrames(fromBvh, toBvh) {
 ## Files Structure
 
 ```
-web_viewer/
-├── rsmt_showcase.html          # Main demonstration viewer
-├── motion_viewer.html          # Original working viewer  
-├── index.html                  # Landing page
-├── skeleton_test.html          # Skeleton validation tool
-├── README.md                   # This documentation
-├── RSMT_TRANSITION_EXPLANATION.md  # Technical explanation
-├── three.min.js                # Three.js library
-├── *_reference.bvh            # 100STYLE animation files
-└── archive/                    # Previous iterations
+dev/web_viewer/
+├── src/                           # 🗂️ ORGANIZED SOURCE CODE
+│   ├── models/motion/             # Motion model implementations
+│   │   ├── audio2gesture/         # Neural audio to gesture conversion
+│   │   │   ├── Audio2GestureBVHConverter.js
+│   │   │   ├── audio2gesture_step_fixed.onnx
+│   │   │   └── ... (40+ files)
+│   │   ├── rsmt/                  # Realtime stylized motion transition
+│   │   │   ├── RSMTBVHConverter.js
+│   │   │   ├── deepphase.onnx
+│   │   │   ├── stylevae.onnx
+│   │   │   └── ... (20+ files)
+│   │   ├── deepmimic/             # DeepMimic humanoid animations
+│   │   │   ├── DeepMimicBVHConverter.js
+│   │   │   ├── compatible_humanoid3d_*.onnx
+│   │   │   └── ... (50+ files)
+│   │   └── faceformer/            # Facial animation from audio
+│   │       ├── FaceFormerBVHConverter.js
+│   │       ├── faceformer_core_step.onnx
+│   │       └── ... (80+ files)
+│   ├── components/animation/      # Animation components
+│   │   ├── vrm/                   # VRM avatar system
+│   │   │   ├── VRMBVHAdapter.js   # Core VRM integration
+│   │   │   ├── conversation/      # Conversation interfaces
+│   │   │   ├── diagnostics/       # Debug and validation
+│   │   │   └── ... (25 files total)
+│   │   └── timeline/              # Animation timeline system
+│   │       ├── BVHTimeline.js
+│   │       └── ... (6 files)
+│   ├── testing/                   # 🧪 ALL TESTS CONSOLIDATED
+│   │   ├── demos/                 # Demo applications
+│   │   ├── e2e/                   # End-to-end Playwright tests
+│   │   ├── unit/                  # Component unit tests
+│   │   ├── integration/           # Integration tests
+│   │   ├── performance/           # Performance benchmarks
+│   │   └── legacy/                # Legacy test files
+│   └── utils/                     # 🔧 UTILITIES & TOOLS
+│       ├── kokoro.js/             # Audio processing utilities
+│       ├── workers/               # Web workers
+│       ├── debug/                 # Debug scripts
+│       └── serve_with_headers.py  # Development server
+├── assets/                        # Static assets
+├── config/                        # Configuration files  
+├── docs/                          # Documentation
+├── index.html                     # Main entry point
+└── README.md                      # This documentation
 ```
 
 ## Development Notes
 
-### Recent Improvements
-- ✅ Fixed BVH parsing with comprehensive error handling
-- ✅ Implemented preloading system for smooth transitions
-- ✅ Added proper skeleton scaling and joint positioning
-- ✅ Enhanced UI with progress indicators and error messages
-- ✅ Added clear disclaimers about transition accuracy
+### ✅ Recently Completed Reorganization
+- **Complete File Organization**: All scattered files moved to systematic structure
+- **Individual Component Testing**: Each motion model now testable separately  
+- **Consolidated Testing**: All test types organized in `src/testing/`
+- **Clean Module Boundaries**: Clear separation between models, components, and utilities
+- **No Stray Files**: All files properly organized with clear locations
 
-### Known Limitations
-- ⚠️ "Transitions" are basic interpolation, not neural network generated
-- ⚠️ No phase information or style encoding
-- ⚠️ Missing physics constraints
-- ⚠️ Different skeleton structure than original RSMT training data
+### Technical Capabilities
+- **WebNN Support**: Neural network inference acceleration
+- **WebGPU Integration**: GPU-accelerated processing for real-time performance
+- **WASM Optimization**: WebAssembly modules for compute-intensive operations
+- **VRM Avatar System**: Complete 25-file VRM integration with conversation interfaces
+- **Multi-Modal AI**: 13 different AI models working together
 
-### Future Improvements
-- [ ] Integrate actual RSMT neural network models
-- [ ] Add physics-based constraints for realistic motion
-- [ ] Implement proper phase-aware transitions
-- [ ] Add WebGL-based GPU acceleration for inference
-- [ ] Create educational mode explaining RSMT components
+### Current Development Focus
+- ✅ Systematic component organization complete
+- ✅ Individual testing capability achieved
+- 🔄 Playwright test suite integration ongoing
+- 🔄 ES6 module conversion for full compatibility
+- 📋 Performance optimization for WebNN/WebGPU pipeline
+
+### Next Development Steps
+1. **Component Integration Testing**: Validate that all moved components work together
+2. **Performance Benchmarking**: Test individual vs. integrated performance
+3. **WebNN/WebGPU Optimization**: Optimize neural network execution
+4. **Documentation Updates**: Update all component-specific documentation
 
 ## Citation
 
