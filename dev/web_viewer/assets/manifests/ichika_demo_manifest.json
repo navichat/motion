@@ -1,0 +1,5 @@
+[
+  { "name": "idle",  "url": "/dev/web_viewer/assets/bvh/minimal_idle.bvh", "meta": { "track": "base", "duration": 2.0, "fadeInMs": 150 } },
+  { "name": "wave",  "url": "/dev/web_viewer/assets/animations/WhirlArms/WhirlArms_ID.bvh", "meta": { "track": "override", "duration": 1.2, "priority": 5 } },
+  { "name": "point", "url": "/dev/web_viewer/assets/animations/Punch/Punch_ID.bvh",      "meta": { "track": "override", "duration": 1.0, "priority": 5 } }
+]

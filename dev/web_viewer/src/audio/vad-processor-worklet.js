@@ -3,7 +3,7 @@
  * Based on conversational-webgpu example - replaces deprecated ScriptProcessorNode
  */
 
-import { MIN_CHUNK_SIZE } from './constants.js';
+import { MIN_CHUNK_SIZE } from '../utils/constants.js';
 
 let globalPointer = 0;
 let globalBuffer = new Float32Array(MIN_CHUNK_SIZE);

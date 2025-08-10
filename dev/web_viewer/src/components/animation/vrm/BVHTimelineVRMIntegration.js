@@ -143,7 +143,11 @@ class BVHTimelineVRMIntegration {
      */
     convertTimelineFrameToVRM(timelineFrame, time) {
         if (!timelineFrame.motionData || timelineFrame.motionData.length === 0) {
-            return this.getDefaultVRMFrame();
+            return {
+                timestamp: time,
+                bones: {},
+                metadata: timelineFrame.metadata || { type: 'default' }
+            };
         }
         
         // Map timeline bone data to VRM bone structure
@@ -187,6 +191,16 @@ class BVHTimelineVRMIntegration {
             for (const [boneName, boneData] of Object.entries(vrmFrame.bones)) {
                 this.vrmBVHAdapter.updateBone(boneName, boneData.position, boneData.rotation);
             }
+
+            // Also apply facial visemes to blendshapes if available
+            const md = vrmFrame.metadata || {};
+            if (md.faceViseme !== undefined || md.viseme !== undefined) {
+                const vis = md.faceViseme ?? md.viseme;
+                const { name: exprName, weight } = this.mapVisemeToBlendshape(vis);
+                if (exprName && typeof this.vrmBVHAdapter.updateBlendshape === 'function') {
+                    this.vrmBVHAdapter.updateBlendshape(exprName, weight);
+                }
+            }
             
             // Update VRM model
             if (this.vrmBVHAdapter.update) {
@@ -200,6 +214,26 @@ class BVHTimelineVRMIntegration {
             console.error('[BVH Timeline VRM] VRM update error:', error);
             this.stats.droppedFrames++;
         }
+    }
+
+    /**
+     * Translate viseme label/id to VRM expression name and weight [0,1].
+     * Defaults to VRM mouth shapes when available.
+     */
+    mapVisemeToBlendshape(vis) {
+        // Accept numbers (0..N) or common labels
+        const v = (vis ?? '').toString().toLowerCase();
+        const map = {
+            '0': 'aa', 'a': 'aa', 'aa': 'aa',
+            '1': 'ih', 'i': 'ih', 'ih': 'ih', 'ee': 'ih',
+            '2': 'ou', 'u': 'ou', 'ou': 'ou', 'oo': 'ou',
+            '3': 'e', 'e': 'e',
+            '4': 'o', 'o': 'o',
+            'rest': 'neutral'
+        };
+        const name = map[v] || 'neutral';
+        const weight = (name === 'neutral') ? 0.0 : 1.0;
+        return { name, weight };
     }
     
     /**

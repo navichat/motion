@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+  <title>Ichika Classroom Demo</title>
+  <style>body{font-family:sans-serif;padding:16px} button{margin-right:8px}</style>
+</head>
+<body>
+  <h1>Ichika Classroom Demo</h1>
+  <p>Loads a clip manifest, starts idle on base, and lets you trigger a point action.</p>
+  <div>
+    <button id="start">Start Idle</button>
+    <button id="point">Point at Board</button>
+  <button id="wave">Wave</button>
+  <button id="speech">Speak (visemes + gestures)</button>
+    <pre id="log"></pre>
+  </div>
+  <script>
+    // Minimal inline UMD loaders via script injection
+  </script>
+  <script>
+  (async function(){
+    // Fetch sources
+    const sources = [
+      'src/animation/ClipRegistry.js',
+      'src/components/animation/timeline/BVHClipLibrary.js',
+      'src/scene/StageController.js',
+      'src/orchestrator/SpeechGestureScheduler.js',
+      'src/orchestrator/IchikaOrchestrator.js',
+      'src/animation/clip_manifest.sample.json'
+    ];
+    const base = '../';
+    const text = await Promise.all(sources.map(p => fetch(base + p).then(r => r.text())));
+    // Eval modules (UMD)
+  const [clipCode, libCode, stageCode, speechCode, orchCode, manifestText] = text;
+  const append = (code) => { const s=document.createElement('script'); s.textContent=code; document.head.appendChild(s); };
+  append(clipCode); append(libCode); append(stageCode); append(speechCode); append(orchCode);
+    // Attempt to fetch the dedicated Ichika manifest; fall back to sample
+    let manifest;
+    try {
+      const mres = await fetch('../assets/manifests/ichika_demo_manifest.json');
+      if (mres.ok) {
+        manifest = await mres.json();
+      } else {
+        manifest = JSON.parse(manifestText);
+      }
+    } catch {
+      manifest = JSON.parse(manifestText);
+    }
+
+    const log = (m) => { const el=document.getElementById('log'); el.textContent += m + '\n'; };
+    const reg = new (window.ClipRegistry?.ClipRegistry || window.ClipRegistry)();
+    const stage = new (window.StageController?.StageController || window.StageController)(null, { registry: reg });
+    const Orch = window.IchikaOrchestrator; const orch = new Orch({ stageController: stage, clipRegistry: reg });
+
+    // Expose for tests
+    window.__ichikaDemo = { orch, stage, reg };
+
+  document.getElementById('start').onclick = async () => {
+      const count = orch.loadClipManifest(manifest);
+      log('Manifest entries: ' + count);
+      try { log('Loaded entries: ' + (reg.list()?.map(e => e.name).join(', ') || 'none')); } catch {}
+      // Instrument adapter for visibility in tests/demos
+      const origAppend = orch.adapter.appendChunk?.bind(orch.adapter);
+      const origClear = orch.adapter.clearFrom?.bind(orch.adapter);
+      orch.adapter.appendChunk = (track, chunk, opts) => {
+        log('appendChunk: track=' + track + ' dur=' + (chunk?.dt ?? 'n/a') + ' fade=' + (opts?.fadeInMs||0));
+        return origAppend ? origAppend(track, chunk, opts) : undefined;
+      };
+      orch.adapter.clearFrom = (track, t) => {
+        log('clearFrom: track=' + track + ' t=' + (t ?? 'now'));
+        return origClear ? origClear(track, t) : undefined;
+      };
+      // Register a real BVH idle clip and start it
+      try {
+        await reg.addBVH('idle_bvh', '../assets/bvh/minimal_idle.bvh', { track: 'base', priority: 0, fadeInMs: 150, duration: 2.0 });
+      } catch (e) {
+        // Non-fatal in tests if fetch is blocked; fall back to manifest idle
+      }
+      const e = orch.startBaseClip(reg.has('idle_bvh') ? 'idle_bvh' : 'idle');
+      log('Started base clip: ' + (e?.name || 'none'));
+    };
+    document.getElementById('point').onclick = () => {
+      const e = orch.handleIntent('pointAt', { target: 'board' });
+      log('Intent scheduled: ' + (e?.name || 'none'));
+    };
+    document.getElementById('wave').onclick = async () => {
+      // Try to ensure a wave BVH exists, else fallback to manifest 'wave'
+      if (!reg.has('wave_bvh')) {
+        try {
+          await reg.addBVH('wave_bvh', '../assets/animations/100STYLE/BouncyLeft/BouncyLeft_BR.bvh', { track: 'override', priority: 4, fadeInMs: 120, duration: 1.2 });
+        } catch (e) { /* ignore fetch errors in constrained env */ }
+      }
+      const entryName = reg.has('wave_bvh') ? 'wave_bvh' : 'wave';
+      const entry = reg.get(entryName);
+      if (entry) {
+        // Schedule directly rather than via intent map to prefer BVH if present
+        const isClip = entry.data && (entry.data.bvhData || entry.data.generator || entry.data.type);
+        const chunk = isClip ? { t0: 0, dt: entry.meta?.duration || 1.0, frames: [] } : (entry.data || { t0: 0, dt: entry.meta?.duration || 1.0, frames: [] });
+        orch.adapter.appendChunk(entry.meta.track || 'override', chunk, { clip: isClip ? entry.data : undefined, fadeInMs: entry.meta?.fadeInMs || 120, boneMask: entry.meta?.boneMask || [] });
+        log('Wave scheduled: ' + entryName);
+      } else {
+        const e = orch.handleIntent('wave', {});
+        log('Wave (manifest) scheduled: ' + (e?.name || 'none'));
+      }
+    };
+    document.getElementById('speech').onclick = async () => {
+      // Minimal fake TTS payload
+      const tts = {
+        rateHz: 30,
+        visemes: [ { t: 0, id: 'A' }, { t: 0.1, id: 'E' }, { t: 0.2, id: 'O' } ],
+        audioEnergy: [ { t: 0, v: 0.2 }, { t: 0.1, v: 0.6 }, { t: 0.2, v: 0.4 } ]
+      };
+      const ev = orch.scheduleSpeechFromTts(tts, { fadeInMs: 100 });
+      log('Speech scheduled: ' + (ev ? 'ok' : 'none'));
+    };
+  })();
+  </script>
+</body>
+</html>

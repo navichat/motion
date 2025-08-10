@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+  <title>Conversation Smoke</title>
+  <style>body{font-family:sans-serif;padding:16px} #log{white-space:pre;}</style>
+</head>
+<body>
+  <h1>Conversation Smoke</h1>
+  <p>Simulates a talk loop: idle → speak (visemes+gestures) → action, feeding BVHTimeline and VRM.</p>
+  <pre id="log"></pre>
+  <script>
+    (async function(){
+      const logEl = document.getElementById('log');
+      const log = (m) => { logEl.textContent += m + "\n"; };
+      try {
+        const [tlCode, adCode, vrmCode] = await Promise.all([
+          fetch('/src/components/animation/timeline/BVHTimeline.js').then(r => r.text()),
+          fetch('/src/components/animation/timeline/TimelineChunkAdapter.js').then(r => r.text()),
+          fetch('/src/components/animation/vrm/BVHTimelineVRMIntegration.js').then(r => r.text()),
+        ]);
+
+        const tlMod = { exports: {} }, adMod = { exports: {} }, vrmMod = { exports: {} };
+        const BVHTimelineCtor = (new Function('window','module','exports', tlCode + '; return (module.exports && module.exports.BVHTimeline) || window.BVHTimeline;'))(window, tlMod, tlMod.exports);
+        const AdapterCtor = (new Function('window','module','exports', adCode + '; return (module.exports && module.exports.TimelineChunkAdapter) || (window.TimelineChunkAdapter && window.TimelineChunkAdapter.TimelineChunkAdapter) || window.TimelineChunkAdapter;'))(window, adMod, adMod.exports);
+        const VRMIntegrationCtor = (new Function('window','module','exports', vrmCode + '; return module.exports || window.BVHTimelineVRMIntegration;'))(window, vrmMod, vrmMod.exports);
+
+        const BVHTimeline = typeof BVHTimelineCtor === 'function' ? BVHTimelineCtor : ((window.BVHTimeline && window.BVHTimeline.BVHTimeline) || window.BVHTimeline);
+        const Adapter = typeof AdapterCtor === 'function' ? AdapterCtor : ((window.TimelineChunkAdapter && window.TimelineChunkAdapter.TimelineChunkAdapter) || window.TimelineChunkAdapter);
+        const VRMIntegration = VRMIntegrationCtor || (window.BVHTimelineVRMIntegration && window.BVHTimelineVRMIntegration.BVHTimelineVRMIntegration) || window.BVHTimelineVRMIntegration;
+
+        const timeline = new BVHTimeline({ framerate: 30 });
+        const adapter = new Adapter(timeline);
+        const boneCalls = [], blendCalls = [];
+        const binder = {
+          updateBone: (n,p,r) => boneCalls.push({n,p,r}),
+          updateBlendshape: (n,w) => blendCalls.push({n,w}),
+          update: () => {}
+        };
+        const vrmInt = new VRMIntegration(binder, { smoothing: false, framerate: 30 });
+        vrmInt.connectTimeline(timeline);
+
+        // Flags
+        let sawViseme = false; let sawEnergy = false; let sawAction = false;
+
+        // Helpers
+        const visCycle = ['A','E','O','rest'];
+        const makeFrame = (i, total, { headYawDeg = 0, viseme = null, energy = null, action = null } = {}) => {
+          const t = i/30;
+          const md = new Array(24);
+          md[5] = [0,0,0, 0, headYawDeg, 0];
+          if (action === 'point') {
+            md[7] = [0,0,0, -10 + (i/total)*20, 8, 0];
+          }
+          if (viseme) sawViseme = true;
+          if (typeof energy === 'number') sawEnergy = true;
+          if (action) sawAction = true;
+          const metadata = { viseme, energy, action };
+          return { time: t, motionData: md, metadata };
+        };
+
+        // Idle chunk
+        const idle = Array.from({length: 12}, (_,i)=> makeFrame(i, 12, { headYawDeg: (i/12)*3 }));
+        adapter.appendChunk('base', { t0: 0.0, dt: 0.4, frames: idle }, { fadeInMs: 60 });
+
+        // Speak chunk (fake TTS): visemes + synthetic energy envelope
+        const speak = Array.from({length: 24}, (_,i)=> makeFrame(i, 24, {
+          headYawDeg: 2 + (i/24)*6,
+          viseme: visCycle[i % visCycle.length],
+          energy: Math.abs(Math.sin(i/24 * Math.PI))
+        }));
+        adapter.appendChunk('face', { t0: 0.4, dt: 0.8, frames: speak }, { fadeInMs: 60 });
+        adapter.appendChunk('audio', { t0: 0.4, dt: 0.8, frames: speak }, { fadeInMs: 60, blendMode: 'additive' });
+
+        // Action chunk
+        const point = Array.from({length: 18}, (_,i)=> makeFrame(i, 18, { headYawDeg: 5 + (i/18)*5, action: 'point' }));
+        adapter.appendChunk('base', { t0: 1.0, dt: 0.6, frames: point }, { fadeInMs: 60 });
+
+        // Sample across the flow
+        const times = [0.10, 0.30, 0.55, 0.80, 1.05, 1.20];
+        for (const t of times) {
+          try { if (typeof timeline.seek === 'function') timeline.seek(t); } catch {}
+          if (typeof timeline.getFrameAtTime === 'function') {
+            const tf = await timeline.getFrameAtTime(t);
+            const vf = vrmInt.convertTimelineFrameToVRM(tf, t);
+            vrmInt.applyFrameToVRM(vf, t);
+          }
+        }
+
+        window.__convSmoke = {
+          boneCalls: boneCalls.length,
+          blendCalls: blendCalls.length,
+          sawViseme,
+          sawEnergy,
+          sawAction,
+          samples: times.length
+        };
+        log(`Done. updates(bones,blends): ${boneCalls.length}, ${blendCalls.length}`);
+        log(`flags(viseme,energy,action): ${sawViseme}, ${sawEnergy}, ${sawAction}`);
+      } catch (e) {
+        const msg = (e && e.stack) ? e.stack : (e && e.message) ? e.message : String(e);
+        window.__convSmoke = { error: msg };
+        log('Error: ' + msg);
+      }
+    })();
+  </script>
+</body>
+</html>

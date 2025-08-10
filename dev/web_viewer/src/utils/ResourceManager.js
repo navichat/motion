@@ -10,10 +10,10 @@ import {
   MEMORY_THRESHOLDS,
   TIMEOUTS 
 } from './constants.js';
-import { ModernVoiceActivityDetector } from './ModernVoiceActivityDetector.js';
-import { VoiceActivityDetector } from './VoiceActivityDetector.js';
-import { ModernAudioQueue } from './ModernAudioQueue.js';
-import { AudioQueue } from './AudioQueue.js';
+import { ModernVoiceActivityDetector } from '../audio/ModernVoiceActivityDetector.js';
+import { VoiceActivityDetector } from '../audio/VoiceActivityDetector.js';
+import { ModernAudioQueue } from '../audio/ModernAudioQueue.js';
+import { AudioQueue } from '../audio/AudioQueue.js';
 
 export class ResourceManager extends EventTarget {
     constructor(options = {}) {

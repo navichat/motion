@@ -3,7 +3,7 @@
  * Supports dependency injection of audio context from ResourceManager
  */
 
-import { BrowserCompatibility } from './BrowserCompatibility.js';
+import { BrowserCompatibility } from '../utils/BrowserCompatibility.js';
 
 export class AudioQueue extends EventTarget {
     constructor(options = {}) {

@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+  <title>VRM Bind Smoke</title>
+  <style>body{font-family:sans-serif;padding:16px} #log{white-space:pre;}</style>
+</head>
+<body>
+  <h1>VRM Bind Smoke</h1>
+  <p>Creates a BVH timeline, binds a mock VRM adapter, and applies frames.</p>
+  <pre id="log"></pre>
+  <script>
+    (async function(){
+      const logEl = document.getElementById('log');
+      const log = (m) => { logEl.textContent += m + "\n"; };
+      try {
+        const [tlCode, adCode, vrmCode] = await Promise.all([
+          fetch('/src/components/animation/timeline/BVHTimeline.js').then(r => r.text()),
+          fetch('/src/components/animation/timeline/TimelineChunkAdapter.js').then(r => r.text()),
+          fetch('/src/components/animation/vrm/BVHTimelineVRMIntegration.js').then(r => r.text()),
+        ]);
+
+        const tlMod = { exports: {} }, adMod = { exports: {} }, vrmMod = { exports: {} };
+        const BVHTimelineCtor = (new Function('window','module','exports', tlCode + '; return (module.exports && module.exports.BVHTimeline) || window.BVHTimeline;'))(window, tlMod, tlMod.exports);
+        const AdapterCtor = (new Function('window','module','exports', adCode + '; return (module.exports && module.exports.TimelineChunkAdapter) || (window.TimelineChunkAdapter && window.TimelineChunkAdapter.TimelineChunkAdapter) || window.TimelineChunkAdapter;'))(window, adMod, adMod.exports);
+        const VRMIntegrationCtor = (new Function('window','module','exports', vrmCode + '; return module.exports || window.BVHTimelineVRMIntegration;'))(window, vrmMod, vrmMod.exports);
+
+        const BVHTimeline = typeof BVHTimelineCtor === 'function' ? BVHTimelineCtor : ((window.BVHTimeline && window.BVHTimeline.BVHTimeline) || window.BVHTimeline);
+        const Adapter = typeof AdapterCtor === 'function' ? AdapterCtor : ((window.TimelineChunkAdapter && window.TimelineChunkAdapter.TimelineChunkAdapter) || window.TimelineChunkAdapter);
+        const VRMIntegration = VRMIntegrationCtor || (window.BVHTimelineVRMIntegration && window.BVHTimelineVRMIntegration.BVHTimelineVRMIntegration) || window.BVHTimelineVRMIntegration;
+
+        const timeline = new BVHTimeline({ framerate: 30 });
+        const adapter = new Adapter(timeline);
+        const boneCalls = [], blendCalls = [];
+        const binder = {
+          updateBone: (n,p,r) => boneCalls.push({n,p,r}),
+          updateBlendshape: (n,w) => blendCalls.push({n,w}),
+          update: () => {}
+        };
+        const vrmInt = new VRMIntegration(binder, { smoothing: false, framerate: 30 });
+        vrmInt.connectTimeline(timeline);
+
+        // Helper to make a frame with head rotation and a viseme
+        const makeFrame = (i, total, viseme) => {
+          const t = i/30;
+          // Sparse motionData: only index 5 (head) has pos/rot, others omitted
+          const md = new Array(20);
+          const angle = (i / total) * 10; // degrees yaw
+          md[5] = [0,0,0, 0, angle, 0]; // head: rotate Y a bit
+          return { time: t, motionData: md, metadata: { viseme } };
+        };
+        const visCycle = ['A','E','O','rest'];
+        // Append two short chunks to ensure multiple samples, alternating visemes
+        const framesA = Array.from({length: 12}, (_,i) => makeFrame(i, 12, visCycle[i % visCycle.length]));
+        const framesB = Array.from({length: 12}, (_,i) => makeFrame(i, 12, visCycle[(i+1) % visCycle.length]));
+        adapter.appendChunk('base', { t0: 0.0, dt: 0.4, frames: framesA }, { fadeInMs: 80 });
+        adapter.appendChunk('base', { t0: 0.4, dt: 0.4, frames: framesB }, { fadeInMs: 80 });
+
+        // Sample several frames and apply
+        const times = [0.06,0.12,0.18,0.26,0.34,0.45,0.58,0.70];
+        for (const t of times) {
+          try { if (typeof timeline.seek === 'function') timeline.seek(t); } catch {}
+          if (typeof timeline.getFrameAtTime === 'function') {
+            const tf = await timeline.getFrameAtTime(t);
+            const vf = vrmInt.convertTimelineFrameToVRM(tf, t);
+            vrmInt.applyFrameToVRM(vf, t);
+          }
+        }
+
+        window.__vrmSmoke = { boneCalls: boneCalls.length, blendCalls: blendCalls.length };
+        log('VRM updates (bones,blends): ' + boneCalls.length + ', ' + blendCalls.length);
+      } catch (e) {
+        log('Error: ' + (e && e.message || e));
+      }
+    })();
+  </script>
+</body>
+</html>

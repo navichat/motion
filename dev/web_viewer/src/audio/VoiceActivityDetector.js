@@ -5,7 +5,7 @@
  * Supports dependency injection for audio context
  */
 
-import { BrowserCompatibility } from './BrowserCompatibility.js';
+import { BrowserCompatibility } from '../utils/BrowserCompatibility.js';
 
 export class VoiceActivityDetector extends EventTarget {
     constructor(options = {}) {

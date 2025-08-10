@@ -84,6 +84,60 @@ open http://localhost:8081/task-manager-demo.html
 # Click "🚀 Real WASM/GPU/WebNN Workload" button
 ```
 
+### 🧪 Playwright Testing (Serverless + Unit-Web)
+
+Playwright is configured with enforced shell timeouts and IPv4-only baseURL.
+
+- Projects
+  - `component-tests` (serverless): runs `.serverless.spec.js` without a web server
+  - `unit-web`: runs unit tests requiring the dev web server
+  - `web_viewer-root-e2e`: lightweight HTTP-only smokes for index and demos
+  - Optional full E2E projects enabled with `RUN_FULL_E2E=1`
+
+- Dev server
+  - `dev/web_viewer/serve_with_headers.py` adds COOP/COEP headers
+  - Playwright binds to `http://127.0.0.1:8080` (IPv4) to avoid ::1 issues
+
+- Common commands
+  ```bash
+  # All unit tests under dev/web_viewer/tests/unit (starts server automatically)
+  npm run test:unit
+
+  # Serverless-only component tests
+  npm run test:unit:serverless
+
+  # Unit-web tests (require server)
+  npm run test:unit:web
+
+  # Animation suite (unit-web)
+  npm run test:unit:animation
+
+  # VRM smokes and viseme driver
+  npx playwright test --project=unit-web dev/web_viewer/tests/unit/animation/vrm-integration-smoke-web.spec.js --reporter=line
+  npx playwright test --project=unit-web dev/web_viewer/tests/unit/animation/vrm-viseme-driver-web.spec.js --reporter=line
+
+  # Lightweight e2e smokes (HTTP-only; fast)
+  npm run test:smoke
+  ```
+  ```
+
+- Filter by title (CI-friendly grep)
+  ```bash
+  # Run only VRM or viseme tests
+  PW_GREP="VRM|viseme" npm run test:unit:web
+  ```
+
+- Useful environment flags
+  - `NO_WEBSERVER=1` → skip tests that require the dev web server
+  - `RUN_FULL_E2E=1` → enable additional browser projects for full E2E
+  - `PW_GREP` → filter tests by title via regex
+  - `RUN_REAL_INFERENCE=1` → enable optional real-inference serverless smokes
+
+- Timeouts
+  - Shell timeouts in npm scripts (e.g., `timeout 900s ...`)
+  - Playwright webServer `timeout` and per-test timeouts configured in `playwright.config.js`
+  - Smokes/specs also set short per-file timeouts to ensure fast failures
+
 ### 📁 Generated Result Files:
 - **Complete Results**: `ai-inference-results/complete-ai-results-TIMESTAMP.json`
 - **Summary Report**: `ai-inference-results/job-summary-TIMESTAMP.json`

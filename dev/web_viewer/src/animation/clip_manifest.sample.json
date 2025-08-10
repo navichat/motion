@@ -1,0 +1,33 @@
+[
+  {
+    "name": "idle",
+    "meta": {
+      "track": "base",
+      "priority": 0,
+      "boneMask": ["hips", "spine"],
+      "duration": 2.0,
+      "fadeInMs": 150,
+      "fadeOutMs": 150
+    }
+  },
+  {
+    "name": "point",
+    "meta": {
+      "track": "override",
+      "priority": 5,
+      "boneMask": ["rightShoulder", "rightArm", "rightForeArm", "rightHand"],
+      "duration": 1.0,
+      "fadeInMs": 120,
+      "fadeOutMs": 120
+    }
+  },
+  {
+    "name": "wave",
+    "meta": {
+      "track": "override",
+      "priority": 4,
+      "boneMask": ["leftShoulder", "leftArm", "leftForeArm", "leftHand"],
+      "duration": 1.2
+    }
+  }
+]

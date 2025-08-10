@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ichika VRM – Binder/Integration Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #0b0f14; color: #d7e1ee; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji; }
+    #app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+    header, footer { padding: 10px 14px; background: #0f131a; border-bottom: 1px solid #131a22; }
+    footer { border-top: 1px solid #131a22; border-bottom: none; }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    .btn { background:#1b2838; color:#cfe3ff; border:1px solid #2b3a4c; padding:8px 12px; border-radius:6px; cursor:pointer; }
+    .btn:hover { background:#223349; }
+    #log { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace; font-size: 12px; height: 120px; overflow: auto; background: #0a0e13; border: 1px solid #16202c; border-radius: 6px; padding: 8px; }
+    #stage { position: relative; }
+    canvas { display:block; width:100%; height:100%; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.159.0/build/three.module.js",
+        "three/examples/jsm/loaders/GLTFLoader": "https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js",
+        "@pixiv/three-vrm": "https://unpkg.com/@pixiv/three-vrm@3.1.0/lib/three-vrm.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="controls">
+        <button class="btn" id="btn-load">Load Ichika VRM</button>
+  <button class="btn" id="btn-start" disabled>Start Gestures</button>
+  <button class="btn" id="btn-orch" disabled>Start Orchestrator</button>
+        <span id="status">Idle</span>
+      </div>
+    </header>
+    <div id="stage">
+      <canvas id="c"></canvas>
+    </div>
+    <footer>
+      <div id="log"></div>
+    </footer>
+  </div>
+
+  <!-- Local UMD scripts exposed to window -->
+  <script src="../src/components/animation/vrm/AvatarBinder.js"></script>
+  <script src="../src/components/animation/vrm/BVHTimelineVRMIntegration.js"></script>
+  <script src="../src/components/animation/vrm/VRMLoader.js"></script>
+  <script src="../src/components/animation/timeline/tasks/Audio2GestureStubTask.js"></script>
+  <script src="../src/utils/scheduler/FibonacciHeap.js"></script>
+  <script src="../src/utils/scheduler/TaskScheduler.js"></script>
+  <script src="../src/components/animation/timeline/TimelineChunkAdapter.js"></script>
+  <script src="../src/components/animation/timeline/BVHTimeline.js"></script>
+  <script src="../src/orchestrator/IchikaOrchestrator.js"></script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+    import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+
+    const logEl = document.getElementById('log');
+    function log(msg) { logEl.innerText += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+    const statusEl = document.getElementById('status');
+    function status(msg) { statusEl.textContent = msg; }
+
+    const canvas = document.getElementById('c');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight - 180);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f14);
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / (window.innerHeight - 180), 0.1, 100);
+    camera.position.set(0, 1.4, 2.2);
+    const light = new THREE.DirectionalLight(0xffffff, 1.0);
+    light.position.set(1, 2, 2);
+    scene.add(light);
+
+    let vrm = null;
+    let clock = new THREE.Clock();
+    let mixerTick = 0;
+
+    async function loadIchikaVRM() {
+      status('Loading VRM...');
+      log('Fetching ./assets/characters/ichika.vrm');
+      const res = await fetch('../assets/characters/ichika.vrm');
+      const buf = await res.arrayBuffer();
+
+      const loader = new GLTFLoader();
+      loader.register((parser) => new VRMLoaderPlugin(parser));
+      const gltf = await loader.parseAsync(buf, 'ichika.vrm');
+      const model = gltf.userData.vrm;
+      if (vrm) scene.remove(vrm.scene);
+      vrm = model;
+      scene.add(vrm.scene);
+      vrm.scene.position.set(0, 0, 0);
+      status('VRM loaded'); log('✅ VRM loaded');
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-orch').disabled = false;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      try { vrm?.update?.(dt); } catch {}
+      renderer.render(scene, camera);
+      if (vrm && (++mixerTick % 60 === 0)) { status('Running'); }
+    }
+    animate();
+
+    // Bind buttons
+    document.getElementById('btn-load').addEventListener('click', () => {
+      loadIchikaVRM().catch(e => { status('Error'); log('❌ ' + e.message); });
+    });
+
+    document.getElementById('btn-start').addEventListener('click', async () => {
+      if (!vrm) { log('Load VRM first'); return; }
+      status('Starting gestures...');
+
+      const { AvatarBinder } = window;
+      const BVHtoVRM = window.BVHTimelineVRMIntegration;
+      const { Audio2GestureStubTask } = window.Audio2GestureStubTask || {};
+
+      if (!AvatarBinder || !BVHtoVRM) { log('Missing VRM components'); return; }
+
+      const binder = new AvatarBinder(vrm, { applyScale: 1.0 });
+      const integration = new BVHtoVRM(binder, { smoothing: true, framerate: 30 });
+
+      // Drive frames directly from the stub task (manual demo path)
+      const taskModule = window.Audio2GestureStubTask || {};
+      const Stub = taskModule.Audio2GestureStubTask;
+      const task = new Stub({ framerate: 30, chunkMs: 200 });
+
+      const iterator = task.run({});
+      // Process a few chunks
+      for (let c = 0; c < 10; c++) {
+        const { value, done } = await iterator.next();
+        if (done) break;
+        const { frames } = value;
+        for (const f of frames) {
+          integration.handleTimelineFrame(f, f.time);
+        }
+        await new Promise(r => setTimeout(r, 50));
+      }
+      status('Gestures complete');
+      log('🎉 Gestures applied via binder/integration');
+    });
+
+    document.getElementById('btn-orch').addEventListener('click', async () => {
+      if (!vrm) { log('Load VRM first'); return; }
+      status('Starting orchestrator...');
+
+      const Orch = window.IchikaOrchestrator;
+      const { Audio2GestureStubTask } = (window.Audio2GestureStubTask || {});
+      if (!Orch || !Audio2GestureStubTask) { log('Missing orchestrator or stub task'); return; }
+
+      // Create orchestrator with full BVHTimeline; bind avatar (creates binder + integration)
+      const timeline = new window.BVHTimeline({ framerate: 30, lookaheadFrames: 30 });
+      const orch = new Orch({ timeline, quantumMs: 30, onEvent: (e) => { if (e.type === 'chunk') log('chunk@'+e.trackId+' t0='+e.t0.toFixed(2)); } });
+      orch.bindAvatar({ vrm });
+      timeline.play();
+
+      // Submit an audio2gesture stub task to drive gestures on the 'audio' track
+      const task = new Audio2GestureStubTask({ id: 'a2g', trackId: 'audio', framerate: 30, chunkMs: 150 });
+      orch.submitTask(task);
+
+      // Run the scheduler in a small loop for a few seconds
+      const start = performance.now();
+      const loop = async () => {
+        await orch.runSlice(8); // small budget per tick
+        if (performance.now() - start < 8000) {
+          setTimeout(loop, 16);
+        } else {
+          status('Orchestrator complete');
+          log('✅ Orchestrator run finished');
+        }
+      };
+      loop();
+    });
+
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight - 180);
+      camera.aspect = window.innerWidth / (window.innerHeight - 180);
+      camera.updateProjectionMatrix();
+    });
+  </script>
+</body>
+</html>

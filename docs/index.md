@@ -51,6 +51,8 @@ Welcome to the comprehensive documentation for the Motion workspace - featuring 
 1. **[Avatar AI System Overview](../dev/web_viewer/docs/README.md)** - Complete reorganized system documentation
 2. **[Integration Tests](../dev/web_viewer/src/testing/integration/)** - Multi-component testing
 3. **[Performance Benchmarks](../dev/web_viewer/src/testing/performance/)** - System performance validation
+4. **Unit-Web Animation Tests** – See `dev/web_viewer/tests/unit/animation/` for BVH composition, VRM smokes, and the viseme driver.
+	- Run VRM-only tests: `PW_GREP="VRM|viseme" npm run test:unit:web`
 
 ### For Legacy Projects
 1. Start with the [Main README](./README.md) for an overview

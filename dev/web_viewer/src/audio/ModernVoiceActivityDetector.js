@@ -3,7 +3,7 @@
  * Based on conversational-webgpu example patterns
  */
 
-import { BrowserCompatibility } from './BrowserCompatibility.js';
+import { BrowserCompatibility } from '../utils/BrowserCompatibility.js';
 import { 
   INPUT_SAMPLE_RATE, 
   SPEECH_THRESHOLD, 
@@ -13,7 +13,7 @@ import {
   SPEECH_PAD_SAMPLES,
   AUDIO_WORKLET_OPTIONS,
   NEW_BUFFER_SIZE 
-} from './constants.js';
+} from '../utils/constants.js';
 
 export class ModernVoiceActivityDetector extends EventTarget {
   constructor(options = {}) {

@@ -7,4 +7,7 @@
 export * from './timeline/Audio2GestureTimelineIntegration.js';
 export * from './timeline/RSMTTimelineIntegration.js';
 
-// Note: Add VRM components when they exist
+// VRM components
+export { default as BVHTimelineVRMIntegration } from './vrm/BVHTimelineVRMIntegration.js';
+export * from './vrm/AvatarBinder.js';
+export * from './vrm/VRMLoader.js';

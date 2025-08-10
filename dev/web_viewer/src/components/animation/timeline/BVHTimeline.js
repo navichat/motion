@@ -1,3 +1,22 @@
+/* eslint-disable */
+(function (root, factory) {
+    if (typeof module === 'object' && module.exports) {
+        module.exports = factory(root);
+    } else {
+        // Only attach once to avoid duplicate global identifier errors
+        var already = root && root.BVHTimeline && root.BVHTrack && root.BVHClip && root.BVHFrameBuffer;
+        if (!already) {
+            var exp = factory(root);
+            if (root) {
+                root.BVHTimeline = exp.BVHTimeline;
+                try { root.BVHTimeline.BVHTimeline = exp.BVHTimeline; } catch (e) {}
+                root.BVHTrack = exp.BVHTrack;
+                root.BVHClip = exp.BVHClip;
+                root.BVHFrameBuffer = exp.BVHFrameBuffer;
+            }
+        }
+    }
+})(typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : this), function (root) {
 /**
  * BVH Timeline Compositor
  * 
@@ -70,6 +89,20 @@ class BVHTimeline {
         
         console.log('[BVHTimeline] Initialized with framerate:', this.framerate);
         console.log('[BVHTimeline] Frame buffer initialized with lookahead:', options.lookaheadFrames || 60);
+    }
+    /**
+     * Provide a custom mapping from boneIndex -> boneName
+     */
+    setBoneMapping(indexToNameMap) {
+        this.boneMapping.clear();
+        if (indexToNameMap && typeof indexToNameMap.forEach === 'function') {
+            indexToNameMap.forEach((name, idx) => this.boneMapping.set(idx, name));
+        } else if (indexToNameMap && typeof indexToNameMap === 'object') {
+            for (const [k, v] of Object.entries(indexToNameMap)) {
+                const idx = Number(k);
+                if (!Number.isNaN(idx)) this.boneMapping.set(idx, v);
+            }
+        }
     }
     
     /**
@@ -259,8 +292,8 @@ class BVHTimeline {
             })
         );
         
-        // Compose the final frame
-        return this.composeFrames(clipFrames, time);
+    // Compose the final frame
+    return this.composeFrames(clipFrames, time);
     }
     
     /**
@@ -303,7 +336,7 @@ class BVHTimeline {
             return clipFrames[0].frame;
         }
         
-        // Start with the lowest priority (base) frame
+    // Start with the lowest priority (base) frame
         let composedFrame = this.cloneFrame(clipFrames[0].frame);
         composedFrame.time = time; // Update timestamp
         
@@ -319,13 +352,27 @@ class BVHTimeline {
             );
         }
         
-        // Add composition metadata
+        // Add composition metadata and propagate select signals (viseme/energy) from higher-priority tracks
         composedFrame.metadata = composedFrame.metadata || {};
         composedFrame.metadata.composedFrom = clipFrames.map(cf => ({
             track: cf.trackName,
             weight: cf.weight,
             blendMode: cf.blendMode
         }));
+
+        // Propagate face viseme and audio gesture energy from the highest-priority occurrences
+        // Iterate from highest priority to lowest
+        for (let i = clipFrames.length - 1; i >= 0; i--) {
+            const cf = clipFrames[i];
+            const md = cf.frame && cf.frame.metadata;
+            if (cf.trackName === 'face' && md && md.viseme && composedFrame.metadata.faceViseme === undefined) {
+                composedFrame.metadata.faceViseme = md.viseme;
+            }
+            if (cf.trackName === 'audio' && md && typeof md.energy === 'number' && composedFrame.metadata.gestureEnergy === undefined) {
+                composedFrame.metadata.gestureEnergy = md.energy;
+            }
+            if (composedFrame.metadata.faceViseme !== undefined && composedFrame.metadata.gestureEnergy !== undefined) break;
+        }
         
         return composedFrame;
     }
@@ -363,7 +410,7 @@ class BVHTimeline {
      * Replace blending - overlay completely replaces base in affected bones
      */
     blendReplace(baseFrame, overlayFrame, weight, trackName) {
-        const affectedBones = this.getTrackBoneInfluence(trackName);
+        const affectedBones = this.getAffectedBones(trackName, overlayFrame);
         
         if (!overlayFrame.motionData) return baseFrame;
         
@@ -391,7 +438,7 @@ class BVHTimeline {
      * Additive blending - overlay adds to base
      */
     blendAdditive(baseFrame, overlayFrame, weight, trackName) {
-        const affectedBones = this.getTrackBoneInfluence(trackName);
+        const affectedBones = this.getAffectedBones(trackName, overlayFrame);
         
         if (!overlayFrame.motionData) return baseFrame;
         
@@ -412,7 +459,7 @@ class BVHTimeline {
      * Weighted blending - linear interpolation
      */
     blendWeighted(baseFrame, overlayFrame, weight, trackName) {
-        const affectedBones = this.getTrackBoneInfluence(trackName);
+        const affectedBones = this.getAffectedBones(trackName, overlayFrame);
         
         if (!overlayFrame.motionData) return baseFrame;
         
@@ -437,6 +484,17 @@ class BVHTimeline {
     blendMask(baseFrame, overlayFrame, weight, trackName) {
         // Similar to replace but with strict bone masking
         return this.blendReplace(baseFrame, overlayFrame, weight, trackName);
+    }
+
+    /**
+     * Determine affected bones for blending considering per-clip boneMask overrides.
+     */
+    getAffectedBones(trackName, overlayFrame) {
+        const mask = (overlayFrame && overlayFrame.metadata && Array.isArray(overlayFrame.metadata.boneMask))
+            ? new Set(overlayFrame.metadata.boneMask)
+            : null;
+        if (mask && mask.size > 0) return mask;
+        return this.getTrackBoneInfluence(trackName);
     }
     
     /**
@@ -978,54 +1036,6 @@ class BVHTimeline {
         
         return Array.from(channelData.slice(start, end));
     }
-    
-    /**
-     * Remove clip from track
-     */
-    removeClip(trackName, clipId) {
-        if (this.tracks[trackName]) {
-            return this.tracks[trackName].removeClip(clipId);
-        }
-        return false;
-    }
-    
-    /**
-     * Clear all clips from a track
-     */
-    clearTrack(trackName) {
-        if (this.tracks[trackName]) {
-            this.tracks[trackName].clear();
-        }
-    }
-    
-    /**
-     * Clear all tracks
-     */
-    clearAll() {
-        Object.values(this.tracks).forEach(track => track.clear());
-    }
-    
-    /**
-     * Get timeline statistics
-     */
-    getStats() {
-        const stats = {
-            currentTime: this.currentTime,
-            isPlaying: this.isPlaying,
-            totalTracks: Object.keys(this.tracks).length,
-            tracks: {}
-        };
-        
-        for (const [name, track] of Object.entries(this.tracks)) {
-            stats.tracks[name] = {
-                clipCount: track.clips.length,
-                totalDuration: track.getTotalDuration(),
-                priority: track.priority
-            };
-        }
-        
-        return stats;
-    }
 }
 
 /**
@@ -1468,12 +1478,8 @@ class BVHFrameBuffer {
     }
 }
 
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { BVHTimeline, BVHTrack, BVHClip, BVHFrameBuffer };
-} else {
-    window.BVHTimeline = BVHTimeline;
-    window.BVHTrack = BVHTrack;
-    window.BVHClip = BVHClip;
-    window.BVHFrameBuffer = BVHFrameBuffer;
-}
+// Return public API for UMD
+return { BVHTimeline, BVHTrack, BVHClip, BVHFrameBuffer };
+});
+
+/* eslint-enable */

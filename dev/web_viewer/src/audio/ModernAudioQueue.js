@@ -3,8 +3,8 @@
  * Based on conversational-webgpu example patterns
  */
 
-import { BrowserCompatibility } from './BrowserCompatibility.js';
-import { OUTPUT_SAMPLE_RATE } from './constants.js';
+import { BrowserCompatibility } from '../utils/BrowserCompatibility.js';
+import { OUTPUT_SAMPLE_RATE } from '../utils/constants.js';
 import AUDIO_WORKLET from './audio-worklet.js';
 
 export class ModernAudioQueue extends EventTarget {

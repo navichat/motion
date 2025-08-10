@@ -72,5 +72,7 @@ export default defineConfig({
     command: 'python3 web_viewer/serve_with_headers.py',
     port: 8080,
     reuseExistingServer: !process.env.CI,
+  // Ensure the shell command doesn't hang indefinitely per repo policy
+  timeout: 120_000,
   },
 });

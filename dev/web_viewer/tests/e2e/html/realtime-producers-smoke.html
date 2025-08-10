@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+  <title>Realtime Producers Smoke</title>
+  <style>body{font-family:sans-serif;padding:16px} #log{white-space:pre;}</style>
+  <script>
+    // tiny utilities
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  </script>
+</head>
+<body>
+  <h1>Realtime Producers Smoke</h1>
+  <p>Streams visemes and gesture chunks in near real-time and applies to a VRM binder.</p>
+  <pre id="log"></pre>
+  <script>
+    (async function(){
+      const logEl = document.getElementById('log');
+      const log = (m) => { logEl.textContent += m + "\n"; };
+      try {
+        const [tlCode, adCode, vrmCode] = await Promise.all([
+          fetch('/src/components/animation/timeline/BVHTimeline.js').then(r => r.text()),
+          fetch('/src/components/animation/timeline/TimelineChunkAdapter.js').then(r => r.text()),
+          fetch('/src/components/animation/vrm/BVHTimelineVRMIntegration.js').then(r => r.text()),
+        ]);
+
+        const tlMod = { exports: {} }, adMod = { exports: {} }, vrmMod = { exports: {} };
+        const BVHTimelineCtor = (new Function('window','module','exports', tlCode + '; return (module.exports && module.exports.BVHTimeline) || window.BVHTimeline;'))(window, tlMod, tlMod.exports);
+        const AdapterCtor = (new Function('window','module','exports', adCode + '; return (module.exports && module.exports.TimelineChunkAdapter) || (window.TimelineChunkAdapter && window.TimelineChunkAdapter.TimelineChunkAdapter) || window.TimelineChunkAdapter;'))(window, adMod, adMod.exports);
+        const VRMIntegrationCtor = (new Function('window','module','exports', vrmCode + '; return module.exports || window.BVHTimelineVRMIntegration;'))(window, vrmMod, vrmMod.exports);
+
+        const BVHTimeline = typeof BVHTimelineCtor === 'function' ? BVHTimelineCtor : ((window.BVHTimeline && window.BVHTimeline.BVHTimeline) || window.BVHTimeline);
+        const Adapter = typeof AdapterCtor === 'function' ? AdapterCtor : ((window.TimelineChunkAdapter && window.TimelineChunkAdapter.TimelineChunkAdapter) || window.TimelineChunkAdapter);
+        const VRMIntegration = VRMIntegrationCtor || (window.BVHTimelineVRMIntegration && window.BVHTimelineVRMIntegration.BVHTimelineVRMIntegration) || window.BVHTimelineVRMIntegration;
+
+        const timeline = new BVHTimeline({ framerate: 30 });
+        const adapter = new Adapter(timeline);
+        const boneCalls = [], blendCalls = [];
+        const binder = {
+          updateBone: (n,p,r) => boneCalls.push({n,p,r}),
+          updateBlendshape: (n,w) => blendCalls.push({n,w}),
+          update: () => {}
+        };
+        const vrmInt = new VRMIntegration(binder, { smoothing: false, framerate: 30 });
+        vrmInt.connectTimeline(timeline);
+
+  // Load reusable producers module
+  const prodCode = await fetch('/src/utils/producers/RealtimeProducers.js').then(r => r.text());
+  const prodMod = { exports: {} };
+  const RT = (new Function('window','module','exports', prodCode + '; return (module.exports) || window.RealtimeProducers;'))(window, prodMod, prodMod.exports);
+  const { TextToVisemeProducer, Audio2GestureProducerStub } = RT || window.RealtimeProducers;
+
+        // Kick off both producers concurrently
+  const vis = new TextToVisemeProducer('hello world');
+  const gest = new Audio2GestureProducerStub(0.8);
+        const start = performance.now();
+        let samples = 0, sawViseme = false, sawEnergy = false;
+
+        // Sample and apply several times during streaming
+        const sampler = (async () => {
+          for (let i = 0; i < 10; i++) {
+            const t = i * 0.08; // 80ms cadence
+            try { if (typeof timeline.seek === 'function') timeline.seek(t); } catch {}
+            const tf = await timeline.getFrameAtTime(t);
+            if (tf?.metadata?.faceViseme) sawViseme = true;
+            if (tf?.metadata?.gestureEnergy != null) sawEnergy = true;
+            const vf = vrmInt.convertTimelineFrameToVRM(tf, t);
+            vrmInt.applyFrameToVRM(vf, t);
+            samples++;
+            await sleep(40);
+          }
+        })();
+
+        await Promise.all([vis.start(adapter, 'face'), gest.start(adapter, 'audio'), sampler]);
+        const elapsed = performance.now() - start;
+
+        window.__rtSmoke = {
+          samples,
+          sawViseme,
+          sawEnergy,
+          boneCalls: boneCalls.length,
+          blendCalls: blendCalls.length,
+          elapsed
+        };
+        log(`Done. samples=${samples} bones=${boneCalls.length} blends=${blendCalls.length} elapsed=${Math.round(elapsed)}ms`);
+      } catch (e) {
+        window.__rtSmoke = { error: e && (e.message || String(e)) };
+        log('Error: ' + (e && e.message || e));
+      }
+    })();
+  </script>
+</body>
+</html>

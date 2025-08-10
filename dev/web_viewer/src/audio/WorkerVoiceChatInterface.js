@@ -4,12 +4,12 @@
  * Uses Web Worker for all ML processing
  */
 
-import { BrowserCompatibility } from './BrowserCompatibility.js';
+import { BrowserCompatibility } from '../utils/BrowserCompatibility.js';
 import { ModernVoiceActivityDetector } from './ModernVoiceActivityDetector.js';
 import { VoiceActivityDetector } from './VoiceActivityDetector.js';
 import { ModernAudioQueue } from './ModernAudioQueue.js';
 import { AudioQueue } from './AudioQueue.js';
-import { INPUT_SAMPLE_RATE, OUTPUT_SAMPLE_RATE } from './constants.js';
+import { INPUT_SAMPLE_RATE, OUTPUT_SAMPLE_RATE } from '../utils/constants.js';
 
 export class WorkerVoiceChatInterface extends EventTarget {
   constructor(options = {}) {

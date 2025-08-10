@@ -4,7 +4,7 @@
  * Uses dependency injection for GPU context and resource management
  */
 
-import { BaseModel } from './ResourceManager.js';
+import { BaseModel } from '../utils/ResourceManager.js';
 
 export class LlamaModule extends BaseModel {
     constructor(options = {}) {
