@@ -107,6 +107,7 @@ Audio log artifact schema (per scenario) written to test-results/audio-log-<scen
 ```
 {
 	scenario: string,
+	backend: string,                // explicit backend key (speech|kokoro|speecht5|beeps|other)
 	timestamp: ISO 8601 string,
 	uniqueTypes: string[],          // distinct event.type values observed
 	count: number,                  // total events captured (capped window)
@@ -220,7 +221,28 @@ Failure conditions:
 
 CI integration: `web-viewer-ultimate.yml` runs this step (Per-backend latency budgets) after the aggregate latency regression check. Adjust env variables in the workflow / repository secrets to tune budgets without code changes.
 
+Machine-readable export:
+```bash
+PER_BACKEND_LATENCY_JSON=test-results/per-backend-latency.json \
+	npm run test:perf:latency:verify:backends
+cat test-results/per-backend-latency.json | jq .
+```
+Schema:
+```
+{
+	generatedAt: ISO string,
+	defaults: { p50: number, p95: number },
+	rows: [ { file, scenario, backend, samples, p50, p95, p50Budget, p95Budget } ],
+	violations: [ { backend, file, metric, value, limit, reason? } ],
+	ok: boolean
+}
+```
+
 Rationale: Guard against hidden regressions isolated to a single backend that aggregate metrics might dilute. Enables progressive tightening (e.g., start lenient for new backends, then ratchet down). This also provides early signal when enabling heavier real-model paths in PR CI.
+
+Config file (checked automatically): `dev/web_viewer/perf-backend-budgets.json`
+Precedence order for budgets: ENV override > config file entry > global default.
+Provide BACKEND_BUDGETS_FILE env to point to an alternate config.
 
 ### Ultimate REAL Conversation Test (Optional)
 

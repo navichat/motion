@@ -1,0 +1,41 @@
+{
+  "generatedAt": "2025-08-12T22:37:03.332Z",
+  "defaults": {
+    "p50": 5000,
+    "p95": 8000
+  },
+  "rows": [
+    {
+      "file": "audio-log-kokoro_backend_fake_asr_.json",
+      "scenario": "kokoro backend (fake ASR)",
+      "backend": "kokoro",
+      "samples": 1,
+      "p50": 2,
+      "p95": 2,
+      "p50Budget": 5000,
+      "p95Budget": 8000
+    },
+    {
+      "file": "audio-log-speech_backend_fake_asr_.json",
+      "scenario": "speech-backend (fake ASR)",
+      "backend": "speech",
+      "samples": 1,
+      "p50": 1.8,
+      "p95": 1.8,
+      "p50Budget": 5000,
+      "p95Budget": 8000
+    },
+    {
+      "file": "audio-log-speecht5_on_device_fake_fake_asr_.json",
+      "scenario": "speecht5 on-device fake (fake ASR)",
+      "backend": "speecht5",
+      "samples": 1,
+      "p50": 2,
+      "p95": 2,
+      "p50Budget": 5000,
+      "p95Budget": 8000
+    }
+  ],
+  "violations": [],
+  "ok": true
+}

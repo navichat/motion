@@ -8,13 +8,16 @@ This doc explains how to run the unit suites for the web viewer, including serve
 - unit-web (web-backed)
   - Runs dev/web_viewer/tests/unit (excluding serverless) against http://localhost:8080 using serve_with_headers.py.
 - web_viewer-root-e2e (smoke)
-  - Runs dev/web_viewer/e2e-smoke.spec.js to validate routing and base page load.
+  - Runs fast HTTP-only smokes at the repo root plus deterministic "ultimate" tests:
+    - dev/web_viewer/e2e-smoke*.spec.js
+    - dev/web_viewer/e2e-ultimate-*.spec.js (deterministic Ichika conversation + marker checks)
 
 ## Timeouts and stability
 - Web server startup timeout: 120s
 - Global/test timeouts: 10 min/5 min
 - Per-project action/navigation/expect timeouts are set to reduce flake.
 - Shell/webServer timeout is enforced via playwright.config.js (webServer.timeout = 120_000) per repo policy.
+- CI also wraps all test invocations with shell timeouts (see package.json scripts and workflow steps).
 - Tests prefer resolving constructors from module.exports using a small CommonJS-style eval shim; window.* is used only as a fallback.
 - Prefer the minimal BVHTimeline (src/models/bvh/BVHTimeline.js) in tests for faster and more stable runs.
 
@@ -45,6 +48,23 @@ const TimelineChunkAdapterCtor = mk(adapterCode, '(module.exports && module.expo
   - npx playwright test --project=unit-web dev/web_viewer/tests/unit --reporter=line
 - Scheduler-only:
   - npx playwright test dev/web_viewer/tests/unit/scheduler --reporter=line
+
+### Deterministic ultimate e2e (Ichika demo)
+- Single avatar conversation (expressions > 0, no audio playback):
+  - npm run test:e2e:ultimate:avatar
+- Marker validation for beeps and SpeechT5 paths:
+  - npm run test:e2e:ultimate:markers
+
+These tests navigate `/demos/ichika_voice_conversation_demo.html` with deterministic flags (e.g., `backend=beeps&playAudio=0`) and assert animation updates and Playwright markers.
+
+Playwright markers emitted by the demo:
+- TTS start/done
+  - speech: "[PLAYWRIGHT] TTS start engine=speech" / "[PLAYWRIGHT] TTS done engine=speech status=… ms=…"
+  - kokoro: "[PLAYWRIGHT] TTS start engine=kokoro" / "[PLAYWRIGHT] TTS done engine=kokoro status=… ms=… durSec=…"
+  - speecht5: "[PLAYWRIGHT] TTS start engine=speecht5 path=on-device|ort|stub" / "[PLAYWRIGHT] TTS done engine=speecht5 path=… status=… ms=… durSec=…"
+  - beeps: "[PLAYWRIGHT] TTS engine=beeps useTts=0|1" and "[PLAYWRIGHT] TTS done engine=beeps …"
+- ASR done
+  - whisper|speech|fake: "[PLAYWRIGHT] ASR done engine=… status=ok|error ms=…"
 
 ## ML-related tests
 - Serverless ML helpers and config:

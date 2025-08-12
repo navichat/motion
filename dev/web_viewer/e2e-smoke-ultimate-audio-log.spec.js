@@ -6,14 +6,17 @@ const path = require('path');
 const scenarios = [
   {
     name: 'speech-backend (fake ASR)',
+    backend: 'speech',
     url: '/demos/ichika_voice_conversation_demo.html?backend=speech&asr=fake&autoListen=1&listenSec=2&debugAudio=1'
   },
   {
     name: 'speecht5 on-device fake (fake ASR)',
+    backend: 'speecht5',
     url: '/demos/ichika_voice_conversation_demo.html?backend=speecht5&speecht5OnDevice=1&speecht5OnDeviceFake=1&speecht5Spk=random&asr=fake&autoListen=1&listenSec=2&debugAudio=1'
   },
   {
     name: 'kokoro backend (fake ASR)',
+    backend: 'kokoro',
     url: '/demos/ichika_voice_conversation_demo.html?backend=kokoro&asr=fake&autoListen=1&listenSec=2&debugAudio=1'
   }
 ];
@@ -86,6 +89,7 @@ for (const sc of scenarios) {
         const safeName = sc.name.replace(/[^a-z0-9]+/ig,'_').replace(/_+/g,'_').toLowerCase();
   fs.writeFileSync(path.join(outDir, `audio-log-${safeName}.json`), JSON.stringify({
           scenario: sc.name,
+          backend: sc.backend,
           timestamp: new Date().toISOString(),
             uniqueTypes: types,
           count,
