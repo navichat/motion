@@ -12,6 +12,8 @@ export function buildQueryFromEnv(env) {
   if (env.LLAMA_ENDPOINT) params.set('llama', env.LLAMA_ENDPOINT);
   if (env.DIABLO_GPT_ENDPOINT) params.set('diabloGpt', env.DIABLO_GPT_ENDPOINT);
   if (env.EASYVECTOR_ENDPOINT) params.set('easyvector', env.EASYVECTOR_ENDPOINT);
+  // Test-only overrides
+  if (env.TRANSFORMERS_MODEL_VAD) params.set('vadModel', env.TRANSFORMERS_MODEL_VAD);
   // Legacy module exposure toggles
   if (env.LEGACY === '1') params.set('legacy', '1');
   if (env.LEGACY_WHISPER === '1') params.set('legacyWhisper', '1');

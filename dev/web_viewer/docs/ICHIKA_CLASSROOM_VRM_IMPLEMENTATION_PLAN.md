@@ -27,7 +27,10 @@ This plan places the Ichika 3D VRM avatar into a classroom stage and drives her 
 - Speech stubs:
   - SpeechGestureScheduler converts a minimal TTS object into face (viseme) and gesture (energy) chunks for scheduling.
 - Demo and tests:
-  - Demo page: dev/web_viewer/demos/ichika_classroom_demo.html — loads manifest, starts base idle (BVH-backed when available via BVHClipLibrary), triggers Point/Wave, and triggers a speech scheduling path; logs adapter append/clear.
+  - Demo page: dev/web_viewer/demos/ichika_classroom_demo.html — loads manifest, starts base idle (BVH-backed when available via BVHClipLibrary), triggers Point/Wave, and includes on-device TTS controls:
+    - Engine selector: SpeechT5 (Xenova/speecht5_tts) or Kokoro (onnx-community/Kokoro-82M-v1.0-ONNX via kokoro-js).
+    - Model override, Play audio toggle, Preload button (loads transformers.js and kokoro-js), and Say button.
+    - Schedules visemes and audio gestures via IchikaOrchestrator; optionally plays audio using WebAudio; logs adapter append/clear.
   - Unit-web tests (require dev server):
     - dev/web_viewer/tests/unit/system/ichika-speech-preemption.web.spec.js — verifies speech scheduling logs and preemption.
     - dev/web_viewer/tests/unit/system/ichika-wave.web.spec.js — verifies Wave action logging (BVH or manifest fallback).
@@ -245,6 +248,9 @@ Latency targets
   - Spec: `dev/web_viewer/tests/unit/scheduler/scheduler-to-adapter-integration.spec.js`
 - Real inference (opt-in)
   - Use env-gated smokes for ASR/VAD/TTS/LLM; skip by default to keep CI green.
+  - On-device TTS e2e (optional):
+    - SpeechT5 via transformers.js and Kokoro via kokoro-js can be exercised in the classroom demo with RUN_REAL_INFERENCE=transformers.
+    - Tests: `dev/web_viewer/e2e-smoke-classroom-tts.spec.js` includes two gated cases.
 - All test commands wrapped with shell timeouts per repo policy.
   - Playwright: globalTimeout/timeout configured; package.json test scripts use shell timeouts. Serverless tests must not navigate to pages requiring a web server. Unit-web/e2e projects run only when the dev web server is enabled.
   - Smokes: use HTTP-only fetches; avoid heavy navigation to keep under tight timeouts.

@@ -16,6 +16,19 @@ test('Audio2Gesture ORT session run smoke (skipped unless configured)', async ({
   await inject(page, CONFIG);
   await inject(page, A2G_TASK);
 
+  // Auto-configure ModelUrlConfig from env or local served model if present
+  const ORT_URL = process.env.RUNTIME_ORT || 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort-wasm.min.js';
+  const LOCAL_A2G = path.join(ROOT, 'dev/web_viewer/models/audio2gesture_step_fixed.onnx');
+  const A2G_URL = process.env.AUDIO2GESTURE_URL || (fs.existsSync(LOCAL_A2G) ? '/models/audio2gesture_step_fixed.onnx' : undefined);
+  if (ORT_URL || A2G_URL) {
+    await page.evaluate(({ ORT_URL, A2G_URL }) => {
+      const cfg = window.ModelUrlConfig || (typeof module !== 'undefined' && module.exports);
+      if (!cfg || typeof cfg.setModelUrl !== 'function') return;
+      if (ORT_URL) cfg.setModelUrl('runtime.ort', ORT_URL);
+      if (A2G_URL) cfg.setModelUrl('audio2gesture', A2G_URL);
+    }, { ORT_URL, A2G_URL });
+  }
+
   const check = await page.evaluate(async () => {
     const cfg = window.ModelUrlConfig || (typeof module !== 'undefined' && module.exports);
     if (!cfg) return { skip: true, reason: 'ModelUrlConfig missing' };

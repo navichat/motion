@@ -28,7 +28,14 @@
     }
 
     // Optionally load kokoro-js if provided and not already present
-    const kokoroUrl = params.get('kokoroJs');
+    let kokoroUrl = params.get('kokoroJs');
+    // Convenience: if a generic 'kokoro' param or ModelUrlConfig entry points to a JS file, treat it as the runtime URL
+    if (!kokoroUrl) {
+      const genK = params.get('kokoro') || (g.ModelUrlConfig.getModelUrl && g.ModelUrlConfig.getModelUrl('kokoro')) || '';
+      if (typeof genK === 'string' && /\.js($|\?)/i.test(genK)) {
+        kokoroUrl = genK;
+      }
+    }
     if (kokoroUrl && !g.KokoroTTS) {
       const s = document.createElement('script'); s.src = kokoroUrl; s.async = true;
       s.onload = ()=>console.log('[bootstrap] kokoro-js loaded');
@@ -85,6 +92,10 @@
         LlamaModule: !!g.LlamaModule,
       }
     };
+  // Expose env-like overrides from URL to window for tests
+  g.__ENV = g.__ENV || {};
+  const vadModelOverride = params.get('vadModel');
+  if (vadModelOverride) g.__ENV.TRANSFORMERS_MODEL_VAD = vadModelOverride;
     console.log('[bootstrap] ModelUrlConfig summary', summary);
   } catch (e) {
     console.warn('[bootstrap] error', e);

@@ -101,7 +101,7 @@ class BVHTimelineVRMIntegration {
      */
     processRealtimeFrame(frame, time) {
         // Convert timeline frame to VRM-compatible format
-        const vrmFrame = this.convertTimelineFrameToVRM(frame, time);
+    let vrmFrame = this.convertTimelineFrameToVRM(frame, time);
         
         // Apply smoothing if enabled
         if (this.smoothing && this.frameQueue.length > 0) {

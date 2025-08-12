@@ -1,0 +1,18 @@
+{
+  "timestamp": "2025-08-12T06:23:40.352Z",
+  "thresholds": {
+    "MAX_LATENCY_MS": 5000,
+    "MAX_P50_MS": 2500,
+    "MAX_P95_MS": 5000,
+    "MAX_P99_MS": 5000
+  },
+  "metrics": {
+    "samples": 1,
+    "avgLatencyMs": 3.5,
+    "lastLatencyMs": 3.5,
+    "p50": 3.5,
+    "p90": 3.5,
+    "p95": 3.5,
+    "p99": 3.5
+  }
+}

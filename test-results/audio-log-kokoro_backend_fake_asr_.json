@@ -1,0 +1,48 @@
+{
+  "scenario": "kokoro backend (fake ASR)",
+  "timestamp": "2025-08-12T06:58:26.791Z",
+  "uniqueTypes": [
+    "listen_fake_start",
+    "listen_fake_after_record",
+    "tts_scheduled",
+    "beeps_play",
+    "listen_fake_after_schedule"
+  ],
+  "count": 5,
+  "metrics": {
+    "samples": 1,
+    "avgLatencyMs": 1.9,
+    "lastLatencyMs": 1.9,
+    "p50": 1.9,
+    "p90": 1.9,
+    "p95": 1.9,
+    "p99": 1.9
+  },
+  "latencyEntry": true,
+  "tail": [
+    {
+      "ts": 1190.6999998092651,
+      "type": "listen_fake_start"
+    },
+    {
+      "ts": 3203.3949999809265,
+      "type": "listen_fake_after_record"
+    },
+    {
+      "ts": 11084.944999933243,
+      "type": "tts_scheduled",
+      "duration": 2,
+      "visemes": 25
+    },
+    {
+      "ts": 11086.824999809265,
+      "type": "beeps_play",
+      "dur": 2,
+      "latencyMs": 1.9
+    },
+    {
+      "ts": 11087.429999828339,
+      "type": "listen_fake_after_schedule"
+    }
+  ]
+}

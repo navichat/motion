@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+  <title>Realtime Voice Conversation (Mic + TTS + Avatar)</title>
+  <style>body{font-family:sans-serif;padding:16px} #log{white-space:pre} .hide{display:none}</style>
+</head>
+<body>
+  <h1>Realtime Voice Conversation</h1>
+  <p>Captures microphone (fake in CI), synthesizes a reply with an audio element, streams visemes and gestures to the avatar.</p>
+  <button id="btn-start">Start Conversation</button>
+  <pre id="log"></pre>
+  <script>
+    (async function(){
+      const logEl = document.getElementById('log');
+      const log = (m) => { logEl.textContent += m + "\n"; };
+      const btn = document.getElementById('btn-start');
+      window.__voiceSmoke = null;
+
+      // Small base64 wav (440Hz tone ~0.5s) to simulate TTS voice playback deterministically in CI
+      const TONE_WAV = 'data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQwAAAAg//8AAP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP8=';
+
+      async function loadModules() {
+        const [tlCode, adCode, vrmCode, prodCode] = await Promise.all([
+          fetch('/src/components/animation/timeline/BVHTimeline.js').then(r => r.text()),
+          fetch('/src/components/animation/timeline/TimelineChunkAdapter.js').then(r => r.text()),
+          fetch('/src/components/animation/vrm/BVHTimelineVRMIntegration.js').then(r => r.text()),
+          fetch('/src/utils/producers/RealtimeProducers.js').then(r => r.text()),
+        ]);
+        const tlMod = { exports: {} }, adMod = { exports: {} }, vrmMod = { exports: {} }, prodMod = { exports: {} };
+        const BVHTimelineCtor = (new Function('window','module','exports', tlCode + '; return (module.exports && module.exports.BVHTimeline) || window.BVHTimeline;'))(window, tlMod, tlMod.exports);
+        const AdapterCtor = (new Function('window','module','exports', adCode + '; return (module.exports && module.exports.TimelineChunkAdapter) || (window.TimelineChunkAdapter && window.TimelineChunkAdapter.TimelineChunkAdapter) || window.TimelineChunkAdapter;'))(window, adMod, adMod.exports);
+        const VRMIntegrationCtor = (new Function('window','module','exports', vrmCode + '; return module.exports || window.BVHTimelineVRMIntegration;'))(window, vrmMod, vrmMod.exports);
+        const Producers = (new Function('window','module','exports', prodCode + '; return module.exports || window.RealtimeProducers;'))(window, prodMod, prodMod.exports);
+        return { BVHTimelineCtor, AdapterCtor, VRMIntegrationCtor, Producers };
+      }
+
+      async function startConversation() {
+        try {
+          const { BVHTimelineCtor, AdapterCtor, VRMIntegrationCtor, Producers } = await loadModules();
+          const timeline = new BVHTimelineCtor({ framerate: 30 });
+          const adapter = new AdapterCtor(timeline);
+          const binder = { updateBone: ()=>{}, updateBlendshape: ()=>{}, update: ()=>{} };
+          const vrmInt = new VRMIntegrationCtor(binder, { smoothing: false, framerate: 30 });
+          vrmInt.connectTimeline(timeline);
+
+          // Attempt mic capture (in CI, chromium --use-fake-device-for-media-stream supplies a fake mic)
+          let micStream = null;
+          try {
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          } catch (e) {
+            log('Mic capture failed, continuing with synthetic source: ' + (e && e.message));
+          }
+
+          // Build AudioContext and analyser from mic or a synthetic oscillator fallback
+          const ac = new (window.AudioContext || window.webkitAudioContext)();
+          let sourceNode;
+          if (micStream) {
+            sourceNode = ac.createMediaStreamSource(micStream);
+          } else {
+            const osc = ac.createOscillator();
+            osc.type = 'sine'; osc.frequency.value = 220; osc.start();
+            sourceNode = osc;
+          }
+          const analyser = ac.createAnalyser(); analyser.fftSize = 512;
+          sourceNode.connect(analyser);
+
+      // MicEnergyProducer: samples analyser, emits gestureEnergy metadata frames into 'audio' track
+          let t0 = 0; const dt = 0.2; let samples = 0; let sawEnergy = false, sawViseme = false;
+          const micLoop = (async () => {
+            for (let k = 0; k < 10; k++) {
+              const data = new Uint8Array(analyser.frequencyBinCount);
+              analyser.getByteFrequencyData(data);
+              const avg = data.reduce((a,b)=>a+b,0)/data.length;
+              const energy = Math.min(1, avg / 255);
+              const frames = Array.from({ length: Math.max(1, Math.floor(30 * dt)) }, (_, i) => ({
+                time: t0 + i/30,
+                motionData: [],
+        // Use gestureEnergy key to match Timeline/VRM integration expectations
+        metadata: { gestureEnergy: energy }
+              }));
+              adapter.appendChunk('audio', { t0, dt, frames }, { fadeInMs: 60 });
+              t0 += dt; samples++;
+              const tf = await timeline.getFrameAtTime(t0 - 0.01);
+              if (tf?.metadata?.gestureEnergy != null) sawEnergy = true;
+              const vf = vrmInt.convertTimelineFrameToVRM(tf, t0 - 0.01);
+              vrmInt.applyFrameToVRM(vf, t0 - 0.01);
+              await new Promise(r => setTimeout(r, 10));
+            }
+          })();
+
+          // Simulated TTS playback via <audio> and streaming producers (visemes + gestures)
+          const audio = new Audio(TONE_WAV); audio.play();
+          const { TextToVisemeProducer, Audio2GestureProducerStub } = Producers || {};
+          const vis = new TextToVisemeProducer('hello there, testing one two three');
+          const gest = new Audio2GestureProducerStub(0.7);
+          const streamers = Promise.all([
+            vis.start(adapter, 'face').then(()=> { sawViseme = true; }),
+            gest.start(adapter, 'audio')
+          ]);
+
+          await Promise.all([micLoop, streamers]);
+
+          // Sample several frames across the whole interaction
+          const times = [0.05, 0.25, 0.45, 0.65, 0.85, 1.05, 1.25];
+          const boneCalls = 0, blendCalls = 0; // binder is stubbed; rely on metadata signals
+
+          window.__voiceSmoke = {
+            samples, sawEnergy, sawViseme,
+            micUsed: !!micStream,
+            bones: boneCalls, blends: blendCalls,
+            ok: sawEnergy && sawViseme && samples >= 5
+          };
+          log('Done. sawEnergy=' + sawEnergy + ' sawViseme=' + sawViseme + ' samples=' + samples);
+        } catch (e) {
+          window.__voiceSmoke = { error: e && (e.message || String(e)) };
+          log('Error: ' + (e && e.message || e));
+        }
+      }
+
+      btn.addEventListener('click', startConversation);
+
+      // In CI, auto-start to avoid interaction
+      if (navigator.webdriver) {
+        btn.click();
+      }
+    })();
+  </script>
+</body>
+</html>

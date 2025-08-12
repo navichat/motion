@@ -1,0 +1,57 @@
+name: Web Viewer Ultimate REAL Nightly
+
+on:
+  schedule:
+    - cron: '30 2 * * *' # daily at 02:30 UTC
+  workflow_dispatch:
+
+jobs:
+  real-ultimate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RUN_REAL_INFERENCE: 1
+      # Provide Kokoro runtime JS URL via secret KOKORO_JS_URL; if missing, kokoro tests will be skipped.
+      KOKORO_JS: ${{ secrets.KOKORO_JS_URL || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Run ultimate REAL multi-turn (Whisper + Kokoro)
+        run: |
+          if [ -z "$KOKORO_JS" ]; then
+            echo "KOKORO_JS secret missing; skipping real multi-turn test.";
+            exit 0;
+          fi
+          timeout 1200s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-real-conversation.spec.js --reporter=line
+
+      - name: Collect audio metrics table
+        if: always()
+        run: |
+          node dev/web_viewer/scripts/summarize-audio-logs.js || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-viewer-real-nightly-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Summary
+        if: always()
+        run: |
+          node -e "const fs=require('fs');let out=['## Real Ultimate Nightly Summary'];try{const tbl=require('child_process').execSync('node dev/web_viewer/scripts/summarize-audio-logs.js',{stdio:['ignore','pipe','ignore']}).toString().trim();if(tbl){out.push('### Audio Scenario Metrics');out.push(tbl);}}catch{}fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY||'/dev/stdout',out.join('\n')+'\n');"

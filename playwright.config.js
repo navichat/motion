@@ -38,8 +38,8 @@ if (webServer) {
   projects.push({
     name: 'web_viewer-root-e2e',
     testDir: './dev/web_viewer',
-  // Only run lightweight smoke tests at repo root
-  testMatch: 'e2e-smoke*.spec.js',
+  // Only run lightweight smoke tests at repo root plus ultimate avatar conversation
+  testMatch: ['e2e-smoke*.spec.js', 'e2e-ultimate-*.spec.js'],
   testIgnore: ['**/src/**', '**/tests/**', '**/testing/**', '**/legacy-root-tests/**'],
     use: {
       browserName: 'chromium',
@@ -52,7 +52,10 @@ if (webServer) {
           '--enable-blink-features=MemoryMeasurement,SharedArrayBuffer',
           '--enable-features=WebGPU,UseWebGPUAdapterNameInWebGLExtension,SharedArrayBuffer',
           '--enable-webgl',
-          '--disable-web-security'
+          '--disable-web-security',
+          // Provide a fake microphone device and auto-allow UI prompts for CI
+          '--use-fake-device-for-media-stream',
+          '--use-fake-ui-for-media-stream'
         ]
       }
     }
@@ -74,7 +77,10 @@ if (webServer) {
           '--enable-precise-memory-info',
           '--enable-features=WebGPU,SharedArrayBuffer',
           '--enable-webgl',
-          '--disable-web-security'
+          '--disable-web-security',
+          // Provide a fake microphone device and auto-allow prompts for mic tests
+          '--use-fake-device-for-media-stream',
+          '--use-fake-ui-for-media-stream'
         ]
       }
     }

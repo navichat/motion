@@ -57,3 +57,47 @@ Notes:
 - These tests use CDN imports when possible to avoid bundling changes.
 - Some Hugging Face models require authorization; we use open models (e.g., Xenova/gpt2) to avoid auth prompts.
 - If a CDN module is not accessible in your environment, relevant tests will skip gracefully.
+
+### Ultimate E2E smokes (gated)
+
+The CI workflow `Web Viewer Ultimate Conversation CI` supports opt-in real E2E tests via `workflow_dispatch` inputs:
+
+- `run_real` (boolean): enable on-device inference smokes.
+- `kokoro_js` (string): URL to a hosted kokoro-js runtime for the Kokoro smoke.
+
+Additional environment variables:
+
+- `SPEECHT5_MODEL` (default: `Xenova/speecht5_tts`) to choose the SpeechT5 model for the on-device smoke.
+
+Run locally (web server required):
+
+```
+RUN_REAL_INFERENCE=1 SPEECHT5_MODEL=Xenova/speecht5_tts \
+  npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-mic-reply-speecht5-real.spec.js
+
+RUN_REAL_INFERENCE=1 KOKORO_JS=https://cdn.example.com/kokoro.min.js \
+  npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-mic-reply-kokoro.spec.js
+
+RUN_REAL_INFERENCE=1 KOKORO_JS=https://cdn.example.com/kokoro.min.js \
+  npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-whisper-kokoro.spec.js
+
+RUN_REAL_INFERENCE=1 \
+  npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-whisper-only.spec.js
+```
+
+### Deterministic conversation and markers (non-real, always-on)
+
+These fast e2e tests are included in CI and rely on deterministic paths (beeps or stubbed TTS). They validate the orchestration and Playwright log markers without requiring model downloads.
+
+Run locally:
+
+```
+# Single ultimate avatar conversation (expressions > 0)
+npm run test:e2e:ultimate:avatar
+
+# Markers validation for beeps and SpeechT5 paths
+npm run test:e2e:ultimate:markers
+```
+
+CI wiring:
+- See workflow ".github/workflows/web-viewer-ultimate.yml" which runs both with shell timeouts.

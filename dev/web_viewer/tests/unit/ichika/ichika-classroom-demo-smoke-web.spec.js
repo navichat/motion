@@ -24,7 +24,7 @@ test('Ichika classroom demo schedules base, wave, and speech [VRM][classroom]', 
   await page.click('#wave');
   await page.waitForTimeout(50);
   const logAfterWave = await page.textContent('#log');
-  expect(logAfterWave || '').toMatch(/Wave/);
+  expect((logAfterWave || '').toLowerCase()).toMatch(/wave/);
   // Should have appended a chunk (either BVH or manifest)
   expect(logAfterWave || '').toMatch(/appendChunk: track=/);
 

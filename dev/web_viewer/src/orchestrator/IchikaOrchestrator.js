@@ -6,7 +6,8 @@
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory(require);
   } else {
-    const req = () => ({ });
+  // In browsers, provide a null-returning require stub so optional requires don't appear truthy.
+  const req = () => null;
     const api = factory(req);
     if (typeof window !== 'undefined') {
       // Provide both constructor and namespace styles for broad test compatibility
@@ -175,7 +176,10 @@
     // From a TTS object (duration, visemes, energy), schedule face/audio tracks with fades and preemption
     scheduleSpeechFromTts(tts, opts = {}) {
       if (!SpeechGestureScheduler) return null;
-      const { faceChunk, gestureChunk } = SpeechGestureScheduler.makeChunksFromTts(tts, { fps: opts.fps || 30 });
+  // Ensure chunks start at current timeline time by default, so late scheduling doesn't land in the past.
+  const now = (this.timeline && typeof this.timeline.currentTime === 'number') ? this.timeline.currentTime : 0;
+  const ttsWithStart = (typeof tts?.startTime === 'number') ? tts : { ...tts, startTime: now };
+  const { faceChunk, gestureChunk } = SpeechGestureScheduler.makeChunksFromTts(ttsWithStart, { fps: opts.fps || 30 });
       // Preempt existing speech tracks if requested
       if (opts.preempt !== false) {
         try { this.preempt('face'); } catch {}

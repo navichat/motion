@@ -154,8 +154,9 @@
       const { Audio2GestureStubTask } = (window.Audio2GestureStubTask || {});
       if (!Orch || !Audio2GestureStubTask) { log('Missing orchestrator or stub task'); return; }
 
-      // Create orchestrator with full BVHTimeline; bind avatar (creates binder + integration)
-      const timeline = new window.BVHTimeline({ framerate: 30, lookaheadFrames: 30 });
+  // Create orchestrator with full BVHTimeline; bind avatar (creates binder + integration)
+  const BVHTLCtor = (window.BVHTimeline && window.BVHTimeline.BVHTimeline) || window.BVHTimeline;
+  const timeline = new BVHTLCtor({ framerate: 30, lookaheadFrames: 30 });
       const orch = new Orch({ timeline, quantumMs: 30, onEvent: (e) => { if (e.type === 'chunk') log('chunk@'+e.trackId+' t0='+e.t0.toFixed(2)); } });
       orch.bindAvatar({ vrm });
       timeline.play();

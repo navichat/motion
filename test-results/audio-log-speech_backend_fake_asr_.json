@@ -1,0 +1,48 @@
+{
+  "scenario": "speech-backend (fake ASR)",
+  "timestamp": "2025-08-12T06:58:22.244Z",
+  "uniqueTypes": [
+    "listen_fake_start",
+    "listen_fake_after_record",
+    "tts_scheduled",
+    "listen_fake_after_schedule",
+    "speech_play_error"
+  ],
+  "count": 5,
+  "metrics": {
+    "samples": 1,
+    "avgLatencyMs": 4.8,
+    "lastLatencyMs": 4.8,
+    "p50": 4.8,
+    "p90": 4.8,
+    "p95": 4.8,
+    "p99": 4.8
+  },
+  "latencyEntry": true,
+  "tail": [
+    {
+      "ts": 4515.295000076294,
+      "type": "listen_fake_start"
+    },
+    {
+      "ts": 6528.110000133514,
+      "type": "listen_fake_after_record"
+    },
+    {
+      "ts": 6534.365000009537,
+      "type": "tts_scheduled",
+      "duration": 2,
+      "visemes": 25
+    },
+    {
+      "ts": 6535.65499997139,
+      "type": "listen_fake_after_schedule"
+    },
+    {
+      "ts": 6539.134999990463,
+      "type": "speech_play_error",
+      "message": "synthesis-failed",
+      "latencyMs": 4.8
+    }
+  ]
+}

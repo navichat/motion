@@ -281,7 +281,20 @@ class BVHTimeline {
         const clipFrames = await Promise.all(
             activeClips.map(async (clipInfo) => {
                 const localTime = time - clipInfo.clip.startTime;
-                const frame = await clipInfo.clip.getFrameAtTime(localTime);
+                let frame;
+                try {
+                    if (clipInfo.clip && typeof clipInfo.clip.getFrameAtTime === 'function') {
+                        frame = await clipInfo.clip.getFrameAtTime(localTime);
+                    } else if (clipInfo.clip && typeof clipInfo.clip.generator === 'function') {
+                        const frameIndex = Math.floor(localTime * 30);
+                        frame = await clipInfo.clip.generator(localTime, frameIndex);
+                    } else {
+                        frame = this.getDefaultFrame(time);
+                    }
+                } catch (e) {
+                    console.warn('[BVHTimeline] Clip frame generation failed:', e);
+                    frame = this.getDefaultFrame(time);
+                }
                 return {
                     frame: frame,
                     weight: clipInfo.clip.weight,

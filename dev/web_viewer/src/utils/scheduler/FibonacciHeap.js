@@ -1,3 +1,15 @@
+/* eslint-disable */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory(root);
+  } else {
+    if (!root.FibonacciHeap) {
+      var exp = factory(root);
+      root.FibonacciHeap = exp.FibonacciHeap;
+      root.FibNode = exp.FibNode;
+    }
+  }
+})(typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : this), function (root) {
 /**
  * Minimal Fibonacci Heap for task prioritization.
  * Amortized O(1) insert & decreaseKey, O(log n) extractMin.
@@ -179,11 +191,8 @@ class FibonacciHeap {
   }
 }
 
-// Always expose to window when available
-if (typeof window !== 'undefined') {
-  window.FibonacciHeap = FibonacciHeap;
-}
-// Also support CommonJS
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { FibonacciHeap, FibNode };
-}
+// Return API for UMD
+return { FibonacciHeap, FibNode };
+});
+
+/* eslint-enable */
