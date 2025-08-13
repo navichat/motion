@@ -138,6 +138,63 @@ Playwright is configured with enforced shell timeouts and IPv4-only baseURL.
   - Playwright webServer `timeout` and per-test timeouts configured in `playwright.config.js`
   - Smokes/specs also set short per-file timeouts to ensure fast failures
 
+## 🎤 Ichika Conversation: Mic → ASR → TTS with audio-driven gestures
+
+An interactive demo lets you speak to a 3D avatar with your microphone, receive a spoken reply, and drive gestures from audio energy. Rendering works in VRM or stub mode.
+
+- Demo file: `dev/web_viewer/demos/ichika_voice_conversation_demo.html`
+- Query controls: `backend=speech|kokoro|speecht5|beeps`, `asr=fake|whisper`, `speecht5OnDevice=1`, `playAudio=0|1`, `vrm=1`, `listenSec=1|2|...`
+- Exposed API: `window.__ultimateDemo` with `startMic()`, `stopAll()`, `sayText(text, play)`, `listenAndReply()`, `conversationLoop(n)`, `getStats()`, `maybeLoadVRM()`
+
+Quick run
+
+```bash
+# Python server (adds COOP/COEP headers)
+PORT=8080 python3 dev/web_viewer/serve_with_headers.py
+# Open http://127.0.0.1:8080/demos/ichika_voice_conversation_demo.html
+```
+
+Playwright E2E for conversation (with shell timeouts)
+
+- Deterministic (CI gate): fake ASR + beeps; asserts scheduling and expressions > 0
+  - Test: `dev/web_viewer/e2e-ultimate-conversation.spec.js`
+  - Run:
+    ```bash
+    npm run test:e2e:ultimate:conversation
+    # or start/stop web server automatically
+    npm run test:e2e:ultimate:conversation:local
+    ```
+
+- Real inference (opt-in): Whisper ASR + on-device SpeechT5 TTS; gated to avoid heavy downloads by default
+  - Test: `dev/web_viewer/e2e-ultimate-conversation-real.spec.js`
+  - Run:
+    ```bash
+    RUN_REAL_INFERENCE=1 npm run test:e2e:ultimate:conversation:real
+    # or
+    RUN_REAL_INFERENCE=1 npm run test:e2e:ultimate:conversation:real:local
+    ```
+
+- Conversation loop (optional): gated to avoid flakiness in baseline CI
+  - Test: `dev/web_viewer/e2e-ultimate-conversation-loop.spec.js`
+  - Run:
+    ```bash
+    RUN_CONV_LOOP=1 npm run test:e2e:ultimate:conversation:loop
+    # or
+    RUN_CONV_LOOP=1 npm run test:e2e:ultimate:conversation:loop:local
+    ```
+
+VS Code tasks (one-click)
+
+- Run Ultimate Conversation E2E (web server)
+- Run Ultimate Conversation E2E (Vite self-serve)
+- Run Ultimate Conversation E2E (real, web server)
+- Existing ASR markers tasks are available as well
+
+Notes
+
+- All scripts and tasks use shell timeouts (per repo policy).
+- For visuals, add a small VRM at `dev/web_viewer/assets/avatars/ichika.vrm` and pass `?vrm=1`.
+
 ### 📁 Generated Result Files:
 - **Complete Results**: `ai-inference-results/complete-ai-results-TIMESTAMP.json`
 - **Summary Report**: `ai-inference-results/job-summary-TIMESTAMP.json`

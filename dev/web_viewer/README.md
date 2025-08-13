@@ -229,6 +229,26 @@ cat test-results/per-backend-latency.json | jq .
 ```
 Schema:
 ```
+Webhook consolidated payload (for Slack/webhooks):
+```bash
+npm run perf:webhook:payload
+cat test-results/perf-webhook-payload.json | jq .
+```
+
+Slack posting (optional; set secret SLACK_WEBHOOK_URL):
+```bash
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/... npm run perf:slack:post
+```
+Adds a summary (status emoji + key latency figures + truncated markdown tables) to a channel. In CI, the workflow step '(Optional) Post Slack perf summary' runs automatically if the secret is configured.
+
+GitHub PR auto-comment:
+The workflow adds/updates a PR comment containing the performance summary (marker header '### 🤖 Performance Summary'). You can generate or post manually:
+```bash
+npm run perf:pr:comment > /tmp/perf.md
+GITHUB_REPOSITORY=owner/repo GITHUB_EVENT_PATH=.github/event.json GITHUB_TOKEN=ghp_xxx \
+	npm run perf:pr:post
+```
+It upserts based on the marker to avoid duplicates.
 {
 	generatedAt: ISO string,
 	defaults: { p50: number, p95: number },

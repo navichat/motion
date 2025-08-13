@@ -1,11 +1,29 @@
 import { defineConfig } from '@playwright/test';
 
-const webServer = process.env.NO_WEBSERVER ? undefined : {
-  command: 'python3 dev/web_viewer/serve_with_headers.py',
-  port: 8080,
-  reuseExistingServer: !process.env.CI,
-  timeout: 120_000, // ensure shell command has a timeout per repo policy
-};
+const USE_VITE = !!process.env.USE_VITE;
+const EXTERNAL_WEBSERVER = !!process.env.EXTERNAL_WEBSERVER; // allow projects without internally managed server
+const VITE_PORT = process.env.USE_VITE_PORT
+  ? Number(process.env.USE_VITE_PORT)
+  : (process.env.CI ? 4173 : 5180);
+
+const webServer = process.env.NO_WEBSERVER
+  ? undefined
+  : USE_VITE
+    ? {
+        // Start Vite directly; Playwright manages process lifecycle. Shell timeouts are enforced by outer tasks.
+        command: `bash -lc "npx vite --host 127.0.0.1 --port ${VITE_PORT} --strictPort"`,
+        // Reuse an existing Vite server locally to prevent port contention across quick reruns; disable on CI.
+        reuseExistingServer: !process.env.CI,
+        // Wait for the demo URL specifically so readiness is correct
+        url: `http://127.0.0.1:${VITE_PORT}/demos/ichika_voice_conversation_demo.html`,
+        timeout: 180_000,
+      }
+    : {
+        command: 'python3 dev/web_viewer/serve_with_headers.py',
+        port: 8080,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000, // ensure shell command has a timeout per repo policy
+      };
 
 // Build projects dynamically so e2e suites only run when a web server is available
 const projects = [];
@@ -32,8 +50,9 @@ projects.push({
   },
 });
 
-// Only include e2e/integration projects when a web server is enabled
-if (webServer) {
+// Only include e2e/integration projects when a web server is enabled (internal or external)
+const serverEnabled = !!webServer || EXTERNAL_WEBSERVER;
+if (serverEnabled) {
   // Lightweight smoke tests at repo-root web_viewer to validate server and routing
   projects.push({
     name: 'web_viewer-root-e2e',
@@ -184,7 +203,7 @@ export default defineConfig({
   use: {
     headless: true, // Run tests in headless mode
   // Force IPv4 to avoid environments where localhost resolves to ::1 but server binds IPv4 only
-  baseURL: 'http://127.0.0.1:8080',
+  baseURL: USE_VITE ? `http://127.0.0.1:${VITE_PORT}` : 'http://127.0.0.1:8080',
     trace: 'on-first-retry',
     video: 'retain-on-failure',
     screenshot: 'only-on-failure',
