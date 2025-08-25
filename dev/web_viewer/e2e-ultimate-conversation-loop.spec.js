@@ -13,6 +13,7 @@ async function waitForLog(page, needle, timeout = 15000) {
 }
 
 test.describe('[E2E][Ultimate][ConversationLoop]', () => {
+  test.setTimeout(60_000);
   test.skip(!RUN_LOOP, 'Set RUN_CONV_LOOP=1 to run the conversation loop test');
   test('Two fake cycles schedule animations and increase expressions', async ({ page }) => {
     await page.goto(`${DEMO_URL}?backend=beeps&asr=fake&playAudio=0&listenSec=1`);

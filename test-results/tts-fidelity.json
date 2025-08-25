@@ -1,0 +1,22 @@
+{
+  "energyVariance": 0.008723285159926238,
+  "energyMean": 0.34130467032050044,
+  "energyMin": 0.15,
+  "energyMax": 0.44999706196521105,
+  "energyDynamicRange": 0.29999706196521103,
+  "visemeUnique": 6,
+  "visemeCounts": {
+    "rest": 37,
+    "i": 5,
+    "e": 7,
+    "a": 8,
+    "o": 1,
+    "u": 1
+  },
+  "visemeTotal": 59,
+  "duration": 3.2,
+  "scheduleCount": 1,
+  "audioLogLength": 2,
+  "reconstructed": false,
+  "forced": true
+}

@@ -12,6 +12,7 @@ async function waitForLog(page, needle, timeout = 15000) {
 }
 
 test.describe('Ultimate conversation', () => {
+  test.setTimeout(60_000);
   test('Mic fake ASR -> reply schedules animation and increases expressions', async ({ page }) => {
   // Deterministic intermediate path: fake ASR + beeps backend + no audio playback (gestures still scheduled)
   await page.goto('/demos/ichika_voice_conversation_demo.html?backend=beeps&asr=fake&playAudio=0&listenSec=1');

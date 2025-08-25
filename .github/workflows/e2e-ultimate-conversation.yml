@@ -1,0 +1,90 @@
+name: e2e-ultimate-conversation
+
+on:
+  push:
+    branches: [ main, ichika_testing4 ]
+  pull_request:
+    branches: [ '**' ]
+  workflow_dispatch: {}
+
+concurrency:
+  group: e2e-ultimate-conversation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Ultimate conversation (deterministic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        shell: bash
+
+      - name: Install Playwright (Chromium + deps)
+        run: npx playwright install --with-deps chromium
+        shell: bash
+
+      # Deterministic E2E: uses internal Python web server from playwright.config.js
+      - name: Run ultimate conversation E2E
+        run: npm run test:e2e:ultimate:conversation
+        shell: bash
+
+      - name: Upload Playwright report (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+
+  vite:
+    name: Ultimate conversation (Vite self-serve)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        shell: bash
+
+      - name: Install Playwright (Chromium + deps)
+        run: npx playwright install --with-deps chromium
+        shell: bash
+
+      - name: Run ultimate conversation E2E (Vite self-serve)
+        run: npm run test:e2e:ultimate:conversation:vite
+        shell: bash
+
+      - name: Upload Playwright report (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-vite
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
