@@ -1,0 +1,73 @@
+name: e2e-ultimate-conversation-real
+
+on:
+  workflow_dispatch:
+    inputs:
+      speecht5_model:
+        description: 'SpeechT5 model id'
+        required: false
+        default: 'Xenova/speecht5_tts'
+      run_setup_real:
+        description: 'Run setup:real to pre-download models (.env may be required)'
+        required: false
+        default: 'true'
+
+concurrency:
+  group: e2e-ultimate-conversation-real-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-real:
+    name: Ultimate conversation (real inference)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: true
+      RUN_REAL_INFERENCE: '1'
+      SPEECHT5_MODEL: ${{ inputs.speecht5_model }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Cache HuggingFace and models
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/huggingface
+            dev/web_viewer/local_models
+          key: hf-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            hf-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm ci
+        shell: bash
+
+      - name: Install Playwright (Chromium + deps)
+        run: npx playwright install --with-deps chromium
+        shell: bash
+
+      - name: Setup real inference (optional)
+        if: ${{ inputs.run_setup_real == 'true' }}
+        run: npm run setup:real
+        shell: bash
+
+      - name: Run ultimate conversation E2E (real)
+        run: npm run test:e2e:ultimate:conversation:real
+        shell: bash
+
+      - name: Upload Playwright report (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-real
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

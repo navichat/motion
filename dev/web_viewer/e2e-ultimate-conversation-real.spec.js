@@ -14,6 +14,7 @@ async function waitForLog(page, needle, timeout = 60000) {
 }
 
 test.describe('[Ultimate][Real][Whisper+SpeechT5]', () => {
+  test.setTimeout(300_000);
   test.skip(!RUN_REAL, 'Set RUN_REAL_INFERENCE=1 to run real Whisper+SpeechT5 test');
 
   test('Mic Whisper -> SpeechT5 on-device reply schedules animation and increases expressions', async ({ page }) => {

@@ -348,6 +348,7 @@
       return tts;
     }
 
+    let __scheduleCount = 0;
     function scheduleFromTts(tts) {
       const { SpeechGestureScheduler } = window.SpeechGestureScheduler || {};
       if (SpeechGestureScheduler) {
@@ -356,6 +357,8 @@
         const start = performance.now();
         (function pump(){ orch.runSlice(8).then(()=>{ if (performance.now()-start < 1200) requestAnimationFrame(pump); }); })();
       }
+      __scheduleCount++;
+      try { window.__lastScheduledTts = { duration: tts.duration, visemes: (tts.visemes||[]).slice(0,200), energy: (tts.energy||[]).slice(0,2048), scheduleCount: __scheduleCount, ts: performance.now() }; } catch {}
       log('🗣️ Scheduled TTS for text: '+ JSON.stringify({ dur: +tts.duration.toFixed(2), visemes: tts.visemes?.length||0 }));
       logAudio('tts_scheduled', { duration: tts.duration, visemes: tts.visemes?.length||0 });
     }
@@ -739,7 +742,19 @@
       const st = binder?.getStats ? binder.getStats() : { applied:0, expressions:0, stub:true };
       return { applied: st.applied||0, expressions: st.expressions||0, stub: !!st.stub };
     }
-  window.__ultimateDemo = { startMic, stopAll, sayText: (t,play) => scheduleTtsFromText(t, play), listenAndReply, orch, timeline, getStats, maybeLoadVRM };
+  function forceSnapshot(){
+    if (window.__lastScheduledTts) return window.__lastScheduledTts;
+    try {
+      const log = window.__ultimateAudioLog||[];
+      for (let i=log.length-1;i>=0;i--){ const e=log[i]; if (e.type==='tts_scheduled'){ return (window.__lastScheduledTts = { duration: e.duration||1, visemes: [{time:0,id:'rest'}], energy:[0.2,0.25,0.2], reconstructed:true }); }
+      }
+    } catch {}
+    return null;
+  }
+  function forceBuildSnapshot(text){
+    try { const tts=buildTtsFromText(text||'force snapshot baseline'); window.__lastScheduledTts={ duration: tts.duration, visemes: (tts.visemes||[]).slice(), energy:(tts.energy||[]).slice(), scheduleCount: __scheduleCount, ts: performance.now(), forced:true }; return window.__lastScheduledTts; } catch { return null; }
+  }
+  window.__ultimateDemo = { startMic, stopAll, sayText: (t,play) => scheduleTtsFromText(t, play), listenAndReply, orch, timeline, getStats, maybeLoadVRM, getScheduleCount: () => __scheduleCount, getLastTts: () => window.__lastScheduledTts || null, forceSnapshot, forceBuildSnapshot, buildTtsFromText, scheduleFromTts: (tts)=>scheduleFromTts(tts), scheduleFromText: (text,dur)=>{ try { const tts=buildTtsFromText(text,dur); scheduleFromTts(tts); return tts; } catch { return null; } } };
   window.__ultimateDemo.getConversationStats = () => ({ ...conversationStats, remaining: REMAINING_TURNS });
   window.__ultimateAudioLog = window.__ultimateAudioLog || [];
   let __lastTtsScheduleTs = null; let __latencies = [];

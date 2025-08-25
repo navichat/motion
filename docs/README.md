@@ -1,5 +1,7 @@
 # Motion Workspace Documentation
 
+[![Ultimate Conversation E2E](https://github.com/navichat/motion/actions/workflows/e2e-ultimate-conversation.yml/badge.svg)](https://github.com/navichat/motion/actions/workflows/e2e-ultimate-conversation.yml)
+
 ## 🤖 Avatar AI Inference Collection System (Latest)
 
 **COMPREHENSIVE AI MODEL INFERENCE TESTING & RESULTS CAPTURE**
@@ -163,6 +165,8 @@ Playwright E2E for conversation (with shell timeouts)
     npm run test:e2e:ultimate:conversation
     # or start/stop web server automatically
     npm run test:e2e:ultimate:conversation:local
+  # or Vite self-serve (Playwright reuses external server)
+  npm run test:e2e:ultimate:conversation:vite
     ```
 
 - Real inference (opt-in): Whisper ASR + on-device SpeechT5 TTS; gated to avoid heavy downloads by default
@@ -189,6 +193,11 @@ VS Code tasks (one-click)
 - Run Ultimate Conversation E2E (Vite self-serve)
 - Run Ultimate Conversation E2E (real, web server)
 - Existing ASR markers tasks are available as well
+
+CI workflows
+
+- Deterministic CI gate: .github/workflows/e2e-ultimate-conversation.yml (runs Python server and Vite self-serve)
+- Optional manual real-inference: .github/workflows/e2e-ultimate-conversation-real.yml
 
 Notes
 

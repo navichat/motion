@@ -71,6 +71,9 @@
   const SPEECHT5_ON_DEVICE_FAKE = (()=>{ const v = getQueryParam('speecht5OnDeviceFake'); return v === '1' || String(v).toLowerCase() === 'true'; })();
   const DEBUG_AUDIO = (()=>{ const v = getQueryParam('debugAudio'); return v === '1' || String(v).toLowerCase() === 'true'; })();
   const FORCE_WORKLET = (()=>{ const v = getQueryParam('forceWorklet'); return v === '1' || String(v).toLowerCase() === 'true'; })();
+  const STUB_MIC = (()=>{ const v = getQueryParam('stubMic') || getQueryParam('stubMicWav'); return v === '1' || String(v).toLowerCase() === 'true'; })();
+  // Ensure audio log array exists early so stub mic can push before later definitions
+  window.__ultimateAudioLog = window.__ultimateAudioLog || [];
 
     async function getSpeechT5SpeakerEmbeddings(){
       try {
@@ -348,6 +351,7 @@
       return tts;
     }
 
+    let __scheduleCount = 0;
     function scheduleFromTts(tts) {
       const { SpeechGestureScheduler } = window.SpeechGestureScheduler || {};
       if (SpeechGestureScheduler) {
@@ -356,6 +360,9 @@
         const start = performance.now();
         (function pump(){ orch.runSlice(8).then(()=>{ if (performance.now()-start < 1200) requestAnimationFrame(pump); }); })();
       }
+      __scheduleCount++;
+      try { window.__lastScheduledTts = { duration: tts.duration, visemes: (tts.visemes||[]).slice(0,200), energy: (tts.energy||[]).slice(0,2048), scheduleCount: __scheduleCount, ts: performance.now() }; } catch {}
+      try { console.debug('[ultimate-demo] scheduleFromTts invoked', { sc: __scheduleCount, vis: tts.visemes?.length || 0 }); } catch {}
       log('🗣️ Scheduled TTS for text: '+ JSON.stringify({ dur: +tts.duration.toFixed(2), visemes: tts.visemes?.length||0 }));
       logAudio('tts_scheduled', { duration: tts.duration, visemes: tts.visemes?.length||0 });
     }
@@ -588,8 +595,52 @@
 
     // Microphone energy → gesture task
     let media = null; let audioEnergyTask = null; let micCtx = null; let pcmBuf = [];
+    let stubMicInterval = null; let stubMicPtr = 0; let stubMicPcm = null; let stubMicSr = 16000;
+    function buildStubMicPcm(totalSec=6, sr=16000){
+      const n = Math.max(1, Math.min(30, totalSec));
+      const len = n * sr; const out = new Float32Array(len);
+      // Deterministic pseudo speech-like bursts: envelope + mixed sines
+      for (let i=0;i<len;i++){
+        const t = i / sr; // seconds
+        const burst = Math.sin(2*Math.PI*180*t) * 0.4 + Math.sin(2*Math.PI*90*t) * 0.2;
+        // Create syllabic amplitude modulation every ~300ms
+        const mod = (Math.sin(2*Math.PI* (1/0.32) * t - 0.6) + 1)/2; // 0..1
+        // Insert periodic quiet gaps
+        const gap = (Math.floor(t/1.2) % 2) === 1 ? 0.3 : 1.0;
+        out[i] = burst * mod * gap * 0.6;
+      }
+      return out;
+    }
+    function startStubMic(){
+      if (media) return; // already started
+      media = { stub: true };
+      stubMicPcm = buildStubMicPcm();
+      stubMicSr = 16000; stubMicPtr = 0;
+      const { AudioEnergyGestureTask } = window.AudioEnergyGestureTask || {};
+  audioEnergyTask = new AudioEnergyGestureTask({ id: 'mic_energy', trackId: 'audio', framerate: 30, chunkMs: 150 });
+  try { orch.submitTask(audioEnergyTask); } catch {}
+  // Ensure audio log array exists even if initFromQuery executed before later initialization block
+  if (!window.__ultimateAudioLog) { window.__ultimateAudioLog = []; }
+      const chunkDurSec = 0.18; const chunkLen = Math.max(1, Math.floor(chunkDurSec * stubMicSr));
+      stubMicInterval = setInterval(()=>{
+        if (!media || !audioEnergyTask) { clearInterval(stubMicInterval); return; }
+        if (!stubMicPcm) return;
+        if (stubMicPtr >= stubMicPcm.length) stubMicPtr = 0;
+        const slice = stubMicPcm.subarray(stubMicPtr, Math.min(stubMicPcm.length, stubMicPtr + chunkLen));
+        stubMicPtr += slice.length;
+        // Maintain a rolling buffer similar to real mic path for parity
+        pcmBuf.push(slice.slice()); if (pcmBuf.length>64) pcmBuf.shift();
+        const flat = concatFloat32(pcmBuf); if (flat && flat.length) audioEnergyTask.setPcm(flat, stubMicSr);
+      }, 180);
+      const loop = async () => { await orch.runSlice(8); if (media) requestAnimationFrame(loop); };
+      loop();
+      log('🎙️ Stub mic started');
+  window.__stubMicStarted = true;
+  try { logAudio('stub_mic_start', { sr: stubMicSr }); } catch { try { window.__ultimateAudioLog.push({ ts: performance.now(), type: 'stub_mic_start', sr: stubMicSr }); } catch {} }
+    }
     async function startMic() {
       if (media) return;
+      if (STUB_MIC) { startStubMic(); return; }
       media = await navigator.mediaDevices.getUserMedia({ audio: true });
       micCtx = new (window.AudioContext || window.webkitAudioContext)();
       const source = micCtx.createMediaStreamSource(media);
@@ -617,6 +668,8 @@
       media = null; try { audioEnergyTask?.abort?.abort(); } catch {}
       audioEnergyTask = null; try { micCtx?.close(); } catch {}
       pcmBuf = [];
+  if (stubMicInterval) { clearInterval(stubMicInterval); stubMicInterval = null; }
+  stubMicPcm = null; stubMicPtr = 0;
       log('⏹️ Stopped');
     }
     function concatFloat32(chunks) { if (!chunks?.length) return null; const total = chunks.reduce((a,c)=>a+c.length,0); const out=new Float32Array(total); let off=0; for (const c of chunks){out.set(c,off); off+=c.length;} return out; }
@@ -739,7 +792,25 @@
       const st = binder?.getStats ? binder.getStats() : { applied:0, expressions:0, stub:true };
       return { applied: st.applied||0, expressions: st.expressions||0, stub: !!st.stub };
     }
-  window.__ultimateDemo = { startMic, stopAll, sayText: (t,play) => scheduleTtsFromText(t, play), listenAndReply, orch, timeline, getStats, maybeLoadVRM };
+  function forceSnapshot(){
+    // If we already have one return it
+    if (window.__lastScheduledTts) return window.__lastScheduledTts;
+    // Attempt heuristic reconstruction from last audio log schedule event
+    try {
+      const log = window.__ultimateAudioLog||[];
+      for (let i=log.length-1;i>=0;i--){ const e=log[i]; if (e.type==='tts_scheduled'){ return (window.__lastScheduledTts = { duration: e.duration||1, visemes: [{time:0,id:'rest'}], energy:[0.2,0.25,0.2], reconstructed:true }); }
+      }
+    } catch {}
+    return null;
+  }
+  function forceBuildSnapshot(text){
+    try {
+      const tts = buildTtsFromText(text || 'force snapshot baseline');
+      window.__lastScheduledTts = { duration: tts.duration, visemes: (tts.visemes||[]).slice(), energy: (tts.energy||[]).slice(), scheduleCount: __scheduleCount, ts: performance.now(), forced:true };
+      return window.__lastScheduledTts;
+    } catch { return null; }
+  }
+  window.__ultimateDemo = { startMic, stopAll, sayText: (t,play) => scheduleTtsFromText(t, play), listenAndReply, orch, timeline, getStats, maybeLoadVRM, getScheduleCount: () => __scheduleCount, getLastTts: () => window.__lastScheduledTts || null, forceSnapshot, buildTtsFromText, scheduleFromTts: (tts) => scheduleFromTts(tts), scheduleFromText: (text, duration) => { try { const tts = buildTtsFromText(text, duration); scheduleFromTts(tts); return tts; } catch(e){ return null; } }, forceBuildSnapshot };
   window.__ultimateDemo.getConversationStats = () => ({ ...conversationStats, remaining: REMAINING_TURNS });
   window.__ultimateAudioLog = window.__ultimateAudioLog || [];
   let __lastTtsScheduleTs = null; let __latencies = [];
@@ -801,6 +872,10 @@
       // Auto-listen trigger when requested
       if (AUTO_LISTEN) {
         setTimeout(()=>{ try { document.getElementById('listen').click(); } catch {} }, 50);
+      }
+      // Auto-start stub mic when requested (no user gesture needed)
+      if (STUB_MIC) {
+        try { startStubMic(); } catch {}
       }
     })();
     maybeLoadVRM();
