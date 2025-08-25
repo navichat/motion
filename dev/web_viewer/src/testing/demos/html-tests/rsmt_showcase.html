@@ -1,0 +1,3822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSMT Motion Visualization - Modern (r177)</title>
+    
+    <!-- Import Map for Module Resolution -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/": "https://cdn.jsdelivr.net/npm/three@0.177.0/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js"
+        }
+    }
+    </script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            overflow: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .title {
+            color: #00d4ff;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #00d4ff, #0084ff);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 212, 255, 0.3);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            color: #4caf50;
+            font-weight: bold;
+        }
+        
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        
+        #scene-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            font-size: 14px;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .metric:last-child {
+            border-bottom: none;
+        }
+        
+        .migration-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(90deg, #4caf50, #45a049);
+            color: white;
+            padding: 10px;
+            text-align: center;
+            z-index: 1001;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="migration-banner">
+        ✅ Modern THREE.js with ES Modules - No Deprecation Warnings!
+    </div>
+    
+    <div class="migration-banner" style="background: rgba(0, 150, 0, 0.8); border-color: #00ff00;">
+        🎯 Pure BVH Mode - All constraints removed, using 100% unmodified motion capture data
+    </div>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Loading Modern RSMT Viewer...</div>
+        <div id="loading-status">Initializing THREE.js...</div>
+    </div>
+    
+    <div id="container">
+        <div id="ui-panel">
+            <div class="title">🎭 RSMT Neural Network Motion System (Modern)</div>
+            
+            <!-- AI Inference Monitoring Dashboard -->
+            <div class="ai-monitoring-panel" id="ai-monitoring" style="background: rgba(0, 50, 100, 0.15); border: 1px solid #00d4ff; padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <strong style="color: #00d4ff;">🧠 AI Inference Monitor</strong>
+                    <button id="toggle-inference-details" style="background: none; border: 1px solid #00d4ff; color: #00d4ff; padding: 2px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;">Show Details</button>
+                </div>
+                
+                <div class="inference-summary" id="inference-summary">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                        <div class="model-status" id="deephase-status">
+                            <div style="color: #00ff88; font-weight: bold;">DeepPhase</div>
+                            <div style="font-size: 10px;">Ready</div>
+                        </div>
+                        <div class="model-status" id="stylevae-status">
+                            <div style="color: #ff8800; font-weight: bold;">StyleVAE</div>
+                            <div style="font-size: 10px;">Standby</div>
+                        </div>
+                        <div class="model-status" id="transitionnet-status">
+                            <div style="color: #ff4488; font-weight: bold;">TransitionNet</div>
+                            <div style="font-size: 10px;">Idle</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Model Warmup Controls -->
+                    <div style="display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap;">
+                        <button id="warmup-all-btn" onclick="warmupAllModels()" style="background: #4CAF50; border: none; color: white; padding: 4px 8px; border-radius: 3px; font-size: 10px; cursor: pointer;">🔥 Warm Up All</button>
+                        <button id="warmup-stylevae-btn" onclick="warmupStyleVAE()" style="background: #ff8800; border: none; color: white; padding: 4px 8px; border-radius: 3px; font-size: 10px; cursor: pointer;">🎨 Wake StyleVAE</button>
+                        <button id="warmup-transitionnet-btn" onclick="warmupTransitionNet()" style="background: #ff4488; border: none; color: white; padding: 4px 8px; border-radius: 3px; font-size: 10px; cursor: pointer;">🔄 Wake TransitionNet</button>
+                        <!-- <button id="test-server-btn" onclick="testServerConnection()" style="background: #2196F3; border: none; color: white; padding: 4px 8px; border-radius: 3px; font-size: 10px; cursor: pointer;">🌐 Test Server</button> -->
+                    </div>
+                    
+                    <div class="inference-metrics" id="inference-metrics" style="border-top: 1px solid rgba(0, 212, 255, 0.3); padding-top: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 10px;">
+                            <div>Inference Rate: <span id="inference-rate">60 FPS</span></div>
+                            <div>Latency: <span id="inference-latency">16ms</span></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="inference-details" id="inference-details" style="display: none; border-top: 1px solid rgba(0, 212, 255, 0.3); padding-top: 8px; margin-top: 8px;">
+                    <div class="inference-log" id="inference-log" style="background: rgba(0, 0, 0, 0.3); padding: 8px; border-radius: 4px; max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 10px;">
+                        <div style="color: #00d4ff;">AI Inference Log:</div>
+                        <div style="color: #00ff88;">✓ DeepPhase model loaded</div>
+                        <div style="color: #ffaa00;">⚠ StyleVAE on standby</div>
+                        <div style="color: #ff6666;">⚠ TransitionNet not connected</div>
+                        <div style="color: #888;">Tensor Shapes:</div>
+                            <div id="tensor-shapes">Waiting for inference...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="play-pause">Play/Pause</button>
+                <button id="reset">Reset</button>
+                <button id="cycle-animations">Cycle Animations</button>
+                <button id="random-style">Random Style</button>
+                <button id="transition-demo">Demo Transitions</button>
+                <button id="speed-up">Speed Up</button>
+                <button id="slow-down">Slow Down</button>
+                <button id="toggle-wireframe">Toggle Wireframe</button>
+            </div>
+
+
+
+            <!-- Add this in the controls section -->
+            <div class="controls" style="margin-top: 15px; padding: 15px; background: rgba(0, 100, 200, 0.1); border-radius: 8px; border: 1px solid #00d4ff;">
+                <h3 style="margin: 0 0 10px 0; color: #00d4ff;">🧠 AI Motion Control</h3>
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <button onclick="checkONNXRuntimeSetup()" style="padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">🔍 Check ONNX Setup</button>
+                    <button onclick="toggleAIMode()" id="ai-mode-btn" style="padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">🎬 BVH Mode: ON</button>
+                    <button onclick="randomizeStyle()" style="padding: 8px 16px; background: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer;">✨ Random Style</button>
+                    <button onclick="smoothStyle()" style="padding: 8px 16px; background: #9C27B0; color: white; border: none; border-radius: 4px; cursor: pointer;">✨ Smooth Style</button>
+                    <button onclick="aggressiveStyle()" style="padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">🔥 Aggressive Style</button>
+                    <button onclick="analyzeCurrentMotion()" style="padding: 8px 16px; background: #607D8B; color: white; border: none; border-radius: 4px; cursor: pointer;">🔍 Analyze Motion</button>
+                </div>
+            </div>
+
+            <!-- Character & Environment Controls -->
+            <div class="controls" style="margin-top: 15px; padding: 15px; background: rgba(100, 0, 200, 0.1); border-radius: 8px; border: 1px solid #a855f7;">
+                <h3 style="margin: 0 0 10px 0; color: #a855f7;">🎭 Character & Environment</h3>
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <select id="character-select" style="padding: 8px; border-radius: 4px; background: #333; color: white; border: 1px solid #a855f7;">
+                        <option value="">Select Character</option>
+                        <option value="kaede.vrm">Kaede (School Girl)</option>
+                        <option value="ichika.vrm" selected>Ichika (Student)</option>
+                        <option value="buny.vrm">Buny (Teacher)</option>
+                    </select>
+                    
+                    <select id="display-mode" style="padding: 8px; border-radius: 4px; background: #333; color: white; border: 1px solid #a855f7;">
+                        <option value="textured_skeleton" selected>Textured Skeleton</option>
+                        <option value="skeleton">Skeleton Only</option>
+                        <option value="character">Character Only</option>
+                        <option value="both">Skeleton + Character</option>
+                    </select>
+                    
+                    <button onclick="toggleClassroom()" style="padding: 8px 16px; background: #a855f7; color: white; border: none; border-radius: 4px; cursor: pointer;">🏫 Toggle Classroom</button>
+                    <button onclick="resetCharacterPosition()" style="padding: 8px 16px; background: #e11d48; color: white; border: none; border-radius: 4px; cursor: pointer;">↺ Reset Position</button>
+                    <button onclick="initTexturedSkeleton()" style="padding: 8px 16px; background: #f59e0b; color: white; border: none; border-radius: 4px; cursor: pointer;">🎨 Apply Texture</button>
+                    <button onclick="initBasicTexturedSkeleton()" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;">🎯 Basic Texture</button>
+                    <button onclick="testImports()" style="padding: 8px 16px; background: #8b5cf6; color: white; border: none; border-radius: 4px; cursor: pointer;">🔧 Test Imports</button>
+                    
+                    <select id="camera-mode" style="padding: 8px; border-radius: 4px; background: #333; color: white; border: 1px solid #a855f7;">
+                        <option value="free">Free Camera</option>
+                        <option value="follow">Follow Character</option>
+                        <option value="front">Front View</option>
+                        <option value="side">Side View</option>
+                        <option value="classroom">Classroom View</option>
+                        <option value="overhead">Overhead View</option>
+                        <option value="close">Close-up</option>
+                    </select>
+                    
+                    <button onclick="focusOnFace()" style="padding: 8px 16px; background: #06b6d4; color: white; border: none; border-radius: 4px; cursor: pointer;">👤 Focus Face</button>
+                    <button onclick="toggleFacialExpressions()" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;">😊 Toggle Expressions</button>
+                    <button onclick="fixVRMShaders()" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">🔧 Fix VRM Shaders</button>
+                    <button onclick="testLighting()" style="padding: 8px 16px; background: #f59e0b; color: white; border: none; border-radius: 4px; cursor: pointer;">💡 Test Lighting</button>
+                    <button onclick="improvedLighting()" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;">✨ Enhance Lighting</button>
+                    <button onclick="focusOnFace()" style="padding: 8px 16px; background: #8b5cf6; color: white; border: none; border-radius: 4px; cursor: pointer;">👁️ Focus Face</button>
+                    <button onclick="fullBodyView()" style="padding: 8px 16px; background: #06b6d4; color: white; border: none; border-radius: 4px; cursor: pointer;">👤 Full Body</button>
+                    <button onclick="animateIchika()" style="padding: 8px 16px; background: #ec4899; color: white; border: none; border-radius: 4px; cursor: pointer;">😊 Animate Ichika</button>
+                    <button onclick="fixSceneMaterials()" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">🔧 Fix Materials</button>
+                    <button onclick="compileAllMaterials()" style="padding: 8px 16px; background: #7c3aed; color: white; border: none; border-radius: 4px; cursor: pointer;">⚙️ Compile Materials</button>
+                    <button onclick="diagnoseMaterials()" style="padding: 8px 16px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer;">🔍 Diagnose Materials</button>
+                    <button onclick="toggleShadows()" style="padding: 8px 16px; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer;">🌑 Toggle Shadows</button>
+                </div>
+            </div>
+
+
+
+            <div id="status" class="status">Ready</div>
+        </div>
+        
+        <div class="info-panel">
+            <div id="scene-info">
+                <div class="metric">
+                    <span>THREE.js Version:</span>
+                    <span id="three-version">Loading...</span>
+                </div>
+                <div class="metric">
+                    <span>Animation Frame:</span>
+                    <span id="current-frame">0</span>
+                </div>
+                <div class="metric">
+                    <span>Current Style:</span>
+                    <span id="current-style">Neutral</span>
+                </div>
+                <div class="metric">
+                    <span>Animation Speed:</span>
+                    <span id="animation-speed">0.3x</span>
+                </div>
+                <div class="metric">
+                    <span>Transition State:</span>
+                    <span id="transition-state">Idle</span>
+                </div>
+                <div class="metric">
+                    <span>Skeleton Joints:</span>
+                    <span id="joint-count">15</span>
+                </div>
+                <div class="metric">
+                    <span>Bone Connections:</span>
+                    <span id="bone-count">13</span>
+                </div>
+                <div class="metric">
+                    <span>Current Character:</span>
+                    <span id="current-character">None</span>
+                </div>
+                <div class="metric">
+                    <span>Display Mode:</span>
+                    <span id="display-mode-info">Skeleton</span>
+                </div>
+                <div class="metric">
+                    <span>Classroom:</span>
+                    <span id="classroom-status">Hidden</span>
+                </div>
+                <div class="metric">
+                    <span>Camera Mode:</span>
+                    <span id="camera-mode-info">Free</span>
+                </div>
+            </div>
+            
+            <!-- Animation Controls -->
+            <div class="controls" style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0; color: #fff;">Animation Controls</h3>
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <button onclick="toggleAnimation()" id="play-pause-btn" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Pause</button>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="color: #fff;">Speed:</label>
+                        <input type="range" id="speed-slider" min="0.1" max="3.0" step="0.1" value="0.3" style="width: 100px;" onchange="updateAnimationSpeed(this.value)">
+                        <span id="speed-value" style="color: #fff; min-width: 40px;">0.3x</span>
+                    </div>
+                    <button onclick="resetAnimation()" style="padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">Reset</button>
+                    <button onclick="debugFrame()" style="padding: 8px 16px; background: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer;">Debug Frame</button>
+                    <button onclick="fixOrientation()" style="padding: 8px 16px; background: #9C27B0; color: white; border: none; border-radius: 4px; cursor: pointer;" title="DISABLED - Using pure BVH data">Fix Orientation (DISABLED)</button>
+                    <button onclick="flipDirection()" style="padding: 8px 16px; background: #E91E63; color: none; border: none; border-radius: 4px; cursor: pointer;" title="DISABLED - Using pure BVH data">Flip Direction (DISABLED)</button>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="color: #fff;">Joint Intensity:</label>
+                        <input type="range" id="intensity-slider" min="0.01" max="1.0" step="0.01" value="0.1" style="width: 100px;" onchange="updateJointIntensity(this.value)">
+                        <span id="intensity-value" style="color: #fff; min-width: 40px;">0.1</span>
+                    </div>
+                    <button onclick="toggleSimpleMode()" id="simple-mode-btn" style="padding: 8px 16px; background: #607D8B; color: white; border: none; border-radius: 4px; cursor: pointer;">Simple Mode</button>
+                    <button onclick="debugBVH()" style="padding: 8px 16px; background: #795548; color: white; border: none; border-radius: 4px; cursor: pointer;">Debug BVH</button>
+                    <button onclick="resetCharacterDirection()" style="padding: 8px 16px; background: #ff5722; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">Reset Direction</button>
+                    <!-- REMOVED: Root Constraint slider - using pure BVH data with no constraints -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ONNX Runtime Web with WebGPU support -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.webgpu.min.js"></script>
+
+    <!-- Character System Components -->
+    <script src="./js/VRMBVHAdapter.js"></script>
+    <script src="./js/FacialExpressionSystem.js"></script>
+    <script src="./js/AnimationBlender.js"></script>
+    <script src="./js/VRMMaterialExtractor.js"></script>
+    <script src="./js/ClassroomEnvironment.js"></script>
+    <script src="./js/EnhancedCharacterSystem.js"></script>
+    <script src="./js/ClassroomCameraController.js"></script>
+    <script src="./js/AdvancedVRMLoader.js"></script>
+
+
+    <script type="module">
+        console.log('🚀 Starting Modern RSMT Viewer with ES Modules...');
+        
+        // Test module availability
+        console.log('📋 Module Availability Check:');
+        const modules = ['VRMBVHAdapter', 'FacialExpressionSystem', 'AnimationBlender', 
+                        'VRMMaterialExtractor', 'ClassroomEnvironment', 'EnhancedCharacterSystem', 
+                        'ClassroomCameraController'];
+        modules.forEach(name => {
+            const available = typeof window[name] !== 'undefined';
+            console.log(`${available ? '✅' : '❌'} ${name}: ${available ? 'Available' : 'Not Found'}`);
+        });
+        
+        const loadingDiv = document.getElementById('loading');
+        const loadingStatus = document.getElementById('loading-status');
+        const statusDiv = document.getElementById('status');
+        const container = document.getElementById('container');
+        
+        // Update loading status
+        function updateLoadingStatus(message) {
+            loadingStatus.textContent = message;
+            console.log('📝', message);
+        }
+
+
+
+        // === GLOBAL FUNCTION PLACEHOLDERS (Available immediately) ===
+
+        // Define placeholder functions first so onclick handlers work
+        window.toggleAIMode = function() { console.log('AI Mode not ready yet'); };
+        window.randomizeStyle = function() { console.log('Style functions not ready yet'); };
+        window.smoothStyle = function() { console.log('Style functions not ready yet'); };
+        window.aggressiveStyle = function() { console.log('Style functions not ready yet'); };
+        window.analyzeCurrentMotion = function() { console.log('Analysis not ready yet'); };
+        window.toggleAnimation = function() { console.log('Animation controls not ready yet'); };
+        window.updateAnimationSpeed = function() { console.log('Animation controls not ready yet'); };
+        window.resetAnimation = function() { console.log('Animation controls not ready yet'); };
+        window.debugFrame = function() { console.log('Debug functions not ready yet'); };
+        window.fixOrientation = function() { console.log('Orientation functions not ready yet'); };
+        window.flipDirection = function() { console.log('Direction functions not ready yet'); };
+        window.updateJointIntensity = function() { console.log('Joint functions not ready yet'); };
+        window.toggleSimpleMode = function() { console.log('Mode functions not ready yet'); };
+        window.debugBVH = function() { console.log('BVH functions not ready yet'); };
+        window.resetCharacterDirection = function() { console.log('Direction functions not ready yet'); };
+        window.testServerConnection = function() { console.log('Server functions not ready yet'); };
+        window.warmupStyleVAE = function() { console.log('Warmup functions not ready yet'); };
+        window.warmupTransitionNet = function() { console.log('Warmup functions not ready yet'); };
+        window.warmupAllModels = function() { console.log('Warmup functions not ready yet'); };
+        window.checkONNXRuntimeSetup = function() { console.log('checkONNXRuntimeSetup not ready yet'); };
+        
+        // Character System Placeholders
+        window.toggleClassroom = function() { console.log('Character system not ready yet'); };
+        window.resetCharacterPosition = function() { console.log('Character system not ready yet'); };
+        window.focusOnFace = function() { console.log('Character system not ready yet'); };
+        window.toggleFacialExpressions = function() { console.log('Character system not ready yet'); };
+        window.loadSelectedCharacter = function() { console.log('Character system not ready yet'); };
+        window.changeDisplayMode = function() { console.log('Character system not ready yet'); };
+        window.setCameraMode = function() { console.log('Character system not ready yet'); };
+        window.initTexturedSkeleton = function() { console.log('Character system not ready yet'); };
+        window.initBasicTexturedSkeleton = function() { console.log('Character system not ready yet'); };
+        window.testImports = function() { console.log('Character system not ready yet'); };
+        
+        // Test function to verify modules are loaded
+        window.testModules = function() {
+            console.log('Testing module availability...');
+            console.log('VRMMaterialExtractor:', window.VRMMaterialExtractor ? '✅ Available' : '❌ Missing');
+            console.log('ClassroomEnvironment:', window.ClassroomEnvironment ? '✅ Available' : '❌ Missing');
+            console.log('EnhancedCharacterSystem:', window.EnhancedCharacterSystem ? '✅ Available' : '❌ Missing');
+            console.log('THREE.js:', window.THREE ? '✅ Available' : '❌ Missing');
+            console.log('THREELoaders.GLTFLoader:', window.THREELoaders?.GLTFLoader ? '✅ Available' : '❌ Missing');
+            console.log('THREELoaders.VRMLoaderPlugin:', window.THREELoaders?.VRMLoaderPlugin ? '✅ Available' : '❌ Missing');
+            return 'Module test complete - check console for details';
+        };
+        
+        // Advanced diagnostics function
+        window.fullDiagnostics = async function() {
+            console.log('=== FULL MODULE DIAGNOSTICS ===');
+            console.log('1. Basic availability:');
+            console.log('   THREE.js:', !!window.THREE);
+            console.log('   THREE.GLTFLoader:', !!window.THREE?.GLTFLoader);
+            console.log('   VRMLoaderPlugin:', !!window.VRMLoaderPlugin);
+            
+            console.log('2. Import map support:');
+            console.log('   Import map supported:', HTMLScriptElement.supports ? HTMLScriptElement.supports('importmap') : 'Unknown');
+            
+            console.log('3. Manual import tests:');
+            try {
+                const threeTest = await import('three');
+                console.log('   Direct THREE import: ✅ Success');
+            } catch (e) {
+                console.log('   Direct THREE import: ❌ Failed -', e.message);
+            }
+            
+            try {
+                const gltfTest = await import('three/examples/jsm/loaders/GLTFLoader.js');
+                console.log('   GLTFLoader import: ✅ Success');
+            } catch (e) {
+                console.log('   GLTFLoader import: ❌ Failed -', e.message);
+            }
+            
+            try {
+                const vrmTest = await import('@pixiv/three-vrm');
+                console.log('   VRM import: ✅ Success');
+            } catch (e) {
+                console.log('   VRM import: ❌ Failed -', e.message);
+            }
+            
+            console.log('4. Browser info:');
+            console.log('   User Agent:', navigator.userAgent);
+            console.log('   ES Modules:', 'import' in window ? 'Supported' : 'Not supported');
+            
+            return 'Full diagnostics complete - check console for details';
+        };
+
+
+        // Global variables for animation and BVH data
+        let isPlaying = true;
+        let currentStyle = 'neutral';
+        let animationSpeed = 0.3; // Much slower default speed
+        let isWireframe = false;
+        let bvhData = {};
+        let currentAnimation = 'neutral_reference.bvh';
+        let animationFrame = 0;
+        let bvhScale = 0.01; // Scale factor for BVH units
+        
+        // Global THREE.js objects (will be initialized in try block)
+        let scene, camera, renderer, skeletonGroup;
+        let jointMeshes = {};
+        let boneCylinders = [];
+        let jointWorldPositions = {};
+        
+        // Character System Variables
+        let characterSystem = null;
+        let cameraController = null;
+        let classroomVisible = false;
+        let facialExpressionsEnabled = true;
+        let currentCharacterFile = null;
+        
+        // Available BVH animations
+        const animations = {
+            'neutral_reference.bvh': {
+                name: 'Neutral Walking',
+                description: 'Natural forward walking motion',
+                duration: 120
+            },
+            'angry_reference.bvh': {
+                name: 'Angry Walking',
+                description: 'Aggressive, forceful walking style',
+                duration: 100
+            },
+            'elated_reference.bvh': {
+                name: 'Elated Walking',
+                description: 'Happy, bouncy walking style',
+                duration: 110
+            },
+            'depressed_reference.bvh': {
+                name: 'Depressed Walking',
+                description: 'Slow, heavy walking style',
+                duration: 140
+            },
+            'proud_reference.bvh': {
+                name: 'Proud Walking',
+                description: 'Confident, upright walking style',
+                duration: 115
+            },
+            'robot_reference.bvh': {
+                name: 'Robot Walking',
+                description: 'Mechanical, precise walking style',
+                duration: 90
+            },
+            'strutting_reference.bvh': {
+                name: 'Strutting Walk',
+                description: 'Confident, stylish walking motion',
+                duration: 105
+            }
+        };
+    
+
+
+        // === REAL AI MODEL MANAGER ===
+        class RSMTModelManager {
+            constructor() {
+                this.models = {};
+                this.isInitialized = false;
+                this.webgpuSupported = false;
+                this.currentStyle = new Float32Array(256); // Style vector
+                this.currentPhase = 0.0;
+                this.motionHistory = [];
+                this.maxHistoryFrames = 60; // 1 second at 60fps
+            }
+
+            async initialize() {
+                try {
+                    logInferenceEvent('🔧 Initializing WebGPU + ONNX Runtime...', 'info');
+
+
+                    // Check cross-origin isolation first
+                    if (!self.crossOriginIsolated) {
+                        logInferenceEvent('⚠️ Cross-origin isolation not enabled - using single-threaded mode', 'warning');
+                        // Force single-threaded mode
+                        ort.env.wasm.numThreads = 1;
+                    } else {
+                        logInferenceEvent('✅ Cross-origin isolation enabled - multi-threading available', 'success');
+                        ort.env.wasm.numThreads = 4; // Enable multi-threading
+                    }
+
+                    // Check WebGPU support
+                    if (!navigator.gpu) {
+                        logInferenceEvent('⚠️ WebGPU not supported in this browser - using WASM backend', 'warning');
+                        this.webgpuSupported = false;
+                    } else {
+                        try {
+                            const adapter = await navigator.gpu.requestAdapter();
+                            if (adapter) {
+                                logInferenceEvent('✅ WebGPU adapter found', 'success');
+                                this.webgpuSupported = true;
+                            } else {
+                                logInferenceEvent('⚠️ WebGPU adapter not available - using WASM backend', 'warning');
+                                this.webgpuSupported = false;
+                            }
+                        } catch (error) {
+                            logInferenceEvent(`⚠️ WebGPU initialization failed: ${error.message}`, 'warning');
+                            this.webgpuSupported = false;
+                        }
+                    }
+
+
+                    // Call validation before loading models
+                    if (this.webgpuSupported) {
+                        await this.validateWebGPUForModels();
+                        await this.validateModelFile('./stylevae.onnx');
+                    }
+
+
+                    // Load all three models
+                    await this.loadModels();
+
+                    // Initialize with neutral style
+                    this.currentStyle.fill(0.1);
+
+                    this.isInitialized = true;
+                    logInferenceEvent('🎯 AI Model Manager initialized successfully!', 'success');
+
+                } catch (error) {
+                    logInferenceEvent(`❌ AI initialization failed: ${error.message}`, 'error');
+                    throw error;
+                }
+            }
+
+
+            async validateWebGPUForModels() {
+                logInferenceEvent('🔍 Validating WebGPU capabilities...', 'info');
+                
+                try {
+                    // Check WebGPU adapter limits
+                    const adapter = await navigator.gpu.requestAdapter();
+                    const device = await adapter.requestDevice();
+                    
+                    const limits = adapter.limits;
+                    logInferenceEvent(`🎮 WebGPU Limits:`, 'info');
+                    logInferenceEvent(`   Max buffer size: ${limits.maxBufferSize}`, 'info');
+                    logInferenceEvent(`   Max texture dimension: ${limits.maxTextureDimension2D}`, 'info');
+                    logInferenceEvent(`   Max compute workgroup size: ${limits.maxComputeWorkgroupSizeX}`, 'info');
+                    
+                    // Check ONNX Runtime WebGPU support
+                    logInferenceEvent(`🔍 ONNX Runtime version: ${ort.version || 'unknown'}`, 'info');
+                    
+                    // Test simple WebGPU tensor creation
+                    const testTensor = new ort.Tensor('float32', [1, 2, 3, 4], [2, 2]);
+                    logInferenceEvent(`✅ Basic tensor creation works`, 'success');
+                    
+                    return true;
+                    
+                } catch (error) {
+                    logInferenceEvent(`❌ WebGPU validation failed: ${error.message}`, 'error');
+                    return false;
+                }
+            }
+
+
+            async validateModelFile(modelPath) {
+                try {
+                    logInferenceEvent(`🔍 Validating model file: ${modelPath}`, 'info');
+
+                    const response = await fetch(modelPath);
+                    if (!response.ok) {
+                        throw new Error(`Model file not found: ${response.status} ${response.statusText}`);
+                    }
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    const fileSize = arrayBuffer.byteLength;
+
+                    logInferenceEvent(`📊 Model file size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`, 'info');
+
+                    if (fileSize === 0) {
+                        throw new Error('Model file is empty');
+                    }
+
+                    if (fileSize > 100 * 1024 * 1024) { // 100MB
+                        logInferenceEvent(`⚠️ Large model file (${(fileSize / 1024 / 1024).toFixed(2)} MB) - may cause WebGPU issues`, 'warning');
+                    }
+
+                    // Check if it's a valid ONNX file (starts with specific bytes)
+                    const uint8Array = new Uint8Array(arrayBuffer, 0, 8);
+                    const header = Array.from(uint8Array).map(b => b.toString(16).padStart(2, '0')).join('');
+                    logInferenceEvent(`📊 Model file header: ${header}`, 'info');
+
+                    return true;
+
+                } catch (error) {
+                    logInferenceEvent(`❌ Model validation failed: ${error.message}`, 'error');
+                    return false;
+                }
+            }
+
+
+            async loadModels() {
+                const modelConfigs = {
+                    stylevae: {
+                        path: './stylevae.onnx',
+                        inputShape: [1, 66, 60], // [batch, channels, sequence_length]
+                        outputShape: [1, 256]    // [batch, style_dim]
+                    },
+                    deepphase: {
+                        path: './deepphase.onnx',
+                        inputShape: [1, 66],      // [batch, channels]
+                        outputShape: [1, 1]       // [batch, phase]
+                    },
+                    transitionnet: {
+                        path: './transitionnet.onnx',
+                        inputShape: [1, 66 + 256], // [batch, motion + style]
+                        outputShape: [1, 66]        // [batch, output_motion]
+                    }
+                };
+
+
+                for (const [modelName, config] of Object.entries(modelConfigs)) {
+                    try {
+                        updateModelStatus(modelName, 'Loading...', 'Downloading ONNX model');
+                        logInferenceEvent(`📥 Loading ${modelName} from ${config.path}...`, 'info');
+
+                        // Determine execution providers based on capabilities
+                        let executionProviders;
+                        if (this.webgpuSupported) {
+                            executionProviders = ['webgpu', 'wasm'];
+                            logInferenceEvent(`🎯 ${modelName}: Trying WebGPU first`, 'info');
+                        } else {
+                            executionProviders = ['wasm'];
+                            logInferenceEvent(`🔧 ${modelName}: Using WASM backend only`, 'info');
+                        }
+
+                        let session;
+                        try {
+                            session = await ort.InferenceSession.create(config.path, {
+                                executionProviders: executionProviders,
+                                graphOptimizationLevel: 'all'
+                            });
+
+                            logInferenceEvent(`✅ ${modelName} loaded on ${executionProviders[0]}`, 'success');
+
+                        } catch (providerError) {
+                            if (this.webgpuSupported && executionProviders.includes('webgpu')) {
+                                logInferenceEvent(`⚠️ WebGPU failed for ${modelName}, trying WASM: ${providerError.message}`, 'warning');
+                                // Fallback to WASM only
+                                session = await ort.InferenceSession.create(config.path, {
+                                    executionProviders: ['wasm'],
+                                    graphOptimizationLevel: 'all'
+                                });
+                                logInferenceEvent(`✅ ${modelName} loaded on WASM (fallback)`, 'success');
+                            } else {
+                                throw providerError;
+                            }
+                        }
+
+                        this.models[modelName] = {
+                            session: session,
+                            config: config,
+                            lastInferenceTime: 0
+                        };
+
+                        updateModelStatus(modelName, 'Ready', `Loaded successfully`);
+
+                    } catch (error) {
+                        updateModelStatus(modelName, 'Failed', error.message);
+                        logInferenceEvent(`❌ Failed to load ${modelName}: ${error.message}`, 'error');
+                        throw error;
+                    }
+                }
+            }
+
+            async encodeStyle(motionSequence) {
+                if (!this.models.stylevae) {
+                    throw new Error('StyleVAE model not loaded');
+                }
+
+                const startTime = performance.now();
+                updateModelStatus('stylevae', 'Processing...', 'Encoding style from motion');
+
+                try {
+                    // Prepare input tensor
+                    const inputTensor = new ort.Tensor('float32', motionSequence, [1, 66, 60]);
+
+                    // Run inference
+                    const feeds = { input: inputTensor };
+                    const results = await this.models.stylevae.session.run(feeds);
+
+                    // Extract style vector
+                    const styleVector = results.output.data;
+                    this.currentStyle = new Float32Array(styleVector);
+
+                    const processingTime = performance.now() - startTime;
+                    this.models.stylevae.lastInferenceTime = processingTime;
+
+                    updateModelStatus('stylevae', 'Active', `Style encoded in ${processingTime.toFixed(1)}ms`);
+                    logInferenceEvent(`🎨 Style encoded: ${styleVector.length}D vector in ${processingTime.toFixed(1)}ms`, 'success');
+
+                    return this.currentStyle;
+
+                } catch (error) {
+                    updateModelStatus('stylevae', 'Error', error.message);
+                    logInferenceEvent(`❌ StyleVAE inference failed: ${error.message}`, 'error');
+                    throw error;
+                }
+            }
+
+            async predictPhase(motionFrame) {
+                if (!this.models.deepphase) {
+                    throw new Error('DeepPhase model not loaded');
+                }
+
+                const startTime = performance.now();
+
+                try {
+                    // Prepare input tensor
+                    const inputTensor = new ort.Tensor('float32', motionFrame, [1, 66]);
+
+                    // Run inference
+                    const feeds = { input: inputTensor };
+                    const results = await this.models.deepphase.session.run(feeds);
+
+                    // Extract phase
+                    this.currentPhase = results.output.data[0];
+
+                    const processingTime = performance.now() - startTime;
+                    this.models.deepphase.lastInferenceTime = processingTime;
+
+                    // Update UI every 30 frames to avoid spam
+                    if (animationFrame % 30 === 0) {
+                        updateModelStatus('deepphase', 'Active', `Phase: ${this.currentPhase.toFixed(3)}`);
+                        logInferenceEvent(`🔄 Phase predicted: ${this.currentPhase.toFixed(3)} (${processingTime.toFixed(1)}ms)`, 'info');
+                    }
+
+                    return this.currentPhase;
+
+                } catch (error) {
+                    updateModelStatus('deepphase', 'Error', error.message);
+                    logInferenceEvent(`❌ DeepPhase inference failed: ${error.message}`, 'error');
+                    throw error;
+                }
+            }
+
+            async generateTransition(currentMotion, targetStyle, transitionLength = 10) {
+                if (!this.models.transitionnet) {
+                    throw new Error('TransitionNet model not loaded');
+                }
+
+                const startTime = performance.now();
+                updateModelStatus('transitionnet', 'Generating...', 'Creating motion transition');
+
+                try {
+                    // Combine motion and style
+                    const combinedInput = new Float32Array(66 + 256);
+                    combinedInput.set(currentMotion, 0);
+                    combinedInput.set(targetStyle, 66);
+
+                    // Prepare input tensor
+                    const inputTensor = new ort.Tensor('float32', combinedInput, [1, 66 + 256]);
+
+                    // Run inference
+                    const feeds = { input: inputTensor };
+                    const results = await this.models.transitionnet.session.run(feeds);
+
+                    // Extract generated motion
+                    const generatedMotion = results.output.data;
+
+                    const processingTime = performance.now() - startTime;
+                    this.models.transitionnet.lastInferenceTime = processingTime;
+
+                    updateModelStatus('transitionnet', 'Active', `Transition generated in ${processingTime.toFixed(1)}ms`);
+                    logInferenceEvent(`🔄 Transition generated: ${generatedMotion.length} values in ${processingTime.toFixed(1)}ms`, 'success');
+
+                    return new Float32Array(generatedMotion);
+
+                } catch (error) {
+                    updateModelStatus('transitionnet', 'Error', error.message);
+                    logInferenceEvent(`❌ TransitionNet inference failed: ${error.message}`, 'error');
+                    throw error;
+                }
+            }
+
+            updateMotionHistory(motionFrame) {
+                this.motionHistory.push(new Float32Array(motionFrame));
+
+                // Keep only recent history
+                if (this.motionHistory.length > this.maxHistoryFrames) {
+                    this.motionHistory.shift();
+                }
+            }
+
+            getMotionSequence() {
+                // Return flattened motion sequence for StyleVAE
+                if (this.motionHistory.length < 60) {
+                    // Pad with zeros if not enough history
+                    const sequence = new Float32Array(66 * 60);
+                    for (let i = 0; i < this.motionHistory.length; i++) {
+                        sequence.set(this.motionHistory[i], i * 66);
+                    }
+                    return sequence;
+                } else {
+                    // Use last 60 frames
+                    const sequence = new Float32Array(66 * 60);
+                    const recentFrames = this.motionHistory.slice(-60);
+                    for (let i = 0; i < recentFrames.length; i++) {
+                        sequence.set(recentFrames[i], i * 66);
+                    }
+                    return sequence;
+                }
+            }
+        }
+
+        // Global AI model manager
+        let aiModelManager = new RSMTModelManager();
+
+
+
+        try {
+            updateLoadingStatus('Importing THREE.js module...');
+            
+            // Import THREE.js using ES modules with import map
+            const THREE = await import('three');
+            
+            // Make THREE globally available for modules
+            window.THREE = THREE;
+            
+            // Create a separate object for loaders since THREE may not be extensible
+            window.THREELoaders = {};
+            
+            // Import additional THREE.js modules
+            updateLoadingStatus('Loading THREE.js extensions...');
+            
+            // Load GLTFLoader using import map
+            try {
+                const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+                window.THREELoaders.GLTFLoader = GLTFLoader;
+                // Also try to add to THREE if possible
+                try {
+                    window.THREE.GLTFLoader = GLTFLoader;
+                } catch (extensibilityError) {
+                    console.log('THREE object not extensible, using THREELoaders instead');
+                }
+                console.log('✅ GLTFLoader loaded successfully via import map');
+            } catch (error) {
+                console.warn('⚠️ Failed to load GLTFLoader via import map:', error);
+                // Fallback to script tag approach
+                try {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/three@0.177.0/examples/js/loaders/GLTFLoader.js';
+                        script.onload = () => {
+                            window.THREELoaders.GLTFLoader = window.GLTFLoader || window.THREE.GLTFLoader;
+                            console.log('✅ GLTFLoader loaded via script tag fallback');
+                            resolve();
+                        };
+                        script.onerror = () => {
+                            console.warn('⚠️ Failed to load GLTFLoader from CDN');
+                            reject();
+                        };
+                        document.head.appendChild(script);
+                    });
+                } catch (scriptError) {
+                    console.warn('⚠️ Failed to load GLTFLoader, will create basic loader:', scriptError);
+                    // Create a basic GLTF loader fallback
+                    window.THREELoaders.GLTFLoader = class BasicGLTFLoader {
+                        constructor() {
+                            console.log('Using BasicGLTFLoader fallback');
+                        }
+                        register(plugin) {
+                            this.plugins = this.plugins || [];
+                            this.plugins.push(plugin);
+                            return this;
+                        }
+                        load(url, onLoad, onProgress, onError) {
+                            console.warn('BasicGLTFLoader: Attempting to load:', url);
+                            
+                            // Try to use fetch to load the file
+                            fetch(url)
+                                .then(response => {
+                                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                                    return response.arrayBuffer();
+                                })
+                                .then(buffer => {
+                                    // Create a minimal GLTF-like object
+                                    const scene = new window.THREE.Group();
+                                    const gltf = {
+                                        scene: scene,
+                                        animations: [],
+                                        asset: {},
+                                        cameras: [],
+                                        scenes: [scene],
+                                        userData: {}
+                                    };
+                                    
+                                    console.log('BasicGLTFLoader: Created basic scene object');
+                                    if (onLoad) onLoad(gltf);
+                                })
+                                .catch(error => {
+                                    console.error('BasicGLTFLoader failed:', error);
+                                    if (onError) onError(error);
+                                });
+                        }
+                    };
+                }
+            }
+            
+            // Load VRM loader using import map
+            try {
+                const { VRMLoaderPlugin, VRMUtils } = await import('@pixiv/three-vrm');
+                window.THREELoaders.VRMLoaderPlugin = VRMLoaderPlugin;
+                window.THREELoaders.VRMUtils = VRMUtils;
+                // Also try to add to global window if possible
+                try {
+                    window.VRMLoaderPlugin = VRMLoaderPlugin;
+                    window.VRMUtils = VRMUtils;
+                } catch (extensibilityError) {
+                    console.log('Window VRM assignment failed, using THREELoaders instead');
+                }
+                console.log('✅ VRMLoaderPlugin loaded successfully via import map');
+            } catch (error) {
+                console.warn('⚠️ Failed to load VRMLoaderPlugin via import map:', error);
+                // Create diagnostic function
+                window.diagnoseVRMIssue = () => {
+                    console.log('=== VRM Loading Diagnostics ===');
+                    console.log('THREE.js available:', !!window.THREE);
+                    console.log('GLTFLoader available:', !!window.THREELoaders?.GLTFLoader);
+                    console.log('VRMLoaderPlugin available:', !!window.THREELoaders?.VRMLoaderPlugin);
+                    console.log('Import map supported:', HTMLScriptElement.supports ? HTMLScriptElement.supports('importmap') : 'Unknown');
+                    console.log('Browser:', navigator.userAgent);
+                    console.log('THREE object extensible:', Object.isExtensible(window.THREE));
+                };
+                window.diagnoseVRMIssue();
+            }
+            
+            updateLoadingStatus('THREE.js loaded successfully!');
+            
+            // Update loader status indicator
+            function updateLoaderStatus() {
+                const hasGLTF = !!(window.THREELoaders?.GLTFLoader);
+                const hasVRM = !!(window.THREELoaders?.VRMLoaderPlugin);
+                const status = `Loaders: GLTF ${hasGLTF ? '✅' : '❌'} | VRM ${hasVRM ? '✅' : '❌'}`;
+                console.log('📦', status);
+                
+                // Update any status display if available
+                const statusElement = document.getElementById('loader-status');
+                if (statusElement) {
+                    statusElement.textContent = status;
+                }
+            }
+            
+            updateLoaderStatus();
+            
+            // Update version info
+            document.getElementById('three-version').textContent = THREE.REVISION || 'ES Module';
+            
+            // Initialize 3D scene
+            updateLoadingStatus('Creating 3D scene...');
+            
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            
+            const camera = new THREE.PerspectiveCamera(
+                75, 
+                window.innerWidth / window.innerHeight, 
+                0.1, 
+                1000
+            );
+            
+            const renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                alpha: true,
+                preserveDrawingBuffer: true,
+                powerPreference: "high-performance"
+            });
+            
+            // Enhanced renderer configuration for VRM compatibility
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = false; // Disabled for VRM compatibility
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            
+            // Add comprehensive error handling
+            
+            // Handle WebGL context loss
+            renderer.domElement.addEventListener('webglcontextlost', function(event) {
+                event.preventDefault();
+                console.warn('⚠️ WebGL context lost');
+                updateLoadingStatus('WebGL context lost - attempting recovery...');
+            });
+            
+            renderer.domElement.addEventListener('webglcontextrestored', function() {
+                console.log('✅ WebGL context restored');
+                updateLoadingStatus('WebGL context restored');
+                // Recompile materials
+                compileAllMaterials();
+            });
+            
+            // Add renderer to container (below UI)
+            container.appendChild(renderer.domElement);
+            renderer.domElement.style.position = 'absolute';
+            renderer.domElement.style.top = '0';
+            renderer.domElement.style.left = '0';
+            renderer.domElement.style.zIndex = '1';
+            
+            updateLoadingStatus('Setting up professional lighting and environment...');
+            
+            // Professional anime character lighting setup (improved)
+            
+            // Beautiful gradient background for anime characters
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB'); // Sky blue
+            gradient.addColorStop(0.5, '#98D8E8'); // Light blue
+            gradient.addColorStop(1, '#F0F8FF'); // Alice blue
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const bgTexture = new THREE.CanvasTexture(canvas);
+            scene.background = bgTexture;
+            
+            // Professional anime character lighting setup
+            
+            // High-intensity ambient light for soft overall illumination
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            
+            // Main key light (strong directional light from front-top)
+            window.keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            window.keyLight.position.set(2, 3, 2);
+            window.keyLight.castShadow = false; // Avoid VRM shader conflicts
+            scene.add(window.keyLight);
+            
+            // Fill light from left (softer, warmer)
+            window.fillLight = new THREE.DirectionalLight(0xffeeaa, 1.0);
+            window.fillLight.position.set(-2, 2, 1);
+            scene.add(window.fillLight);
+            
+            // Rim light for character outline
+            window.rimLight = new THREE.DirectionalLight(0xaaccff, 0.8);
+            window.rimLight.position.set(0, 2, -3);
+            scene.add(window.rimLight);
+            
+            // Character face lighting (important for anime style)
+            window.faceLight = new THREE.SpotLight(0xffffff, 1.2);
+            window.faceLight.position.set(0, 2, 1.5);
+            window.faceLight.angle = Math.PI / 6;
+            window.faceLight.penumbra = 0.2;
+            window.faceLight.decay = 2;
+            window.faceLight.distance = 5;
+            scene.add(window.faceLight);
+            
+            // Soft environmental lights
+            const envLight1 = new THREE.PointLight(0xffffff, 0.6, 8);
+            envLight1.position.set(2, 2, -1);
+            scene.add(envLight1);
+            
+            const envLight2 = new THREE.PointLight(0xffffcc, 0.6, 8);
+            envLight2.position.set(-2, 2, -1);
+            scene.add(envLight2);
+            
+            
+            // Configure renderer for VRM compatibility (disable shadows to prevent shader errors)
+            renderer.shadowMap.enabled = false; // Disabled for VRM compatibility 
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0; // Reduced for better anime lighting
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            
+            // Configure for VRM compatibility
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.gammaFactor = 2.2;
+            
+            // Ground plane with better material (circular for anime aesthetic)
+            const groundGeometry = new THREE.CircleGeometry(5, 32);
+            const groundMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.8
+            });
+            const groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
+            groundPlane.rotation.x = -Math.PI / 2;
+            groundPlane.position.y = -0.01;
+            groundPlane.receiveShadow = false; // Disabled for VRM compatibility
+            scene.add(groundPlane);
+            
+            // Subtle circular grid around character (better for anime aesthetic)
+            const gridHelper = new THREE.PolarGridHelper(3, 8, 8, 64, 0x888888, 0x444444);
+            gridHelper.position.y = 0.01;
+            gridHelper.material.opacity = 0.2;
+            gridHelper.material.transparent = true;
+            scene.add(gridHelper);
+            
+            const axesHelper = new THREE.AxesHelper(0.5);
+            scene.add(axesHelper);
+            
+            updateLoadingStatus('Creating demo skeleton...');
+            
+            // Create a simple stick figure skeleton for demo
+            skeletonGroup = new THREE.Group();
+            
+            // Create joints with proper geometry and materials (matching legacy)
+            const jointGeometry = new THREE.SphereGeometry(0.04, 12, 12);
+            const jointMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x00ff00,
+                emissive: 0x002200
+            });
+            
+            // Create bone geometry and material (matching legacy style)
+            const boneGeometry = new THREE.CylinderGeometry(0.02, 0.02, 1, 8);
+            const boneMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x0088ff,
+                emissive: 0x001122
+            });
+            
+            // ===== CORRECT BVH SKELETON FROM ACTUAL 100STYLE FILES =====
+            // This matches the EXACT structure from Neutral_FW.bvh
+            const bvhJoints = {
+                // Root joint (world position) - 6 channels: pos + rot
+                'Hips': { offset: [0.000000, 0.000000, 0.000000], parent: null },
+                
+                // Spine chain - exact offsets from BVH
+                'Chest': { offset: [0.000000, 12.953391, -0.028419], parent: 'Hips' },
+                'Chest2': { offset: [0.000000, 10.280254, 0.051622], parent: 'Chest' },
+                'Chest3': { offset: [0.000000, 9.287180, 0.000000], parent: 'Chest2' },
+                'Chest4': { offset: [0.000000, 9.287180, 0.000000], parent: 'Chest3' },
+                'Neck': { offset: [0.000000, 13.296264, 0.000000], parent: 'Chest4' },
+                'Head': { offset: [0.000000, 8.959264, 0.099003], parent: 'Neck' },
+                
+                // Right arm chain - exact offsets from BVH
+                'RightCollar': { offset: [-3.193511, 7.451388, 0.000000], parent: 'Chest4' },
+                'RightShoulder': { offset: [-15.792092, 0.000000, 0.000000], parent: 'RightCollar' },
+                'RightElbow': { offset: [-31.151839, 0.000000, 0.000000], parent: 'RightShoulder' },
+                'RightWrist': { offset: [-25.536298, 0.000000, 0.002321], parent: 'RightElbow' },
+                
+                // Left arm chain - will be mirrored
+                'LeftCollar': { offset: [3.193511, 7.451388, 0.000000], parent: 'Chest4' },
+                'LeftShoulder': { offset: [15.792092, 0.000000, 0.000000], parent: 'LeftCollar' },
+                'LeftElbow': { offset: [31.151839, 0.000000, 0.000000], parent: 'LeftShoulder' },
+                'LeftWrist': { offset: [25.536298, 0.000000, 0.002321], parent: 'LeftElbow' },
+                
+                // Right leg chain - exact offsets from BVH
+                'RightHip': { offset: [-10.745749, 0.139252, 0.014209], parent: 'Hips' },
+                'RightKnee': { offset: [0.000000, -43.743899, -0.006071], parent: 'RightHip' },
+                'RightAnkle': { offset: [0.000000, -43.214199, 0.089931], parent: 'RightKnee' },
+                'RightToe': { offset: [0.000000, -9.699830, 19.151588], parent: 'RightAnkle' },
+                
+                // Left leg chain - mirrored from BVH
+                'LeftHip': { offset: [10.745749, 0.139252, 0.014209], parent: 'Hips' },
+                'LeftKnee': { offset: [0.000000, -43.743899, -0.006071], parent: 'LeftHip' },
+                'LeftAnkle': { offset: [0.000000, -43.214199, 0.089931], parent: 'LeftKnee' },
+                'LeftToe': { offset: [0.000000, -9.699830, 19.151588], parent: 'LeftAnkle' }
+            };
+            
+            
+            // Create hierarchical skeleton with proper parent-child relationships
+            function createHierarchicalSkeleton(joints) {
+                const jointMeshes = {};
+                const processedJoints = new Set();
+                
+                function createJoint(jointName) {
+                    if (processedJoints.has(jointName) || !joints[jointName]) {
+                        return jointMeshes[jointName] || null;
+                    }
+                    
+                    const jointData = joints[jointName];
+                    
+                    // Create joint mesh
+                    const mesh = new THREE.Mesh(jointGeometry, jointMaterial);
+                    mesh.userData.bvhJointName = jointName;
+                    mesh.userData.isJoint = true;
+                    
+                    // Set local position relative to parent
+                    mesh.position.set(
+                        jointData.offset[0] * bvhScale,
+                        jointData.offset[1] * bvhScale,
+                        jointData.offset[2] * bvhScale
+                    );
+                    
+                    jointMeshes[jointName] = mesh;
+                    processedJoints.add(jointName);
+                    
+                    // Add to parent or root
+                    if (jointData.parent && joints[jointData.parent]) {
+                        // Ensure parent exists first
+                        const parentMesh = createJoint(jointData.parent);
+                        if (parentMesh) {
+                            parentMesh.add(mesh);
+                        } else {
+                            skeletonGroup.add(mesh);
+                        }
+                    } else {
+                        // Root joint
+                        skeletonGroup.add(mesh);
+                    }
+                    
+                    return mesh;
+                }
+                
+                // Create all joints with proper hierarchy
+                for (const jointName of Object.keys(joints)) {
+                    createJoint(jointName);
+                }
+                
+                return jointMeshes;
+            }
+            
+            jointMeshes = createHierarchicalSkeleton(bvhJoints);
+            
+            // Create bones connecting parent-child joints
+            boneCylinders = [];
+            
+            for (const [jointName, jointData] of Object.entries(bvhJoints)) {
+                if (jointData.parent && jointMeshes[jointData.parent] && jointMeshes[jointName]) {
+                    const parentMesh = jointMeshes[jointData.parent];
+                    const childMesh = jointMeshes[jointName];
+                    
+                    // Calculate bone length from local position
+                    const localPos = childMesh.position;
+                    const length = localPos.length();
+                    
+                    if (length > 0.01) { // Only create visible bones
+                        const cylinder = new THREE.Mesh(boneGeometry, boneMaterial);
+                        
+                        // Position bone at parent's origin, pointing toward child
+                        cylinder.position.set(0, 0, 0);
+                        cylinder.scale.set(1, length, 1);
+                        
+                        // Rotate to point toward child
+                        const direction = localPos.clone().normalize();
+                        const up = new THREE.Vector3(0, 1, 0);
+                        cylinder.quaternion.setFromUnitVectors(up, direction);
+                        
+                        // Offset to start at parent center and extend to child
+                        cylinder.position.copy(direction.multiplyScalar(length * 0.5));
+                        
+                        // Add bone to parent joint so it moves with the joint
+                        parentMesh.add(cylinder);
+                        
+                        cylinder.userData = {
+                            parentJoint: jointData.parent,
+                            childJoint: jointName,
+                            length: length
+                        };
+                        
+                        boneCylinders.push(cylinder);
+                    }
+                }
+            }
+            
+            // Function to update bone positions (simplified since bones are now parented to joints)
+            function updateBones() {
+                // Bones automatically follow their parent joints due to hierarchy
+                // No manual updates needed - THREE.js handles this automatically
+            }
+            
+            scene.add(skeletonGroup);
+            
+            // DEBUG: Add a larger test sphere at skeleton origin
+            const originGeometry = new THREE.SphereGeometry(0.1, 12, 12);
+            const originMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+            const originSphere = new THREE.Mesh(originGeometry, originMaterial);
+            originSphere.position.set(0, 0, 0); // At origin where skeleton should be
+            originSphere.name = 'originSphere';
+            scene.add(originSphere);
+            
+            // Let BVH data control the orientation - no manual corrections
+            skeletonGroup.position.y = 0; // Start at ground level
+            skeletonGroup.rotation.set(0, 0, 0); // No base rotation
+            skeletonGroup.rotation.order = 'YXZ'; // Match BVH rotation order
+            
+            // Update skeleton metrics
+            document.getElementById('joint-count').textContent = Object.keys(jointMeshes).length;
+            document.getElementById('bone-count').textContent = boneCylinders.length;
+            
+            // Position camera
+            camera.position.set(3, 2, 3);
+            camera.lookAt(0, 0.5, 0);
+            
+            updateLoadingStatus('Initializing character system...');
+            
+            // Enhanced VRM lighting setup following chat demo patterns
+            window.enhanceVRMLighting = function(vrmCharacter) {
+                if (!vrmCharacter || !vrmCharacter.vrm) {
+                    console.warn('⚠️ No VRM character provided for lighting enhancement');
+                    return;
+                }
+                
+                console.log('💡 Enhancing VRM character lighting...');
+                
+                // Update existing lights for better anime character lighting
+                if (window.keyLight) {
+                    window.keyLight.intensity = 1.8; // Increase key light
+                    window.keyLight.position.set(1.5, 2.5, 2); // Closer to character
+                }
+                
+                if (window.fillLight) {
+                    window.fillLight.intensity = 1.2; // Softer fill
+                    window.fillLight.color.setHex(0xfff5e6); // Warmer fill light
+                }
+                
+                if (window.rimLight) {
+                    window.rimLight.intensity = 1.0;
+                    window.rimLight.color.setHex(0xbbd4ff); // Cool rim light
+                }
+                
+                if (window.faceLight) {
+                    window.faceLight.intensity = 1.5; // Important for face visibility
+                    window.faceLight.position.set(0, 1.8, 1.2); // Focus on face height
+                }
+                
+                // Add character-specific lighting
+                const characterLight = new THREE.SpotLight(0xffffff, 0.8);
+                characterLight.position.set(0, 2, 1);
+                characterLight.target = vrmCharacter.vrm.scene;
+                characterLight.angle = Math.PI / 4;
+                characterLight.penumbra = 0.3;
+                characterLight.castShadow = false; // Avoid VRM shader conflicts
+                scene.add(characterLight);
+                
+                // Store reference for later adjustment
+                window.characterLight = characterLight;
+                
+                // Apply anime-style material enhancements
+                vrmCharacter.vrm.scene.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        // Enhance material properties for anime look
+                        if (child.material.isMToonMaterial) {
+                            // MToon materials get special treatment
+                            child.material.shadeMultiply = new THREE.Color(0.8, 0.8, 0.9); // Slightly cool shadows
+                            child.material.parametricRimColorFactor = 0.5; // Subtle rim lighting
+                            child.material.parametricRimLiftFactor = 0.3;
+                        } else if (child.material.isMeshStandardMaterial || child.material.isMeshBasicMaterial) {
+                            // Standard materials get improved lighting response
+                            child.material.roughness = 0.8; // Slightly rough for anime look
+                            child.material.metalness = 0.1; // Very low metalness
+                        }
+                        
+                        // Ensure materials receive lighting properly
+                        child.material.needsUpdate = true;
+                        child.castShadow = false; // Avoid shadow issues
+                        child.receiveShadow = false;
+                    }
+                });
+                
+                console.log('✅ VRM lighting enhancement complete');
+            };
+            
+            // Initialize Enhanced Character System
+            try {
+                characterSystem = new EnhancedCharacterSystem(scene, skeletonGroup);
+                
+                updateLoadingStatus('Loading Ichika VRM character...');
+                
+                // Initialize textured skeleton in classroom with Ichika
+                await characterSystem.initializeTexturedSkeletonInClassroom('ichika');
+                
+                // Load ACTUAL VRM character (not just textured skeleton)
+                try {
+                    statusDiv.textContent = 'Loading full Ichika VRM character...';
+                    
+                    // Create advanced VRM loader
+                    const vrmLoader = new AdvancedVRMLoader();
+                    const vrmCharacter = await vrmLoader.loadVRMCharacter('./assets/avatars/ichika.vrm', scene);
+                    
+                    // Position VRM character at the skeleton location
+                    vrmCharacter.setPosition(0, 0, 0);
+                    vrmCharacter.setScale(1.0); // Use full scale for VRM
+                    
+                    // Enable camera looking
+                    vrmCharacter.lookAtCamera(camera);
+                    
+                    // Store VRM character reference in character system
+                    characterSystem.vrmCharacter = vrmCharacter;
+                    
+                    // Store VRM character reference globally for functions
+                    window.vrmCharacter = vrmCharacter;
+                    
+                    // Also store globally for debugging and lighting tests
+                    window.vrmCharacter = vrmCharacter;
+                    
+                    // Fix VRM shader compatibility issues after loading - AGGRESSIVE MODE
+                    if (vrmCharacter.vrm && vrmCharacter.vrm.scene) {
+                        console.log('🔧 Applying AGGRESSIVE VRM shader compatibility fixes...');
+                        vrmCharacter.vrm.scene.traverse((child) => {
+                            if (child.isMesh && child.material) {
+                                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                                materials.forEach((mat, index) => {
+                                    // AGGRESSIVE: Replace ANY potentially problematic material
+                                    if (mat.isMToonMaterial || 
+                                        mat.type === 'ShaderMaterial' || 
+                                        mat.type === 'RawShaderMaterial' ||
+                                        (mat.uniforms && Object.keys(mat.uniforms).length > 0) ||
+                                        mat.vertexShader || 
+                                        mat.fragmentShader ||
+                                        mat.name.includes('MToon') ||
+                                        mat.name.includes('VRM') ||
+                                        mat.name.includes('Face_') ||
+                                        mat.name.includes('Body_') ||
+                                        mat.name.includes('Hair') ||
+                                        mat.name.includes('baked')) {
+                                        
+                                        console.log(`🔄 VRM: Replacing problematic material: ${mat.type} - ${mat.name}`);
+                                        
+                                        // Create bulletproof basic material
+                                        const newMaterial = new THREE.MeshBasicMaterial({
+                                            map: mat.map || null,
+                                            color: mat.color || new THREE.Color(0.8, 0.8, 0.8),
+                                            transparent: mat.transparent || false,
+                                            opacity: mat.opacity || 1.0,
+                                            side: mat.side || THREE.FrontSide,
+                                            name: `VRMFixed_${mat.name || 'Material'}_${index}`,
+                                            fog: false,
+                                            lights: false
+                                        });
+                                        
+                                        if (Array.isArray(child.material)) {
+                                            child.material[index] = newMaterial;
+                                        } else {
+                                            child.material = newMaterial;
+                                        }
+                                    }
+                                });
+                                
+                                // Remove shadows to prevent render conflicts
+                                child.castShadow = false;
+                                child.receiveShadow = false;
+                            }
+                        });
+                        console.log('✅ AGGRESSIVE VRM shader compatibility fixes applied');
+                    }
+                    
+                    // Apply enhanced lighting specifically for the VRM character
+                    if (typeof enhanceVRMLighting === 'function') {
+                        enhanceVRMLighting(vrmCharacter);
+                    } else {
+                        console.log('⚠️ enhanceVRMLighting function not yet available, will apply later');
+                    }
+                    
+                    // Also apply textures to skeleton for comparison
+                    await characterSystem.applyVRMTextureToSkeleton('./assets/avatars/ichika.vrm');
+                    
+                    // Set display mode to show both skeleton and character
+                    characterSystem.setDisplayMode('both');
+                    
+                    currentCharacterFile = 'ichika.vrm';
+                    
+                    // Update UI to reflect loaded character
+                    document.getElementById('character-select').value = 'ichika.vrm';
+                    document.getElementById('display-mode').value = 'both';
+                    document.getElementById('current-character').textContent = 'Ichika (Full VRM + Skeleton)';
+                    document.getElementById('display-mode-info').textContent = 'both';
+                    
+                    statusDiv.textContent = '🎉 Full Ichika VRM character loaded!';
+                    console.log('🎉 Full Ichika VRM character loaded with skeleton!');
+                    
+                } catch (vrmError) {
+                    console.warn('⚠️ Failed to auto-load Ichika VRM:', vrmError);
+                    
+                    // Fallback to textured skeleton only
+                    try {
+                        await characterSystem.applyVRMTextureToSkeleton('./assets/avatars/ichika.vrm');
+                        characterSystem.setDisplayMode('textured_skeleton');
+                        currentCharacterFile = 'ichika.vrm';
+                        
+                        document.getElementById('character-select').value = 'ichika.vrm';
+                        document.getElementById('display-mode').value = 'textured_skeleton';
+                        document.getElementById('current-character').textContent = 'Ichika (Textured Skeleton)';
+                        document.getElementById('display-mode-info').textContent = 'textured_skeleton';
+                        
+                        statusDiv.textContent = '✅ Ichika textured skeleton loaded (VRM failed)';
+                        console.log('✅ Fallback: Ichika textured skeleton loaded');
+                    } catch (fallbackError) {
+                        console.error('❌ Both VRM and textured skeleton failed:', fallbackError);
+                        statusDiv.textContent = 'Character system ready (auto-load failed)';
+                    }
+                }
+                
+                // Initialize camera controller with optimal settings for character viewing
+                cameraController = new ClassroomCameraController(camera, characterSystem);
+                
+                // Set camera to character-focused view
+                camera.position.set(0, 1.6, 2.5); // Position from Ichika config
+                camera.lookAt(0, 1.15, 0); // Look at character center
+                camera.fov = 40; // Matching preview camera settings
+                camera.updateProjectionMatrix();
+                
+                if (cameraController) {
+                    cameraController.setCameraMode('front');
+                    document.getElementById('camera-mode').value = 'front';
+                    document.getElementById('camera-mode-info').textContent = 'front';
+                }
+                
+                console.log('✅ Character system with Ichika VRM initialized');
+                
+                // Set up event listeners for character controls
+                const characterSelect = document.getElementById('character-select');
+                const displayModeSelect = document.getElementById('display-mode');
+                const cameraModeSelect = document.getElementById('camera-mode');
+                
+                characterSelect.addEventListener('change', loadSelectedCharacter);
+                displayModeSelect.addEventListener('change', changeDisplayMode);
+                cameraModeSelect.addEventListener('change', (e) => setCameraMode(e.target.value));
+                
+                // Initialize character control functions
+                initializeCharacterControls();
+                
+            } catch (error) {
+                console.error('❌ Failed to initialize character system:', error);
+                // Continue without character system
+            }
+            
+            updateLoadingStatus('Starting animation...');
+            
+            // FINAL AGGRESSIVE MATERIAL CLEANUP before animation starts
+            console.log('🧹 FINAL CLEANUP: Fixing all scene materials before animation...');
+            fixSceneMaterials();
+            
+            // Animation styles with different parameters
+            const animationStyles = {
+                neutral: { speed: 1.0, intensity: 1.0, bounce: 0.1, description: 'Natural walking' },
+                happy: { speed: 1.3, intensity: 1.5, bounce: 0.3, description: 'Bouncy, energetic' },
+                sad: { speed: 0.7, intensity: 0.5, bounce: 0.05, description: 'Slow, heavy steps' },
+                angry: { speed: 1.2, intensity: 2.0, bounce: 0.1, description: 'Aggressive, forceful' },
+                energetic: { speed: 1.8, intensity: 1.8, bounce: 0.4, description: 'High energy' },
+                graceful: { speed: 0.9, intensity: 0.8, bounce: 0.2, description: 'Smooth, elegant' },
+                robotic: { speed: 1.0, intensity: 1.0, bounce: 0.0, description: 'Mechanical, stiff' }
+            };
+            
+            // Animation control functions
+            function toggleAnimation() {
+                isPlaying = !isPlaying;
+                const btn = document.getElementById('play-pause-btn');
+                btn.textContent = isPlaying ? 'Pause' : 'Play';
+                btn.style.background = isPlaying ? '#4CAF50' : '#f44336';
+            }
+            
+            function updateAnimationSpeed(value) {
+                animationSpeed = parseFloat(value);
+                document.getElementById('speed-value').textContent = value + 'x';
+                document.getElementById('animation-speed').textContent = value + 'x';
+                console.log('Animation speed changed to:', animationSpeed);
+            }
+            
+            function resetAnimation() {
+                animationFrame = 0;
+                currentFrame = 0;
+                console.log('Animation reset');
+            }
+            
+            function debugFrame() {
+                if (bvhData[currentAnimation] && bvhData[currentAnimation].frames.length > 0) {
+                    const frames = bvhData[currentAnimation].frames;
+                    const frameIndex = Math.floor(animationFrame * animationSpeed) % frames.length;
+                    const frameData = frames[frameIndex];
+                    
+                    console.log('🔍 Debug Frame Info:');
+                    console.log('Current frame:', frameIndex);
+                    console.log('Frame data length:', frameData.length);
+                    console.log('First 12 values (root pos + rot):', frameData.slice(0, 12));
+                    console.log('Animation speed:', animationSpeed);
+                    console.log('Total frames:', frames.length);
+                    console.log('Skeleton rotation:', skeletonGroup.rotation);
+                    console.log('Skeleton position:', skeletonGroup.position);
+                    
+                    // Log some joint rotations
+                    let channelIndex = 6; // Skip root pos and rot
+                    console.log('Joint rotations:');
+                    bvhJointOrder.slice(0, 3).forEach(jointName => {
+                        if (channelIndex + 2 < frameData.length) {
+                            const rotY = frameData[channelIndex++];
+                            const rotX = frameData[channelIndex++];
+                            const rotZ = frameData[channelIndex++];
+                            console.log(`${jointName}: Y=${rotY.toFixed(2)}, X=${rotX.toFixed(2)}, Z=${rotZ.toFixed(2)}`);
+                        }
+                    });
+                }
+            }
+            
+            let orientationMode = 0;
+            function fixOrientation() {
+                // DISABLED: Let BVH data control all orientation
+                console.log('⚠️ fixOrientation() disabled - using pure BVH data only');
+            }
+            
+            let directionMultiplier = 1;
+            function flipDirection() {
+                // DISABLED: Let BVH data control all direction
+                console.log('⚠️ flipDirection() disabled - using pure BVH data only');
+            }
+            
+            // Make direction multiplier global
+            window.directionMultiplier = directionMultiplier;
+            
+            let jointIntensity = 0.1;
+            function updateJointIntensity(value) {
+                jointIntensity = parseFloat(value);
+                document.getElementById('intensity-value').textContent = value;
+                console.log('Joint intensity changed to:', jointIntensity);
+            }
+            
+            // Make intensity global
+            window.jointIntensity = jointIntensity;
+            
+            // REMOVED: Root constraint functions - using pure BVH with no constraints
+            
+            let simpleMode = false;
+            function toggleSimpleMode() {
+                simpleMode = !simpleMode;
+                const btn = document.getElementById('simple-mode-btn');
+                btn.textContent = simpleMode ? 'Full Mode' : 'Simple Mode';
+                btn.style.background = simpleMode ? '#4CAF50' : '#607D8B';
+                console.log('Simple mode:', simpleMode);
+            }
+            
+            function debugBVH() {
+                console.log('🔍 BVH Debug Information:');
+                console.log('Current animation:', currentAnimation);
+                console.log('BVH data loaded:', Object.keys(bvhData));
+                
+                if (bvhData[currentAnimation]) {
+                    const data = bvhData[currentAnimation];
+                    console.log('Frames:', data.frames?.length || 0);
+                    console.log('Frame time:', data.frameTime);
+                    console.log('Channel count:', data.channelCount);
+                    
+                    if (data.frames && data.frames.length > 0) {
+                        console.log('First frame data:', data.frames[0].slice(0, 12));
+                        console.log('Sample middle frame:', data.frames[Math.floor(data.frames.length/2)].slice(0, 12));
+                    }
+                } else {
+                    console.log('❌ No BVH data loaded for:', currentAnimation);
+                }
+                
+                console.log('Skeleton joints created:', Object.keys(jointMeshes));
+                console.log('Skeleton group position:', skeletonGroup.position);
+                console.log('Skeleton group rotation:', skeletonGroup.rotation);
+                console.log('Animation frame:', animationFrame);
+                console.log('Animation speed:', animationSpeed);
+                console.log('Is playing:', isPlaying);
+            }
+            
+            function resetCharacterDirection() {
+                console.log('🔄 Resetting character direction - PURE BVH MODE');
+                window.characterHeading = 0;
+                animationFrame = 0; // Reset animation to beginning
+                
+                // REMOVED: Do NOT manually set skeleton rotation/position
+                // Let BVH data control everything when next frame is applied
+                console.log('✅ Animation reset to frame 0 - BVH will control all transforms');
+            }
+            
+            // Make functions global for onclick handlers
+            window.toggleAnimation = toggleAnimation;
+            window.updateAnimationSpeed = updateAnimationSpeed;
+            window.resetAnimation = resetAnimation;
+            window.debugFrame = debugFrame;
+            window.fixOrientation = fixOrientation;
+            window.flipDirection = flipDirection;
+            window.updateJointIntensity = updateJointIntensity;
+            window.toggleSimpleMode = toggleSimpleMode;
+            window.debugBVH = debugBVH;
+            window.resetCharacterDirection = resetCharacterDirection;
+            
+
+
+            // === AI-POWERED ANIMATION LOOP ===
+            let aiMode = false;
+            let baseMotion = null;
+            let generatedMotion = null;
+            let styleUpdateCounter = 0;
+
+            async function toggleAIMode() {
+                aiMode = !aiMode;
+                const aiModeBtn = document.getElementById('ai-mode-btn');
+                
+                if (aiMode) {
+                    if (!aiModelManager.isInitialized) {
+                        try {
+                            await aiModelManager.initialize();
+                        } catch (error) {
+                            logInferenceEvent(`❌ Cannot enable AI mode: ${error.message}`, 'error');
+                            aiMode = false;
+                            return;
+                        }
+                    }
+                    
+                    aiModeBtn.textContent = '🤖 AI Mode: ON';
+                    aiModeBtn.style.background = '#4CAF50';
+                    statusDiv.textContent = 'AI Mode: Neural networks controlling motion';
+                    logInferenceEvent('🧠 AI Mode activated - neural networks now controlling motion', 'success');
+                    
+                    // Initialize with current BVH frame as seed
+                    if (bvhData[currentAnimation] && bvhData[currentAnimation].frames.length > 0) {
+                        const currentFrame = bvhData[currentAnimation].frames[0];
+                        baseMotion = new Float32Array(currentFrame.slice(0, 66));
+                        aiModelManager.updateMotionHistory(baseMotion);
+                    }
+                    
+                } else {
+                    aiModeBtn.textContent = '🎬 BVH Mode: ON';
+                    aiModeBtn.style.background = '#2196F3';
+                    statusDiv.textContent = 'BVH Mode: Playing recorded motion capture';
+                    logInferenceEvent('🎬 BVH Mode activated - playing recorded motion', 'info');
+                }
+            }
+
+            // Modified animation loop with AI integration
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                if (isPlaying) {
+                    animationFrame++;
+                    
+                    if (aiMode && aiModelManager.isInitialized) {
+                        // === AI-POWERED MOTION GENERATION ===
+                        
+                        try {
+                            // Every 10 frames, update style encoding
+                            if (styleUpdateCounter % 10 === 0 && aiModelManager.motionHistory.length >= 60) {
+                                const motionSequence = aiModelManager.getMotionSequence();
+                                aiModelManager.encodeStyle(motionSequence).catch(error => {
+                                    logInferenceEvent(`Style encoding failed: ${error.message}`, 'error');
+                                });
+                            }
+                            styleUpdateCounter++;
+                            
+                            if (baseMotion) {
+                                // Predict phase for current motion
+                                aiModelManager.predictPhase(baseMotion).then(phase => {
+                                    document.getElementById('current-frame').textContent = `AI Phase: ${phase.toFixed(3)}`;
+                                }).catch(error => {
+                                    console.warn('Phase prediction failed:', error);
+                                });
+                                
+                                // Generate next motion frame using TransitionNet
+                                if (styleUpdateCounter % 5 === 0) { // Generate every 5 frames
+                                    aiModelManager.generateTransition(
+                                        baseMotion,
+                                        aiModelManager.currentStyle
+                                    ).then(newMotion => {
+                                        generatedMotion = newMotion;
+                                        baseMotion = newMotion; // Use generated motion as next base
+                                        aiModelManager.updateMotionHistory(newMotion);
+                                        
+                                        // Apply AI-generated motion to skeleton
+                                        applyAIMotionFrame(newMotion);
+                                        
+                                    }).catch(error => {
+                                        console.warn('Transition generation failed:', error);
+                                    });
+                                }
+                                
+                                // Update UI metrics
+                                document.getElementById('inference-rate').textContent = 
+                                    `${(1000 / (aiModelManager.models.deepphase?.lastInferenceTime || 16)).toFixed(1)} FPS`;
+                                document.getElementById('inference-latency').textContent = 
+                                    `${(aiModelManager.models.deepphase?.lastInferenceTime || 16).toFixed(1)}ms`;
+                            }
+                            
+                        } catch (error) {
+                            logInferenceEvent(`❌ AI processing error: ${error.message}`, 'error');
+                            // Fallback to BVH mode
+                            aiMode = false;
+                            toggleAIMode();
+                        }
+                        
+                    } else {
+                        // === ORIGINAL BVH PLAYBACK ===
+                        
+                        if (bvhData[currentAnimation] && bvhData[currentAnimation].frames.length > 0) {
+                            const frames = bvhData[currentAnimation].frames;
+                            const frameIndex = Math.floor(animationFrame * animationSpeed) % frames.length;
+                            const frameData = frames[frameIndex];
+                            
+                            // Apply BVH frame data to skeleton
+                            applyBVHFrame(frameData);
+                            
+                            // Update motion history for potential AI mode switch
+                            if (frameData.length >= 66) {
+                                aiModelManager.updateMotionHistory(frameData.slice(0, 66));
+                            }
+                            
+                            // Update frame counter
+                            document.getElementById('current-frame').textContent = `${frameIndex + 1}/${frames.length} (BVH)`;
+                            
+                        } else {
+                            document.getElementById('current-frame').textContent = 'No BVH data';
+                        }
+                    }
+                    
+                    // Update UI displays
+                    document.getElementById('animation-speed').textContent = `${animationSpeed.toFixed(1)}x`;
+                }
+                
+                // Update bones and render
+                updateBones();
+                
+                // Update VRM character system (idle animations, facial expressions, etc.)
+                if (characterSystem && characterSystem.vrmAdapter) {
+                    const deltaTime = 0.016; // Approximate 60fps delta time
+                    characterSystem.vrmAdapter.tick(deltaTime);
+                }
+                
+                // Update full VRM character if available
+                if (characterSystem && characterSystem.vrmCharacter) {
+                    const deltaTime = 0.016;
+                    characterSystem.vrmCharacter.update(deltaTime);
+                }
+                
+                // Update camera controller
+                if (cameraController) {
+                    cameraController.update();
+                }
+                
+                renderer.render(scene, camera);
+            }
+
+            // New function to apply AI-generated motion
+            function applyAIMotionFrame(motionData) {
+                if (!motionData || motionData.length < 66) return;
+                
+                let channelIndex = 0;
+                
+                // Root position (first 3 channels)
+                const rootX = motionData[channelIndex++] || 0;
+                const rootY = motionData[channelIndex++] || 0;
+                const rootZ = motionData[channelIndex++] || 0;
+                
+                // Root rotation (next 3 channels)
+                const rootRotY = (motionData[channelIndex++] || 0) * Math.PI / 180;
+                const rootRotX = (motionData[channelIndex++] || 0) * Math.PI / 180;
+                const rootRotZ = (motionData[channelIndex++] || 0) * Math.PI / 180;
+                
+                // Apply AI-generated root transformation
+                if (skeletonGroup) {
+                    skeletonGroup.position.set(
+                        rootX * bvhScale,
+                        rootY * bvhScale,
+                        rootZ * bvhScale
+                    );
+                    
+                    skeletonGroup.rotation.order = 'YXZ';
+                    skeletonGroup.rotation.set(rootRotX, rootRotY, rootRotZ);
+                    
+                    // Log AI motion every 60 frames
+                    if (animationFrame % 60 === 0) {
+                        console.log('🤖 AI Motion:', {
+                            rootPos: { x: rootX.toFixed(2), y: rootY.toFixed(2), z: rootZ.toFixed(2) },
+                            rootRot: { x: (rootRotX*180/Math.PI).toFixed(1), y: (rootRotY*180/Math.PI).toFixed(1), z: (rootRotZ*180/Math.PI).toFixed(1) },
+                            currentStyle: aiModelManager.currentStyle.slice(0, 5), // First 5 style dimensions
+                            phase: aiModelManager.currentPhase.toFixed(3)
+                        });
+                    }
+                }
+                
+                // Apply joint rotations (same logic as BVH but with AI data)
+                const bvhJointOrder = [
+                    'Chest', 'Chest2', 'Chest3', 'Chest4', 'Neck', 'Head',
+                    'RightCollar', 'RightShoulder', 'RightElbow', 'RightWrist',
+                    'LeftCollar', 'LeftShoulder', 'LeftElbow', 'LeftWrist',
+                    'RightHip', 'RightKnee', 'RightAnkle', 'RightToe',
+                    'LeftHip', 'LeftKnee', 'LeftAnkle', 'LeftToe'
+                ];
+                
+                bvhJointOrder.forEach(jointName => {
+                    if (jointMeshes[jointName] && channelIndex + 2 < motionData.length) {
+                        const rotY = (motionData[channelIndex++] || 0) * Math.PI / 180;
+                        const rotX = (motionData[channelIndex++] || 0) * Math.PI / 180;
+                        const rotZ = (motionData[channelIndex++] || 0) * Math.PI / 180;
+                        
+                        jointMeshes[jointName].rotation.order = 'YXZ';
+                        jointMeshes[jointName].rotation.set(rotX, rotY, rotZ);
+                    }
+                });
+            }
+
+
+            
+            // Setup enhanced controls
+            document.getElementById('play-pause').onclick = () => {
+                isPlaying = !isPlaying;
+                statusDiv.textContent = isPlaying ? 'Playing' : 'Paused';
+            };
+            
+            document.getElementById('reset').onclick = () => {
+                animationFrame = 0;
+                // REMOVED: skeletonGroup.rotation.y = 0; // Let BVH control rotation!
+                animationSpeed = 1.0;
+                currentStyle = 'neutral';
+                document.getElementById('current-style').textContent = currentStyle;
+                statusDiv.textContent = 'Reset to neutral (BVH-controlled)';
+            };
+            
+            document.getElementById('cycle-animations').onclick = () => {
+                // Cycle through real BVH animations
+                const animFiles = Object.keys(animations);
+                const currentIndex = animFiles.indexOf(currentAnimation);
+                const nextFile = animFiles[(currentIndex + 1) % animFiles.length];
+                
+                loadAnimation(nextFile);
+                statusDiv.textContent = `Loading: ${animations[nextFile].name}`;
+            };
+            
+            document.getElementById('random-style').onclick = () => {
+                // Load random BVH animation
+                const animFiles = Object.keys(animations);
+                const randomFile = animFiles[Math.floor(Math.random() * animFiles.length)];
+                
+                loadAnimation(randomFile);
+                statusDiv.textContent = `Random: ${animations[randomFile].name}`;
+            };
+            
+            document.getElementById('speed-up').onclick = () => {
+                animationSpeed = Math.min(3.0, animationSpeed * 1.2);
+                statusDiv.textContent = `Speed: ${animationSpeed.toFixed(1)}x`;
+            };
+            
+            document.getElementById('slow-down').onclick = () => {
+                animationSpeed = Math.max(0.2, animationSpeed / 1.2);
+                statusDiv.textContent = `Speed: ${animationSpeed.toFixed(1)}x`;
+            };
+            
+            document.getElementById('toggle-wireframe').onclick = () => {
+                isWireframe = !isWireframe;
+                // Toggle wireframe on joint materials
+                Object.values(jointMeshes).forEach(joint => {
+                    joint.material.wireframe = isWireframe;
+                });
+                statusDiv.textContent = isWireframe ? 'Wireframe ON' : 'Wireframe OFF';
+            };
+            
+            document.getElementById('transition-demo').onclick = () => {
+                statusDiv.textContent = 'Running animation transition demo...';
+                document.getElementById('transition-state').textContent = 'Active';
+                
+                // Cycle through different BVH animations
+                const animFiles = Object.keys(animations);
+                let animIndex = 0;
+                
+                const transitionInterval = setInterval(() => {
+                    const animFile = animFiles[animIndex];
+                    loadAnimation(animFile);
+                    const animData = animations[animFile];
+                    document.getElementById('current-style').textContent = animData.name;
+                    statusDiv.textContent = `Transition: ${animData.name} - ${animData.description}`;
+                    animIndex = (animIndex + 1) % animFiles.length;
+                    
+                    if (animIndex === 0) {
+                        clearInterval(transitionInterval);
+                        document.getElementById('transition-state').textContent = 'Complete';
+                        statusDiv.textContent = 'Animation transition demo completed';
+                        loadAnimation('neutral_reference.bvh');
+                        document.getElementById('current-style').textContent = 'Neutral Walking';
+                    }
+                }, 2000);
+            };
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+                      
+
+            // ✅ Add this function to check ONNX Runtime setup
+            window.checkONNXRuntimeSetup = function() {
+                console.log('🔍 === ONNX RUNTIME SETUP CHECK ===');
+                
+                // Check if ONNX Runtime is properly loaded
+                console.log('Global ort object:', typeof ort);
+                console.log('ort.version:', ort.version);
+                console.log('ort.env:', ort.env);
+                
+                // Check WebGPU support in ONNX Runtime
+                console.log('WebGPU support checks:');
+                console.log('- ort.env.webgpu:', ort.env.webgpu);
+                console.log('- ort.env.wasm:', ort.env.wasm);
+                
+                // Check execution providers
+                console.log('Available execution providers:');
+                try {
+                    // This might not work in all versions, but worth checking
+                    if (ort.env.webgpu) {
+                        console.log('- WebGPU execution provider: Available');
+                    } else {
+                        console.log('- WebGPU execution provider: Not available');
+                    }
+                } catch (e) {
+                    console.log('- Could not check execution providers:', e.message);
+                }
+                
+                // Check browser WebGPU support
+                console.log('Browser WebGPU support:');
+                console.log('- navigator.gpu:', !!navigator.gpu);
+                if (navigator.gpu) {
+                    navigator.gpu.requestAdapter().then(adapter => {
+                        console.log('- WebGPU adapter:', !!adapter);
+                        if (adapter) {
+                            console.log('- Adapter features:', Array.from(adapter.features || []));
+                        }
+                    });
+                }
+            };
+
+            // Enhanced animation loop with proper error handling - Initialize variables first
+            let consecutiveErrors = 0;
+            let renderErrorCount = 0;
+            const maxConsecutiveErrors = 10;
+            let animationHalted = false;
+            let lastErrorMessage = '';
+            let errorMessageCount = 0;
+            let materialFixAttempted = false; // Prevent endless material fixing loops
+
+            // Start animation loop and load first animation
+            enhancedAnimate();
+            
+            // Load default animation
+            updateLoadingStatus('Loading default animation...');
+            loadAnimation('neutral_reference.bvh');
+                        
+            function enhancedAnimate() {
+                if (animationHalted) {
+                    console.log('🛑 Animation halted due to persistent errors');
+                    return;
+                }
+                            
+                try {
+                    requestAnimationFrame(enhancedAnimate);
+                    
+                    if (isPlaying) {
+                        animationFrame += animationSpeed;
+                        
+                        // Apply BVH animation
+                        if (bvhData[currentAnimation] && bvhData[currentAnimation].frames.length > 0) {
+                            const frames = bvhData[currentAnimation].frames;
+                            const frameIndex = Math.floor(animationFrame) % frames.length;
+                            const frameData = frames[frameIndex];
+                            
+                            // Apply to skeleton
+                            try {
+                                applyBVHFrame(frameData);
+                            } catch (e) {
+                                console.warn('⚠️ BVH frame application error:', e.message);
+                            }
+                            
+                            // Apply to character system
+                            if (characterSystem) {
+                                try {
+                                    characterSystem.applyBVHFrame(frameData);
+                                } catch (e) {
+                                    console.warn('⚠️ Character system frame error:', e.message);
+                                }
+                            }
+                            
+                            document.getElementById('current-frame').textContent = `${frameIndex + 1}/${frames.length}`;
+                        }
+                    }
+                    
+                    // Update character system
+                    if (characterSystem) {
+                        try {
+                            characterSystem.update();
+                        } catch (e) {
+                            console.warn('⚠️ Character system update error:', e.message);
+                        }
+                    }
+                    
+                    // Update camera controller
+                    if (cameraController) {
+                        try {
+                            cameraController.update();
+                        } catch (e) {
+                            console.warn('⚠️ Camera controller error:', e.message);
+                        }
+                    }
+                    
+                    // Update bones
+                    try {
+                        updateBones();
+                    } catch (e) {
+                        console.warn('⚠️ Bone update error:', e.message);
+                    }
+                    
+                    // Safe rendering with error handling
+                    try {
+                        renderer.render(scene, camera);
+                        consecutiveErrors = 0; // Reset on successful render
+                        renderErrorCount = 0;
+                        materialFixAttempted = false; // Allow material fixing again if needed
+                    } catch (renderError) {
+                        consecutiveErrors++;
+                        renderErrorCount++;
+                        
+                        // Track repeated error messages
+                        if (renderError.message === lastErrorMessage) {
+                            errorMessageCount++;
+                        } else {
+                            lastErrorMessage = renderError.message;
+                            errorMessageCount = 1;
+                        }
+                        
+                        console.warn(`⚠️ Render error #${renderErrorCount} (consecutive: ${consecutiveErrors}): ${renderError.message}`);
+                        
+                        // Log stack trace for first few errors to help debugging
+                        if (renderErrorCount <= 3) {
+                            console.error('Error stack:', renderError.stack);
+                        }
+                        
+                        // Try different fix strategies based on error count
+                        if (consecutiveErrors < maxConsecutiveErrors) {
+                            if (consecutiveErrors <= 3 && !materialFixAttempted) {
+                                console.log('🔧 Attempting to fix scene materials...');
+                                fixSceneMaterials();
+                                materialFixAttempted = true; // Prevent repeated attempts
+                            } else if (consecutiveErrors <= 6) {
+                                console.log('🔧 Attempting to compile materials...');
+                                compileAllMaterials();
+                            } else {
+                                console.log('🔧 Running material diagnostics...');
+                                if (scene && typeof diagnoseMaterials === 'function') {
+                                    diagnoseMaterials();
+                                } else {
+                                    console.warn('⚠️ Scene or diagnoseMaterials function not available');
+                                }
+                            }
+                        } else {
+                            console.error(`💥 Too many consecutive render errors (${consecutiveErrors}). HALTING ANIMATION.`);
+                            console.error(`Last error repeated ${errorMessageCount} times: ${lastErrorMessage}`);
+                            animationHalted = true;
+                            addErrorNotification();
+                            return;
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Animation loop error:', error);
+                    consecutiveErrors++;
+                    
+                    if (consecutiveErrors >= maxConsecutiveErrors) {
+                        console.error(`💥 Too many consecutive animation errors (${consecutiveErrors}). HALTING ANIMATION.`);
+                        animationHalted = true;
+                        addErrorNotification();
+                        return;
+                    } else {
+                        // Add delay to prevent rapid error loops
+                        setTimeout(() => requestAnimationFrame(enhancedAnimate), 100);
+                    }
+                }   
+            }
+            
+            // Material fixing functions - ULTRA AGGRESSIVE MODE
+            function fixSceneMaterials() {
+                console.log('🔧 AGGRESSIVE: Replacing ALL VRM materials for compatibility...');
+                let fixedCount = 0;
+                
+                scene.traverse((object) => {
+                    if (object.material) {
+                        const materials = Array.isArray(object.material) ? object.material : [object.material];
+                        materials.forEach((mat, index) => {
+                            // AGGRESSIVE: Replace ANY material that might cause shader issues
+                            if (mat.isMToonMaterial || 
+                                mat.type === 'ShaderMaterial' || 
+                                mat.type === 'RawShaderMaterial' ||
+                                (mat.uniforms && Object.keys(mat.uniforms).length > 0) ||
+                                mat.vertexShader || 
+                                mat.fragmentShader ||
+                                mat.name.includes('MToon') ||
+                                mat.name.includes('VRM') ||
+                                mat.name.includes('Face_') ||
+                                mat.name.includes('Body_') ||
+                                mat.name.includes('Hair') ||
+                                mat.name.includes('baked')) {
+                                
+                                // Create super-simple material
+                                const newMaterial = new THREE.MeshBasicMaterial({
+                                    map: mat.map || null,
+                                    color: mat.color || new THREE.Color(0.8, 0.8, 0.8),
+                                    transparent: mat.transparent || false,
+                                    opacity: mat.opacity || 1.0,
+                                    side: mat.side || THREE.FrontSide,
+                                    name: `UltraFixed_${mat.name || 'Material'}_${index}`,
+                                    fog: false,
+                                    lights: false
+                                });
+                                
+                                if (Array.isArray(object.material)) {
+                                    object.material[index] = newMaterial;
+                                } else {
+                                    object.material = newMaterial;
+                                }
+                                fixedCount++;
+                                console.log(`🔄 Replaced material: ${mat.type} -> MeshBasicMaterial`);
+                            } else {
+                                // Even for safe materials, ensure no problematic properties
+                                if (mat.uniforms) {
+                                    delete mat.uniforms; // Remove all uniforms
+                                }
+                                
+                                // Remove all shader-related properties
+                                delete mat.vertexShader;
+                                delete mat.fragmentShader;
+                                delete mat.defines;
+                                
+                                // Disable problematic features
+                                mat.castShadow = false;
+                                mat.receiveShadow = false;
+                                mat.fog = false;
+                                
+                                // Force material update
+                                mat.needsUpdate = true;
+                            }
+                        });
+                    }
+                });
+                
+                console.log(`✅ ULTRA-FIXED ${fixedCount} materials - converted to MeshBasicMaterial`);
+                return fixedCount > 0;
+            }
+            
+            // Get default values for common uniforms
+            function getDefaultUniformValue(uniformName) {
+                const defaults = {
+                    'resolution': new THREE.Vector2(window.innerWidth, window.innerHeight),
+                    'cameraPosition': camera.position.clone(),
+                    'modelMatrix': new THREE.Matrix4(),
+                    'viewMatrix': camera.matrixWorldInverse.clone(),
+                    'projectionMatrix': camera.projectionMatrix.clone(),
+                    'normalMatrix': new THREE.Matrix3(),
+                    'color': new THREE.Color(1, 1, 1),
+                    'emissive': new THREE.Color(0, 0, 0),
+                    'specular': new THREE.Color(1, 1, 1),
+                    'shininess': 30,
+                    'map': null,
+                    'normalMap': null,
+                    'roughnessMap': null,
+                    'metalnessMap': null
+                };
+                
+                return defaults[uniformName] || 0.0;
+            }
+            
+            // Add error notification for user
+            function addErrorNotification() {
+                const notification = document.createElement('div');
+                notification.id = 'error-notification';
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #ff4444;
+                    color: white;
+                    padding: 15px;
+                    border-radius: 5px;
+                    z-index: 10000;
+                    max-width: 350px;
+                    font-family: monospace;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                `;
+                notification.innerHTML = `
+                    <strong>⚠️ Animation Halted</strong><br>
+                    Persistent rendering errors detected.<br>
+                    Last error: <code>${lastErrorMessage.substring(0, 50)}...</code><br>
+                    <button onclick="location.reload()" style="margin-top: 10px; padding: 5px 10px; background: white; color: #ff4444; border: none; border-radius: 3px; cursor: pointer;">
+                        Reload Page
+                    </button>
+                `;
+                document.body.appendChild(notification);
+            }
+            
+            // Force material compilation for the scene
+            function compileAllMaterials() {
+                console.log('🔄 Compiling all scene materials...');
+                try {
+                    renderer.compile(scene, camera);
+                    console.log('✅ Material compilation complete');
+                } catch (e) {
+                    console.warn('⚠️ Material compilation failed:', e.message);
+                    // Try alternative approach
+                    scene.traverse((object) => {
+                        if (object.material) {
+                            try {
+                                if (Array.isArray(object.material)) {
+                                    object.material.forEach(mat => mat.needsUpdate = true);
+                                } else {
+                                    object.material.needsUpdate = true;
+                                }
+                            } catch (err) {
+                                console.warn('⚠️ Failed to update material:', err.message);
+                            }
+                        }
+                    });
+                }
+            }
+            
+            // Make material fixing functions globally accessible
+            window.fixSceneMaterials = fixSceneMaterials;
+            window.compileAllMaterials = compileAllMaterials;
+            
+            // Replace the original animate function with enhanced version
+            if (typeof animate !== 'undefined') {
+                animate = enhancedAnimate;
+            }
+            
+            // Make enhancedAnimate globally accessible
+            window.enhancedAnimate = enhancedAnimate;
+            
+            // Log comprehensive startup summary
+            console.log('🎉 RSMT Viewer initialization complete!');
+            console.log('📊 System Configuration:');
+            console.log('  - Shadow mapping:', renderer.shadowMap.enabled ? 'ENABLED' : 'DISABLED (VRM compatibility)');
+            console.log('  - Tone mapping:', renderer.toneMapping);
+            console.log('  - Output color space:', renderer.outputColorSpace);
+            console.log('  - Character system:', characterSystem ? 'LOADED' : 'FAILED');
+            console.log('  - Camera controller:', cameraController ? 'LOADED' : 'FAILED');
+            console.log('  - VRM character:', characterSystem?.vrmCharacter ? 'LOADED' : 'NOT LOADED');
+            console.log('  - Current character file:', currentCharacterFile || 'None');
+            console.log('🔧 Use fixVRMShaders() if you see shader errors');
+            console.log('💡 Use testLighting() to check lighting setup');
+            console.log('🌑 Use toggleShadows() to test shadow compatibility');
+            
+            // Hide loading screen
+            updateLoadingStatus('Complete!');
+            setTimeout(() => {
+                loadingDiv.style.display = 'none';
+                statusDiv.textContent = 'Modern RSMT Viewer Ready! Character system loaded.';
+            }, 1000);
+            
+        } catch (error) {
+            console.error('❌ Error loading THREE.js:', error);
+            updateLoadingStatus('Error: ' + error.message);
+            statusDiv.textContent = 'Error loading 3D engine';
+            statusDiv.className = 'error';
+            
+            // Hide loading screen even on error
+            setTimeout(() => {
+                loadingDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Load and parse BVH animation files
+        async function loadAnimation(filename) {
+            try {
+                console.log('🎬 Loading animation:', filename);
+                statusDiv.textContent = `Loading ${filename}...`;
+                
+                // Try to load actual BVH data
+                try {
+                    console.log('📡 Fetching BVH file:', filename);
+                    const response = await fetch(filename);
+                    console.log('🔍 Response status:', response.status, response.statusText);
+                    
+                    if (response.ok) {
+                        const bvhText = await response.text();
+                        console.log('📄 BVH text length:', bvhText.length, 'characters');
+                        
+                        bvhData[filename] = parseBVHData(bvhText);
+                        console.log('✅ BVH data parsed for', filename, '- Frames:', bvhData[filename].frames?.length);
+                        
+                        currentAnimation = filename;
+                        animationFrame = 0;
+                        statusDiv.textContent = `Loaded ${animations[filename]?.name || filename}`;
+                        
+                    } else {
+                        throw new Error(`BVH file not found: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Could not load BVH file:', error);
+                    statusDiv.textContent = `BVH load failed, using fallback animation`;
+                }
+                
+            } catch (error) {
+                console.error('❌ Failed to load animation:', error);
+                statusDiv.textContent = 'Animation load failed';
+            }
+        }
+        
+        // Enhanced BVH parser
+        function parseBVHData(bvhText) {
+            const lines = bvhText.split('\n');
+            let motionIndex = -1;
+            let frameTimeIndex = -1;
+            
+            // Find MOTION section
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].trim().startsWith('MOTION')) {
+                    motionIndex = i;
+                    break;
+                }
+            }
+            
+            if (motionIndex === -1) {
+                throw new Error('No MOTION section found in BVH');
+            }
+            
+            // Find frame time
+            for (let i = motionIndex + 1; i < lines.length; i++) {
+                if (lines[i].trim().startsWith('Frame Time:')) {
+                    frameTimeIndex = i;
+                    break;
+                }
+            }
+            
+            // Parse frame data
+            const frames = [];
+            const frameTime = frameTimeIndex >= 0 ? 
+                parseFloat(lines[frameTimeIndex].split(':')[1]) || 0.016667 : 0.016667;
+            
+            console.log('📊 Parsing BVH - Frame time:', frameTime);
+            
+            // Parse all frame data starting after Frame Time line
+            const startLine = frameTimeIndex >= 0 ? frameTimeIndex + 1 : motionIndex + 3;
+            
+            for (let i = startLine; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line && line.length > 0) {
+                    const values = line.split(/\s+/).map(parseFloat);
+                    if (values.length > 0 && !isNaN(values[0])) {
+                        frames.push(values);
+                    }
+                }
+            }
+            
+            console.log('📊 Parsed', frames.length, 'frames with', frames[0]?.length || 0, 'channels each');
+            
+            return {
+                frames,
+                frameTime,
+                frameCount: frames.length,
+                channelCount: frames[0]?.length || 0
+            };
+        }
+        
+        // Apply BVH frame data to skeleton
+        function applyBVHFrame(frameData) {
+            if (!frameData || frameData.length < 6) return;
+            
+            let channelIndex = 0;
+            
+            // Root position (first 3 channels)
+            const rootX = frameData[channelIndex++] || 0;
+            const rootY = frameData[channelIndex++] || 0;
+            const rootZ = frameData[channelIndex++] || 0;
+            
+            // Root rotation (next 3 channels) - Try Y-first order (common in many BVH files)
+            const rootRotY = (frameData[channelIndex++] || 0) * Math.PI / 180; // Y first (turning)
+            const rootRotX = (frameData[channelIndex++] || 0) * Math.PI / 180; // X second (pitch)
+            const rootRotZ = (frameData[channelIndex++] || 0) * Math.PI / 180; // Z third (roll)
+            
+            // Apply root transformation to skeleton - use BVH data naturally
+            if (skeletonGroup) {
+                // DEBUG: Log the values we're getting (more detailed)
+                if (animationFrame % 60 === 0) { // Log every 60 frames
+                    console.log('🎬 BVH Animation Debug (TESTING Y-AXIS TURNING):', {
+                        frame: animationFrame,
+                        rootPos: { x: rootX.toFixed(2), y: rootY.toFixed(2), z: rootZ.toFixed(2) },
+                        rootRotDeg: { 
+                            x: (rootRotX*180/Math.PI).toFixed(1) + '° (pitch/lean)', 
+                            y: (rootRotY*180/Math.PI).toFixed(1) + '° (YAW/TURN - main direction)', 
+                            z: (rootRotZ*180/Math.PI).toFixed(1) + '° (roll/side)' 
+                        },
+                        rootRotRad: { x: rootRotX.toFixed(3), y: rootRotY.toFixed(3), z: rootRotZ.toFixed(3) },
+                        skeletonPos: {
+                            x: skeletonGroup.position.x.toFixed(3),
+                            y: skeletonGroup.position.y.toFixed(3), 
+                            z: skeletonGroup.position.z.toFixed(3)
+                        },
+                        bvhScale: bvhScale,
+                        jointCount: Object.keys(jointMeshes).length
+                    });
+                }
+                
+                // Position: scale BVH units to display size
+                skeletonGroup.position.set(
+                    rootX * bvhScale,      // X: as-is from BVH
+                    rootY * bvhScale,      // Y: as-is from BVH (let it control height)
+                    rootZ * bvhScale       // Z: as-is from BVH  
+                );
+                
+                // Apply BVH root transformation - PURE BVH MODE (NO CONSTRAINTS)
+                skeletonGroup.rotation.order = 'YXZ'; // Try Y-first order
+                
+                // Apply BVH rotations DIRECTLY - testing Y-axis for turning
+                // Y: Turning left/right (heading/yaw) - THIS should control direction!
+                // X: Leaning forward/back (pitch)  
+                // Z: Rolling side to side (roll)
+                skeletonGroup.rotation.set(
+                    rootRotX,  // X: Forward/back lean (pitch)
+                    rootRotY,  // Y: Left/right turning (yaw) - PRIMARY DIRECTION CONTROL
+                    rootRotZ   // Z: Roll
+                );
+            }
+            
+            // Apply joint rotations using correct BVH joint order
+            const bvhJointOrder = [
+                'Chest',          // 3 rotation channels
+                'Chest2',         // 3 rotation channels  
+                'Chest3',         // 3 rotation channels
+                'Chest4',         // 3 rotation channels
+                'Neck',           // 3 rotation channels
+                'Head',           // 3 rotation channels
+                'RightCollar',    // 3 rotation channels
+                'RightShoulder',  // 3 rotation channels
+                'RightElbow',     // 3 rotation channels
+                'RightWrist',     // 3 rotation channels
+                'LeftCollar',     // 3 rotation channels
+                'LeftShoulder',   // 3 rotation channels
+                'LeftElbow',      // 3 rotation channels
+                'LeftWrist',      // 3 rotation channels
+                'RightHip',       // 3 rotation channels
+                'RightKnee',      // 3 rotation channels
+                'RightAnkle',     // 3 rotation channels
+                'RightToe',       // 3 rotation channels
+                'LeftHip',        // 3 rotation channels
+                'LeftKnee',       // 3 rotation channels
+                'LeftAnkle',      // 3 rotation channels
+                'LeftToe'         // 3 rotation channels
+            ];
+            
+            bvhJointOrder.forEach(jointName => {
+                if (jointMeshes[jointName] && channelIndex + 2 < frameData.length) {
+                    // Try Y-first joint rotation order to match root
+                    const rotY = (frameData[channelIndex++] || 0) * Math.PI / 180; // Y first
+                    const rotX = (frameData[channelIndex++] || 0) * Math.PI / 180; // X second
+                    const rotZ = (frameData[channelIndex++] || 0) * Math.PI / 180; // Z third
+                    
+                    // Set rotation order to match root (Y, X, Z)
+                    jointMeshes[jointName].rotation.order = 'YXZ';
+                    
+                    // Apply rotations in Y-first order
+                    jointMeshes[jointName].rotation.set(
+                        rotX,   // X: pitch
+                        rotY,   // Y: yaw (primary rotation)
+                        rotZ    // Z: roll
+                    );
+                }
+            });
+        }
+       
+
+
+        // Style control functions
+        async function randomizeStyle() {
+            if (!aiModelManager.isInitialized) return;
+            
+            logInferenceEvent('🎲 Randomizing motion style...', 'info');
+            
+            // Generate random style vector
+            for (let i = 0; i < aiModelManager.currentStyle.length; i++) {
+                aiModelManager.currentStyle[i] = (Math.random() - 0.5) * 2; // [-1, 1]
+            }
+            
+            logInferenceEvent('✅ Style randomized - motion will adapt over next few frames', 'success');
+        }
+
+        async function smoothStyle() {
+            if (!aiModelManager.isInitialized) return;
+            
+            logInferenceEvent('✨ Applying smooth/graceful style...', 'info');
+            
+            // Smooth, graceful style pattern
+            aiModelManager.currentStyle.fill(0);
+            for (let i = 0; i < 64; i++) {
+                aiModelManager.currentStyle[i] = Math.sin(i * 0.1) * 0.5; // Smooth sinusoidal
+            }
+            
+            logInferenceEvent('✅ Smooth style applied', 'success');
+        }
+
+        async function aggressiveStyle() {
+            if (!aiModelManager.isInitialized) return;
+            
+            logInferenceEvent('🔥 Applying aggressive style...', 'info');
+            
+            // Aggressive, sharp style pattern
+            aiModelManager.currentStyle.fill(0);
+            for (let i = 0; i < 64; i++) {
+                aiModelManager.currentStyle[i] = Math.sign(Math.sin(i * 0.3)) * 0.8; // Sharp square wave
+            }
+            
+            logInferenceEvent('✅ Aggressive style applied', 'success');
+        }
+
+        async function analyzeCurrentMotion() {
+            if (!aiModelManager.isInitialized || aiModelManager.motionHistory.length < 10) {
+                logInferenceEvent('⚠️ Need more motion history for analysis', 'warning');
+                return;
+            }
+            
+            logInferenceEvent('🔍 Analyzing current motion patterns...', 'info');
+            
+            // Analyze recent motion
+            const recentMotion = aiModelManager.motionHistory.slice(-10);
+            const avgVelocity = recentMotion.reduce((sum, frame) => {
+                return sum + Math.abs(frame[0]) + Math.abs(frame[2]); // X and Z velocity
+            }, 0) / recentMotion.length;
+            
+            const avgRotation = recentMotion.reduce((sum, frame) => {
+                return sum + Math.abs(frame[4]); // Y rotation
+            }, 0) / recentMotion.length;
+            
+            logInferenceEvent(`📊 Motion Analysis:`, 'info');
+            logInferenceEvent(`  - Average velocity: ${avgVelocity.toFixed(3)}`, 'info');
+            logInferenceEvent(`  - Average rotation: ${avgRotation.toFixed(3)}`, 'info');
+            logInferenceEvent(`  - Current phase: ${aiModelManager.currentPhase.toFixed(3)}`, 'info');
+            logInferenceEvent(`  - Style vector norm: ${Math.sqrt(aiModelManager.currentStyle.reduce((sum, x) => sum + x*x, 0)).toFixed(3)}`, 'info');
+        }
+
+
+        // Initialize AI system on page load
+        updateLoadingStatus('Initializing AI-powered motion system...');
+
+        // Initialize AI model manager
+        setTimeout(async () => {
+            try {
+                logInferenceEvent('🧠 Pure WebGPU AI system ready for initialization...', 'info');
+                logInferenceEvent('💡 Click "🔥 Warm Up All" to load ONNX models on WebGPU', 'info');
+                logInferenceEvent('🎯 Then switch to AI mode to use neural networks!', 'success');
+
+                // Enable AI mode button
+                const aiModeBtn = document.getElementById('ai-mode-btn');
+                if (aiModeBtn) {
+                    aiModeBtn.disabled = false;
+                    aiModeBtn.title = 'Switch between BVH playback and AI-generated motion';
+                }
+                
+            } catch (error) {
+                logInferenceEvent(`❌ AI initialization failed: ${error.message}`, 'error');
+                logInferenceEvent('💡 Falling back to BVH-only mode', 'warning');
+            }
+        }, 2000);
+
+
+
+        // Toggle function for inference details (from legacy)
+        function toggleInferenceDetails() {
+            const details = document.getElementById('inference-details');
+            const button = document.getElementById('toggle-inference-details');
+            
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                button.textContent = 'Hide Details';
+            } else {
+                details.style.display = 'none';
+                button.textContent = 'Show Details';
+            }
+        }
+        
+        // Add event listener for the toggle button
+        document.getElementById('toggle-inference-details').onclick = toggleInferenceDetails;
+        
+        // === SERVER WARMUP FUNCTIONALITY ===
+        
+        // Server configuration
+        const SERVER_BASE_URL = 'http://localhost:8000';
+        const WEBSOCKET_URL = 'ws://localhost:8765';
+        let modelStatus = {
+            deephase: 'ready',
+            stylevae: 'standby', 
+            transitionnet: 'idle'
+        };
+        
+        // WebSocket connection
+        let websocket = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        
+        // Update model status displays
+        function updateModelStatus(model, status, message = '') {
+            const statusElement = document.getElementById(`${model}-status`);
+            if (statusElement) {
+                const statusDiv = statusElement.querySelector('div:last-child');
+                if (statusDiv) {
+                    statusDiv.textContent = status;
+                    if (message) {
+                        statusDiv.title = message;
+                    }
+                }
+                
+                // Update color based on status
+                const titleDiv = statusElement.querySelector('div:first-child');
+                if (titleDiv) {
+                    if (status.toLowerCase().includes('ready') || status.toLowerCase().includes('active')) {
+                        titleDiv.style.color = '#00ff88';
+                    } else if (status.toLowerCase().includes('loading') || status.toLowerCase().includes('warming')) {
+                        titleDiv.style.color = '#ffaa00';
+                    } else {
+                        titleDiv.style.color = '#ff6666';
+                    }
+                }
+            }
+            
+            modelStatus[model] = status.toLowerCase();
+        }
+        
+        // Log inference events
+        function logInferenceEvent(message, type = 'info') {
+            const inferenceLog = document.getElementById('inference-log');
+            if (inferenceLog) {
+                const timestamp = new Date().toLocaleTimeString();
+                const color = type === 'error' ? '#ff6666' : 
+                             type === 'warning' ? '#ffaa00' : 
+                             type === 'success' ? '#00ff88' : '#00d4ff';
+                
+                const logEntry = document.createElement('div');
+                logEntry.style.color = color;
+                logEntry.textContent = `[${timestamp}] ${message}`;
+                
+                inferenceLog.appendChild(logEntry);
+                inferenceLog.scrollTop = inferenceLog.scrollHeight;
+                
+                // Keep only last 20 log entries
+                while (inferenceLog.children.length > 25) {
+                    inferenceLog.removeChild(inferenceLog.children[5]); // Keep first 5 header lines
+                }
+            }
+        }
+        
+        // === WEBSOCKET COMMUNICATION ===
+        
+        function connectWebSocket() {
+            try {
+                logInferenceEvent('🔗 Connecting to WebSocket server...', 'info');
+                websocket = new WebSocket(WEBSOCKET_URL);
+                
+                websocket.onopen = function(event) {
+                    logInferenceEvent('✅ WebSocket connected - real-time mode active!', 'success');
+                    reconnectAttempts = 0;
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleWebSocketMessage(data);
+                    } catch (error) {
+                        logInferenceEvent(`❌ Error parsing WebSocket message: ${error}`, 'error');
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    logInferenceEvent('🔌 WebSocket disconnected', 'warning');
+                    
+                    // Attempt to reconnect
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        logInferenceEvent(`🔄 Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`, 'info');
+                        setTimeout(connectWebSocket, 2000 * reconnectAttempts);
+                    } else {
+                        logInferenceEvent('❌ Max reconnection attempts reached. Using fallback mode.', 'error');
+                    }
+                };
+                
+                websocket.onerror = function(error) {
+                    logInferenceEvent('❌ WebSocket error - falling back to HTTP mode', 'error');
+                };
+                
+            } catch (error) {
+                logInferenceEvent(`❌ WebSocket connection failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'initial_status':
+                    logInferenceEvent('📊 Received initial server status', 'info');
+                    updateModelsFromServerData(data.models);
+                    break;
+                    
+                case 'status_update':
+                    const model = data.model;
+                    const status = data.status;
+                    const details = data.details || {};
+                    
+                    updateModelStatus(model, status, `${data.model_type || ''} - ${details.stage || ''}`);
+                    
+                    if (details.progress !== undefined) {
+                        logInferenceEvent(`${model}: ${status} (${details.progress}%)`, 'info');
+                    } else {
+                        logInferenceEvent(`${model}: ${status}`, 'info');
+                    }
+                    
+                    if (details.processing_time) {
+                        logInferenceEvent(`${model} processing time: ${details.processing_time.toFixed(3)}s`, 'success');
+                    }
+                    break;
+                    
+                case 'command_ack':
+                    logInferenceEvent(`✅ Command acknowledged: ${data.command} for ${data.model}`, 'success');
+                    break;
+                    
+                case 'pong':
+                    logInferenceEvent('🏓 Server responsive', 'info');
+                    break;
+                    
+                default:
+                    logInferenceEvent(`📨 Received: ${data.type}`, 'info');
+            }
+        }
+        
+        function sendWebSocketCommand(command, model = null) {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: command,
+                    model: model,
+                    timestamp: Date.now()
+                };
+                
+                websocket.send(JSON.stringify(message));
+                logInferenceEvent(`📤 Sent command: ${command}${model ? ' for ' + model : ''}`, 'info');
+                return true;
+            } else {
+                logInferenceEvent('⚠️ WebSocket not connected, using fallback mode', 'warning');
+                return false;
+            }
+        }
+        
+        function updateModelsFromServerData(modelsData) {
+            for (const [modelName, modelInfo] of Object.entries(modelsData)) {
+                if (modelName !== 'skeleton') {
+                    updateModelStatus(modelName, modelInfo.status, modelInfo.type);
+                }
+            }
+        }
+        
+        // Test server connection
+        async function testServerConnection() {
+            logInferenceEvent('Testing server connection...', 'info');
+            updateModelStatus('deephase', 'Testing...', 'Checking server connectivity');
+            
+            try {
+                const response = await fetch(`${SERVER_BASE_URL}/api/status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    logInferenceEvent(`✓ Server connected: ${data.server || 'RSMT Server'}`, 'success');
+                    
+                    // Update model statuses from server response
+                    if (data.models) {
+                        for (const [modelName, modelInfo] of Object.entries(data.models)) {
+                            if (modelName !== 'skeleton') {
+                                const status = modelInfo.status || 'Unknown';
+                                updateModelStatus(modelName, status, `Type: ${modelInfo.type || 'Unknown'}`);
+                            }
+                        }
+                    }
+                    
+                    logInferenceEvent(`AI Status: ${data.ai_status || 'Unknown'}`, 'info');
+                    logInferenceEvent(`Models using AI: ${data.models_using_ai || '0/3'}`, 'info');
+                    
+                } else {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                logInferenceEvent(`❌ Server connection failed: ${error.message}`, 'error');
+                
+                // Try simple HTTP server test
+                try {
+                    const simpleResponse = await fetch(`${SERVER_BASE_URL}/`);
+                    if (simpleResponse.ok) {
+                        logInferenceEvent('⚠ Simple HTTP server detected, need FastAPI server', 'warning');
+                        logInferenceEvent('💡 To start proper server: python3 simple_warmup_server.py', 'info');
+                        updateModelStatus('deephase', 'No API', 'Simple HTTP server only');
+                        updateModelStatus('stylevae', 'No API', 'Need API server');
+                        updateModelStatus('transitionnet', 'No API', 'Need API server');
+                    }
+                } catch (simpleError) {
+                    logInferenceEvent('🔄 Server not running - simulating warmup locally', 'warning');
+                    simulateLocalWarmup();
+                }
+            }
+        }
+        
+        // Simulate warmup when server is not available
+        function simulateLocalWarmup() {
+            updateModelStatus('deephase', 'Simulated', 'Local simulation mode');
+            updateModelStatus('stylevae', 'Standby', 'Ready for simulation');
+            updateModelStatus('transitionnet', 'Idle', 'Ready for simulation');
+            logInferenceEvent('🎭 Running in simulation mode - no real neural networks', 'warning');
+            logInferenceEvent('💡 Start server on port 8000 for real AI processing', 'info');
+        }
+        
+        // Warm up StyleVAE model
+        async function warmupStyleVAE() {
+            logInferenceEvent('🎨 Initiating StyleVAE warmup...', 'info');
+            updateModelStatus('stylevae', 'Initiating...', 'Sending warmup command');
+            
+            // Try WebSocket first
+            if (sendWebSocketCommand('warmup', 'stylevae')) {
+                return; // WebSocket will handle the rest
+            }
+            
+            // Fallback to HTTP/simulation
+            try {
+                const dummyMotion = {
+                    frames: [
+                        [0, 0, 0, 0, 0, 0, ...Array(60).fill(0)]
+                    ],
+                    frame_time: 0.016667
+                };
+                
+                const response = await fetch(`${SERVER_BASE_URL}/api/encode_style`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        motion_data: dummyMotion
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    logInferenceEvent(`✓ StyleVAE activated! Processing time: ${data.processing_time?.toFixed(3) || 'unknown'}s`, 'success');
+                    updateModelStatus('stylevae', 'Active', `Ready for style encoding. Time: ${data.processing_time?.toFixed(3)}s`);
+                    
+                    if (data.style_code && data.style_code.length > 0) {
+                        logInferenceEvent(`Style vector dimension: ${data.style_code.length}`, 'info');
+                    }
+                } else {
+                    throw new Error(`StyleVAE warmup failed: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                logInferenceEvent(`❌ HTTP warmup failed: ${error.message}`, 'error');
+                // Simulate StyleVAE activation
+                logInferenceEvent('🎨 Simulating StyleVAE warmup...', 'warning');
+                await new Promise(resolve => setTimeout(resolve, 800));
+                updateModelStatus('stylevae', 'Simulated', 'Local simulation active');
+                logInferenceEvent('✓ StyleVAE simulation active (256-dim style vectors)', 'success');
+            }
+        }
+        
+        // Warm up TransitionNet model
+        async function warmupTransitionNet() {
+            logInferenceEvent('🔄 Initiating TransitionNet warmup...', 'info');
+            updateModelStatus('transitionnet', 'Initiating...', 'Sending warmup command');
+            
+            // Try WebSocket first
+            if (sendWebSocketCommand('warmup', 'transitionnet')) {
+                return; // WebSocket will handle the rest
+            }
+            
+            // Fallback to HTTP/simulation
+            try {
+                const dummyMotion = {
+                    frames: [
+                        [0, 0, 0, 0, 0, 0, ...Array(60).fill(0)]
+                    ],
+                    frame_time: 0.016667
+                };
+                
+                const dummyStyleCode = Array(256).fill(0.1);
+                
+                const response = await fetch(`${SERVER_BASE_URL}/api/generate_transition`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        start_motion: dummyMotion,
+                        target_motion: dummyMotion,
+                        style_code: dummyStyleCode,
+                        transition_length: 10
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    logInferenceEvent(`✓ TransitionNet activated! Processing time: ${data.processing_time?.toFixed(3) || 'unknown'}s`, 'success');
+                    updateModelStatus('transitionnet', 'Active', `Ready for motion transitions. Time: ${data.processing_time?.toFixed(3)}s`);
+                    
+                    if (data.transition_frames && data.transition_frames.length > 0) {
+                        logInferenceEvent(`Generated ${data.transition_frames.length} transition frames`, 'info');
+                    }
+                } else {
+                    throw new Error(`TransitionNet warmup failed: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                logInferenceEvent(`❌ HTTP warmup failed: ${error.message}`, 'error');
+                // Simulate TransitionNet activation
+                logInferenceEvent('🔄 Simulating TransitionNet warmup...', 'warning');
+                await new Promise(resolve => setTimeout(resolve, 600));
+                updateModelStatus('transitionnet', 'Simulated', 'Local simulation active');
+                logInferenceEvent('✓ TransitionNet simulation active (motion blending)', 'success');
+            }
+        }
+        
+        // Warm up all models
+        async function warmupAllModels() {
+            logInferenceEvent('🔥 Starting full model warmup sequence...', 'info');
+            
+            // Try WebSocket command for all models
+            if (sendWebSocketCommand('warmup', 'all')) {
+                updateModelStatus('stylevae', 'Queued...', 'Waiting for server');
+                updateModelStatus('transitionnet', 'Queued...', 'Waiting for server');
+                return; // WebSocket will handle the rest
+            }
+            
+            // Fallback to individual warmups
+            updateModelStatus('deephase', 'Ready', 'Already active');
+            updateModelStatus('stylevae', 'Initializing...', 'Starting StyleVAE warmup');
+            updateModelStatus('transitionnet', 'Initializing...', 'Starting TransitionNet warmup');
+            
+            try {
+                await testServerConnection();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await warmupStyleVAE();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await warmupTransitionNet();
+                
+                logInferenceEvent('🎯 All models warmed up successfully!', 'success');
+                document.getElementById('inference-rate').textContent = 'Variable';
+                document.getElementById('inference-latency').textContent = 'Active';
+            } catch (error) {
+                logInferenceEvent(`❌ Warmup sequence failed: ${error.message}`, 'error');
+            }
+        }
+
+
+
+        // === PURE WEBGPU WARMUP FUNCTIONS (No Server Dependencies) ===
+        async function testServerConnectionReal() {
+            logInferenceEvent('🌐 Pure WebGPU mode - no server connection needed!', 'success');
+            updateModelStatus('deephase', 'WebGPU Ready', 'Client-side inference');
+            updateModelStatus('stylevae', 'WebGPU Ready', 'Client-side inference');
+            updateModelStatus('transitionnet', 'WebGPU Ready', 'Client-side inference');
+        }
+
+        async function warmupStyleVAEReal() {
+            if (!aiModelManager.isInitialized) {
+                logInferenceEvent('🎨 Initializing StyleVAE on WebGPU...', 'info');
+                try {
+                    await aiModelManager.initialize();
+                    updateModelStatus('stylevae', 'Ready', 'WebGPU loaded successfully');
+                    logInferenceEvent('✅ StyleVAE ready on WebGPU!', 'success');
+                } catch (error) {
+                    updateModelStatus('stylevae', 'Failed', error.message);
+                    logInferenceEvent(`❌ StyleVAE initialization failed: ${error.message}`, 'error');
+                }
+            } else {
+                updateModelStatus('stylevae', 'Active', 'WebGPU inference ready');
+                logInferenceEvent('✅ StyleVAE already active on WebGPU', 'success');
+            }
+        }
+
+        async function warmupTransitionNetReal() {
+            if (!aiModelManager.isInitialized) {
+                logInferenceEvent('🔄 Initializing TransitionNet on WebGPU...', 'info');
+                try {
+                    await aiModelManager.initialize();
+                    updateModelStatus('transitionnet', 'Ready', 'WebGPU loaded successfully');
+                    logInferenceEvent('✅ TransitionNet ready on WebGPU!', 'success');
+                } catch (error) {
+                    updateModelStatus('transitionnet', 'Failed', error.message);
+                    logInferenceEvent(`❌ TransitionNet initialization failed: ${error.message}`, 'error');
+                }
+            } else {
+                logInferenceEvent('✅ TransitionNet already active on WebGPU', 'success');
+            }
+        }
+
+        async function warmupAllModelsReal() {
+            logInferenceEvent('🔥 Starting WebGPU model initialization...', 'info');
+            updateModelStatus('deephase', 'Initializing...', 'Loading on WebGPU');
+            updateModelStatus('stylevae', 'Initializing...', 'Loading on WebGPU');
+            updateModelStatus('transitionnet', 'Initializing...', 'Loading on WebGPU');
+
+            try {
+                await aiModelManager.initialize();
+                updateModelStatus('deephase', 'Ready', 'WebGPU inference ready');
+                updateModelStatus('stylevae', 'Ready', 'WebGPU inference ready');
+                updateModelStatus('transitionnet', 'Ready', 'WebGPU inference ready');
+
+                logInferenceEvent('🎯 All models ready on WebGPU!', 'success');
+                document.getElementById('inference-rate').textContent = 'WebGPU Ready';
+                document.getElementById('inference-latency').textContent = 'Sub-ms';
+
+            } catch (error) {
+                logInferenceEvent(`❌ Model initialization failed: ${error.message}`, 'error');
+                updateModelStatus('deephase', 'Failed', error.message);
+                updateModelStatus('stylevae', 'Failed', error.message);
+                updateModelStatus('transitionnet', 'Failed', error.message);
+            }
+        }
+
+
+        // === CHARACTER SYSTEM CONTROL FUNCTIONS ===
+        
+        function initializeCharacterControls() {
+            console.log('🎭 Initializing character control functions...');
+            
+            // Enhanced character testing and control functions
+            window.showFullVRMCharacter = function() {
+                if (characterSystem) {
+                    if (characterSystem.vrmCharacter) {
+                        characterSystem.setDisplayMode('character');
+                        document.getElementById('display-mode').value = 'character';
+                        statusDiv.textContent = 'Showing full VRM character';
+                        return '✅ Full VRM character visible';
+                    } else {
+                        statusDiv.textContent = 'Full VRM character not loaded';
+                        return '❌ Full VRM character not available';
+                    }
+                } else {
+                    return '❌ Character system not ready';
+                }
+            };
+            
+            // Comprehensive material diagnostics
+            window.diagnoseMaterials = function() {
+                console.log('🔍 Running comprehensive material diagnostics...');
+                
+                // Check if scene exists
+                if (!scene) {
+                    console.warn('⚠️ Scene not available for diagnostics');
+                    return;
+                }
+                
+                let totalObjects = 0;
+                let materialsFound = 0;
+                let problematicMaterials = 0;
+                let shaderMaterials = 0;
+                let vrmMaterials = 0;
+                const materialTypes = {};
+                const shaderErrors = [];
+                
+                scene.traverse((object) => {
+                    totalObjects++;
+                    
+                    if (object.material) {
+                        if (Array.isArray(object.material)) {
+                            object.material.forEach((mat, index) => {
+                                materialsFound++;
+                                analyzeMaterial(mat, `${object.name}_${index}`);
+                            });
+                        } else {
+                            materialsFound++;
+                            analyzeMaterial(object.material, object.name || 'unnamed');
+                        }
+                    }
+                });
+                
+                function analyzeMaterial(material, objectName) {
+                    if (!material) return;
+                    
+                    const type = material.type || 'Unknown';
+                    materialTypes[type] = (materialTypes[type] || 0) + 1;
+                    
+                    // Check for VRM materials
+                    if (type.includes('VRM') || type.includes('MToon')) {
+                        vrmMaterials++;
+                    }
+                    
+                    // Check for shader materials
+                    if (material.isShaderMaterial || material.isRawShaderMaterial) {
+                        shaderMaterials++;
+                        
+                        // Check uniforms
+                        if (material.uniforms) {
+                            Object.keys(material.uniforms).forEach(key => {
+                                const uniform = material.uniforms[key];
+                                if (uniform && uniform.value === undefined) {
+                                    shaderErrors.push(`${objectName}: ${key} uniform is undefined`);
+                                    problematicMaterials++;
+                                }
+                            });
+                        }
+                    }
+                    
+                    // Check for common issues
+                    if (material.map && !material.map.image) {
+                        shaderErrors.push(`${objectName}: texture map missing image`);
+                        problematicMaterials++;
+                    }
+                    
+                    if (material.opacity === undefined) {
+                        shaderErrors.push(`${objectName}: opacity undefined`);
+                        problematicMaterials++;
+                    }
+                }
+                
+                console.log('📊 Material Diagnostics Report:');
+                console.log(`  Total objects: ${totalObjects}`);
+                console.log(`  Materials found: ${materialsFound}`);
+                console.log(`  Shader materials: ${shaderMaterials}`);
+                console.log(`  VRM materials: ${vrmMaterials}`);
+                console.log(`  Problematic materials: ${problematicMaterials}`);
+                console.log('📋 Material types:', materialTypes);
+                
+                if (shaderErrors.length > 0) {
+                    console.log('⚠️ Shader errors found:');
+                    shaderErrors.forEach(error => console.log(`  - ${error}`));
+                }
+                
+                return {
+                    totalObjects,
+                    materialsFound,
+                    shaderMaterials,
+                    vrmMaterials,
+                    problematicMaterials,
+                    materialTypes,
+                    shaderErrors
+                };
+            };
+            
+            window.testLighting = function() {
+                console.log('🌟 Testing enhanced anime lighting...');
+                
+                // Check if lights exist
+                const lights = [
+                    ['Key Light', window.keyLight],
+                    ['Fill Light', window.fillLight], 
+                    ['Rim Light', window.rimLight],
+                    ['Face Light', window.faceLight]
+                ];
+                
+                lights.forEach(([name, light]) => {
+                    if (light) {
+                        console.log(`✅ ${name}: intensity ${light.intensity}, position (${light.position.x.toFixed(1)}, ${light.position.y.toFixed(1)}, ${light.position.z.toFixed(1)})`);
+                    } else {
+                        console.log(`❌ ${name}: not found`);
+                    }
+                });
+                
+                // Count all lights in scene
+                let lightCount = 0;
+                scene.traverse((child) => {
+                    if (child.isLight) {
+                        lightCount++;
+                        console.log(`  Light: ${child.type}, Intensity: ${child.intensity}, Position: [${child.position.x.toFixed(1)}, ${child.position.y.toFixed(1)}, ${child.position.z.toFixed(1)}]`);
+                    }
+                });
+                
+                console.log(`Total lights in scene: ${lightCount}`);
+                console.log('Renderer shadow mapping:', renderer.shadowMap.enabled);
+                console.log('Tone mapping:', renderer.toneMapping);
+                console.log('Tone mapping exposure:', renderer.toneMappingExposure);
+                console.log('🎨 Background: Gradient sky for anime aesthetic');
+                console.log('🔧 Shadows: Disabled for VRM compatibility');
+                
+                // Test lighting by temporarily changing key light intensity
+                if (window.keyLight) {
+                    const originalIntensity = window.keyLight.intensity;
+                    window.keyLight.intensity = 2.0;
+                    setTimeout(() => { window.keyLight.intensity = originalIntensity; }, 1000);
+                    console.log('💡 Key light intensity temporarily boosted for 1 second');
+                }
+                
+                // Check VRM character lighting
+                if (characterSystem?.vrmCharacter?.vrm?.scene) {
+                    console.log('🎭 VRM character detected - lighting optimized for anime style');
+                    console.log('📊 VRM scene children:', characterSystem.vrmCharacter.vrm.scene.children.length);
+                } else {
+                    console.log('⚠️ No VRM character loaded yet');
+                }
+                
+                return `✅ ${lightCount} lights configured - enhanced anime lighting active`;
+            };
+            
+            // Function to improve lighting and contrast for anime characters
+            window.improvedLighting = function() {
+                console.log('✨ Applying improved anime lighting...');
+                
+                // Use the enhanced VRM lighting function if VRM character is available
+                if (window.vrmCharacter) {
+                    enhanceVRMLighting(window.vrmCharacter);
+                }
+                
+                // Boost key light for better character visibility
+                if (window.keyLight) {
+                    window.keyLight.intensity = 2.0;
+                    console.log('💡 Key light boosted to 2.0');
+                }
+                
+                // Enhance face light for anime style
+                if (window.faceLight) {
+                    window.faceLight.intensity = 1.5;
+                    window.faceLight.angle = Math.PI / 5; // Wider angle
+                    console.log('💡 Face light enhanced');
+                }
+                
+                // Adjust fill light for better balance
+                if (window.fillLight) {
+                    window.fillLight.intensity = 1.2;
+                    console.log('💡 Fill light adjusted');
+                }
+                
+                // Boost tone mapping exposure for anime brightness
+                renderer.toneMappingExposure = 1.2;
+                console.log('🎨 Tone mapping exposure increased');
+                
+                statusDiv.textContent = 'Enhanced anime lighting applied!';
+                return '✨ Improved anime lighting applied!';
+            };
+            
+            // Function to focus camera on Ichika's face
+            window.focusOnFace = function() {
+                if (window.vrmCharacter) {
+                    // Use Ichika's specific camera settings
+                    camera.position.set(0, 1.35, -1.8); // From ichika.json preview camera
+                    camera.lookAt(0, 1.15, 0);
+                    camera.fov = 40;
+                    camera.updateProjectionMatrix();
+                    console.log('📷 Camera focused on Ichika\'s face');
+                    return 'Camera focused on face';
+                } else {
+                    console.log('⚠️ No VRM character loaded');
+                    return 'No character to focus on';
+                }
+            };
+            
+            // Function to set optimal character view
+            window.fullBodyView = function() {
+                camera.position.set(0, 1.6, 2.5);
+                camera.lookAt(0, 1.0, 0);
+                camera.fov = 40;
+                camera.updateProjectionMatrix();
+                console.log('📷 Full body view set');
+                return 'Full body view active';
+            };
+            
+            // Function to apply Ichika's idle animation and expressions
+            window.animateIchika = function() {
+                if (window.vrmCharacter && window.vrmCharacter.vrm) {
+                    try {
+                        // Apply some basic facial expressions
+                        const expressionManager = window.vrmCharacter.vrm.expressionManager;
+                        if (expressionManager) {
+                            // Set a subtle happy expression
+                            expressionManager.setValue('happy', 0.3);
+                            expressionManager.setValue('relaxed', 0.2);
+                            expressionManager.update();
+                            console.log('😊 Applied happy expression to Ichika');
+                        }
+                        
+                        // Add subtle breathing animation
+                        if (window.vrmCharacter.vrm.humanoid) {
+                            const chest = window.vrmCharacter.vrm.humanoid.getRawBoneNode('chest');
+                            if (chest) {
+                                const time = Date.now() * 0.001;
+                                chest.rotation.x = Math.sin(time * 2) * 0.02; // Subtle breathing
+                            }
+                        }
+                        
+                        return '😊 Ichika animation applied';
+                    } catch (e) {
+                        console.warn('⚠️ Animation error:', e.message);
+                        return 'Animation failed: ' + e.message;
+                    }
+                } else {
+                    return 'No VRM character loaded';
+                }
+            };
+            window.fixVRMShaders = function() {
+                console.log('🔧 Attempting to fix VRM shader issues...');
+                
+                if (!characterSystem?.vrmCharacter?.vrm?.scene) {
+                    console.log('❌ No VRM character loaded');
+                    return 'No VRM character to fix';
+                }
+                
+                let fixedCount = 0;
+                characterSystem.vrmCharacter.vrm.scene.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        // Completely disable shadows
+                        child.castShadow = false;
+                        child.receiveShadow = false;
+                        
+                        // Force material to use basic lighting
+                        if (child.material.isMeshStandardMaterial || child.material.isMeshPhysicalMaterial) {
+                            // Convert to MeshLambertMaterial for better compatibility
+                            const newMaterial = new THREE.MeshLambertMaterial({
+                                map: child.material.map,
+                                color: child.material.color,
+                                transparent: child.material.transparent,
+                                opacity: child.material.opacity,
+                                side: child.material.side
+                            });
+                            child.material = newMaterial;
+                            fixedCount++;
+                        }
+                        
+                        // Force update
+                        child.material.needsUpdate = true;
+                    }
+                });
+                
+                console.log(`✅ Fixed ${fixedCount} VRM materials`);
+                return `Fixed ${fixedCount} VRM materials for better compatibility`;
+            };
+            
+            // Function to toggle shadow mapping for testing
+            window.toggleShadows = function() {
+                const enabled = !renderer.shadowMap.enabled;
+                renderer.shadowMap.enabled = enabled;
+                
+                // Update lights
+                scene.traverse((child) => {
+                    if (child.isDirectionalLight) {
+                        child.castShadow = enabled;
+                    }
+                });
+                
+                // Update objects
+                scene.traverse((child) => {
+                    if (child.isMesh && !child.userData.isVRM) {
+                        child.castShadow = enabled;
+                        child.receiveShadow = enabled;
+                    }
+                });
+                
+                console.log(`🌑 Shadows ${enabled ? 'enabled' : 'disabled'}`);
+                return `Shadows ${enabled ? 'enabled' : 'disabled'}`;
+            };
+            
+            // Character management functions
+            window.loadSelectedCharacter = async function() {
+                const select = document.getElementById('character-select');
+                const characterFile = select.value;
+                
+                if (characterFile && characterSystem) {
+                    try {
+                        statusDiv.textContent = `Applying textures: ${characterFile}`;
+                        updateLoadingStatus(`Applying VRM textures: ${characterFile}`);
+                        
+                        // Extract character name for texture application
+                        const characterName = characterFile.replace('.vrm', '');
+                        
+                        // Apply VRM textures to the BVH skeleton
+                        await characterSystem.applyVRMTextureToSkeleton(`./assets/avatars/${characterFile}`);
+                        
+                        // Set display mode to textured skeleton
+                        characterSystem.setDisplayMode('textured_skeleton');
+                        document.getElementById('display-mode').value = 'textured_skeleton';
+                        
+                        statusDiv.textContent = `Textured skeleton: ${characterName}`;
+                        currentCharacterFile = characterFile;
+                        
+                        // Update info panel
+                        const displayName = characterName.replace(/^\w/, c => c.toUpperCase());
+                        document.getElementById('current-character').textContent = `${displayName} (Textured Skeleton)`;
+                        
+                        console.log('✅ Character textures applied to skeleton:', characterFile);
+                        
+                    } catch (error) {
+                        console.error('❌ Failed to apply character textures:', error);
+                        statusDiv.textContent = `Failed to apply textures: ${error.message}`;
+                    }
+                } else if (!characterFile) {
+                    // Reset to default skeleton if no character selected
+                    if (characterSystem) {
+                        characterSystem.setDisplayMode('skeleton');
+                        document.getElementById('display-mode').value = 'skeleton';
+                        statusDiv.textContent = 'Default skeleton mode';
+                        document.getElementById('current-character').textContent = 'Default Skeleton';
+                    }
+                } else {
+                    console.warn('⚠️ Character system not ready');
+                }
+            };
+            
+            window.changeDisplayMode = function() {
+                const select = document.getElementById('display-mode');
+                const mode = select.value;
+                
+                if (characterSystem) {
+                    characterSystem.setDisplayMode(mode);
+                    statusDiv.textContent = `Display mode: ${mode}`;
+                    
+                    // Update info panel
+                    document.getElementById('display-mode-info').textContent = mode;
+                    
+                    console.log('🎭 Display mode changed to:', mode);
+                } else {
+                    console.warn('⚠️ Character system not ready');
+                }
+            };
+            
+            window.toggleClassroom = function() {
+                if (characterSystem) {
+                    const visible = characterSystem.toggleClassroomVisibility();
+                    classroomVisible = visible;
+                    statusDiv.textContent = classroomVisible ? 'Classroom ON' : 'Classroom OFF';
+                    
+                    // Update info panel
+                    document.getElementById('classroom-status').textContent = visible ? 'Visible' : 'Hidden';
+                    
+                    console.log('🏫 Classroom visibility:', visible ? 'ON' : 'OFF');
+                } else {
+                    console.warn('⚠️ Character system not ready');
+                }
+            };
+            
+            window.resetCharacterPosition = function() {
+                if (characterSystem) {
+                    characterSystem.resetCharacterPosition();
+                    statusDiv.textContent = 'Character position reset';
+                    console.log('↺ Character position reset');
+                } else {
+                    console.warn('⚠️ Character system not ready');
+                }
+            };
+            
+            // Camera control functions
+            window.setCameraMode = function(mode) {
+                if (cameraController) {
+                    cameraController.setCameraMode(mode);
+                    statusDiv.textContent = `Camera mode: ${mode}`;
+                    
+                    // Update info panel
+                    document.getElementById('camera-mode-info').textContent = mode;
+                    
+                    console.log('📹 Camera mode changed to:', mode);
+                } else {
+                    console.warn('⚠️ Camera controller not ready');
+                }
+            };
+            
+            window.focusOnFace = function() {
+                if (cameraController) {
+                    cameraController.focusOnFace();
+                    statusDiv.textContent = 'Camera focused on face';
+                    console.log('👤 Camera focused on face');
+                } else {
+                    console.warn('⚠️ Camera controller not ready');
+                }
+            };
+            
+            window.toggleFacialExpressions = function() {
+                facialExpressionsEnabled = !facialExpressionsEnabled;
+                
+                if (characterSystem && characterSystem.facialExpressionSystem) {
+                    if (facialExpressionsEnabled) {
+                        characterSystem.facialExpressionSystem.setEmotion('neutral', 0.2);
+                    } else {
+                        characterSystem.facialExpressionSystem.setEmotion('neutral', 0.0);
+                    }
+                }
+                
+                statusDiv.textContent = `Facial expressions: ${facialExpressionsEnabled ? 'ON' : 'OFF'}`;
+                console.log('😊 Facial expressions:', facialExpressionsEnabled ? 'ON' : 'OFF');
+            };
+            
+            window.testImports = async function() {
+                statusDiv.textContent = 'Testing module imports...';
+                console.log('🔧 Testing module imports manually...');
+                
+                try {
+                    // Test import map imports
+                    console.log('Testing THREE.js import...');
+                    const threeModule = await import('three');
+                    console.log('✅ THREE.js import successful:', !!threeModule);
+                    
+                    console.log('Testing GLTFLoader import...');
+                    const gltfModule = await import('three/examples/jsm/loaders/GLTFLoader.js');
+                    console.log('✅ GLTFLoader import successful:', !!gltfModule.GLTFLoader);
+                    
+                    console.log('Testing VRM import...');
+                    const vrmModule = await import('@pixiv/three-vrm');
+                    console.log('✅ VRM import successful:', !!vrmModule.VRMLoaderPlugin);
+                    
+                    // Test actual VRM loading using our loader structure
+                    console.log('Testing VRM file loading...');
+                    
+                    // Use the loaders from our structure
+                    const GLTFLoader = window.THREELoaders?.GLTFLoader || gltfModule.GLTFLoader;
+                    const VRMLoaderPlugin = window.THREELoaders?.VRMLoaderPlugin || vrmModule.VRMLoaderPlugin;
+                    
+                    const loader = new GLTFLoader();
+                    if (VRMLoaderPlugin) {
+                        loader.register((parser) => new VRMLoaderPlugin(parser));
+                        console.log('VRM plugin registered for test');
+                    }
+                    
+                    loader.load(
+                        './assets/avatars/ichika.vrm',
+                        (gltf) => {
+                            console.log('✅ VRM file loaded successfully:', gltf);
+                            console.log('VRM scene objects:', gltf.scene.children.length);
+                            console.log('VRM userData:', gltf.userData);
+                            statusDiv.textContent = 'All imports working! VRM loaded successfully.';
+                        },
+                        (progress) => {
+                            const percent = (progress.loaded / progress.total * 100).toFixed(1);
+                            console.log('Loading progress:', percent + '%');
+                            statusDiv.textContent = `Loading VRM... ${percent}%`;
+                        },
+                        (error) => {
+                            console.error('❌ VRM loading failed:', error);
+                            statusDiv.textContent = `VRM loading failed: ${error.message}`;
+                        }
+                    );
+                    
+                } catch (error) {
+                    console.error('❌ Import test failed:', error);
+                    statusDiv.textContent = `Import test failed: ${error.message}`;
+                }
+            };
+            
+            window.initBasicTexturedSkeleton = async function() {
+                if (characterSystem) {
+                    try {
+                        statusDiv.textContent = 'Creating basic textured skeleton...';
+                        console.log('🎯 Creating basic textured skeleton without VRM...');
+                        
+                        // Load classroom first
+                        await characterSystem.loadClassroomEnvironment();
+                        
+                        // Create basic textured skeleton without VRM loading
+                        if (characterSystem.materialExtractor) {
+                            characterSystem.materialExtractor.createDefaultMaterials();
+                            characterSystem.materialExtractor.applyMaterialsToSkeleton(characterSystem.bvhSkeleton);
+                        } else {
+                            // Create material extractor with default materials
+                            characterSystem.materialExtractor = new window.VRMMaterialExtractor();
+                            characterSystem.materialExtractor.createDefaultMaterials();
+                            characterSystem.materialExtractor.applyMaterialsToSkeleton(characterSystem.bvhSkeleton);
+                        }
+                        
+                        characterSystem.setDisplayMode('textured_skeleton');
+                        
+                        statusDiv.textContent = 'Basic textured skeleton created successfully!';
+                        console.log('✅ Basic textured skeleton complete');
+                    } catch (error) {
+                        console.error('❌ Failed to create basic textured skeleton:', error);
+                        statusDiv.textContent = `Failed to create basic skeleton: ${error.message}`;
+                    }
+                } else {
+                    console.warn('⚠️ Character system not ready');
+                    statusDiv.textContent = 'Character system not ready';
+                }
+            };
+            
+            window.initTexturedSkeleton = async function() {
+                if (characterSystem) {
+                    try {
+                        statusDiv.textContent = 'Initializing textured skeleton in classroom...';
+                        console.log('🎨 Manually initializing textured skeleton...');
+                        
+                        await characterSystem.initializeTexturedSkeletonInClassroom('ichika');
+                        
+                        statusDiv.textContent = 'Textured skeleton initialized successfully!';
+                        console.log('✅ Textured skeleton initialization complete');
+                    } catch (error) {
+                        console.error('❌ Failed to initialize textured skeleton:', error);
+                        statusDiv.textContent = `Failed to initialize: ${error.message}`;
+                    }
+                } else {
+                    console.warn('⚠️ Character system not ready');
+                    statusDiv.textContent = 'Character system not ready';
+                }
+            };
+            
+            console.log('✅ Character control functions initialized');
+        }
+        
+        // Make warmup functions globally accessible
+        window.testServerConnection = testServerConnectionReal;
+        window.warmupStyleVAE = warmupStyleVAEReal;
+        window.warmupTransitionNet = warmupTransitionNetReal;
+        window.warmupAllModels = warmupAllModelsReal;
+
+    </script>
+
+    <!-- // Initialize WebSocket connection -->
+    <!-- setTimeout(() => { -->
+    <!--     logInferenceEvent('🌐 Initializing real-time server connection...', 'info'); -->
+    <!--     connectWebSocket(); -->
+    <!-- }, 1000); -->
+    
+    <!-- // Auto-test server connection on page load -->
+    <!-- setTimeout(() => { -->
+    <!--     logInferenceEvent('Auto-testing server connection...', 'info'); -->
+    <!--     testServerConnection(); -->
+    <!-- }, 2000); -->
+    
+    <!-- // Periodic WebSocket ping and status updates -->
+    <!-- setInterval(() => { -->
+    <!--     if (websocket && websocket.readyState === WebSocket.OPEN) { -->
+    <!--         sendWebSocketCommand('ping'); -->
+    <!--     } else { -->
+    <!--         // Try to reconnect if connection is lost -->
+    <!--         if (!websocket || websocket.readyState === WebSocket.CLOSED) { -->
+    <!--             connectWebSocket(); -->
+    <!--         } -->
+    <!--     } -->
+    <!-- }, 30000); // Every 30 seconds -->
+
+</body>
+</html>

@@ -1,0 +1,117 @@
+name: Web Viewer Ultimate Conversation CI
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_real:
+        description: "Run real on-device inference tests (Whisper/SpeechT5/Kokoro)"
+        required: false
+        default: false
+        type: boolean
+      kokoro_js:
+        description: "URL to kokoro-js runtime (optional, required for Kokoro REAL test)"
+        required: false
+        default: ""
+        type: string
+  push:
+    branches: [ main, develop, ichika_* ]
+    paths:
+      - 'dev/web_viewer/**'
+      - 'playwright.config.js'
+      - '.github/workflows/web-viewer-ultimate.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'dev/web_viewer/**'
+      - 'playwright.config.js'
+      - '.github/workflows/web-viewer-ultimate.yml'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUN_REAL_INFERENCE: ${{ inputs.run_real }}
+      KOKORO_JS: ${{ inputs.kokoro_js }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Serverless tests (fast)
+        run: |
+          NO_WEBSERVER=1 timeout 600s npx playwright test --project=component-tests
+
+      - name: E2E smokes (web server)
+        run: |
+          timeout 600s npx playwright test --project=web_viewer-root-e2e -g 'smoke'
+
+      - name: Ultimate mic→reply E2E (fake ASR)
+        run: |
+          timeout 600s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-mic-reply.spec.js
+
+      - name: Ultimate avatar conversation E2E (deterministic)
+        run: |
+          timeout 600s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-avatar-conversation.spec.js
+
+      - name: Ultimate markers E2E (deterministic)
+        run: |
+          timeout 600s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-markers.spec.js
+
+      - name: Ultimate markers (ASR) E2E (deterministic)
+        run: |
+          timeout 600s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-markers-asr.spec.js
+
+      - name: Ultimate mic→reply E2E (SpeechT5 on-device)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_real }}
+        run: |
+          timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-mic-reply-speecht5.spec.js
+      
+      - name: REAL: SpeechT5 on-device TTS smoke (gated)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_real }}
+        run: |
+          timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-mic-reply-speecht5-real.spec.js
+
+      - name: Ultimate conversation (unit-web)
+        run: |
+          timeout 600s npx playwright test --project=unit-web -g 'ultimate conversation'
+
+      - name: Ultimate conversation loop smokes
+        run: |
+          timeout 600s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-conv-loop.spec.js
+          timeout 600s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-stubmic.spec.js
+
+      - name: REAL: Kokoro on-device TTS smoke (gated)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_real && inputs.kokoro_js != '' }}
+        run: |
+          timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-mic-reply-kokoro.spec.js
+
+      - name: REAL: Whisper + Kokoro E2E smoke (gated)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_real && inputs.kokoro_js != '' }}
+        run: |
+          timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-whisper-kokoro.spec.js
+
+      - name: REAL: Whisper ASR-only smoke (gated)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_real }}
+        run: |
+          timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-whisper-only.spec.js
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-viewer-playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

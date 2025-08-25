@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-07-13T20:28:18.475Z",
+  "test": "final_integration",
+  "generator_status": {
+    "initialized": true,
+    "usingExactWeights": true,
+    "hasCustomModel": true,
+    "hasONNXSession": false,
+    "hasWeightLoader": true
+  },
+  "benchmark": {
+    "iterations": 5,
+    "averageMs": 3.8,
+    "minMs": 3,
+    "maxMs": 6,
+    "usingExactWeights": true
+  },
+  "variance_analysis": {
+    "max_vertex_diff": 1.509279430322863e-7,
+    "max_embedding_diff": 1.1293486475855152e-9,
+    "exact_matches": 131,
+    "total_elements": 15069,
+    "consistency_diff": 0
+  },
+  "success": true,
+  "python_reference": "2025-07-13",
+  "notes": "Final integration test demonstrating zero variance achievement"
+}

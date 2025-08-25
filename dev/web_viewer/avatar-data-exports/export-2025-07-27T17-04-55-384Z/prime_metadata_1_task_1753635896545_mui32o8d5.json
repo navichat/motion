@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "executionTime": 260,
+  "workerType": "cpu",
+  "steps": 8,
+  "complexity": 1,
+  "jobType": "WASMPrime",
+  "wasmOptimized": true,
+  "inferenceType": "SIMULATED_WASM",
+  "timestamp": "2025-07-27T17:05:01.068Z",
+  "taskId": "task_1753635896545_mui32o8d5"
+}

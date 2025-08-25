@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Simple THREE.js Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a2e;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div>Debug Status: <span id="status">Starting...</span></div>
+        <div>THREE.js: <span id="three-status">Loading...</span></div>
+        <div>Scene: <span id="scene-status">Not created</span></div>
+        <div>Skeleton: <span id="skeleton-status">Not created</span></div>
+    </div>
+
+    <script type="module">
+        try {
+            document.getElementById('status').textContent = 'Importing THREE.js...';
+            
+            // Import THREE.js
+            const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js');
+            document.getElementById('three-status').textContent = 'Loaded v' + THREE.REVISION;
+            
+            // Create basic scene
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            
+            document.getElementById('scene-status').textContent = 'Created';
+            
+            // Add basic lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(10, 10, 5);
+            scene.add(directionalLight);
+            
+            // Add grid
+            const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+            scene.add(gridHelper);
+            
+            // Create a simple test cube to verify THREE.js is working (smaller)
+            const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(2, 0.5, 0); // Move it away from skeleton
+            scene.add(cube);
+            
+            // Create a simple skeleton
+            const jointGeometry = new THREE.SphereGeometry(0.1, 12, 12); // Bigger joints
+            const jointMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+            
+            // Test joints - spread them out more
+            const testJoints = [
+                { name: 'root', pos: [0, 0, 0] },
+                { name: 'spine', pos: [0, 1.0, 0] },
+                { name: 'head', pos: [0, 2.0, 0] },
+                { name: 'leftarm', pos: [-1.0, 1.5, 0] },
+                { name: 'rightarm', pos: [1.0, 1.5, 0] }
+            ];
+            
+            const skeletonGroup = new THREE.Group();
+            
+            testJoints.forEach(joint => {
+                const mesh = new THREE.Mesh(jointGeometry, jointMaterial);
+                mesh.position.set(joint.pos[0], joint.pos[1], joint.pos[2]);
+                skeletonGroup.add(mesh);
+            });
+            
+            scene.add(skeletonGroup);
+            document.getElementById('skeleton-status').textContent = 'Created (5 joints)';
+            
+            // Position camera
+            camera.position.set(3, 2, 3);
+            camera.lookAt(0, 0.5, 0);
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Rotate the cube to show animation is working
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+                
+                // Slightly rotate skeleton to show it's there
+                skeletonGroup.rotation.y += 0.005;
+                
+                renderer.render(scene, camera);
+            }
+            
+            animate();
+            document.getElementById('status').textContent = 'Working! You should see a green cube and red joints.';
+            
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('status').textContent = 'ERROR: ' + error.message;
+            document.getElementById('status').style.color = 'red';
+        }
+    </script>
+</body>
+</html>

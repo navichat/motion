@@ -1,0 +1,55 @@
+{
+  "scenario": "speecht5 on-device fake (fake ASR)",
+  "backend": "speecht5",
+  "timestamp": "2025-08-12T22:23:58.159Z",
+  "uniqueTypes": [
+    "listen_fake_start",
+    "listen_fake_after_record",
+    "tts_scheduled",
+    "beeps_play",
+    "speecht5_fake_scheduled",
+    "listen_fake_after_schedule"
+  ],
+  "count": 6,
+  "metrics": {
+    "samples": 1,
+    "avgLatencyMs": 2,
+    "lastLatencyMs": 2,
+    "p50": 2,
+    "p90": 2,
+    "p95": 2,
+    "p99": 2
+  },
+  "latencyEntry": true,
+  "tail": [
+    {
+      "ts": 3371.4850001335144,
+      "type": "listen_fake_start"
+    },
+    {
+      "ts": 5384.745000123978,
+      "type": "listen_fake_after_record"
+    },
+    {
+      "ts": 5390.7699999809265,
+      "type": "tts_scheduled",
+      "duration": 2,
+      "visemes": 25
+    },
+    {
+      "ts": 5392.7699999809265,
+      "type": "beeps_play",
+      "dur": 2,
+      "latencyMs": 2
+    },
+    {
+      "ts": 5393.049999952316,
+      "type": "speecht5_fake_scheduled",
+      "dur": 2
+    },
+    {
+      "ts": 5394.120000123978,
+      "type": "listen_fake_after_schedule"
+    }
+  ]
+}

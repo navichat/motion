@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Inference Test</title>
+</head>
+<body>
+    <h1>AI Inference Test</h1>
+    <button id="testBtn" onclick="runRealWorkloadTest()">🚀 Real WASM/GPU/WebNN Workload</button>
+    <div id="console"></div>
+    
+    <script>
+        // Simple test function to verify our AVATAR AI COLLECTED messages work
+        window.runRealWorkloadTest = function() {
+            console.log('🚀 Starting Real WASM/WebGPU/WebNN Workload Test...');
+            
+            // Simulate a few AI inference results with AVATAR AI COLLECTED messages
+            setTimeout(() => {
+                console.log('AVATAR AI COLLECTED {"jobType":"TinyLlama","executionTime":1500,"modelOutput":{"simulated":true,"generated_text":"Test output from TinyLlama"},"usingRealModel":false,"executionProvider":"webnn-simulation"}');
+            }, 1000);
+            
+            setTimeout(() => {
+                console.log('AVATAR AI COLLECTED {"jobType":"Whisper","executionTime":1200,"modelOutput":{"simulated":true,"transcript":"Test transcript from Whisper"},"usingRealModel":false,"executionProvider":"gpu-simulation"}');
+            }, 2000);
+            
+            setTimeout(() => {
+                console.log('AVATAR AI COLLECTED {"jobType":"FaceFormer","executionTime":1800,"modelOutput":{"simulated":true,"motion_data":"Test motion data from FaceFormer"},"usingRealModel":false,"executionProvider":"cpu-simulation"}');
+            }, 3000);
+            
+            setTimeout(() => {
+                console.log('AVATAR AI COLLECTED {"jobType":"VAD","executionTime":800,"modelOutput":{"simulated":true,"activity_detected":true},"usingRealModel":false,"executionProvider":"webnn-simulation"}');
+            }, 4000);
+            
+            setTimeout(() => {
+                console.log('AVATAR AI COLLECTED {"jobType":"Audio2Gesture","executionTime":1600,"modelOutput":{"simulated":true,"motion_data":"Test gesture data"},"usingRealModel":false,"executionProvider":"gpu-simulation"}');
+            }, 5000);
+            
+            console.log('✅ Simulated AI inference jobs scheduled');
+        };
+        
+        console.log('✅ Test page loaded');
+    </script>
+</body>
+</html>

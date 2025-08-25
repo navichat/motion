@@ -1,0 +1,49 @@
+Avatar AI Data Export Summary
+============================
+Export Date: 2025-07-27T17:04:55.706Z
+Collection Duration: 7.1s
+Export Directory: /home/barberb/motion/dev/web_viewer/avatar-data-exports/export-2025-07-27T17-04-55-384Z
+Total Files Exported: 130
+
+File Format Breakdown:
+- Text Files (.txt): 4 language model outputs + prime numbers
+- JSON Files (.json): Metadata and structured data for all models
+- Audio Files (.wav): 22 synthesized audio outputs
+- Motion Files (.bvh): 17 motion capture data
+- Data Files (.csv): 0 matrix computation results
+- Image Files (.png): 1 fractal visualizations
+
+Model Categories Exported:
+==========================
+
+Language Models (4 files):
+- TinyLlama: 4 results
+- DiabloGPT: 0 results
+
+Audio Processing (74 files):
+- Whisper: 8 transcripts
+- VAD: 14 voice activity detections
+- Kokoro: 18 TTS outputs
+- SpeechT5: 4 voice synthesis outputs
+
+Motion Models (48 files):
+- RSMT: 5 motion transitions
+- DeepMimic: 5 physics-based motions
+- FaceFormer: 7 facial animations
+- Audio2Gesture: 7 gesture generations
+
+Compute Models (4 files):
+- Matrix: 0 computational results
+- Prime: 1 mathematical computations
+- Fractal: 1 visual generations
+
+Usage Instructions:
+==================
+- Text files (.txt) can be opened in any text editor
+- JSON files (.json) contain structured metadata and can be processed programmatically  
+- Audio files (.wav) can be played in any audio player or imported into audio software
+- Motion files (.bvh) can be imported into 3D animation software (Blender, Maya, etc.)
+- CSV files (.csv) can be opened in spreadsheet applications or data analysis tools
+- PNG files (.png) can be viewed in any image viewer or graphics software
+
+For avatar integration, use the JSON metadata files to understand the context and parameters of each AI model output.

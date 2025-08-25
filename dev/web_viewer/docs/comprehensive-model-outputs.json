@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-07-28T00:27:51.073Z",
+  "totalMessages": 1,
+  "aiRelatedMessages": 0,
+  "modelsDetected": 0,
+  "modelList": [],
+  "detailedOutputsByModel": {},
+  "allMessages": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (File not found)",
+      "timestamp": "2025-07-28T00:26:25.613Z"
+    }
+  ],
+  "aiOutputs": []
+}

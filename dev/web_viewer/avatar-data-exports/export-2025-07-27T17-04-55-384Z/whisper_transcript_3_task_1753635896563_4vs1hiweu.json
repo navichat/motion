@@ -1,0 +1,56 @@
+{
+  "type": "speech_recognition",
+  "transcript": "Hello world, this is a test of speech recognition.",
+  "confidence": 0.8766092079741423,
+  "words": [
+    {
+      "text": "Hello",
+      "start": 0,
+      "end": 0.5,
+      "confidence": 0.95
+    },
+    {
+      "text": "world,",
+      "start": 0.5,
+      "end": 1,
+      "confidence": 0.92
+    },
+    {
+      "text": "this",
+      "start": 1.2,
+      "end": 1.4,
+      "confidence": 0.88
+    },
+    {
+      "text": "is",
+      "start": 1.4,
+      "end": 1.6,
+      "confidence": 0.9
+    },
+    {
+      "text": "a",
+      "start": 1.6,
+      "end": 1.7,
+      "confidence": 0.85
+    },
+    {
+      "text": "test",
+      "start": 1.8,
+      "end": 2.2,
+      "confidence": 0.93
+    }
+  ],
+  "language": "en",
+  "language_confidence": 0.95,
+  "processing_time_ms": 1200,
+  "executionTime": 291,
+  "timestamp": "2025-07-27T17:04:59.294Z",
+  "taskId": "task_1753635896563_4vs1hiweu",
+  "workerType": "gpu",
+  "success": true,
+  "inferenceTime": 290.09999990463257,
+  "executionProvider": [
+    "webgpu",
+    "cpu"
+  ]
+}

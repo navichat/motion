@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"name": "kokoro",
+			"path": "../../kokoro"
+		},
+		{
+			"name": "transformers.js-examples",
+			"path": "../../transformers.js-examples"
+		}
+	],
+	"settings": {}
+}

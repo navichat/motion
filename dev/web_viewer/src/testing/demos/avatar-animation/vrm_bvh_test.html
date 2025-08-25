@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRM/BVH Retargeting Test - Standalone</title>
+    
+    <!-- Import Map for Module Resolution -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/": "https://cdn.jsdelivr.net/npm/three@0.177.0/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js"
+        }
+    }
+    </script>
+    
+    <!-- Load VRMBVHAdapter -->
+    <script src="./js/VRMBVHAdapter.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            overflow: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+        
+        .title {
+            color: #00d4ff;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            background: #00d4ff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #0084ff;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        select {
+            background: #333;
+            border: 1px solid #00d4ff;
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            margin: 5px;
+            font-family: Arial, sans-serif;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #0084ff;
+        }
+        
+        #status {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0, 200, 0, 0.1);
+            border-radius: 5px;
+            border: 1px solid #00cc00;
+        }
+        
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 100;
+            font-size: 14px;
+        }
+        
+        .metric {
+            display: inline-block;
+            margin-right: 20px;
+        }
+        
+        .metric span {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    
+    <div id="controls">
+        <div class="title">🎭 VRM/BVH Retargeting Test</div>
+        
+        <div>
+            <select id="character-select" onchange="updateCharacterPath()">
+                <option value="ichika.vrm">Ichika</option>
+                <option value="kaede.vrm">Kaede</option>
+                <option value="buny.vrm">Buny</option>
+            </select>
+            <button onclick="loadVRMCharacter()">Load VRM Character</button>
+            
+            <select id="bvh-select" onchange="updateBVHPath()">
+                <option value="neutral_walking.bvh">Neutral Walking</option>
+                <option value="robot_reference.bvh">Robot Reference</option>
+                <option value="rushed_reference.bvh">Rushed Reference</option>
+                <option value="test_neutral.bvh">Test Neutral</option>
+            </select>
+            <button onclick="loadBVHMotion()">Load BVH Motion</button>
+        </div>
+        
+        <div>
+            <button onclick="toggleAnimation()">Play/Pause</button>
+            <button onclick="resetAnimation()">Reset</button>
+        </div>
+        
+        <div>
+            <button onclick="showSkeleton()">Show Skeleton</button>
+            <button onclick="showCharacter()">Show Character</button>
+            <button onclick="showBoth()">Show Both</button>
+            <button onclick="wireframeMode()">Wireframe</button>
+            <button onclick="toggleSkeletonMode()">Skeleton Mode</button>
+        </div>
+        
+        <div>
+            <button onclick="debugBoneMapping()">Debug Bones</button>
+            <button onclick="analyzeWalkingMotion()">Analyze Walking</button>
+            <button onclick="fixHeadOrientation()">Fix Head Looking Down</button>
+            <button onclick="resetHeadToNeutral()">Reset Head Neutral</button>
+            <button onclick="debugRestPose()">Debug Rest Pose</button>
+            <button onclick="analyzeBVHRestPose()">Analyze BVH Rest</button>
+            <button onclick="diagnoseRestPoseMismatch()">Diagnose Rest Mismatch</button>
+            <button onclick="comparePoses()">Compare Poses</button>
+            <button onclick="restoreRestPose()">Restore Rest Pose</button>
+            <button onclick="applyRestCompensation()">Apply Rest Compensation</button>
+            <button onclick="applyBVHRestCompensation()">Apply BVH Compensation</button>
+        </div>
+        
+        <div>
+            <button onclick="testCoordinateConversion()">Test Coords</button>
+            <button onclick="testRotationOrders()">Test Rotations</button>
+        </div>
+        
+        <div>
+            <button onclick="quickFixArms()" style="background: #ff6b6b;">Fix Arms</button>
+            <button onclick="quickFixWalking()" style="background: #4ecdc4;">Fix Walking</button>
+            <button onclick="quickFixDirection()" style="background: #45b7d1;">Fix Direction</button>
+            <button onclick="resetVRMSkeleton()" style="background: #e74c3c;">Reset Skeleton</button>
+            <button onclick="setCoordinateConfig(2)" style="background: #96ceb4;">Try Config 2</button>
+            <button onclick="setCoordinateConfig(6)" style="background: #feca57;">Try Config 6</button>
+        </div>
+        
+        <div>
+            Speed: 
+            <input type="range" id="speed-slider" min="0.1" max="2.0" step="0.1" value="0.5" onchange="updateSpeed(this.value)">
+            <span id="speed-value">0.5x</span>
+        </div>
+        
+        <div id="status">Ready - Click "Load VRM Character" to start</div>
+    </div>
+    
+    <div id="info">
+        <div class="metric">Frame: <span id="current-frame">0</span></div>
+        <div class="metric">Mode: <span id="display-mode">Skeleton</span></div>
+        <div class="metric">Character: <span id="character-name">None</span></div>
+        <div class="metric">Animation: <span id="animation-name">None</span></div>
+        <div class="metric">Bones Mapped: <span id="bones-mapped">0</span></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+
+        console.log('🚀 VRM/BVH Retargeting Test - Using VRMBVHAdapter');
+
+        // Global variables
+        let scene, camera, renderer;
+        let vrmModel = null;
+        let skeletonGroup = null;
+        let bvhData = null;
+        let vrmBVHAdapter = null; // The adapter that handles VRM/BVH mapping
+        let isPlaying = false;
+        let currentFrame = 0;
+        let animationSpeed = 0.5;
+        let displayMode = 'skeleton'; // 'skeleton', 'character', 'both'
+        let skeletonMode = 'full'; // 'joints', 'bones', 'full'
+        let boneMapping = {};
+        let jointMeshes = {};
+        let boneCylinders = [];
+        let selectedCharacter = 'ichika.vrm';
+        let selectedBVH = 'neutral_walking.bvh';
+
+        // VRM bone names for mapping
+        const VRM_BONE_NAMES = [
+            'hips', 'spine', 'chest', 'upperChest', 'neck', 'head',
+            'leftShoulder', 'leftUpperArm', 'leftLowerArm', 'leftHand',
+            'rightShoulder', 'rightUpperArm', 'rightLowerArm', 'rightHand',
+            'leftUpperLeg', 'leftLowerLeg', 'leftFoot', 'leftToes',
+            'rightUpperLeg', 'rightLowerLeg', 'rightFoot', 'rightToes'
+        ];
+
+        // Initialize the scene
+        function initScene() {
+            console.log('🔧 Initializing 3D scene...');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+
+            camera = new THREE.PerspectiveCamera(
+                75, 
+                window.innerWidth / window.innerHeight, 
+                0.1, 
+                1000
+            );
+            camera.position.set(0, 1.6, 3);
+
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                alpha: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            // Disable shadows to avoid VRM shader conflicts
+            renderer.shadowMap.enabled = false;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(5, 5, 5);
+            // Disable shadow casting to avoid shader errors
+            directionalLight.castShadow = false;
+            scene.add(directionalLight);
+
+            // Add grid
+            const gridHelper = new THREE.GridHelper(10, 10);
+            gridHelper.material.opacity = 0.3;
+            gridHelper.material.transparent = true;
+            scene.add(gridHelper);
+
+            // Initialize skeleton group
+            skeletonGroup = new THREE.Group();
+            scene.add(skeletonGroup);
+
+            // Add basic mouse controls
+            let isMouseDown = false;
+            let mouseX = 0, mouseY = 0;
+            
+            renderer.domElement.addEventListener('mousedown', (event) => {
+                isMouseDown = true;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            renderer.domElement.addEventListener('mouseup', () => {
+                isMouseDown = false;
+            });
+            
+            renderer.domElement.addEventListener('mousemove', (event) => {
+                if (!isMouseDown) return;
+                
+                const deltaX = event.clientX - mouseX;
+                const deltaY = event.clientY - mouseY;
+                
+                // Orbit camera around origin
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 1, 0);
+                
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            // Mouse wheel zoom
+            renderer.domElement.addEventListener('wheel', (event) => {
+                event.preventDefault(); // Prevent default scroll behavior
+                const scale = event.deltaY > 0 ? 1.1 : 0.9;
+                camera.position.multiplyScalar(scale);
+                
+                // Clamp distance
+                const distance = camera.position.length();
+                if (distance < 0.5) camera.position.normalize().multiplyScalar(0.5);
+                if (distance > 20) camera.position.normalize().multiplyScalar(20);
+            }, { passive: false }); // Explicitly mark as non-passive since we call preventDefault
+
+            console.log('✅ Scene initialized successfully');
+            updateStatus('Scene initialized - Ready to load character');
+        }
+
+        // Load VRM character
+        async function loadVRMCharacter() {
+            console.log('📥 Loading VRM character...');
+            updateStatus('Loading VRM character...');
+
+            try {
+                const loader = new GLTFLoader();
+                loader.register((parser) => new VRMLoaderPlugin(parser));
+
+                // Use selected character path
+                const characterPath = `./assets/avatars/${selectedCharacter}`;
+                
+                const gltf = await new Promise((resolve, reject) => {
+                    loader.load(
+                        characterPath,
+                        (gltf) => resolve(gltf),
+                        (progress) => {
+                            const percent = Math.round((progress.loaded / progress.total) * 100);
+                            updateStatus(`Loading VRM... ${percent}%`);
+                        },
+                        (error) => reject(error)
+                    );
+                });
+
+                if (!gltf.userData.vrm) {
+                    throw new Error('No VRM data found in file');
+                }
+
+                vrmModel = gltf.userData.vrm;
+                
+                // Add VRM to scene
+                scene.add(vrmModel.scene);
+
+                // Create VRM/BVH adapter with proper VRM model object structure
+                const vrmModelObject = {
+                    vrm: vrmModel,
+                    scene: vrmModel.scene
+                };
+                
+                // Initialize the adapter (BVH skeleton will be set when BVH is loaded)
+                vrmBVHAdapter = new VRMBVHAdapter(vrmModelObject, null);
+                console.log('✅ VRMBVHAdapter created');
+
+                // Set initial transform through VRMBVHAdapter (centralizes all position/rotation logic)
+                vrmBVHAdapter.setInitialTransform({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 });
+
+                // Create bone mapping for visualization
+                createBoneMapping();
+
+                // Update display
+                updateDisplayMode();
+
+                console.log('✅ VRM character loaded successfully');
+                document.getElementById('character-name').textContent = selectedCharacter.replace('.vrm', '');
+                updateStatus('VRM character loaded - Ready for animation');
+
+            } catch (error) {
+                console.error('❌ Error loading VRM character:', error);
+                updateStatus(`Error loading character: ${error.message}`);
+            }
+        }
+
+        // Create bone mapping between VRM and BVH
+        function createBoneMapping() {
+            console.log('🔗 Creating bone mapping...');
+            
+            if (!vrmBVHAdapter) {
+                console.warn('⚠️ VRMBVHAdapter not available for bone mapping');
+                return;
+            }
+
+            // Get bone mapping from VRMBVHAdapter (centralized bone access)
+            const availableBones = vrmBVHAdapter.getAvailableBones();
+            boneMapping = {};
+            let mappedCount = 0;
+
+            // Convert VRMBVHAdapter bone structure to legacy format for visualization
+            Object.keys(availableBones).forEach(bvhJoint => {
+                const boneData = availableBones[bvhJoint];
+                if (boneData && boneData.bone) {
+                    boneMapping[boneData.vrmBone] = boneData.bone;
+                    mappedCount++;
+                    console.log(`✅ Mapped ${bvhJoint} -> ${boneData.vrmBone} -> ${boneData.bone.name || 'unnamed'}`);
+                }
+            });
+
+            // Also ensure all standard VRM bones are included for visualization
+            if (vrmModel && vrmModel.humanoid) {
+                VRM_BONE_NAMES.forEach(vrmBoneName => {
+                    if (!boneMapping[vrmBoneName]) {
+                        // Try to get unmapped bones for complete visualization
+                        let bone = null;
+                        try {
+                            bone = vrmModel.humanoid.getNormalizedBoneNode(vrmBoneName) || vrmModel.humanoid.getRawBoneNode(vrmBoneName);
+                        } catch (e) {
+                            bone = vrmModel.humanoid.getBoneNode ? vrmModel.humanoid.getBoneNode(vrmBoneName) : null;
+                        }
+                        
+                        if (bone) {
+                            boneMapping[vrmBoneName] = bone;
+                            mappedCount++;
+                            console.log(`✅ Additional mapped ${vrmBoneName} -> ${bone.name || 'unnamed'} (visualization only)`);
+                        }
+                    }
+                });
+            }
+
+            console.log(`✅ Mapped ${mappedCount} bones`);
+            document.getElementById('bones-mapped').textContent = mappedCount;
+        }
+
+        // Load BVH motion data
+        async function loadBVHMotion() {
+            console.log('📥 Loading BVH motion...');
+            updateStatus('Loading BVH motion data...');
+
+            try {
+                // Use selected BVH file
+                const bvhPath = `./${selectedBVH}`;
+                
+                const response = await fetch(bvhPath);
+                if (!response.ok) {
+                    throw new Error(`Failed to load BVH: ${response.status}`);
+                }
+
+                const bvhText = await response.text();
+                bvhData = parseBVH(bvhText);
+
+                console.log('✅ BVH motion loaded successfully');
+                console.log(`📊 Motion data: ${bvhData.frames.length} frames, ${bvhData.frameTime}s per frame`);
+                
+                document.getElementById('animation-name').textContent = selectedBVH;
+                updateStatus('BVH motion loaded - Ready to animate');
+
+                // Start animation if character is loaded
+                if (vrmModel) {
+                    startAnimation();
+                }
+
+            } catch (error) {
+                console.error('❌ Error loading BVH motion:', error);
+                updateStatus(`Error loading motion: ${error.message}`);
+            }
+        }
+
+        // Simple BVH parser with hierarchy parsing
+        function parseBVH(bvhText) {
+            console.log('📝 Parsing BVH data...');
+            
+            const lines = bvhText.split('\n');
+            let motionStartIndex = -1;
+            let frameCount = 0;
+            let frameTime = 0;
+            let hierarchy = {};
+            let jointOrder = [];
+
+            // Parse hierarchy section
+            let currentJoint = null;
+            let insideHierarchy = false;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                if (line === 'HIERARCHY') {
+                    insideHierarchy = true;
+                    continue;
+                }
+                
+                if (line === 'MOTION') {
+                    motionStartIndex = i;
+                    frameCount = parseInt(lines[i + 1].split(':')[1]);
+                    frameTime = parseFloat(lines[i + 2].split(':')[1]);
+                    break;
+                }
+                
+                if (insideHierarchy) {
+                    if (line.startsWith('ROOT') || line.startsWith('JOINT')) {
+                        const parts = line.split(/\s+/);
+                        currentJoint = parts[1];
+                        jointOrder.push(currentJoint);
+                        hierarchy[currentJoint] = {
+                            channels: [],
+                            offset: [0, 0, 0]
+                        };
+                    } else if (line.startsWith('CHANNELS') && currentJoint) {
+                        const parts = line.split(/\s+/);
+                        const channelCount = parseInt(parts[1]);
+                        hierarchy[currentJoint].channels = parts.slice(2, 2 + channelCount);
+                    } else if (line.startsWith('OFFSET') && currentJoint) {
+                        const parts = line.split(/\s+/);
+                        hierarchy[currentJoint].offset = [
+                            parseFloat(parts[1]),
+                            parseFloat(parts[2]),
+                            parseFloat(parts[3])
+                        ];
+                    }
+                }
+            }
+
+            if (motionStartIndex === -1) {
+                throw new Error('No MOTION section found in BVH file');
+            }
+
+            // Parse motion frames
+            const frames = [];
+            for (let i = motionStartIndex + 3; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    const values = line.split(/\s+/).map(parseFloat);
+                    if (values.length > 0 && !isNaN(values[0])) {
+                        frames.push(values);
+                    }
+                }
+            }
+
+            console.log(`✅ Parsed ${frames.length} motion frames with ${jointOrder.length} joints`);
+            console.log('📊 Joint order:', jointOrder);
+            console.log('📊 Available BVH joints:', jointOrder.join(', '));
+            
+            return {
+                frames: frames,
+                frameCount: frameCount,
+                frameTime: frameTime,
+                hierarchy: hierarchy,
+                jointOrder: jointOrder
+            };
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isPlaying && bvhData && vrmBVHAdapter) {
+                // Apply current frame using VRMBVHAdapter
+                const frameData = bvhData.frames[Math.floor(currentFrame)];
+                if (frameData) {
+                    vrmBVHAdapter.applyBVHFrameToVRM(frameData);
+                }
+                
+                // Update skeleton visualization if visible
+                if (skeletonGroup.visible) {
+                    updateSkeletonVisualization();
+                }
+                
+                // Advance frame
+                currentFrame += animationSpeed;
+                if (currentFrame >= bvhData.frames.length) {
+                    currentFrame = 0;
+                }
+
+                document.getElementById('current-frame').textContent = Math.floor(currentFrame);
+            }
+
+            // Update VRM if available - handled by VRMBVHAdapter
+            if (vrmBVHAdapter) {
+                vrmBVHAdapter.tick(0.016); // 60fps delta
+            } else if (vrmModel) {
+                vrmModel.update(0.016); // Fallback
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Control functions
+        function startAnimation() {
+            if (bvhData && vrmBVHAdapter) {
+                isPlaying = true;
+                updateStatus('Animation playing');
+            }
+        }
+
+        // Create skeleton visualization with bones connecting joints
+        function createSkeletonVisualization() {
+            // Clear existing skeleton
+            skeletonGroup.clear();
+            jointMeshes = {};
+            boneCylinders = [];
+
+            if (!vrmModel) return;
+
+            // Create joint spheres (larger and more visible)
+            const jointGeometry = new THREE.SphereGeometry(0.03, 12, 12);
+            const jointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+
+            // Create bone material (cylinders connecting joints)
+            const boneMaterial = new THREE.MeshBasicMaterial({ color: 0x0088ff });
+
+            // Define bone connections based on VRM humanoid hierarchy
+            const boneConnections = [
+                // Spine chain
+                ['hips', 'spine'],
+                ['spine', 'chest'], 
+                ['chest', 'upperChest'],
+                ['upperChest', 'neck'],
+                ['neck', 'head'],
+                
+                // Left arm chain
+                ['upperChest', 'leftShoulder'],
+                ['leftShoulder', 'leftUpperArm'],
+                ['leftUpperArm', 'leftLowerArm'],
+                ['leftLowerArm', 'leftHand'],
+                
+                // Right arm chain  
+                ['upperChest', 'rightShoulder'],
+                ['rightShoulder', 'rightUpperArm'],
+                ['rightUpperArm', 'rightLowerArm'],
+                ['rightLowerArm', 'rightHand'],
+                
+                // Left leg chain
+                ['hips', 'leftUpperLeg'],
+                ['leftUpperLeg', 'leftLowerLeg'],
+                ['leftLowerLeg', 'leftFoot'],
+                ['leftFoot', 'leftToes'],
+                
+                // Right leg chain
+                ['hips', 'rightUpperLeg'],
+                ['rightUpperLeg', 'rightLowerLeg'],
+                ['rightLowerLeg', 'rightFoot'],
+                ['rightFoot', 'rightToes']
+            ];
+
+            // Create joint meshes
+            VRM_BONE_NAMES.forEach(boneName => {
+                if (boneMapping[boneName]) {
+                    const jointMesh = new THREE.Mesh(jointGeometry, jointMaterial.clone());
+                    
+                    // Color-code different bone types for better visualization
+                    if (boneName === 'hips') {
+                        jointMesh.material.color.setHex(0xff0000); // Red for hips (root)
+                    } else if (boneName.includes('head')) {
+                        jointMesh.material.color.setHex(0xffff00); // Yellow for head
+                    } else if (boneName.includes('Hand')) {
+                        jointMesh.material.color.setHex(0xff8800); // Orange for hands
+                    } else if (boneName.includes('Foot') || boneName.includes('Toes')) {
+                        jointMesh.material.color.setHex(0x8800ff); // Purple for feet
+                    }
+                    
+                    const worldPos = new THREE.Vector3();
+                    boneMapping[boneName].getWorldPosition(worldPos);
+                    jointMesh.position.copy(worldPos);
+                    
+                    skeletonGroup.add(jointMesh);
+                    jointMeshes[boneName] = jointMesh;
+                }
+            });
+
+            // Create bone cylinders connecting joints
+            boneConnections.forEach(([parentBone, childBone]) => {
+                if (boneMapping[parentBone] && boneMapping[childBone]) {
+                    const parentPos = new THREE.Vector3();
+                    const childPos = new THREE.Vector3();
+                    
+                    boneMapping[parentBone].getWorldPosition(parentPos);
+                    boneMapping[childBone].getWorldPosition(childPos);
+                    
+                    // Calculate distance and direction
+                    const direction = new THREE.Vector3().subVectors(childPos, parentPos);
+                    const distance = direction.length();
+                    
+                    if (distance > 0.01) { // Only create visible bones
+                        // Create cylinder geometry
+                        const boneGeometry = new THREE.CylinderGeometry(0.01, 0.01, distance, 8);
+                        const boneMesh = new THREE.Mesh(boneGeometry, boneMaterial.clone());
+                        
+                        // Color-code bone types
+                        if (parentBone.includes('left') || childBone.includes('left')) {
+                            boneMesh.material.color.setHex(0x00aaff); // Light blue for left side
+                        } else if (parentBone.includes('right') || childBone.includes('right')) {
+                            boneMesh.material.color.setHex(0xff6600); // Orange for right side
+                        } else {
+                            boneMesh.material.color.setHex(0x0088ff); // Blue for center bones
+                        }
+                        
+                        // Position bone at midpoint
+                        const midpoint = new THREE.Vector3().addVectors(parentPos, childPos).multiplyScalar(0.5);
+                        boneMesh.position.copy(midpoint);
+                        
+                        // Rotate bone to point from parent to child
+                        direction.normalize();
+                        const up = new THREE.Vector3(0, 1, 0);
+                        boneMesh.quaternion.setFromUnitVectors(up, direction);
+                        
+                        boneMesh.userData = {
+                            parentBone: parentBone,
+                            childBone: childBone,
+                            isSkeletonBone: true
+                        };
+                        
+                        skeletonGroup.add(boneMesh);
+                        boneCylinders.push(boneMesh);
+                    }
+                }
+            });
+
+            console.log(`✅ Skeleton visualization created: ${Object.keys(jointMeshes).length} joints, ${boneCylinders.length} bones`);
+        }
+
+        // Update skeleton visualization positions in real-time
+        function updateSkeletonVisualization() {
+            if (!vrmModel || !jointMeshes) return;
+
+            // Update joint positions
+            VRM_BONE_NAMES.forEach(boneName => {
+                if (boneMapping[boneName] && jointMeshes[boneName]) {
+                    const worldPos = new THREE.Vector3();
+                    boneMapping[boneName].getWorldPosition(worldPos);
+                    jointMeshes[boneName].position.copy(worldPos);
+                }
+            });
+
+            // Update bone cylinders
+            boneCylinders.forEach(boneMesh => {
+                const parentBone = boneMesh.userData.parentBone;
+                const childBone = boneMesh.userData.childBone;
+                
+                if (boneMapping[parentBone] && boneMapping[childBone]) {
+                    const parentPos = new THREE.Vector3();
+                    const childPos = new THREE.Vector3();
+                    
+                    boneMapping[parentBone].getWorldPosition(parentPos);
+                    boneMapping[childBone].getWorldPosition(childPos);
+                    
+                    // Update bone position and orientation
+                    const direction = new THREE.Vector3().subVectors(childPos, parentPos);
+                    const distance = direction.length();
+                    
+                    if (distance > 0.01) {
+                        // Update position to midpoint
+                        const midpoint = new THREE.Vector3().addVectors(parentPos, childPos).multiplyScalar(0.5);
+                        boneMesh.position.copy(midpoint);
+                        
+                        // Update scale to match distance
+                        boneMesh.scale.y = distance;
+                        
+                        // Update rotation to point from parent to child
+                        direction.normalize();
+                        const up = new THREE.Vector3(0, 1, 0);
+                        boneMesh.quaternion.setFromUnitVectors(up, direction);
+                    }
+                }
+            });
+        }
+
+        // Update display mode
+        function updateDisplayMode() {
+            if (!vrmModel) return;
+
+            switch (displayMode) {
+                case 'skeleton':
+                    vrmModel.scene.visible = false;
+                    skeletonGroup.visible = true;
+                    createSkeletonVisualization();
+                    break;
+                case 'character':
+                    vrmModel.scene.visible = true;
+                    skeletonGroup.visible = false;
+                    break;
+                case 'both':
+                    vrmModel.scene.visible = true;
+                    skeletonGroup.visible = true;
+                    createSkeletonVisualization();
+                    break;
+            }
+
+            document.getElementById('display-mode').textContent = `${displayMode} (${skeletonMode})`;
+        }
+
+        // Update skeleton mode
+        function updateSkeletonMode() {
+            if (!skeletonGroup.visible) return;
+
+            // Show/hide joints and bones based on mode
+            Object.values(jointMeshes).forEach(mesh => {
+                mesh.visible = (skeletonMode === 'joints' || skeletonMode === 'full');
+            });
+
+            boneCylinders.forEach(mesh => {
+                mesh.visible = (skeletonMode === 'bones' || skeletonMode === 'full');
+            });
+
+            document.getElementById('display-mode').textContent = `${displayMode} (${skeletonMode})`;
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+            console.log('📝', message);
+        }
+
+        // Global functions for controls
+        window.loadVRMCharacter = loadVRMCharacter;
+        window.loadBVHMotion = loadBVHMotion;
+        
+        window.toggleAnimation = function() {
+            isPlaying = !isPlaying;
+            updateStatus(isPlaying ? 'Animation playing' : 'Animation paused');
+        };
+
+        window.resetAnimation = function() {
+            currentFrame = 0;
+            isPlaying = false;
+            updateStatus('Animation reset');
+        };
+
+        window.showSkeleton = function() {
+            displayMode = 'skeleton';
+            updateDisplayMode();
+        };
+
+        window.showCharacter = function() {
+            displayMode = 'character';
+            updateDisplayMode();
+        };
+
+        window.showBoth = function() {
+            displayMode = 'both';
+            updateDisplayMode();
+        };
+
+        window.toggleSkeletonMode = function() {
+            const modes = ['joints', 'bones', 'full'];
+            const currentIndex = modes.indexOf(skeletonMode);
+            skeletonMode = modes[(currentIndex + 1) % modes.length];
+            updateSkeletonMode();
+            console.log('🦴 Skeleton mode:', skeletonMode);
+        };
+
+        window.wireframeMode = function() {
+            if (vrmModel) {
+                vrmModel.scene.traverse((object) => {
+                    if (object.material) {
+                        object.material.wireframe = !object.material.wireframe;
+                    }
+                });
+            }
+        };
+
+        window.updateSpeed = function(value) {
+            animationSpeed = parseFloat(value);
+            document.getElementById('speed-value').textContent = value + 'x';
+        };
+
+        // Selector update functions
+        window.updateCharacterPath = function() {
+            selectedCharacter = document.getElementById('character-select').value;
+            console.log('📝 Selected character:', selectedCharacter);
+        };
+
+        window.updateBVHPath = function() {
+            selectedBVH = document.getElementById('bvh-select').value;
+            console.log('📝 Selected BVH:', selectedBVH);
+        };
+
+        // Debug function to check bone mapping
+        window.debugBoneMapping = function() {
+            console.log('=== BONE MAPPING DEBUG (Using VRMBVHAdapter) ===');
+            console.log('VRM bones mapped:', Object.keys(boneMapping).length);
+            console.log('VRM bone mapping:', boneMapping);
+            
+            if (vrmBVHAdapter) {
+                console.log('VRMBVHAdapter available bones:', vrmBVHAdapter.availableBones);
+                console.log('VRMBVHAdapter bone mapping:', vrmBVHAdapter.boneMapping);
+                console.log('VRMBVHAdapter initialized:', vrmBVHAdapter.initialized);
+            }
+            
+            if (bvhData) {
+                console.log('BVH joints:', bvhData.jointOrder?.length || 0);
+                console.log('BVH joint order:', bvhData.jointOrder);
+                console.log('BVH hierarchy:', bvhData.hierarchy);
+                
+                // Show detailed BVH structure
+                console.log('=== BVH STRUCTURE ANALYSIS ===');
+                let dataIndex = 6; // Start after root
+                bvhData.jointOrder.forEach((jointName, i) => {
+                    if (i === 0) {
+                        console.log(`${i}: ${jointName} (ROOT) - channels: ${bvhData.hierarchy[jointName]?.channels?.join(', ') || 'none'} - data index: 0-5`);
+                    } else {
+                        const channels = bvhData.hierarchy[jointName]?.channels || [];
+                        const vrmBone = vrmBVHAdapter?.boneMapping[jointName] || 'unmapped';
+                        const mapped = vrmBVHAdapter?.availableBones[jointName] ? '✅' : '❌';
+                        console.log(`${i}: ${jointName} -> ${vrmBone} ${mapped} - channels: ${channels.join(', ')} - data index: ${dataIndex}-${dataIndex + channels.length - 1}`);
+                        dataIndex += channels.length;
+                    }
+                });
+                
+                // Show current frame data if animation is loaded
+                if (bvhData.frames && bvhData.frames.length > 0) {
+                    const currentFrameData = bvhData.frames[Math.floor(currentFrame) || 0];
+                    console.log('=== CURRENT FRAME DATA ===');
+                    console.log('Frame data length:', currentFrameData?.length);
+                    console.log('Root position (BVH):', currentFrameData?.slice(0, 3));
+                    console.log('Root rotation (BVH degrees):', currentFrameData?.slice(3, 6));
+                    
+                    // Show first few joint rotations
+                    console.log('=== JOINT ROTATION SAMPLES ===');
+                    let sampleIndex = 6;
+                    bvhData.jointOrder.slice(1, 6).forEach(jointName => {
+                        const channels = bvhData.hierarchy[jointName]?.channels || [];
+                        if (channels.length >= 3) {
+                            console.log(`${jointName}: Y=${currentFrameData[sampleIndex]?.toFixed(1)}°, X=${currentFrameData[sampleIndex + 1]?.toFixed(1)}°, Z=${currentFrameData[sampleIndex + 2]?.toFixed(1)}°`);
+                        }
+                        sampleIndex += channels.length;
+                    });
+                }
+            }
+            
+            console.log('=== VRM BONE MAPPING TABLE ===');
+            if (vrmBVHAdapter) {
+                const boneMapping = vrmBVHAdapter.getBoneMapping();
+                const availableBones = vrmBVHAdapter.getAvailableBones();
+                
+                Object.keys(boneMapping).forEach(bvhBone => {
+                    const vrmBone = boneMapping[bvhBone];
+                    const isAvailable = availableBones[bvhBone] ? '✅' : '❌';
+                    console.log(`${isAvailable} ${bvhBone} -> ${vrmBone}`);
+                    const mapped = vrmBVHAdapter.availableBones[bvhBone] ? '✅' : '❌';
+                    const inBVH = bvhData?.jointOrder?.includes(bvhBone) ? '🎬' : '❌';
+                    console.log(`  ${bvhBone} -> ${vrmBone} | VRM: ${mapped} | BVH: ${inBVH}`);
+                });
+                
+                // Check for missing or problematic mappings
+                console.log('=== MISSING/PROBLEMATIC BONE ANALYSIS ===');
+                
+                // Check if any BVH joints are unmapped
+                if (bvhData?.jointOrder) {
+                    const unmappedBVH = bvhData.jointOrder.filter(joint => 
+                        joint !== 'Hips' && !boneMapping[joint]
+                    );
+                    if (unmappedBVH.length > 0) {
+                        console.warn('🚨 UNMAPPED BVH JOINTS:', unmappedBVH);
+                    }
+                }
+                
+                // Check for duplicate VRM bone mappings
+                const vrmBoneUsage = {};
+                Object.values(boneMapping).forEach(vrmBone => {
+                    vrmBoneUsage[vrmBone] = (vrmBoneUsage[vrmBone] || 0) + 1;
+                });
+                
+                const duplicateVRMBones = Object.keys(vrmBoneUsage).filter(bone => vrmBoneUsage[bone] > 1);
+                if (duplicateVRMBones.length > 0) {
+                    console.warn('🚨 DUPLICATE VRM BONE MAPPINGS:', duplicateVRMBones);
+                    duplicateVRMBones.forEach(vrmBone => {
+                        const bvhJoints = Object.keys(boneMapping).filter(bvh => boneMapping[bvh] === vrmBone);
+                        console.warn(`  ${vrmBone} is mapped from: ${bvhJoints.join(', ')}`);
+                    });
+                }
+                
+                // Check for missing VRM bones that should exist
+                const standardVRMBones = [
+                    'hips', 'spine', 'chest', 'upperChest', 'neck', 'head',
+                    'leftShoulder', 'leftUpperArm', 'leftLowerArm', 'leftHand',
+                    'rightShoulder', 'rightUpperArm', 'rightLowerArm', 'rightHand',
+                    'leftUpperLeg', 'leftLowerLeg', 'leftFoot', 'leftToes',
+                    'rightUpperLeg', 'rightLowerLeg', 'rightFoot', 'rightToes'
+                ];
+                
+                const mappedVRMBones = new Set(Object.values(boneMapping));
+                const missingVRMBones = standardVRMBones.filter(bone => !mappedVRMBones.has(bone));
+                
+                if (missingVRMBones.length > 0) {
+                    console.warn('🚨 MISSING VRM BONE MAPPINGS:', missingVRMBones);
+                }
+                
+                // Check for bones that exist in VRM but not being animated
+                if (vrmModel && vrmModel.humanoid) {
+                    const availableVRMBones = [];
+                    standardVRMBones.forEach(boneName => {
+                        try {
+                            const bone = vrmModel.humanoid.getNormalizedBoneNode(boneName);
+                            if (bone) {
+                                availableVRMBones.push(boneName);
+                            }
+                        } catch (e) {
+                            // Bone not available
+                        }
+                    });
+                    
+                    const unappliedVRMBones = availableVRMBones.filter(bone => !mappedVRMBones.has(bone));
+                    if (unappliedVRMBones.length > 0) {
+                        console.warn('🚨 VRM BONES NOT BEING ANIMATED:', unappliedVRMBones);
+                    }
+                    
+                    console.log(`📊 VRM bones available: ${availableVRMBones.length}, mapped: ${mappedVRMBones.size}, unapplied: ${unappliedVRMBones.length}`);
+                }
+            }
+            
+            // Show VRM bone current rotations AND positions to check for deformation
+            if (vrmModel && Object.keys(boneMapping).length > 0) {
+                console.log('=== CURRENT VRM BONE STATES ===');
+                Object.keys(boneMapping).forEach(boneName => {
+                    const bone = boneMapping[boneName];
+                    if (bone) {
+                        console.log(`  ${boneName}:`);
+                        console.log(`    Rotation: x=${bone.rotation.x.toFixed(3)}, y=${bone.rotation.y.toFixed(3)}, z=${bone.rotation.z.toFixed(3)} (order: ${bone.rotation.order})`);
+                        console.log(`    Position: x=${bone.position.x.toFixed(3)}, y=${bone.position.y.toFixed(3)}, z=${bone.position.z.toFixed(3)} (should be original VRM position)`);
+                        console.log(`    Scale: x=${bone.scale.x.toFixed(3)}, y=${bone.scale.y.toFixed(3)}, z=${bone.scale.z.toFixed(3)} (should be 1,1,1)`);
+                    }
+                });
+            }
+            
+            return 'Debug info logged to console - Now using VRMBVHAdapter';
+        };
+
+        // Coordinate system conversion utilities
+        window.testCoordinateConversion = function() {
+            console.log('=== COORDINATE SYSTEM TEST ===');
+            console.log('BVH Coordinate System: Y-up, Right-handed, ZXY rotation order');
+            console.log('VRM Coordinate System: Y-up, Right-handed, Different rotation conventions');
+            console.log('');
+            console.log('Testing with sample rotations...');
+            
+            // Test different rotation conversions
+            const testRotations = [
+                [0, 0, 0],      // No rotation
+                [90, 0, 0],     // 90° X rotation
+                [0, 90, 0],     // 90° Y rotation  
+                [0, 0, 90],     // 90° Z rotation
+                [45, 45, 45]    // Mixed rotation
+            ];
+            
+            testRotations.forEach((rot, i) => {
+                console.log(`Test ${i + 1}: BVH [${rot[0]}°, ${rot[1]}°, ${rot[2]}°]`);
+                
+                // Convert to radians
+                const radX = rot[0] * Math.PI / 180;
+                const radY = rot[1] * Math.PI / 180;
+                const radZ = rot[2] * Math.PI / 180;
+                
+                // Apply coordinate conversion
+                const convertedX = radX;
+                const convertedY = -radY;  // Flip Y
+                const convertedZ = -radZ;  // Flip Z
+                
+                console.log(`  -> VRM [${(convertedX * 180 / Math.PI).toFixed(1)}°, ${(convertedY * 180 / Math.PI).toFixed(1)}°, ${(convertedZ * 180 / Math.PI).toFixed(1)}°]`);
+            });
+            
+            return 'Coordinate conversion test complete';
+        };
+
+        // Test different rotation orders to find the correct one for the BVH file
+        window.testRotationOrders = function() {
+            if (!bvhData || !vrmModel || !boneMapping.hips) {
+                console.log('❌ Need both BVH data and VRM model loaded');
+                return;
+            }
+            
+            console.log('=== ROTATION ORDER TEST ===');
+            const frameData = bvhData.frames[Math.floor(currentFrame) || 0];
+            if (!frameData || frameData.length < 6) {
+                console.log('❌ No valid frame data available');
+                return;
+            }
+            
+            const rotX = frameData[3] * Math.PI / 180;
+            const rotY = frameData[4] * Math.PI / 180;
+            const rotZ = frameData[5] * Math.PI / 180;
+            
+            console.log(`Testing rotation orders with BVH data: X=${frameData[3]}°, Y=${frameData[4]}°, Z=${frameData[5]}°`);
+            
+            const rotationOrders = ['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX'];
+            
+            rotationOrders.forEach(order => {
+                const euler = new THREE.Euler();
+                const quaternion = new THREE.Quaternion();
+                
+                // Test with coordinate flips
+                euler.set(rotX, -rotY, -rotZ, order);
+                quaternion.setFromEuler(euler);
+                
+                // Convert back to Euler for comparison
+                const testEuler = new THREE.Euler().setFromQuaternion(quaternion, order);
+                
+                console.log(`${order}: [${(testEuler.x * 180 / Math.PI).toFixed(1)}°, ${(testEuler.y * 180 / Math.PI).toFixed(1)}°, ${(testEuler.z * 180 / Math.PI).toFixed(1)}°]`);
+            });
+            
+            return 'Rotation order test complete - check console';
+        };
+
+        // Test different coordinate system configurations
+        window.testCoordinateConfigs = function() {
+            console.log('=== COORDINATE SYSTEM CONFIGURATION TEST ===');
+            
+            if (vrmBVHAdapter) {
+                const currentConfig = vrmBVHAdapter.getCoordinateConfig();
+                console.log('Current VRMBVHAdapter settings:', currentConfig);
+            } else {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            console.log('');
+            
+            // Test common configurations including RSMT method
+            const configs = [
+                { name: 'RSMT Showcase Method (Default)', flipZ: true, flipRotY: true, flipRotZ: true, flipRotX: true, rotationOrder: 'YXZ' },
+                { name: 'Fix Arms Down (No Flip X)', flipZ: true, flipRotY: true, flipRotZ: true, flipRotX: false, rotationOrder: 'YXZ' },
+                { name: 'Fix Walking Direction (No Flip Y)', flipZ: true, flipRotY: false, flipRotZ: true, flipRotX: true, rotationOrder: 'YXZ' },
+                { name: 'Standard BVH->VRM', flipZ: true, flipRotY: true, flipRotZ: true, flipRotX: true, rotationOrder: 'ZXY' },
+                { name: 'Alternative XYZ', flipZ: false, flipRotY: false, flipRotZ: false, flipRotX: false, rotationOrder: 'XYZ' },
+                { name: 'Arms Fix + Y Flip', flipZ: true, flipRotY: true, flipRotZ: true, flipRotX: false, rotationOrder: 'YXZ' }
+            ];
+            
+            configs.forEach((config, i) => {
+                console.log(`${i + 1}. ${config.name}:`);
+                console.log(`   flipX: ${config.flipX || false}, flipY: ${config.flipY || false}, flipZ: ${config.flipZ}`);
+                console.log(`   flipRotX: ${config.flipRotX}, flipRotY: ${config.flipRotY}, flipRotZ: ${config.flipRotZ}`);
+                console.log(`   rotationOrder: ${config.rotationOrder}`);
+            });
+            
+            console.log('');
+            console.log('Use setCoordinateConfig(configNumber) to test different configurations');
+            console.log('Use quickFixArms() to try flipping X rotations');
+            console.log('Use quickFixWalking() to try flipping Y rotations');
+            
+            return 'Coordinate configuration test complete';
+        };
+
+        // Set coordinate system configuration for testing
+        window.setCoordinateConfig = function(configNumber) {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            const configs = [
+                { flipZ: true, flipRotY: true, flipRotZ: true, flipRotX: true, rotationOrder: 'YXZ' }, // RSMT method (default)
+                { flipZ: true, flipRotY: true, flipRotZ: true, flipRotX: false, rotationOrder: 'YXZ' }, // Fix arms
+                { flipZ: true, flipRotY: false, flipRotZ: true, flipRotX: true, rotationOrder: 'YXZ' }, // Fix walking
+                { flipZ: true, flipRotY: true, flipRotZ: true, flipRotX: true, rotationOrder: 'ZXY' }, // Standard
+                { flipZ: false, flipRotY: false, flipRotZ: false, flipRotX: false, rotationOrder: 'XYZ' }, // XYZ
+                { flipZ: true, flipRotY: true, flipRotZ: true, flipRotX: false, rotationOrder: 'YXZ' }  // Combined fix
+            ];
+            
+            if (configNumber >= 1 && configNumber <= configs.length) {
+                const config = configs[configNumber - 1];
+                vrmBVHAdapter.setCoordinateConfig(config);
+                
+                console.log(`✅ Applied configuration ${configNumber} to VRMBVHAdapter`);
+                return `Configuration ${configNumber} applied to VRMBVHAdapter`;
+            } else {
+                console.log(`❌ Invalid configuration number. Use 1-${configs.length}`);
+                return 'Invalid configuration number';
+            }
+        };
+
+        // Quick fix functions for common issues
+        window.quickFixArms = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotX();
+            return `Arms fix: flipRotX = ${newValue} (via VRMBVHAdapter)`;
+        };
+
+        window.quickFixWalking = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotY();
+            return `Walking fix: flipRotY = ${newValue} (via VRMBVHAdapter)`;
+        };
+
+        window.quickFixDirection = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotZ();
+            return `Direction fix: flipRotZ = ${newValue} (via VRMBVHAdapter)`;
+        };
+
+        // Reset VRM skeleton to original proportions (fix deformation)
+        window.resetVRMSkeleton = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ No VRMBVHAdapter available');
+                return 'No VRMBVHAdapter available';
+            }
+            
+            console.log('🔄 Resetting VRM skeleton via VRMBVHAdapter...');
+            
+            // Use VRMBVHAdapter methods to handle all rotation/position logic
+            const success = vrmBVHAdapter.resetToNeutralPose();
+            
+            if (success) {
+                // Reset global transform through VRMBVHAdapter
+                vrmBVHAdapter.setGlobalTransform(
+                    { x: 0, y: 0, z: 0 }, // position
+                    { x: 0, y: 0, z: 0 }  // rotation
+                );
+                
+                console.log('✅ VRM skeleton reset via VRMBVHAdapter');
+                return 'VRM skeleton reset to original state';
+            } else {
+                console.log('❌ Failed to reset VRM skeleton');
+                return 'Failed to reset VRM skeleton';
+            }
+        };
+
+        // New debug functions for rest pose analysis
+        window.debugRestPose = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            console.log('=== REST POSE DEBUG ===');
+            if (vrmBVHAdapter.originalRestPose) {
+                vrmBVHAdapter.analyzeRestPose();
+            } else {
+                console.log('❌ No rest pose data captured');
+            }
+            
+            return 'Rest pose debug complete - check console';
+        };
+
+        window.comparePoses = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            // Check if method exists before calling
+            if (typeof vrmBVHAdapter.debugPoseComparison === 'function') {
+                vrmBVHAdapter.debugPoseComparison();
+                return 'Pose comparison complete - check console';
+            } else {
+                console.log('❌ debugPoseComparison method not found on VRMBVHAdapter');
+                console.log('Available methods:', Object.getOwnPropertyNames(vrmBVHAdapter).filter(name => typeof vrmBVHAdapter[name] === 'function'));
+                return 'debugPoseComparison method not available';
+            }
+        };
+
+        window.restoreRestPose = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            // Check if method exists before calling
+            if (typeof vrmBVHAdapter.restoreRestPose === 'function') {
+                const success = vrmBVHAdapter.restoreRestPose();
+                return success ? 'Rest pose restored' : 'Failed to restore rest pose';
+            } else {
+                console.log('❌ restoreRestPose method not found on VRMBVHAdapter');
+                console.log('Available methods:', Object.getOwnPropertyNames(vrmBVHAdapter).filter(name => typeof vrmBVHAdapter[name] === 'function'));
+                return 'restoreRestPose method not available';
+            }
+        };
+
+        // Fix head orientation (prevent looking down)
+        window.fixHeadOrientation = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            if (typeof vrmBVHAdapter.fixHeadOrientation === 'function') {
+                const success = vrmBVHAdapter.fixHeadOrientation();
+                return success ? 'Head orientation fixed - character should look forward now' : 'Failed to fix head orientation';
+            } else {
+                console.log('❌ fixHeadOrientation method not found on VRMBVHAdapter');
+                return 'fixHeadOrientation method not available';
+            }
+        };
+
+        // Reset head to neutral position
+        window.resetHeadToNeutral = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            if (typeof vrmBVHAdapter.resetHeadToNeutral === 'function') {
+                const success = vrmBVHAdapter.resetHeadToNeutral();
+                return success ? 'Head reset to neutral forward-looking position' : 'Failed to reset head';
+            } else {
+                console.log('❌ resetHeadToNeutral method not found on VRMBVHAdapter');
+                return 'resetHeadToNeutral method not available';
+            }
+        };
+
+        window.applyRestCompensation = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            vrmBVHAdapter.applyRestPoseCompensation();
+            return 'Rest pose compensation applied';
+        };
+
+        window.analyzeBVHRestPose = function() {
+            if (!vrmBVHAdapter || !bvhData || !bvhData.frames || bvhData.frames.length === 0) {
+                console.log('❌ VRMBVHAdapter or BVH data not available');
+                return 'VRMBVHAdapter or BVH data not available';
+            }
+            
+            // Check if method exists before calling
+            if (typeof vrmBVHAdapter.analyzeBVHRestPose === 'function') {
+                // Use first frame to analyze expected rest pose
+                const firstFrame = bvhData.frames[0];
+                console.log('🔍 Analyzing BVH rest pose with first frame:', firstFrame.slice(0, 10));
+                vrmBVHAdapter.analyzeBVHRestPose(firstFrame);
+                return 'BVH rest pose analysis complete - check console';
+            } else {
+                console.log('❌ analyzeBVHRestPose method not found on VRMBVHAdapter');
+                console.log('Available methods:', Object.getOwnPropertyNames(vrmBVHAdapter).filter(name => typeof vrmBVHAdapter[name] === 'function'));
+                return 'analyzeBVHRestPose method not available';
+            }
+        };
+
+        window.diagnoseRestPoseMismatch = function() {
+            if (!vrmBVHAdapter || !bvhData || !bvhData.frames || bvhData.frames.length === 0) {
+                console.log('❌ VRMBVHAdapter or BVH data not available');
+                return 'VRMBVHAdapter or BVH data not available';
+            }
+            
+            // Check if method exists before calling
+            if (typeof vrmBVHAdapter.diagnoseRestPoseMismatch === 'function') {
+                const firstFrame = bvhData.frames[0];
+                console.log('🔍 Diagnosing rest pose mismatch between VRM and BVH...');
+                vrmBVHAdapter.diagnoseRestPoseMismatch(firstFrame);
+                return 'Rest pose mismatch diagnosis complete - check console';
+            } else {
+                console.log('❌ diagnoseRestPoseMismatch method not found on VRMBVHAdapter');
+                console.log('Available methods:', Object.getOwnPropertyNames(vrmBVHAdapter).filter(name => typeof vrmBVHAdapter[name] === 'function'));
+                return 'diagnoseRestPoseMismatch method not available';
+            }
+        };
+
+        window.applyBVHRestCompensation = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            // Check if method exists before calling
+            if (typeof vrmBVHAdapter.applyBVHRestPoseCompensation === 'function') {
+                const success = vrmBVHAdapter.applyBVHRestPoseCompensation();
+                return success ? 'BVH rest pose compensation applied' : 'Failed to apply BVH compensation - analyze BVH rest pose first';
+            } else {
+                console.log('❌ applyBVHRestPoseCompensation method not found on VRMBVHAdapter');
+                console.log('Available methods:', Object.getOwnPropertyNames(vrmBVHAdapter).filter(name => typeof vrmBVHAdapter[name] === 'function'));
+                return 'applyBVHRestPoseCompensation method not available';
+            }
+        };
+
+        // Fine-tune individual coordinate conversion settings
+        window.toggleFlipZ = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipZ();
+            return `FlipZ: ${newValue} (via VRMBVHAdapter)`;
+        };
+
+        window.toggleFlipRotY = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotY();
+            return `FlipRotY: ${newValue} (via VRMBVHAdapter)`;
+        };
+
+        window.toggleFlipRotZ = function() {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotZ();
+            return `FlipRotZ: ${newValue} (via VRMBVHAdapter)`;
+        };
+
+        window.setRotationOrder = function(order) {
+            if (!vrmBVHAdapter) {
+                console.log('❌ VRMBVHAdapter not available');
+                return 'VRMBVHAdapter not available';
+            }
+            
+            const success = vrmBVHAdapter.setRotationOrder(order);
+            return success ? `Rotation order: ${order} (via VRMBVHAdapter)` : 'Invalid rotation order';
+        };
+
+        // Analyze walking motion specifically for sliding/floating issues
+        window.analyzeWalkingMotion = function() {
+            if (!bvhData || !vrmBVHAdapter || !bvhData.frames || bvhData.frames.length < 10) {
+                console.log('❌ Need BVH data and VRMBVHAdapter loaded with sufficient frames');
+                return 'Need BVH data and VRMBVHAdapter loaded';
+            }
+            
+            console.log('=== WALKING MOTION ANALYSIS ===');
+            console.log('Analyzing root motion and leg bones for sliding/floating issues...');
+            
+            // Sample multiple frames to see motion patterns
+            const frameIndices = [0, Math.floor(bvhData.frames.length * 0.25), Math.floor(bvhData.frames.length * 0.5), Math.floor(bvhData.frames.length * 0.75)];
+            
+            frameIndices.forEach((frameIndex, i) => {
+                const frameData = bvhData.frames[frameIndex];
+                if (!frameData || frameData.length < 6) return;
+                
+                console.log(`\n--- Frame ${frameIndex} (${(i * 25)}% through animation) ---`);
+                
+                // Root position (first 3 values in BVH)
+                const rootPos = frameData.slice(0, 3);
+                console.log(`Root Position (BVH): X=${rootPos[0]?.toFixed(3)}, Y=${rootPos[1]?.toFixed(3)}, Z=${rootPos[2]?.toFixed(3)}`);
+                
+                // Root rotation (next 3 values)
+                const rootRot = frameData.slice(3, 6);
+                console.log(`Root Rotation (BVH): X=${rootRot[0]?.toFixed(1)}°, Y=${rootRot[1]?.toFixed(1)}°, Z=${rootRot[2]?.toFixed(1)}°`);
+                
+                // Check if VRM root is getting the position data
+                if (vrmModel && vrmModel.scene) {
+                    const vrmPos = vrmModel.scene.position;
+                    const vrmRot = vrmModel.scene.rotation;
+                    console.log(`VRM Position: X=${vrmPos.x.toFixed(3)}, Y=${vrmPos.y.toFixed(3)}, Z=${vrmPos.z.toFixed(3)}`);
+                    console.log(`VRM Rotation: X=${(vrmRot.x * 180/Math.PI).toFixed(1)}°, Y=${(vrmRot.y * 180/Math.PI).toFixed(1)}°, Z=${(vrmRot.z * 180/Math.PI).toFixed(1)}°`);
+                }
+                
+                // Analyze leg bone positions for foot planting
+                const legBones = ['leftUpperLeg', 'leftLowerLeg', 'leftFoot', 'leftToes', 'rightUpperLeg', 'rightLowerLeg', 'rightFoot', 'rightToes'];
+                legBones.forEach(boneName => {
+                    if (boneMapping[boneName]) {
+                        const bone = boneMapping[boneName];
+                        const worldPos = new THREE.Vector3();
+                        bone.getWorldPosition(worldPos);
+                        console.log(`  ${boneName}: Y=${worldPos.y.toFixed(3)} (should touch ground when planted)`);
+                    }
+                });
+            });
+            
+            // Check for common walking motion issues
+            console.log('\n=== WALKING ISSUE DIAGNOSIS ===');
+            
+            // Check if root Y position changes (vertical bob during walking)
+            const firstFrame = bvhData.frames[0];
+            const midFrame = bvhData.frames[Math.floor(bvhData.frames.length / 2)];
+            const rootYChange = Math.abs(firstFrame[1] - midFrame[1]);
+            console.log(`Root Y movement range: ${rootYChange.toFixed(3)} (should have some bob for natural walking)`);
+            
+            // Check if root X/Z changes (forward movement)
+            const rootXChange = Math.abs(firstFrame[0] - midFrame[0]);
+            const rootZChange = Math.abs(firstFrame[2] - midFrame[2]);
+            console.log(`Root X movement: ${rootXChange.toFixed(3)}, Root Z movement: ${rootZChange.toFixed(3)}`);
+            
+            if (rootXChange < 0.1 && rootZChange < 0.1) {
+                console.warn('🚨 ISSUE: Root position not moving - character will slide without root translation!');
+                console.warn('   Solution: Ensure root position is being applied to VRM scene position');
+            }
+            
+            if (rootYChange < 0.01) {
+                console.warn('🚨 ISSUE: No vertical bob in root motion - walking may look stiff');
+            }
+            
+            // Check foot bone availability
+            const footBones = ['leftFoot', 'leftToes', 'rightFoot', 'rightToes'];
+            const missingFootBones = footBones.filter(bone => !boneMapping[bone]);
+            if (missingFootBones.length > 0) {
+                console.warn('🚨 ISSUE: Missing foot bones:', missingFootBones);
+                console.warn('   Solution: These bones are needed for proper ground contact');
+            }
+            
+            return 'Walking motion analysis complete - check console for issues';
+        };
+
+        // Additional VRMBVHAdapter utility functions for testing
+        window.getVRMTransform = function() {
+            if (vrmBVHAdapter) {
+                const transform = vrmBVHAdapter.getGlobalTransform();
+                console.log('Current VRM transform:', transform);
+                return transform;
+            }
+            return null;
+        };
+
+        window.setVRMPosition = function(x = 0, y = 0, z = 0) {
+            if (vrmBVHAdapter) {
+                vrmBVHAdapter.setGlobalTransform({ x, y, z }, null);
+                console.log(`VRM position set to (${x}, ${y}, ${z})`);
+                return `Position set to (${x}, ${y}, ${z})`;
+            }
+            return 'VRMBVHAdapter not available';
+        };
+
+        window.setVRMRotation = function(x = 0, y = 0, z = 0) {
+            if (vrmBVHAdapter) {
+                vrmBVHAdapter.setGlobalTransform(null, { x, y, z });
+                console.log(`VRM rotation set to (${x}, ${y}, ${z})`);
+                return `Rotation set to (${x}, ${y}, ${z})`;
+            }
+            return 'VRMBVHAdapter not available';
+        };
+
+        window.validateVRMHierarchy = function() {
+            if (vrmBVHAdapter) {
+                const isValid = vrmBVHAdapter.validateBoneHierarchy();
+                return isValid ? 'VRM hierarchy is valid' : 'VRM hierarchy has issues';
+            }
+            return 'VRMBVHAdapter not available';
+        };
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize everything
+        initScene();
+        animate();
+
+        console.log('🎉 VRM/BVH Test initialized - Use controls to load character and motion');
+
+    </script>
+</body>
+</html>

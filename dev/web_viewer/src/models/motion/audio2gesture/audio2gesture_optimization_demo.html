@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio2Gesture Optimized Multi-Head Attention Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 25px;
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #4ade80, #22c55e);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .metric {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .metric:hover {
+            transform: translateY(-2px);
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-group label {
+            min-width: 140px;
+            font-weight: 500;
+        }
+
+        select, input, button {
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        button {
+            background: linear-gradient(135deg, #4ade80, #22c55e);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            min-width: 140px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(74, 222, 128, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .gesture-preview {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .gesture-frames {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .gesture-frame {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #4ade80;
+        }
+
+        .frame-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .frame-number {
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        .frame-time {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .gesture-params {
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .test-results {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .test-status {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .test-pass {
+            background: rgba(74, 222, 128, 0.2);
+            border-left: 4px solid #4ade80;
+        }
+
+        .test-fail {
+            background: rgba(239, 68, 68, 0.2);
+            border-left: 4px solid #ef4444;
+        }
+
+        .test-running {
+            background: rgba(251, 191, 36, 0.2);
+            border-left: 4px solid #fbbf24;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .comparison-chart {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .chart-bar {
+            background: rgba(255, 255, 255, 0.1);
+            height: 35px;
+            border-radius: 15px;
+            margin: 12px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-fill {
+            height: 100%;
+            border-radius: 15px;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            transition: width 0.8s ease;
+            display: flex;
+            align-items: center;
+            padding-left: 15px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .chart-label {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-weight: 500;
+            z-index: 2;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            transition: width 0.3s ease;
+            border-radius: 12px;
+        }
+
+        .backend-status {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .backend-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            transition: transform 0.3s ease;
+        }
+
+        .backend-badge:hover {
+            transform: scale(1.05);
+        }
+
+        .backend-available {
+            background: rgba(74, 222, 128, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+
+        .backend-unavailable {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .backend-active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .expression-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .expression-btn {
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .expression-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .expression-btn.active {
+            background: linear-gradient(135deg, #4ade80, #22c55e);
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎭 Audio2Gesture Optimized Multi-Head Attention</h1>
+        <p>High-performance gesture generation with WebGPU, WebNN, and WASM acceleration</p>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <h3>📊 Performance Metrics</h3>
+            <div class="metrics-grid">
+                <div class="metric">
+                    <div class="metric-value" id="currentFps">--</div>
+                    <div class="metric-label">Current FPS</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="avgFps">--</div>
+                    <div class="metric-label">Average FPS</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="speedup">--</div>
+                    <div class="metric-label">Speedup</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="totalFrames">--</div>
+                    <div class="metric-label">Total Frames</div>
+                </div>
+            </div>
+            
+            <div class="backend-status" id="backendStatus">
+                <!-- Backend status badges will be populated here -->
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>⚡ Real-time Generation</h3>
+            <div class="metrics-grid">
+                <div class="metric">
+                    <div class="metric-value" id="currentBackend">--</div>
+                    <div class="metric-label">Active Backend</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="attentionTime">--</div>
+                    <div class="metric-label">Attention Time</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="onnxTime">--</div>
+                    <div class="metric-label">ONNX Time</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="memoryUsage">--</div>
+                    <div class="metric-label">Memory Usage</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🎭 Expression Control</h3>
+            <div class="expression-selector">
+                <div class="expression-btn active" data-expression="neutral">😐 Neutral</div>
+                <div class="expression-btn" data-expression="happy">😊 Happy</div>
+                <div class="expression-btn" data-expression="sad">😢 Sad</div>
+                <div class="expression-btn" data-expression="angry">😠 Angry</div>
+                <div class="expression-btn" data-expression="surprised">😲 Surprised</div>
+                <div class="expression-btn" data-expression="excited">🤩 Excited</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <h3>🎛️ Generation Configuration</h3>
+        <div class="control-group">
+            <label>Backend:</label>
+            <select id="backendSelect">
+                <option value="auto">Auto-detect</option>
+                <option value="webgpu">WebGPU</option>
+                <option value="webnn">WebNN</option>
+                <option value="wasm">WebAssembly</option>
+                <option value="cpu">CPU</option>
+            </select>
+            
+            <label>Number of Frames:</label>
+            <input type="range" id="numFramesSlider" min="5" max="50" value="20" step="1">
+            <span id="numFramesValue">20</span>
+            
+            <label>Multi-frame Chunk Size:</label>
+            <select id="batchSizeSelect">
+                <option value="1">1 frame (Sequential)</option>
+                <option value="2">2 frames (Pair)</option>
+                <option value="4">4 frames (Optimal)</option>
+                <option value="8">8 frames (Large)</option>
+            </select>
+            <small style="display: block; color: #666; margin-bottom: 10px;">
+                Chunk size for simultaneous frame generation. Larger chunks generate more frames at once but use more memory.
+            </small>
+            
+            <label>Attention Enhancement:</label>
+            <select id="attentionToggle">
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <button id="generateBtn">🎬 Generate Gesture Sequence</button>
+            <button id="compareBtn">⚡ Run Performance Comparison</button>
+            <button id="runTestsBtn">🧪 Run Unit Tests</button>
+            <button id="clearResultsBtn">🧹 Clear Results</button>
+        </div>
+    </div>
+
+    <div class="gesture-preview">
+        <h3>🤹 Generated Gesture Sequence</h3>
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+            </div>
+            <div id="progressText">Ready to generate gestures...</div>
+        </div>
+        <div class="gesture-frames" id="gestureFrames">
+            <!-- Generated gesture frames will appear here -->
+        </div>
+    </div>
+
+    <div class="test-results">
+        <h3>📋 Test Results & Logs</h3>
+        <div id="testOutput">
+            <div class="test-status">System ready for audio2gesture generation...</div>
+        </div>
+    </div>
+
+    <div class="comparison-chart">
+        <h3>📈 Performance Comparison</h3>
+        <div id="comparisonCharts">
+            <p>Run performance comparison to see optimization results...</p>
+        </div>
+    </div>
+
+    <!-- Include required scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js" defer></script>
+    <script src="audio2gesture_bundle.js" defer></script>
+    <script src="audio2gesture_attention_tests.js" defer></script>
+
+    <script>
+        class Audio2GestureDemoController {
+            constructor() {
+                this.isRunning = false;
+                this.generator = null;
+                this.testSuite = null;
+                this.currentExpression = 'neutral';
+                this.performanceHistory = [];
+                
+                this.initializeUI();
+                this.setupEventListeners();
+                this.checkBackendAvailability();
+                this.initializeGenerator();
+            }
+
+            initializeUI() {
+                // Update frame count display
+                const slider = document.getElementById('numFramesSlider');
+                const display = document.getElementById('numFramesValue');
+                
+                slider.addEventListener('input', (e) => {
+                    display.textContent = e.target.value;
+                });
+            }
+
+            setupEventListeners() {
+                document.getElementById('generateBtn').addEventListener('click', () => {
+                    this.generateGestureSequence();
+                });
+
+                document.getElementById('compareBtn').addEventListener('click', () => {
+                    this.runPerformanceComparison();
+                });
+
+                document.getElementById('runTestsBtn').addEventListener('click', () => {
+                    this.runUnitTests();
+                });
+
+                document.getElementById('clearResultsBtn').addEventListener('click', () => {
+                    this.clearResults();
+                });
+
+                document.getElementById('backendSelect').addEventListener('change', (e) => {
+                    this.switchBackend(e.target.value);
+                });
+
+                // Expression selector
+                document.querySelectorAll('.expression-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.expression-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.currentExpression = e.target.dataset.expression;
+                        this.addLogEntry(`Expression changed to: ${this.currentExpression}`, 'info');
+                    });
+                });
+            }
+
+            async initializeGenerator() {
+                this.addLogEntry('Initializing Enhanced Audio2Gesture Generator...', 'info');
+                
+                try {
+                    this.generator = new EnhancedAudio2GestureGenerator({
+                        modelPath: 'audio2gesture_step_fixed.onnx',
+                        useOptimizedAttention: true,
+                        attentionBackend: 'auto',
+                        enableProfiling: true
+                    });
+
+                    const success = await this.generator.initialize();
+                    
+                    if (success) {
+                        this.addLogEntry('✅ Generator initialized successfully!', 'success');
+                        this.updateSystemInfo();
+                    } else {
+                        this.addLogEntry('❌ Failed to initialize generator', 'error');
+                    }
+
+                } catch (error) {
+                    this.addLogEntry(`❌ Initialization error: ${error.message}`, 'error');
+                    
+                    // Fallback: try to initialize with optimized attention only
+                    try {
+                        this.addLogEntry('🔄 Trying attention-only mode...', 'info');
+                        this.generator = {
+                            optimizedAttention: new OptimizedAudio2GestureAttention({
+                                numHeads: 8,
+                                hiddenDim: 1024
+                            }),
+                            isInitialized: false
+                        };
+                        
+                        await this.generator.optimizedAttention.initializeBackend('auto');
+                        this.generator.isInitialized = true;
+                        
+                        this.addLogEntry('✅ Attention-only mode ready!', 'success');
+                        this.updateSystemInfo();
+                        
+                    } catch (fallbackError) {
+                        this.addLogEntry(`❌ Fallback failed: ${fallbackError.message}`, 'error');
+                    }
+                }
+            }
+
+            async checkBackendAvailability() {
+                const statusContainer = document.getElementById('backendStatus');
+                const backends = [
+                    { name: 'WebGPU', key: 'webgpu', check: () => !!navigator.gpu },
+                    { name: 'WebNN', key: 'webnn', check: () => !!window.MLContext },
+                    { name: 'WASM', key: 'wasm', check: () => !!window.WebAssembly },
+                    { name: 'CPU', key: 'cpu', check: () => true }
+                ];
+
+                statusContainer.innerHTML = '';
+                
+                for (const backend of backends) {
+                    const available = backend.check();
+                    const badge = document.createElement('div');
+                    badge.className = `backend-badge ${available ? 'backend-available' : 'backend-unavailable'}`;
+                    badge.textContent = `${backend.name} ${available ? '✓' : '✗'}`;
+                    badge.title = `${backend.name} backend ${available ? 'available' : 'not available'}`;
+                    statusContainer.appendChild(badge);
+                }
+            }
+
+            async generateGestureSequence() {
+                if (this.isRunning || !this.generator?.isInitialized) {
+                    return;
+                }
+
+                this.isRunning = true;
+                const generateBtn = document.getElementById('generateBtn');
+                generateBtn.disabled = true;
+                generateBtn.textContent = '🎬 Generating...';
+
+                try {
+                    const numFrames = parseInt(document.getElementById('numFramesSlider').value);
+                    const batchSize = parseInt(document.getElementById('batchSizeSelect').value);
+                    const enableAttention = document.getElementById('attentionToggle').value === 'true';
+                    
+                    this.updateProgress(0, `Starting multi-frame generation: ${numFrames} frames with chunk size ${batchSize}...`);
+                    this.addLogEntry(`🎬 Multi-frame Avatar Animation: ${numFrames} frames (chunk size: ${batchSize}) with ${this.currentExpression} expression...`, 'info');
+
+                    // Generate synthetic audio features for demo (batch processing)
+                    const audioFeatures = this.generateSyntheticAudioBatch(batchSize);
+                    
+                    this.updateProgress(20, 'Processing audio features...');
+
+                    let result;
+                    if (this.generator.generateGestureSequence) {
+                        // Full generator mode with batch processing
+                        result = await this.generator.generateGestureSequence(audioFeatures, {
+                            numFrames,
+                            batchSize,
+                            lexemeType: this.currentExpression,
+                            enableAttentionEnhancement: enableAttention,
+                            batchProcessing: batchSize > 1
+                        });
+                    } else {
+                        // Attention-only mode
+                        result = await this.generateWithAttentionOnly(audioFeatures, numFrames, batchSize);
+                    }
+
+                    this.updateProgress(100, 'Generation complete!');
+                    this.displayGestureFrames(result.frames, result.metadata, batchSize);
+                    this.updatePerformanceMetrics(result.metadata);
+                    this.addLogEntry(`✅ Multi-frame generation complete: ${numFrames} frames (chunk size: ${batchSize}) successfully!`, 'success');
+
+                } catch (error) {
+                    this.addLogEntry(`❌ Generation failed: ${error.message}`, 'error');
+                    this.updateProgress(0, 'Generation failed');
+                } finally {
+                    this.isRunning = false;
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = '🎬 Generate Gesture Sequence';
+                }
+            }
+
+            async generateWithAttentionOnly(audioFeatures, numFrames, batchSize = 1) {
+                // Fallback for attention-only mode with batch support
+                const frames = [];
+                const startTime = performance.now();
+                
+                // Process batches if batchSize > 1
+                if (batchSize > 1) {
+                    this.addLogEntry(`🔄 Processing ${batchSize} sequences in parallel...`, 'info');
+                    
+                    const batchPromises = [];
+                    for (let b = 0; b < batchSize; b++) {
+                        const batchAudioFeatures = Array.isArray(audioFeatures[0]) ? audioFeatures[b] : audioFeatures;
+                        const promise = this.generateSingleSequence(batchAudioFeatures, numFrames, b);
+                        batchPromises.push(promise);
+                    }
+                    
+                    const batchResults = await Promise.all(batchPromises);
+                    
+                    // Flatten results from all batches
+                    batchResults.forEach(batchFrames => {
+                        frames.push(...batchFrames);
+                    });
+                } else {
+                    // Single sequence generation
+                    const singleFrames = await this.generateSingleSequence(audioFeatures, numFrames, 0);
+                    frames.push(...singleFrames);
+                }
+                
+                const endTime = performance.now();
+                const totalTime = endTime - startTime;
+                
+                return {
+                    frames,
+                    metadata: {
+                        totalTime,
+                        avgTime: totalTime / (numFrames * batchSize),
+                        fps: 1000 / (totalTime / (numFrames * batchSize)),
+                        numFrames: numFrames * batchSize,
+                        batchSize,
+                        attentionEnabled: true,
+                        backend: this.generator.optimizedAttention?.currentBackend || 'cpu'
+                    }
+                };
+            }
+
+            async generateSingleSequence(audioFeatures, numFrames, batchIndex) {
+                const frames = [];
+                for (let i = 0; i < numFrames; i++) {
+                    // Generate synthetic gesture frame with batch variation
+                    const frame = [];
+                    for (let j = 0; j < 48; j++) {
+                        const batchOffset = batchIndex * 0.1; // Add slight variation per batch
+                        const value = Math.sin(i * 0.1 + j * 0.02 + batchOffset) * 0.1 + Math.random() * 0.05;
+                        frame.push(value);
+                    }
+                    frames.push(frame);
+                    
+                    this.updateProgress(30 + ((batchIndex * numFrames + i) / (numFrames * this.getCurrentBatchSize())) * 60, 
+                        `Processing batch ${batchIndex + 1} frame ${i + 1}/${numFrames}`);
+                }
+                return frames;
+            }
+
+            getCurrentBatchSize() {
+                return parseInt(document.getElementById('batchSizeSelect').value) || 1;
+            }
+
+            async runPerformanceComparison() {
+                if (this.isRunning || !this.generator?.isInitialized) {
+                    return;
+                }
+
+                this.isRunning = true;
+                const compareBtn = document.getElementById('compareBtn');
+                compareBtn.disabled = true;
+                compareBtn.textContent = '⚡ Running Comparison...';
+
+                this.addLogEntry('🏁 Starting performance comparison...', 'info');
+                this.updateProgress(0, 'Initializing comparison...');
+
+                if (this.generator.runPerformanceComparison) {
+                    const numFrames = parseInt(document.getElementById('numFramesSlider').value);
+                    const comparison = await this.generator.runPerformanceComparison(numFrames);
+                    
+                    this.displayPerformanceComparison(comparison);
+                    this.addLogEntry(`✅ Comparison complete! Speedup: ${comparison.speedup.toFixed(2)}x`, 'success');
+                } else {
+                    // Run batch vs sequential comparison
+                    await this.runBatchComparison();
+                }
+
+                this.updateProgress(100, 'Comparison complete!');
+
+                this.isRunning = false;
+                compareBtn.disabled = false;
+                compareBtn.textContent = '⚡ Run Performance Comparison';
+            }
+
+            async runBatchComparison() {
+                const numFrames = 10; // Smaller test for comparison
+                const batchSizes = [1, 2, 4, 8];
+                const results = {};
+                
+                this.addLogEntry('🔄 Comparing batch sizes...', 'info');
+                
+                for (const batchSize of batchSizes) {
+                    this.updateProgress(25 + (batchSizes.indexOf(batchSize) / batchSizes.length) * 50, 
+                        `Testing batch size ${batchSize}...`);
+                    
+                    const audioFeatures = this.generateSyntheticAudioBatch(batchSize);
+                    
+                    const startTime = performance.now();
+                    
+                    if (this.generator.generateGestureSequence) {
+                        const result = await this.generator.generateGestureSequence(audioFeatures, {
+                            numFrames,
+                            batchSize,
+                            lexemeType: 'neutral',
+                            enableAttentionEnhancement: true,
+                            batchProcessing: batchSize > 1
+                        });
+                        
+                        results[`batch_${batchSize}`] = {
+                            fps: result.metadata.fps,
+                            throughput: result.metadata.batchThroughput || result.metadata.fps,
+                            totalTime: result.metadata.totalTime,
+                            batchSize
+                        };
+                    } else {
+                        // Fallback test
+                        const endTime = performance.now();
+                        const totalTime = endTime - startTime;
+                        results[`batch_${batchSize}`] = {
+                            fps: 1000 / (totalTime / (numFrames * batchSize)),
+                            throughput: (1000 / totalTime) * numFrames * batchSize,
+                            totalTime,
+                            batchSize
+                        };
+                    }
+                    
+                    this.addLogEntry(`📊 Batch size ${batchSize}: ${results[`batch_${batchSize}`].throughput.toFixed(1)} frames/sec`, 'info');
+                }
+                
+                this.displayBatchComparison(results);
+            }
+
+            async runFallbackComparison() {
+                // Simple performance test for attention-only mode
+                const backends = ['cpu', 'wasm'];
+                const results = {};
+                
+                for (const backend of backends) {
+                    if (this.generator.optimizedAttention) {
+                        this.updateProgress(30, `Testing ${backend} backend...`);
+                        
+                        await this.generator.optimizedAttention.switchBackend(backend);
+                        
+                        const hiddenState = this.generateTestHiddenState();
+                        const audioFeatures = this.generateSyntheticAudio();
+                        
+                        const iterations = 5;
+                        const times = [];
+                        
+                        for (let i = 0; i < iterations; i++) {
+                            const startTime = performance.now();
+                            await this.generator.optimizedAttention.computeMultiHeadAttention(
+                                hiddenState, audioFeatures
+                            );
+                            const endTime = performance.now();
+                            times.push(endTime - startTime);
+                        }
+                        
+                        const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+                        results[backend] = {
+                            avgTime,
+                            fps: 1000 / avgTime
+                        };
+                    }
+                }
+                
+                this.displayFallbackComparison(results);
+            }
+
+            async runUnitTests() {
+                if (this.isRunning) return;
+
+                this.isRunning = true;
+                const testBtn = document.getElementById('runTestsBtn');
+                testBtn.disabled = true;
+                testBtn.textContent = '🧪 Running Tests...';
+
+                try {
+                    this.addLogEntry('🧪 Starting unit test suite...', 'info');
+                    this.updateProgress(0, 'Initializing test suite...');
+
+                    this.testSuite = new Audio2GestureAttentionTestSuite();
+                    const results = await this.testSuite.runAllTests();
+
+                    this.displayTestResults(results);
+                    this.updateProgress(100, 'Tests complete!');
+
+                } catch (error) {
+                    this.addLogEntry(`❌ Test suite failed: ${error.message}`, 'error');
+                } finally {
+                    this.isRunning = false;
+                    testBtn.disabled = false;
+                    testBtn.textContent = '🧪 Run Unit Tests';
+                }
+            }
+
+            generateSyntheticAudio() {
+                // Generate realistic synthetic audio features for demo
+                const audioFeatures = [];
+                for (let t = 0; t < 30; t++) {
+                    for (let f = 0; f < 80; f++) {
+                        // Simulate MFCC-like features with expression influence
+                        let value = Math.exp(-f * 0.1) * Math.sin(t * 0.1 + f * 0.05) * 0.5;
+                        
+                        // Add expression modulation
+                        switch (this.currentExpression) {
+                            case 'happy':
+                                value += 0.2 * Math.sin(t * 0.3);
+                                break;
+                            case 'sad':
+                                value *= 0.7;
+                                break;
+                            case 'angry':
+                                value += 0.3 * Math.cos(t * 0.5);
+                                break;
+                            case 'excited':
+                                value += 0.4 * Math.sin(t * 0.7);
+                                break;
+                        }
+                        
+                        audioFeatures.push(value);
+                    }
+                }
+                return audioFeatures;
+            }
+
+            generateSyntheticAudioBatch(batchSize = 1) {
+                // Generate realistic synthetic audio features for demo with batch support
+                if (batchSize === 1) {
+                    return this.generateSyntheticAudio();
+                }
+                
+                const batchAudioFeatures = [];
+                
+                for (let b = 0; b < batchSize; b++) {
+                    const audioFeatures = [];
+                    
+                    for (let t = 0; t < 30; t++) {
+                        for (let f = 0; f < 80; f++) {
+                            // Simulate MFCC-like features with expression influence
+                            let value = Math.exp(-f * 0.1) * Math.sin(t * 0.1 + f * 0.05 + b * 0.3) * 0.5;
+                            
+                            // Add expression modulation with batch variation
+                            const batchVariation = (b / batchSize) * 0.2;
+                            switch (this.currentExpression) {
+                                case 'happy':
+                                    value += (0.2 + batchVariation) * Math.sin(t * 0.3);
+                                    break;
+                                case 'sad':
+                                    value *= (0.7 - batchVariation * 0.1);
+                                    break;
+                                case 'angry':
+                                    value += (0.3 + batchVariation) * Math.cos(t * 0.5);
+                                    break;
+                                case 'excited':
+                                    value += (0.4 + batchVariation) * Math.sin(t * 0.7);
+                                    break;
+                            }
+                            
+                            audioFeatures.push(value);
+                        }
+                    }
+                    
+                    batchAudioFeatures.push(audioFeatures);
+                }
+                
+                return batchAudioFeatures;
+            }
+
+            generateTestHiddenState() {
+                const hiddenState = [];
+                for (let l = 0; l < 4; l++) {
+                    const layer = [];
+                    for (let b = 0; b < 1; b++) {
+                        const batch = [];
+                        for (let h = 0; h < 1024; h++) {
+                            batch.push((Math.random() - 0.5) * 0.5);
+                        }
+                        layer.push(batch);
+                    }
+                    hiddenState.push(layer);
+                }
+                return hiddenState;
+            }
+
+            displayGestureFrames(frames, metadata, batchSize = 1) {
+                const container = document.getElementById('gestureFrames');
+                container.innerHTML = '';
+
+                // Show frames from each batch
+                const framesToShow = Math.min(frames.length, 12); // Show max 12 frames
+                const framesPerBatch = Math.ceil(framesToShow / batchSize);
+                
+                for (let i = 0; i < framesToShow; i++) {
+                    const frame = frames[i];
+                    const batchIndex = Math.floor(i / (frames.length / batchSize));
+                    const frameInBatch = i % (frames.length / batchSize) + 1;
+                    
+                    const frameElement = document.createElement('div');
+                    frameElement.className = 'gesture-frame';
+                    
+                    const frameTime = metadata.avgTime || (metadata.totalTime / frames.length);
+                    
+                    frameElement.innerHTML = `
+                        <div class="frame-header">
+                            <span class="frame-number">Batch ${batchIndex + 1} - Frame ${frameInBatch}</span>
+                            <span class="frame-time">${frameTime.toFixed(1)}ms</span>
+                        </div>
+                        <div class="gesture-params">
+                            ${this.formatGestureParams(frame)}
+                        </div>
+                    `;
+                    
+                    container.appendChild(frameElement);
+                }
+
+                if (frames.length > framesToShow) {
+                    const moreElement = document.createElement('div');
+                    moreElement.className = 'gesture-frame';
+                    moreElement.innerHTML = `
+                        <div class="frame-header">
+                            <span class="frame-number">...</span>
+                            <span class="frame-time">+${frames.length - framesToShow} more frames</span>
+                        </div>
+                        <div class="gesture-params">
+                            Total: ${frames.length} frames across ${batchSize} sequences<br>
+                            Batch throughput: ${metadata.batchSize ? (metadata.fps * metadata.batchSize).toFixed(1) : metadata.fps.toFixed(1)} frames/sec
+                        </div>
+                    `;
+                    container.appendChild(moreElement);
+                }
+            }
+
+            formatGestureParams(frame) {
+                // Format gesture parameters for display
+                const paramNames = [
+                    'jaw_open', 'jaw_x', 'jaw_y', 'jaw_rot',
+                    'lip_upper', 'lip_lower', 'lip_corner_l', 'lip_corner_r',
+                    'brow_inner_l', 'brow_inner_r', 'brow_outer_l', 'brow_outer_r',
+                    'eye_l_blink', 'eye_r_blink', 'eye_l_wide', 'eye_r_wide'
+                ];
+
+                let html = '';
+                for (let i = 0; i < Math.min(frame.length, 16); i++) {
+                    const paramName = paramNames[i] || `param_${i}`;
+                    const value = frame[i].toFixed(4);
+                    html += `${paramName}: ${value}<br>`;
+                }
+
+                if (frame.length > 16) {
+                    html += `... +${frame.length - 16} more params`;
+                }
+
+                return html;
+            }
+
+            displayPerformanceComparison(comparison) {
+                console.log('Comparison data:', comparison);
+                const container = document.getElementById('comparisonCharts');
+                container.innerHTML = `
+                    <h4>📊 Performance Comparison Results</h4>
+                    <div class="chart-bar">
+                        <div class="chart-label">Standard Processing</div>
+                        <div class="chart-fill" style="width: ${Math.min(comparison.standard.metadata.fps * 2, 100)}%;">
+                            ${comparison.standard.metadata.fps.toFixed(1)} FPS
+                        </div>
+                    </div>
+                    <div class="chart-bar">
+                        <div class="chart-label">Optimized Processing</div>
+                        <div class="chart-fill" style="width: ${Math.min(comparison.optimized.metadata.fps * 2, 100)}%;">
+                            ${comparison.optimized.metadata.fps.toFixed(1)} FPS
+                        </div>
+                    </div>
+                    <div class="chart-bar">
+                        <div class="chart-label">Speedup Factor</div>
+                        <div class="chart-fill" style="width: ${Math.min(comparison.speedup * 20, 100)}%;">
+                            ${comparison.speedup.toFixed(2)}x
+                        </div>
+                    </div>
+                `;
+            }
+
+            displayBatchComparison(results) {
+                const container = document.getElementById('comparisonCharts');
+                let html = '<h4>📊 Batch Size Performance Comparison</h4>';
+                
+                const maxThroughput = Math.max(...Object.values(results).map(r => r.throughput));
+                
+                for (const [key, result] of Object.entries(results)) {
+                    const efficiency = (result.throughput / result.batchSize) / results['batch_1'].fps;
+                    const efficiencyColor = efficiency > 0.8 ? '#4ade80' : efficiency > 0.6 ? '#fbbf24' : '#ef4444';
+                    
+                    html += `
+                        <div class="chart-bar">
+                            <div class="chart-label">Batch Size ${result.batchSize}</div>
+                            <div class="chart-fill" style="width: ${(result.throughput / maxThroughput) * 100}%; background: linear-gradient(90deg, ${efficiencyColor}, ${efficiencyColor}cc);">
+                                ${result.throughput.toFixed(1)} frames/sec (${efficiency.toFixed(2)}x efficiency)
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += `
+                    <div style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+                        <strong>Efficiency:</strong> Throughput per sequence compared to batch size 1<br>
+                        <strong>Green:</strong> >80% efficient, <strong>Yellow:</strong> 60-80%, <strong>Red:</strong> <60%
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            }
+
+            displayTestResults(results) {
+                const passed = results.filter(r => r.passed).length;
+                const total = results.length;
+                
+                this.addLogEntry(`📊 Test Results: ${passed}/${total} passed (${((passed/total)*100).toFixed(1)}%)`, 
+                    passed === total ? 'success' : 'warning');
+                
+                results.forEach(result => {
+                    this.addLogEntry(`${result.test}: ${result.details}`, 
+                        result.passed ? 'success' : 'error');
+                });
+            }
+
+            updatePerformanceMetrics(metadata) {
+                document.getElementById('currentFps').textContent = metadata.fps.toFixed(1);
+                document.getElementById('totalFrames').textContent = metadata.numFrames;
+                document.getElementById('currentBackend').textContent = metadata.backend || '--';
+                
+                if (metadata.attentionTime) {
+                    document.getElementById('attentionTime').textContent = `${metadata.attentionTime.toFixed(1)}ms`;
+                }
+                
+                // Show batch throughput if available
+                if (metadata.batchSize && metadata.batchSize > 1) {
+                    const batchThroughput = metadata.batchThroughput || (metadata.fps * metadata.batchSize);
+                    document.getElementById('avgFps').textContent = `${batchThroughput.toFixed(1)} (batch)`;
+                } else {
+                    // Update averages for single sequences
+                    this.performanceHistory.push(metadata);
+                    if (this.performanceHistory.length > 10) {
+                        this.performanceHistory.shift();
+                    }
+                    
+                    const avgFps = this.performanceHistory.reduce((sum, m) => sum + m.fps, 0) / this.performanceHistory.length;
+                    document.getElementById('avgFps').textContent = avgFps.toFixed(1);
+                }
+                
+                // Update memory usage if available
+                if (performance.memory) {
+                    const memoryMB = performance.memory.usedJSHeapSize / 1024 / 1024;
+                    document.getElementById('memoryUsage').textContent = `${memoryMB.toFixed(1)}MB`;
+                }
+            }
+
+            updateSystemInfo() {
+                if (this.generator?.getSystemInfo) {
+                    const info = this.generator.getSystemInfo();
+                    if (info.attentionInfo) {
+                        document.getElementById('currentBackend').textContent = info.attentionInfo.currentBackend;
+                    }
+                } else if (this.generator?.optimizedAttention) {
+                    document.getElementById('currentBackend').textContent = this.generator.optimizedAttention.currentBackend;
+                }
+            }
+
+            updateProgress(percent, text) {
+                document.getElementById('progressFill').style.width = `${percent}%`;
+                document.getElementById('progressText').textContent = text;
+            }
+
+            addLogEntry(message, type = 'info') {
+                const output = document.getElementById('testOutput');
+                const entry = document.createElement('div');
+                
+                let className = 'test-status';
+                if (type === 'success') className += ' test-pass';
+                else if (type === 'error') className += ' test-fail';
+                else if (type === 'warning') className += ' test-running';
+                
+                entry.className = className;
+                entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+                output.appendChild(entry);
+                
+                output.scrollTop = output.scrollHeight;
+            }
+
+            async switchBackend(backend) {
+                if (this.generator?.switchAttentionBackend) {
+                    this.addLogEntry(`🔄 Switching to ${backend} backend...`, 'info');
+                    const success = await this.generator.switchAttentionBackend(backend);
+                    
+                    if (success) {
+                        this.addLogEntry(`✅ Successfully switched to ${backend} backend`, 'success');
+                        this.updateSystemInfo();
+                    } else {
+                        this.addLogEntry(`❌ Failed to switch to ${backend} backend`, 'error');
+                    }
+                } else if (this.generator?.optimizedAttention) {
+                    this.addLogEntry(`🔄 Switching attention backend to ${backend}...`, 'info');
+                    const success = await this.generator.optimizedAttention.switchBackend(backend);
+                    
+                    if (success) {
+                        this.addLogEntry(`✅ Successfully switched to ${backend} backend`, 'success');
+                        this.updateSystemInfo();
+                    } else {
+                        this.addLogEntry(`❌ Failed to switch to ${backend} backend`, 'error');
+                    }
+                }
+            }
+
+            clearResults() {
+                document.getElementById('gestureFrames').innerHTML = '';
+                document.getElementById('testOutput').innerHTML = '<div class="test-status">Results cleared...</div>';
+                document.getElementById('comparisonCharts').innerHTML = '<p>Run performance comparison to see optimization results...</p>';
+                this.updateProgress(0, 'Ready to generate gestures...');
+                
+                // Reset metrics
+                ['currentFps', 'avgFps', 'speedup', 'totalFrames', 'attentionTime', 'onnxTime'].forEach(id => {
+                    document.getElementById(id).textContent = '--';
+                });
+                
+                this.performanceHistory = [];
+                this.addLogEntry('🧹 Results cleared', 'info');
+            }
+        }
+
+        // Initialize the demo when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new Audio2GestureDemoController();
+        });
+    </script>
+</body>
+</html>

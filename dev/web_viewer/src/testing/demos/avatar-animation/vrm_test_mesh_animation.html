@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRM Mesh Animation Test - 100-Style Collection + VRMBVHAdapter</title>
+    
+    <!-- Import Map for Module Resolution -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/": "https://cdn.jsdelivr.net/npm/three@0.177.0/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js"
+        }
+    }
+    </script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            overflow: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            max-width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .title {
+            color: #00d4ff;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .section {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        
+        .section-title {
+            color: #ffaa00;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #00d4ff, #0084ff);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px 5px 5px 0;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 212, 255, 0.3);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        button.play {
+            background: linear-gradient(45deg, #4caf50, #2e7d32);
+        }
+        
+        button.stop {
+            background: linear-gradient(45deg, #f44336, #c62828);
+        }
+        
+        button.fix {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+        }
+        
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            background: #333;
+            color: white;
+            border: 1px solid #00d4ff;
+            margin: 5px 5px 5px 0;
+            min-width: 150px;
+        }
+        
+        input[type="range"] {
+            width: 100px;
+            margin: 0 10px;
+        }
+        
+        #status {
+            color: #4caf50;
+            font-weight: bold;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 5px;
+            border-left: 4px solid #4caf50;
+            font-size: 12px;
+        }
+        
+        .error {
+            color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+            border-left-color: #f44336;
+        }
+        
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            font-size: 14px;
+        }
+        
+        .metric {
+            margin: 5px 0;
+        }
+        
+        .value {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controls">
+            <div class="title">🎭 VRM Mesh + BVH Animation Test
+                <div style="font-size: 12px; color: #ffaa00; margin-top: 5px;">Featuring 100-Style Motion Collection</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Character Loading</div>
+                <select id="character-select">
+                    <option value="">No Character</option>
+                    <option value="ichika.vrm" selected>Ichika (Student)</option>
+                    <option value="kaede.vrm">Kaede (School Girl)</option>
+                    <option value="buny.vrm">Buny (Teacher)</option>
+                </select>
+                <br>
+                <button onclick="loadSelectedCharacter()">Load Character</button>
+                <button onclick="removeCharacter()">Remove Character</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Animation Loading</div>
+                <select id="animation-select">
+                    <option value="">No Animation</option>
+                    
+                    <!-- Basic Walking Animations -->
+                    <optgroup label="🚶 Basic Walking">
+                        <option value="neutral_walking.bvh" selected>Neutral Walking</option>
+                        <option value="dramatic_walking.bvh">Dramatic Walking</option>
+                    </optgroup>
+                    
+                    <!-- Style Variations (100 Style Collections) -->
+                    <optgroup label="🎭 Style Variations">
+                        <option value="character_styles_transitions.bvh">Character Style Transitions</option>
+                        <option value="style_variation.bvh">Style Variations</option>
+                        <option value="movement_energy_transitions.bvh">Energy Transitions</option>
+                    </optgroup>
+                    
+                    <!-- Emotional Styles -->
+                    <optgroup label="😊 Emotional Styles">
+                        <option value="emotional_journey_transitions.bvh">Emotional Journey</option>
+                        <option value="angry_reference.bvh">Angry Style</option>
+                        <option value="depressed_reference.bvh">Depressed Style</option>
+                        <option value="elated_reference.bvh">Elated Style</option>
+                        <option value="proud_reference.bvh">Proud Style</option>
+                    </optgroup>
+                    
+                    <!-- Character Types -->
+                    <optgroup label="👤 Character Types">
+                        <option value="neutral_reference.bvh">Neutral Character</option>
+                        <option value="old_reference.bvh">Elderly Character</option>
+                        <option value="robot_reference.bvh">Robot Style</option>
+                        <option value="rushed_reference.bvh">Rushed Character</option>
+                        <option value="strutting_reference.bvh">Strutting Style</option>
+                    </optgroup>
+                    
+                    <!-- Special Motions -->
+                    <optgroup label="⚡ Special Motions">
+                        <option value="extreme_motion.bvh">Extreme Motion</option>
+                        <option value="final_test.bvh">Final Test Motion</option>
+                        <option value="test_neutral.bvh">Test Neutral</option>
+                        <option value="test_pipeline.bvh">Pipeline Test</option>
+                        <option value="test_bvh_writer.bvh">BVH Writer Test</option>
+                    </optgroup>
+                </select>
+                <br>
+                <button onclick="loadSelectedAnimation()">Load Animation</button>
+                <button onclick="clearAnimation()">Clear Animation</button>
+                <button onclick="randomAnimation()">🎲 Random Style</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Playback Controls</div>
+                <button class="play" onclick="playAnimation()">▶ Play</button>
+                <button class="stop" onclick="pauseAnimation()">⏸ Pause</button>
+                <button onclick="resetAnimation()">⏮ Reset</button>
+                <br>
+                Speed: 
+                <input type="range" id="speed-slider" min="0.1" max="2.0" step="0.1" value="1.0" onchange="updateSpeed(this.value)">
+                <span id="speed-value">1.0x</span>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Camera Controls</div>
+                <button onclick="focusOnFace()">Focus Face</button>
+                <button onclick="fullBodyView()">Full Body</button>
+                <button onclick="enhanceLighting()">Enhance Light</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Animation Fixes</div>
+                <button class="fix" onclick="quickFixArms()">Fix Arms</button>
+                <button class="fix" onclick="quickFixWalking()">Fix Walking</button>
+                <button class="fix" onclick="quickFixDirection()">Fix Direction</button>
+                <br>
+                <button onclick="resetVRMSkeleton()">Reset Skeleton</button>
+                <button onclick="debugBoneMapping()">Debug Bones</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Quick Style Selection</div>
+                <button onclick="loadStyleCategory('emotional')">😊 Emotional</button>
+                <button onclick="loadStyleCategory('character')">👤 Character</button>
+                <button onclick="loadStyleCategory('energy')">⚡ Energy</button>
+                <br>
+                <button onclick="loadStyleCategory('extreme')">🔥 Extreme</button>
+                <button onclick="loadStyleCategory('reference')">📐 Reference</button>
+                <button onclick="randomAnimation()">🎲 Random</button>
+                <button onclick="toggleStyleInfo()" style="background: linear-gradient(45deg, #9c27b0, #673ab7);">ℹ️ Style Guide</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Coordinate System</div>
+                <button onclick="setCoordinateConfig(1)">Config 1</button>
+                <button onclick="setCoordinateConfig(2)">Config 2</button>
+                <button onclick="setCoordinateConfig(3)">Config 3</button>
+                <br>
+                <button onclick="toggleFlipRotX()">Flip X</button>
+                <button onclick="toggleFlipRotY()">Flip Y</button>
+                <button onclick="toggleFlipRotZ()">Flip Z</button>
+            </div>
+            
+            <div id="status">Ready - Load character and animation to begin</div>
+        </div>
+        
+        <div id="info">
+            <div class="metric">Character: <span id="character-name" class="value">None</span></div>
+            <div class="metric">Animation: <span id="animation-name" class="value">None</span></div>
+            <div class="metric">Frame: <span id="current-frame" class="value">0</span> / <span id="total-frames" class="value">0</span></div>
+            <div class="metric">Status: <span id="play-status" class="value">Stopped</span></div>
+            <div class="metric">FPS: <span id="fps" class="value">0</span></div>
+            <div class="metric">Bones Mapped: <span id="bones-mapped" class="value">0</span></div>
+        </div>
+        
+        <div id="style-info" style="position: absolute; bottom: 20px; right: 20px; background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 10px; backdrop-filter: blur(10px); z-index: 100; font-size: 12px; max-width: 300px; display: none;">
+            <div style="color: #00d4ff; font-weight: bold; margin-bottom: 10px;">🎭 Style Categories Guide</div>
+            <div style="margin-bottom: 8px;"><strong>😊 Emotional:</strong> Anger, depression, elation, pride</div>
+            <div style="margin-bottom: 8px;"><strong>👤 Character:</strong> Elderly, robot, neutral, rushed, strutting</div>
+            <div style="margin-bottom: 8px;"><strong>⚡ Energy:</strong> Dynamic movement variations and transitions</div>
+            <div style="margin-bottom: 8px;"><strong>🔥 Extreme:</strong> High-intensity and special motions</div>
+            <div style="margin-bottom: 8px;"><strong>📐 Reference:</strong> Neutral and test animations</div>
+            <div style="margin-top: 10px; font-style: italic; color: #aaa;">Based on 100-style motion collection system</div>
+            <button onclick="toggleStyleInfo()" style="position: absolute; top: 5px; right: 5px; background: none; border: none; color: #fff; cursor: pointer;">✕</button>
+        </div>
+    </div>
+
+    <!-- Load VRMBVHAdapter -->
+    <script src="./js/VRMBVHAdapter.js"></script>
+
+    <script type="module">
+        console.log('🚀 Starting VRM Mesh + BVH Animation Test...');
+        
+        // Import THREE.js and VRM
+        const THREE = await import('three');
+        window.THREE = THREE; // Make globally available
+        
+        const { GLTFLoader } = await import('https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/loaders/GLTFLoader.js');
+        const { VRMLoaderPlugin, VRMUtils } = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js');
+        
+        // Global variables
+        let scene, camera, renderer;
+        let vrmModel = null;
+        let vrmBVHAdapter = null;
+        let bvhData = null;
+        let isPlaying = false;
+        let currentFrame = 0;
+        let animationSpeed = 1.0;
+        let lastTime = 0;
+        let fps = 0;
+        let frameCount = 0;
+        
+        // Animation state
+        let animationId = null;
+        let characterLoaded = false;
+        let animationLoaded = false;
+        
+        // Status elements
+        const statusDiv = document.getElementById('status');
+        const characterNameSpan = document.getElementById('character-name');
+        const animationNameSpan = document.getElementById('animation-name');
+        const currentFrameSpan = document.getElementById('current-frame');
+        const totalFramesSpan = document.getElementById('total-frames');
+        const playStatusSpan = document.getElementById('play-status');
+        const fpsSpan = document.getElementById('fps');
+        const bonesMappedSpan = document.getElementById('bones-mapped');
+        const speedValueSpan = document.getElementById('speed-value');
+        
+        function updateStatus(message, isError = false) {
+            statusDiv.textContent = message;
+            statusDiv.className = isError ? 'error' : '';
+            console.log(isError ? '❌' : '📝', message);
+        }
+
+        // Initialize 3D scene
+        function initScene() {
+            console.log('🎬 Initializing 3D scene...');
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(
+                75, 
+                window.innerWidth / window.innerHeight, 
+                0.1, 
+                1000
+            );
+            camera.position.set(0, 1.6, 3);
+            camera.lookAt(0, 1, 0);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                alpha: true,
+                powerPreference: "high-performance"
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = false; // Disabled for VRM compatibility
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            
+            // Add renderer to container
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Setup professional lighting
+            setupProfessionalLighting();
+            
+            // Create test scene
+            createTestScene();
+            
+            console.log('✅ 3D scene initialized');
+        }
+
+        // Setup professional lighting optimized for anime VRM characters
+        function setupProfessionalLighting() {
+            console.log('🌟 Setting up professional anime character lighting...');
+            
+            // High-intensity ambient light for soft overall illumination
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            
+            // Main key light (strong directional light from front-top)
+            const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            keyLight.position.set(2, 3, 2);
+            keyLight.castShadow = false; // Avoid VRM shader conflicts
+            scene.add(keyLight);
+            
+            // Fill light from left (softer, warmer)
+            const fillLight = new THREE.DirectionalLight(0xffeeaa, 1.0);
+            fillLight.position.set(-2, 2, 1);
+            scene.add(fillLight);
+            
+            // Rim light for character outline
+            const rimLight = new THREE.DirectionalLight(0xaaccff, 0.8);
+            rimLight.position.set(0, 2, -3);
+            scene.add(rimLight);
+            
+            // Character face lighting (important for anime style)
+            const faceLight = new THREE.SpotLight(0xffffff, 1.2);
+            faceLight.position.set(0, 2, 1.5);
+            faceLight.angle = Math.PI / 6;
+            faceLight.penumbra = 0.2;
+            faceLight.decay = 2;
+            faceLight.distance = 5;
+            scene.add(faceLight);
+            
+            console.log('✅ Professional anime lighting setup complete');
+        }
+
+        // Create a simple test scene
+        function createTestScene() {
+            // Ground plane (circular for anime aesthetic)
+            const groundGeometry = new THREE.CircleGeometry(5, 32);
+            const groundMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xf0f0f0,
+                opacity: 0.8,
+                transparent: true
+            });
+            const groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
+            groundPlane.rotation.x = -Math.PI / 2;
+            groundPlane.position.y = -0.01;
+            scene.add(groundPlane);
+            
+            // Subtle circular grid
+            const gridHelper = new THREE.PolarGridHelper(3, 8, 8, 64, 0x888888, 0x444444);
+            gridHelper.position.y = 0.01;
+            gridHelper.material.opacity = 0.2;
+            gridHelper.material.transparent = true;
+            scene.add(gridHelper);
+            
+            // Small axes helper
+            const axesHelper = new THREE.AxesHelper(0.5);
+            scene.add(axesHelper);
+        }
+
+        // Fix VRM materials to prevent WebGL shader errors
+        function fixAllVRMMaterials(root) {
+            console.log('🔧 Fixing VRM materials for compatibility...');
+            
+            let fixedCount = 0;
+            root.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    let materialFixed = false;
+                    
+                    for (let i = 0; i < materials.length; i++) {
+                        const mat = materials[i];
+                        
+                        // Replace problematic materials with safe MeshBasicMaterial
+                        if (mat && !mat.isMeshBasicMaterial && needsMaterialFix(mat)) {
+                            const safeMaterial = new THREE.MeshBasicMaterial({
+                                color: mat.color || 0xffffff,
+                                map: mat.map || null,
+                                skinning: !!mat.skinning,
+                                transparent: !!mat.transparent,
+                                opacity: (typeof mat.opacity === 'number') ? mat.opacity : 1.0,
+                                side: mat.side || THREE.FrontSide
+                            });
+                            
+                            if (mat.name) safeMaterial.name = mat.name + '_safe';
+                            materials[i] = safeMaterial;
+                            materialFixed = true;
+                        }
+                    }
+                    
+                    if (materialFixed) {
+                        child.material = Array.isArray(child.material) ? materials : materials[0];
+                        fixedCount++;
+                    }
+                }
+            });
+            
+            console.log(`✅ Fixed ${fixedCount} VRM materials`);
+        }
+        
+        function needsMaterialFix(material) {
+            // Fix materials that commonly cause shader errors in VRM
+            return material.isMeshStandardMaterial || 
+                   material.isMeshPhongMaterial ||
+                   material.isMeshLambertMaterial ||
+                   (material.uniforms && Object.keys(material.uniforms).length > 10);
+        }
+
+        // Load VRM character
+        async function loadVRMCharacter(characterPath) {
+            try {
+                console.log('🎭 Loading VRM character:', characterPath);
+                updateStatus(`Loading ${characterPath}...`);
+                
+                const loader = new GLTFLoader();
+                loader.register((parser) => new VRMLoaderPlugin(parser));
+                
+                // Load VRM model with progress tracking
+                const gltf = await new Promise((resolve, reject) => {
+                    loader.load(
+                        characterPath,
+                        (gltf) => {
+                            console.log('✅ VRM file loaded successfully');
+                            resolve(gltf);
+                        },
+                        (progress) => {
+                            const percent = (progress.loaded / progress.total * 100).toFixed(1);
+                            updateStatus(`Loading VRM... ${percent}%`);
+                        },
+                        (error) => {
+                            console.error('❌ Failed to load VRM file:', error);
+                            reject(error);
+                        }
+                    );
+                });
+                
+                // Extract VRM data
+                const vrm = gltf.userData.vrm;
+                if (!vrm) {
+                    throw new Error('No VRM data found in file');
+                }
+                
+                // Wait for VRM to be ready
+                if (vrm.ready) {
+                    await vrm.ready;
+                }
+                
+                // Configure VRM for optimal rendering
+                configureVRMForRendering(vrm);
+                
+                // Remove existing VRM if present
+                if (vrmModel && vrmModel.scene) {
+                    scene.remove(vrmModel.scene);
+                }
+                
+                // Add new VRM to scene
+                scene.add(vrm.scene);
+                vrmModel = vrm;
+                
+                // Position character
+                vrm.scene.position.set(0, 0, 0);
+                vrm.scene.rotation.set(0, 0, 0);
+                vrm.scene.scale.set(1, 1, 1);
+                
+                // Create VRMBVHAdapter
+                const vrmModelObject = {
+                    vrm: vrmModel,
+                    scene: vrmModel.scene
+                };
+                
+                vrmBVHAdapter = new VRMBVHAdapter(vrmModelObject, null);
+                console.log('✅ VRMBVHAdapter created');
+                
+                // Setup idle animations
+                vrmBVHAdapter.setIdleAnimations({
+                    breathing: { enabled: true, amplitude: 0.01, frequency: 0.3 },
+                    blinking: { enabled: true, interval: 3000, duration: 150 },
+                    headMovement: { enabled: true, amplitude: 0.05, frequency: 0.1 }
+                });
+                
+                // Enable camera looking
+                vrmBVHAdapter.lookAtCameraAsIfHuman(camera);
+                
+                characterLoaded = true;
+                const characterName = characterPath.split('/').pop().replace('.vrm', '');
+                characterNameSpan.textContent = characterName;
+                
+                // Update bone mapping display
+                const availableBones = vrmBVHAdapter.getAvailableBones();
+                bonesMappedSpan.textContent = Object.keys(availableBones).length;
+                
+                updateStatus(`✅ ${characterName} loaded successfully`);
+                
+                // Start animation if both character and animation are loaded
+                if (animationLoaded && bvhData) {
+                    startAnimation();
+                }
+                
+                return vrm;
+                
+            } catch (error) {
+                console.error('❌ Failed to load VRM character:', error);
+                updateStatus(`Failed to load character: ${error.message}`, true);
+                throw error;
+            }
+        }
+        
+        function configureVRMForRendering(vrm) {
+            console.log('⚙️ Configuring VRM for optimal rendering...');
+            
+            if (!vrm.scene) {
+                console.warn('⚠️ VRM has no scene object');
+                return;
+            }
+            
+            // Fix all materials to prevent shader errors
+            fixAllVRMMaterials(vrm.scene);
+            
+            // Configure VRM scene properties
+            vrm.scene.traverse((child) => {
+                if (child.isMesh) {
+                    // Ensure mesh visibility and prevent culling issues
+                    child.visible = true;
+                    child.frustumCulled = false;
+                    
+                    // Disable shadows for VRM compatibility
+                    child.castShadow = false;
+                    child.receiveShadow = false;
+                    
+                    // Configure material properties
+                    if (child.material) {
+                        const materials = Array.isArray(child.material) ? child.material : [child.material];
+                        materials.forEach(material => {
+                            if (material.isMeshStandardMaterial || material.isMeshPhongMaterial) {
+                                // Optimize for anime-style rendering
+                                material.roughness = 0.8; // Slightly rough for anime look
+                                material.metalness = 0.0; // Non-metallic for anime characters
+                            }
+                        });
+                    }
+                }
+            });
+            
+            console.log('✅ VRM configured for rendering');
+        }
+
+        // Load BVH animation data
+        async function loadBVHAnimation(animationPath) {
+            try {
+                console.log('🎬 Loading BVH animation:', animationPath);
+                updateStatus(`Loading ${animationPath}...`);
+                
+                const response = await fetch(animationPath);
+                if (!response.ok) {
+                    throw new Error(`Failed to load BVH: ${response.status}`);
+                }
+
+                const bvhText = await response.text();
+                bvhData = parseBVH(bvhText);
+
+                console.log('✅ BVH animation loaded successfully');
+                console.log(`📊 Motion data: ${bvhData.frames.length} frames, ${bvhData.frameTime}s per frame`);
+                
+                animationLoaded = true;
+                const animationName = animationPath.split('/').pop().replace('.bvh', '');
+                animationNameSpan.textContent = animationName;
+                totalFramesSpan.textContent = bvhData.frames.length;
+                
+                updateStatus(`✅ ${animationName} animation loaded`);
+                
+                // Start animation if both character and animation are loaded
+                if (characterLoaded && vrmBVHAdapter) {
+                    startAnimation();
+                }
+                
+            } catch (error) {
+                console.error('❌ Error loading BVH animation:', error);
+                updateStatus(`Error loading animation: ${error.message}`, true);
+            }
+        }
+
+        // Simple BVH parser
+        function parseBVH(bvhText) {
+            console.log('📝 Parsing BVH data...');
+            
+            const lines = bvhText.split('\n');
+            let motionStartIndex = -1;
+            let frameCount = 0;
+            let frameTime = 0;
+            let hierarchy = {};
+            let jointOrder = [];
+
+            // Parse hierarchy section
+            let currentJoint = null;
+            let insideHierarchy = false;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                if (line === 'HIERARCHY') {
+                    insideHierarchy = true;
+                    continue;
+                }
+                
+                if (line === 'MOTION') {
+                    motionStartIndex = i;
+                    frameCount = parseInt(lines[i + 1].split(':')[1]);
+                    frameTime = parseFloat(lines[i + 2].split(':')[1]);
+                    break;
+                }
+                
+                if (insideHierarchy) {
+                    if (line.startsWith('ROOT') || line.startsWith('JOINT')) {
+                        const parts = line.split(/\s+/);
+                        currentJoint = parts[1];
+                        jointOrder.push(currentJoint);
+                        hierarchy[currentJoint] = {
+                            channels: [],
+                            offset: [0, 0, 0]
+                        };
+                    } else if (line.startsWith('CHANNELS') && currentJoint) {
+                        const parts = line.split(/\s+/);
+                        const channelCount = parseInt(parts[1]);
+                        hierarchy[currentJoint].channels = parts.slice(2, 2 + channelCount);
+                    } else if (line.startsWith('OFFSET') && currentJoint) {
+                        const parts = line.split(/\s+/);
+                        hierarchy[currentJoint].offset = [
+                            parseFloat(parts[1]),
+                            parseFloat(parts[2]),
+                            parseFloat(parts[3])
+                        ];
+                    }
+                }
+            }
+
+            if (motionStartIndex === -1) {
+                throw new Error('No MOTION section found in BVH file');
+            }
+
+            // Parse motion frames
+            const frames = [];
+            for (let i = motionStartIndex + 3; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    const values = line.split(/\s+/).map(parseFloat);
+                    if (values.length > 0 && !isNaN(values[0])) {
+                        frames.push(values);
+                    }
+                }
+            }
+
+            console.log(`✅ Parsed ${frames.length} motion frames with ${jointOrder.length} joints`);
+            
+            return {
+                frames: frames,
+                frameCount: frameCount,
+                frameTime: frameTime,
+                hierarchy: hierarchy,
+                jointOrder: jointOrder
+            };
+        }
+
+        // Animation loop
+        function animate(currentTime = 0) {
+            animationId = requestAnimationFrame(animate);
+            
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+            
+            // Update animation
+            if (isPlaying && bvhData && vrmBVHAdapter) {
+                // Apply current frame using VRMBVHAdapter
+                const frameData = bvhData.frames[Math.floor(currentFrame)];
+                if (frameData) {
+                    vrmBVHAdapter.applyBVHFrameToVRM(frameData);
+                }
+                
+                // Advance frame
+                currentFrame += animationSpeed;
+                if (currentFrame >= bvhData.frames.length) {
+                    currentFrame = 0; // Loop animation
+                }
+
+                currentFrameSpan.textContent = Math.floor(currentFrame);
+            }
+            
+            // Update VRM systems
+            if (vrmBVHAdapter) {
+                vrmBVHAdapter.tick(deltaTime);
+            } else if (vrmModel) {
+                vrmModel.update(deltaTime);
+            }
+            
+            // Update FPS counter
+            frameCount++;
+            if (frameCount % 60 === 0) {
+                fps = Math.round(1 / deltaTime);
+                fpsSpan.textContent = fps;
+            }
+            
+            // Render scene
+            renderer.render(scene, camera);
+        }
+
+        // Add mouse controls
+        function addMouseControls() {
+            let isMouseDown = false;
+            let mouseX = 0, mouseY = 0;
+            
+            renderer.domElement.addEventListener('mousedown', (event) => {
+                isMouseDown = true;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            renderer.domElement.addEventListener('mouseup', () => {
+                isMouseDown = false;
+            });
+            
+            renderer.domElement.addEventListener('mousemove', (event) => {
+                if (!isMouseDown) return;
+                
+                const deltaX = event.clientX - mouseX;
+                const deltaY = event.clientY - mouseY;
+                
+                // Orbit camera around origin
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 1, 0);
+                
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            // Mouse wheel zoom
+            renderer.domElement.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                const scale = event.deltaY > 0 ? 1.1 : 0.9;
+                camera.position.multiplyScalar(scale);
+                
+                // Clamp distance
+                const distance = camera.position.length();
+                if (distance < 0.5) camera.position.normalize().multiplyScalar(0.5);
+                if (distance > 20) camera.position.normalize().multiplyScalar(20);
+            }, { passive: false });
+        }
+
+        // Handle window resize
+        function handleResize() {
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        // Global functions for controls
+        window.loadSelectedCharacter = async function() {
+            const select = document.getElementById('character-select');
+            const characterFile = select.value;
+            
+            if (!characterFile) {
+                updateStatus('No character selected');
+                return;
+            }
+            
+            try {
+                const characterPath = `./assets/avatars/${characterFile}`;
+                await loadVRMCharacter(characterPath);
+            } catch (error) {
+                console.error('Failed to load character:', error);
+            }
+        };
+
+        window.removeCharacter = function() {
+            if (vrmModel && vrmModel.scene) {
+                scene.remove(vrmModel.scene);
+                vrmModel = null;
+                vrmBVHAdapter = null;
+                characterLoaded = false;
+                characterNameSpan.textContent = 'None';
+                bonesMappedSpan.textContent = '0';
+                updateStatus('Character removed');
+                pauseAnimation();
+            }
+        };
+
+        window.loadSelectedAnimation = async function() {
+            const select = document.getElementById('animation-select');
+            const animationFile = select.value;
+            
+            if (!animationFile) {
+                updateStatus('No animation selected');
+                return;
+            }
+            
+            try {
+                const animationPath = `./${animationFile}`;
+                await loadBVHAnimation(animationPath);
+            } catch (error) {
+                console.error('Failed to load animation:', error);
+            }
+        };
+
+        window.clearAnimation = function() {
+            bvhData = null;
+            animationLoaded = false;
+            animationNameSpan.textContent = 'None';
+            totalFramesSpan.textContent = '0';
+            updateStatus('Animation cleared');
+            pauseAnimation();
+        };
+
+        window.randomAnimation = function() {
+            // Array of all available animations organized by style categories
+            const styleAnimations = [
+                // Basic Walking
+                'neutral_walking.bvh',
+                'dramatic_walking.bvh',
+                
+                // Style Variations
+                'character_styles_transitions.bvh',
+                'style_variation.bvh', 
+                'movement_energy_transitions.bvh',
+                
+                // Emotional Styles
+                'emotional_journey_transitions.bvh',
+                'angry_reference.bvh',
+                'depressed_reference.bvh',
+                'elated_reference.bvh',
+                'proud_reference.bvh',
+                
+                // Character Types
+                'neutral_reference.bvh',
+                'old_reference.bvh',
+                'robot_reference.bvh',
+                'rushed_reference.bvh',
+                'strutting_reference.bvh',
+                
+                // Special Motions
+                'extreme_motion.bvh',
+                'final_test.bvh',
+                'test_neutral.bvh'
+            ];
+            
+            // Pick a random animation
+            const randomIndex = Math.floor(Math.random() * styleAnimations.length);
+            const selectedAnimation = styleAnimations[randomIndex];
+            
+            // Update the dropdown selection
+            const select = document.getElementById('animation-select');
+            select.value = selectedAnimation;
+            
+            // Load the selected animation
+            updateStatus(`🎲 Loading random style: ${selectedAnimation.replace('.bvh', '')}`);
+            
+            try {
+                const animationPath = `./${selectedAnimation}`;
+                loadBVHAnimation(animationPath);
+            } catch (error) {
+                console.error('Failed to load random animation:', error);
+                updateStatus(`Failed to load random animation: ${error.message}`, true);
+            }
+        };
+
+        window.loadStyleCategory = function(category) {
+            // Style categories based on the 100-style system and available animations
+            const styleCategories = {
+                'emotional': [
+                    'emotional_journey_transitions.bvh',
+                    'angry_reference.bvh', 
+                    'depressed_reference.bvh',
+                    'elated_reference.bvh',
+                    'proud_reference.bvh'
+                ],
+                'character': [
+                    'character_styles_transitions.bvh',
+                    'neutral_reference.bvh',
+                    'old_reference.bvh',
+                    'robot_reference.bvh',
+                    'rushed_reference.bvh',
+                    'strutting_reference.bvh'
+                ],
+                'energy': [
+                    'movement_energy_transitions.bvh',
+                    'dramatic_walking.bvh',
+                    'style_variation.bvh',
+                    'neutral_walking.bvh'
+                ],
+                'extreme': [
+                    'extreme_motion.bvh',
+                    'final_test.bvh'
+                ],
+                'reference': [
+                    'neutral_reference.bvh',
+                    'test_neutral.bvh',
+                    'test_pipeline.bvh',
+                    'test_bvh_writer.bvh'
+                ]
+            };
+            
+            const animations = styleCategories[category];
+            if (!animations || animations.length === 0) {
+                updateStatus(`No animations found for category: ${category}`, true);
+                return;
+            }
+            
+            // Pick a random animation from the category
+            const randomIndex = Math.floor(Math.random() * animations.length);
+            const selectedAnimation = animations[randomIndex];
+            
+            // Update the dropdown selection
+            const select = document.getElementById('animation-select');
+            select.value = selectedAnimation;
+            
+            // Load the selected animation
+            const categoryEmoji = {
+                'emotional': '😊',
+                'character': '👤', 
+                'energy': '⚡',
+                'extreme': '🔥',
+                'reference': '📐'
+            };
+            
+            updateStatus(`${categoryEmoji[category]} Loading ${category} style: ${selectedAnimation.replace('.bvh', '')}`);
+            
+            try {
+                const animationPath = `./${selectedAnimation}`;
+                loadBVHAnimation(animationPath);
+            } catch (error) {
+                console.error('Failed to load category animation:', error);
+                updateStatus(`Failed to load ${category} animation: ${error.message}`, true);
+            }
+        };
+
+        window.playAnimation = function() {
+            if (!characterLoaded || !animationLoaded) {
+                updateStatus('Need both character and animation loaded', true);
+                return;
+            }
+            
+            isPlaying = true;
+            playStatusSpan.textContent = 'Playing';
+            updateStatus('Animation playing');
+        };
+
+        window.pauseAnimation = function() {
+            isPlaying = false;
+            playStatusSpan.textContent = 'Paused';
+            updateStatus('Animation paused');
+        };
+
+        // Alias for playAnimation to match legacy call patterns
+        window.startAnimation = function() {
+            return window.playAnimation();
+        };
+
+        window.resetAnimation = function() {
+            currentFrame = 0;
+            currentFrameSpan.textContent = '0';
+            isPlaying = false;
+            playStatusSpan.textContent = 'Reset';
+            updateStatus('Animation reset');
+        };
+
+        window.updateSpeed = function(value) {
+            animationSpeed = parseFloat(value);
+            speedValueSpan.textContent = value + 'x';
+        };
+
+        window.focusOnFace = function() {
+            if (!vrmModel || !vrmModel.humanoid) {
+                updateStatus('No character loaded for face focus', true);
+                return;
+            }
+            
+            const headBone = vrmModel.humanoid.getNormalizedBoneNode('head');
+            if (headBone) {
+                const headPosition = new THREE.Vector3();
+                headBone.getWorldPosition(headPosition);
+                
+                // Position camera to focus on face
+                camera.position.set(
+                    headPosition.x + 0.5,
+                    headPosition.y + 0.2,
+                    headPosition.z + 1.0
+                );
+                camera.lookAt(headPosition);
+                camera.updateProjectionMatrix();
+                
+                updateStatus('Camera focused on character face');
+            }
+        };
+
+        window.fullBodyView = function() {
+            camera.position.set(0, 1.6, 2.5);
+            camera.lookAt(0, 1.0, 0);
+            camera.fov = 40;
+            camera.updateProjectionMatrix();
+            updateStatus('Full body view set');
+        };
+
+        window.enhanceLighting = function() {
+            // Boost lighting for better character visibility
+            scene.traverse((child) => {
+                if (child.isDirectionalLight) {
+                    child.intensity *= 1.2;
+                } else if (child.isSpotLight) {
+                    child.intensity *= 1.1;
+                }
+            });
+            
+            renderer.toneMappingExposure = 1.2;
+            updateStatus('Enhanced lighting applied');
+        };
+
+        // VRMBVHAdapter control functions
+        window.quickFixArms = function() {
+            if (!vrmBVHAdapter) {
+                updateStatus('VRMBVHAdapter not available', true);
+                return;
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotX();
+            updateStatus(`Arms fix: flipRotX = ${newValue}`);
+        };
+
+        window.quickFixWalking = function() {
+            if (!vrmBVHAdapter) {
+                updateStatus('VRMBVHAdapter not available', true);
+                return;
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotY();
+            updateStatus(`Walking fix: flipRotY = ${newValue}`);
+        };
+
+        window.quickFixDirection = function() {
+            if (!vrmBVHAdapter) {
+                updateStatus('VRMBVHAdapter not available', true);
+                return;
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotZ();
+            updateStatus(`Direction fix: flipRotZ = ${newValue}`);
+        };
+
+        window.resetVRMSkeleton = function() {
+            if (!vrmBVHAdapter) {
+                updateStatus('VRMBVHAdapter not available', true);
+                return;
+            }
+            
+            const success = vrmBVHAdapter.resetToNeutralPose();
+            updateStatus(success ? 'VRM skeleton reset' : 'Failed to reset skeleton');
+        };
+
+        window.debugBoneMapping = function() {
+            if (!vrmBVHAdapter) {
+                updateStatus('VRMBVHAdapter not available', true);
+                return;
+            }
+            
+            console.log('=== BONE MAPPING DEBUG ===');
+            const availableBones = vrmBVHAdapter.getAvailableBones();
+            const boneMapping = vrmBVHAdapter.getBoneMapping();
+            
+            console.log('Available bones:', Object.keys(availableBones).length);
+            console.log('Bone mapping:', boneMapping);
+            
+            if (bvhData) {
+                console.log('BVH joints:', bvhData.jointOrder);
+            }
+            
+            updateStatus('Debug info logged to console');
+        };
+
+        window.setCoordinateConfig = function(configNumber) {
+            if (!vrmBVHAdapter) {
+                updateStatus('VRMBVHAdapter not available', true);
+                return;
+            }
+            
+            const configs = [
+                { flipZ: true, flipRotY: true, flipRotZ: true, flipRotX: true, rotationOrder: 'YXZ' }, // RSMT method
+                { flipZ: true, flipRotY: true, flipRotZ: true, flipRotX: false, rotationOrder: 'YXZ' }, // Fix arms
+                { flipZ: true, flipRotY: false, flipRotZ: true, flipRotX: true, rotationOrder: 'YXZ' }, // Fix walking
+            ];
+            
+            if (configNumber >= 1 && configNumber <= configs.length) {
+                const config = configs[configNumber - 1];
+                vrmBVHAdapter.setCoordinateConfig(config);
+                updateStatus(`Applied coordinate configuration ${configNumber}`);
+            } else {
+                updateStatus('Invalid configuration number', true);
+            }
+        };
+
+        window.toggleFlipRotX = function() {
+            if (!vrmBVHAdapter) {
+                updateStatus('VRMBVHAdapter not available', true);
+                return;
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotX();
+            updateStatus(`FlipRotX: ${newValue}`);
+        };
+
+        window.toggleFlipRotY = function() {
+            if (!vrmBVHAdapter) {
+                updateStatus('VRMBVHAdapter not available', true);
+                return;
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotY();
+            updateStatus(`FlipRotY: ${newValue}`);
+        };
+
+        window.toggleFlipRotZ = function() {
+            if (!vrmBVHAdapter) {
+                updateStatus('VRMBVHAdapter not available', true);
+                return;
+            }
+            
+            const newValue = vrmBVHAdapter.toggleFlipRotZ();
+            updateStatus(`FlipRotZ: ${newValue}`);
+        };
+
+        // Initialize everything
+        async function init() {
+            try {
+                updateStatus('Initializing...');
+                
+                // Initialize 3D scene
+                initScene();
+                
+                // Add controls
+                addMouseControls();
+                handleResize();
+                
+                // Start animation loop
+                animate();
+                
+                updateStatus('✅ VRM Mesh + BVH Animation Test ready');
+                
+            } catch (error) {
+                console.error('❌ Initialization failed:', error);
+                updateStatus(`Initialization failed: ${error.message}`, true);
+            }
+        }
+
+        // Toggle style information panel
+        window.toggleStyleInfo = function() {
+            const styleInfo = document.getElementById('style-info');
+            if (styleInfo.style.display === 'none' || styleInfo.style.display === '') {
+                styleInfo.style.display = 'block';
+                updateStatus('Style guide opened - explore the 100-style animation system!');
+            } else {
+                styleInfo.style.display = 'none';
+                updateStatus('Style guide closed');
+            }
+        };
+
+        // Start initialization
+        init();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full FaceFormer with Transformer Architecture</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-5px);
+        }
+
+        .panel h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .backend-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .backend-option {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .backend-option:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .backend-option.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .backend-option.unavailable {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .backend-status {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+
+        .backend-status.available {
+            background: #28a745;
+        }
+
+        .controls-section {
+            margin-bottom: 25px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .control-group select,
+        .control-group input[type="file"],
+        .control-group input[type="range"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .range-display {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .audio-controls {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.secondary {
+            background: #6c757d;
+        }
+
+        .btn.secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        .performance-panel {
+            grid-column: 1 / -1;
+        }
+
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .metric-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .architecture-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .arch-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+
+        .arch-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .arch-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .status-panel {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .status-panel.success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .status-panel.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .log-output {
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            border-radius: 10px;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+            border: 2px solid #333;
+        }
+
+        .visualization-section {
+            grid-column: 1 / -1;
+            margin-top: 20px;
+        }
+
+        .viz-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .backend-selector {
+                grid-template-columns: 1fr;
+            }
+            
+            .audio-controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 Full FaceFormer Transformer</h1>
+            <p>Complete implementation with Multi-Head Attention, Wav2Vec2, and Web Acceleration</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Backend Selection Panel -->
+            <div class="panel">
+                <h2>🚀 Acceleration Backend</h2>
+                
+                <div class="backend-selector">
+                    <div class="backend-option" data-backend="auto">
+                        <div class="backend-status" id="status-auto"></div>
+                        <strong>Auto Select</strong>
+                        <div>Best Available</div>
+                    </div>
+                    <div class="backend-option" data-backend="webgpu">
+                        <div class="backend-status" id="status-webgpu"></div>
+                        <strong>WebGPU</strong>
+                        <div>GPU Compute</div>
+                    </div>
+                    <div class="backend-option" data-backend="webnn">
+                        <div class="backend-status" id="status-webnn"></div>
+                        <strong>WebNN</strong>
+                        <div>AI Hardware</div>
+                    </div>
+                    <div class="backend-option" data-backend="onnxruntime-web">
+                        <div class="backend-status" id="status-onnxruntime"></div>
+                        <strong>ONNX Runtime</strong>
+                        <div>Optimized CPU/GPU</div>
+                    </div>
+                    <div class="backend-option" data-backend="wasm">
+                        <div class="backend-status available" id="status-wasm"></div>
+                        <strong>WebAssembly</strong>
+                        <div>CPU Fallback</div>
+                    </div>
+                </div>
+
+                <div class="status-panel" id="backend-status">
+                    <strong>Status:</strong> Detecting available backends...
+                </div>
+            </div>
+
+            <!-- Configuration Panel -->
+            <div class="panel">
+                <h2>⚙️ Model Configuration</h2>
+                
+                <div class="controls-section">
+                    <div class="control-group">
+                        <label for="dataset-select">Dataset:</label>
+                        <select id="dataset-select">
+                            <option value="vocaset">VOCASET (15K vertices, 8 subjects)</option>
+                            <option value="biwi">BIWI (70K vertices, 6 subjects)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="subject-select">Subject ID:</label>
+                        <input type="range" id="subject-select" min="0" max="7" value="0">
+                        <span class="range-display" id="subject-display">0</span>
+                    </div>
+                </div>
+
+                <div class="architecture-info">
+                    <h3>🏗️ Architecture</h3>
+                    <div class="architecture-grid">
+                        <div class="arch-item">
+                            <div class="arch-value" id="arch-layers">6</div>
+                            <div class="arch-label">Transformer Layers</div>
+                        </div>
+                        <div class="arch-item">
+                            <div class="arch-value" id="arch-heads">8</div>
+                            <div class="arch-label">Attention Heads</div>
+                        </div>
+                        <div class="arch-item">
+                            <div class="arch-value" id="arch-params">-</div>
+                            <div class="arch-label">Parameters</div>
+                        </div>
+                        <div class="arch-item">
+                            <div class="arch-value" id="arch-size">-</div>
+                            <div class="arch-label">Model Size</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn" id="initialize-btn" style="width: 100%; margin-top: 20px;">
+                    🚀 Initialize Model
+                </button>
+            </div>
+
+            <!-- Audio Input Panel -->
+            <div class="panel">
+                <h2>🎵 Audio Input</h2>
+                
+                <div class="control-group">
+                    <label for="audio-file">Upload Audio File:</label>
+                    <input type="file" id="audio-file" accept="audio/*">
+                </div>
+
+                <div class="control-group">
+                    <label>Record Audio:</label>
+                    <div class="audio-controls">
+                        <button class="btn" id="record-btn">🎤 Record</button>
+                        <button class="btn secondary" id="stop-btn" disabled>⏹️ Stop</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Audio Playback:</label>
+                    <audio id="audio-player" controls style="width: 100%;"></audio>
+                </div>
+
+                <button class="btn" id="process-btn" disabled style="width: 100%; margin-top: 20px;">
+                    🎭 Generate Animation
+                </button>
+            </div>
+
+            <!-- Performance Panel -->
+            <div class="panel performance-panel">
+                <h2>📊 Performance Metrics</h2>
+                
+                <div class="performance-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-audio">-</div>
+                        <div class="metric-label">Audio Processing (ms)</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-transformer">-</div>
+                        <div class="metric-label">Transformer Inference (ms)</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-total">-</div>
+                        <div class="metric-label">Total Pipeline (ms)</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-fps">-</div>
+                        <div class="metric-label">Animation FPS</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-frames">-</div>
+                        <div class="metric-label">Generated Frames</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-backend">-</div>
+                        <div class="metric-label">Active Backend</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visualization Panel -->
+            <div class="panel visualization-section">
+                <h2>🎬 Animation Output</h2>
+                <div class="viz-container" id="visualization">
+                    <div style="text-align: center; color: #6c757d;">
+                        <h3>🎭 Facial Animation Visualization</h3>
+                        <p>Upload audio and click "Generate Animation" to see results</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Console Log -->
+        <div class="panel">
+            <h2>📝 Console Output</h2>
+            <div class="log-output" id="console-log"></div>
+        </div>
+    </div>
+
+    <!-- Include ONNX Runtime Web -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    
+    <!-- Include the Full FaceFormer implementation -->
+    <script src="./full_faceformer_web.js"></script>
+
+    <script>
+        // Application state
+        let faceFormer = null;
+        let audioContext = null;
+        let mediaRecorder = null;
+        let isRecording = false;
+        let recordedChunks = [];
+        let selectedBackend = 'auto';
+
+        // DOM elements
+        const elements = {
+            backendOptions: document.querySelectorAll('.backend-option'),
+            backendStatus: document.getElementById('backend-status'),
+            datasetSelect: document.getElementById('dataset-select'),
+            subjectSelect: document.getElementById('subject-select'),
+            subjectDisplay: document.getElementById('subject-display'),
+            initializeBtn: document.getElementById('initialize-btn'),
+            audioFile: document.getElementById('audio-file'),
+            recordBtn: document.getElementById('record-btn'),
+            stopBtn: document.getElementById('stop-btn'),
+            audioPlayer: document.getElementById('audio-player'),
+            processBtn: document.getElementById('process-btn'),
+            consoleLog: document.getElementById('console-log'),
+            visualization: document.getElementById('visualization')
+        };
+
+        // Initialize application
+        async function initializeApp() {
+            logMessage('🚀 Initializing Full FaceFormer application...');
+            
+            // Initialize FaceFormer
+            faceFormer = new FullFaceFormerWeb();
+            
+            // Check available backends
+            await checkBackends();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Initialize audio context
+            await initializeAudio();
+            
+            logMessage('✅ Application initialized successfully');
+        }
+
+        async function checkBackends() {
+            logMessage('🔍 Checking available acceleration backends...');
+            
+            const backends = await faceFormer.detectAvailableBackends();
+            logMessage(`🔍 Detected backends: ${JSON.stringify(backends)}`);
+            
+            // Map backend names to HTML data-backend attributes
+            const backendMapping = {
+                'webgpu': 'webgpu',
+                'webnn': 'webnn', 
+                'onnxruntime': 'onnxruntime-web',
+                'wasm': 'wasm'
+            };
+            
+            // Update status indicators
+            Object.keys(backends).forEach(backend => {
+                const mappedName = backendMapping[backend] || backend;
+                const statusElement = document.getElementById(`status-${backend === 'onnxruntime' ? 'onnxruntime' : backend}`);
+                const optionElement = document.querySelector(`[data-backend="${mappedName}"]`);
+                
+                logMessage(`🔍 Processing backend: ${backend} -> mapped: ${mappedName}`);
+                logMessage(`🔍 Status element: ${statusElement ? 'found' : 'NOT FOUND'}`);
+                logMessage(`🔍 Option element: ${optionElement ? 'found' : 'NOT FOUND'}`);
+                
+                if (statusElement && backends[backend]) {
+                    statusElement.classList.add('available');
+                    if (optionElement) optionElement.classList.remove('unavailable');
+                    logMessage(`✅ ${backend.toUpperCase()} available`);
+                } else if (statusElement) {
+                    statusElement.classList.remove('available');
+                    if (backend !== 'wasm' && optionElement) {
+                        optionElement.classList.add('unavailable');
+                    }
+                    logMessage(`❌ ${backend.toUpperCase()} not available`);
+                }
+            });
+            
+            // Auto-select best backend
+            const bestBackend = backends.webgpu ? 'webgpu' : 
+                               backends.webnn ? 'webnn' : 
+                               backends.onnxruntime ? 'onnxruntime-web' : 'wasm';
+            
+            selectBackend('auto');
+            updateBackendStatus(`Auto-selected: ${bestBackend.toUpperCase()}`);
+        }
+
+        function setupEventListeners() {
+            // Backend selection
+            elements.backendOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    if (!option.classList.contains('unavailable')) {
+                        selectBackend(option.dataset.backend);
+                    }
+                });
+            });
+
+            // Subject slider
+            elements.subjectSelect.addEventListener('input', (e) => {
+                elements.subjectDisplay.textContent = e.target.value;
+            });
+
+            // Dataset change
+            elements.datasetSelect.addEventListener('change', (e) => {
+                const maxSubjects = e.target.value === 'vocaset' ? 7 : 5;
+                elements.subjectSelect.max = maxSubjects;
+                if (parseInt(elements.subjectSelect.value) > maxSubjects) {
+                    elements.subjectSelect.value = maxSubjects;
+                    elements.subjectDisplay.textContent = maxSubjects;
+                }
+                updateArchitectureInfo();
+            });
+
+            // Initialize button
+            elements.initializeBtn.addEventListener('click', initializeModel);
+
+            // Audio file input
+            elements.audioFile.addEventListener('change', handleAudioFile);
+
+            // Recording controls
+            elements.recordBtn.addEventListener('click', startRecording);
+            elements.stopBtn.addEventListener('click', stopRecording);
+
+            // Process button
+            elements.processBtn.addEventListener('click', processAudio);
+        }
+
+        function selectBackend(backend) {
+            selectedBackend = backend;
+            
+            elements.backendOptions.forEach(option => {
+                option.classList.remove('active');
+            });
+            
+            document.querySelector(`[data-backend="${backend}"]`).classList.add('active');
+            logMessage(`🎯 Selected backend: ${backend.toUpperCase()}`);
+        }
+
+        function updateBackendStatus(message) {
+            elements.backendStatus.innerHTML = `<strong>Status:</strong> ${message}`;
+        }
+
+        function updateArchitectureInfo() {
+            const dataset = elements.datasetSelect.value;
+            
+            if (dataset === 'vocaset') {
+                document.getElementById('arch-layers').textContent = '6';
+                document.getElementById('arch-heads').textContent = '8';
+                document.getElementById('arch-params').textContent = '~12M';
+                document.getElementById('arch-size').textContent = '~45MB';
+            } else {
+                document.getElementById('arch-layers').textContent = '6';
+                document.getElementById('arch-heads').textContent = '8';
+                document.getElementById('arch-params').textContent = '~25M';
+                document.getElementById('arch-size').textContent = '~95MB';
+            }
+        }
+
+        async function initializeModel() {
+            const dataset = elements.datasetSelect.value;
+            
+            try {
+                elements.initializeBtn.disabled = true;
+                elements.initializeBtn.textContent = '⏳ Initializing...';
+                updateBackendStatus('Initializing model...');
+                
+                // Map HTML backend names to JavaScript backend names
+                const backendToJS = {
+                    'auto': 'auto',
+                    'webgpu': 'webgpu',
+                    'webnn': 'webnn',
+                    'onnxruntime-web': 'onnxruntime-web',
+                    'wasm': 'wasm'
+                };
+                
+                const jsBackend = backendToJS[selectedBackend] || selectedBackend;
+                
+                logMessage(`🔧 Initializing ${dataset.toUpperCase()} model with ${selectedBackend} backend...`);
+                
+                const success = await faceFormer.initialize(dataset, jsBackend);
+                
+                if (success) {
+                    const info = faceFormer.getSystemInfo();
+                    logMessage(`✅ Model initialized successfully!`);
+                    logMessage(`  Backend: ${info.activeBackend}`);
+                    logMessage(`  Dataset: ${info.dataset}`);
+                    logMessage(`  Wav2Vec2: ${info.hasWav2Vec2 ? 'Loaded' : 'Mock features'}`);
+                    
+                    updateBackendStatus(`✅ Ready - Using ${info.activeBackend}`);
+                    elements.processBtn.disabled = false;
+                    elements.initializeBtn.textContent = '✅ Model Ready';
+                    updateArchitectureInfo();
+                } else {
+                    throw new Error('Model initialization failed');
+                }
+                
+            } catch (error) {
+                logMessage(`❌ Initialization failed: ${error.message}`);
+                updateBackendStatus('❌ Initialization failed');
+                elements.initializeBtn.disabled = false;
+                elements.initializeBtn.textContent = '🚀 Initialize Model';
+            }
+        }
+
+        async function initializeAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                logMessage('🎵 Audio context initialized');
+            } catch (error) {
+                logMessage(`⚠️ Audio context initialization failed: ${error.message}`);
+            }
+        }
+
+        async function handleAudioFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                try {
+                    const url = URL.createObjectURL(file);
+                    elements.audioPlayer.src = url;
+                    logMessage(`📁 Audio file loaded: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                } catch (error) {
+                    logMessage(`❌ Error loading audio file: ${error.message}`);
+                }
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                recordedChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/wav' });
+                    const url = URL.createObjectURL(blob);
+                    elements.audioPlayer.src = url;
+                    logMessage('🎤 Recording completed');
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                elements.recordBtn.disabled = true;
+                elements.stopBtn.disabled = false;
+                elements.recordBtn.textContent = '🔴 Recording...';
+                
+                logMessage('🎤 Recording started...');
+
+            } catch (error) {
+                logMessage(`❌ Recording failed: ${error.message}`);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+                elements.recordBtn.disabled = false;
+                elements.stopBtn.disabled = true;
+                elements.recordBtn.textContent = '🎤 Record';
+            }
+        }
+
+        async function processAudio() {
+            if (!faceFormer || !faceFormer.initialized) {
+                logMessage('❌ Model not initialized');
+                return;
+            }
+
+            if (!elements.audioPlayer.src) {
+                logMessage('❌ No audio loaded');
+                return;
+            }
+
+            try {
+                elements.processBtn.disabled = true;
+                elements.processBtn.textContent = '⏳ Processing...';
+                
+                // Show loading spinner
+                elements.visualization.innerHTML = '<div class="loading-spinner"></div><br><p>Generating facial animation...</p>';
+                
+                logMessage('🎬 Starting audio processing...');
+                
+                // Set up progress callback for chunked processing
+                faceFormer.setProgressCallback((message) => {
+                    logMessage(`📊 ${message}`);
+                    elements.visualization.innerHTML = `<div class="loading-spinner"></div><br><p>${message}</p>`;
+                });
+                
+                // Load and decode audio
+                const audioBuffer = await loadAudioBuffer(elements.audioPlayer.src);
+                const audioData = audioBuffer.getChannelData(0); // Get mono channel
+                
+                logMessage(`🎵 Audio loaded: ${audioData.length} samples, ${audioBuffer.duration.toFixed(2)}s`);
+                
+                // Create template (placeholder - would normally load from dataset)
+                const template = createDummyTemplate();
+                const subjectId = parseInt(elements.subjectSelect.value);
+                
+                // Process audio to animation
+                const startTime = performance.now();
+                const result = await faceFormer.processAudioToAnimation(audioData, template, subjectId);
+                const totalTime = performance.now() - startTime;
+                
+                // Update performance metrics
+                updatePerformanceMetrics(result, totalTime);
+                
+                // Display results
+                displayAnimationResult(result);
+                
+                logMessage(`🎉 Animation generated successfully!`);
+                logMessage(`  Frames: ${result.frames}`);
+                logMessage(`  Total time: ${totalTime.toFixed(2)}ms`);
+                logMessage(`  Backend: ${result.backend}`);
+                
+                if (result.chunksProcessed) {
+                    logMessage(`  Chunked processing: ${result.chunksProcessed} chunks`);
+                    logMessage(`  Avg per chunk: ${result.avgTimePerChunk.toFixed(2)}ms`);
+                    logMessage(`  Throughput: ${result.throughputFPS} FPS`);
+                } else {
+                    logMessage(`  FPS: ${(result.frames / (totalTime / 1000)).toFixed(1)}`);
+                }
+                
+            } catch (error) {
+                logMessage(`❌ Processing failed: ${error.message}`);
+                elements.visualization.innerHTML = `
+                    <div style="text-align: center; color: #dc3545;">
+                        <h3>❌ Processing Failed</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                elements.processBtn.disabled = false;
+                elements.processBtn.textContent = '🎭 Generate Animation';
+            }
+        }
+
+        async function loadAudioBuffer(url) {
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+            return await audioContext.decodeAudioData(arrayBuffer);
+        }
+
+        function createDummyTemplate() {
+            const dataset = elements.datasetSelect.value;
+            const vertexCount = dataset === 'vocaset' ? 15069 : 70110;
+            
+            // Create dummy template with some variation
+            const template = new Float32Array(vertexCount);
+            for (let i = 0; i < vertexCount; i++) {
+                template[i] = Math.random() * 0.1 - 0.05; // Small random values
+            }
+            
+            return template;
+        }
+
+        function updatePerformanceMetrics(result, totalTime) {
+            document.getElementById('metric-audio').textContent = result.audioProcessingTime.toFixed(1);
+            document.getElementById('metric-transformer').textContent = result.inferenceTime.toFixed(1);
+            document.getElementById('metric-total').textContent = totalTime.toFixed(1);
+            document.getElementById('metric-fps').textContent = (result.frames / (totalTime / 1000)).toFixed(1);
+            document.getElementById('metric-frames').textContent = result.frames;
+            document.getElementById('metric-backend').textContent = result.backend;
+        }
+
+        function displayAnimationResult(result) {
+            elements.visualization.innerHTML = `
+                <div style="text-align: center;">
+                    <h3>🎉 Animation Generated Successfully!</h3>
+                    <div style="margin: 20px 0;">
+                        <strong>Frames:</strong> ${result.frames} | 
+                        <strong>Backend:</strong> ${result.backend} | 
+                        <strong>Total Time:</strong> ${result.totalTime.toFixed(2)}ms
+                    </div>
+                    <div style="background: white; border-radius: 10px; padding: 20px; margin: 20px 0;">
+                        <h4>🎭 Vertex Animation Data</h4>
+                        <p>Generated ${result.vertices.length} frames of facial vertex positions</p>
+                        <p>Each frame contains vertex displacements for realistic facial animation</p>
+                        <div style="margin-top: 15px;">
+                            <code style="background: #f8f9fa; padding: 10px; border-radius: 5px; display: inline-block;">
+                                Shape: [${result.vertices.length}, ${result.vertices[0] ? result.vertices[0].length : 0}]
+                            </code>
+                        </div>
+                    </div>
+                    <p style="color: #6c757d; font-style: italic;">
+                        🔗 Integration ready for Three.js, Babylon.js, or other 3D renderers
+                    </p>
+                </div>
+            `;
+        }
+
+        function logMessage(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+            elements.consoleLog.textContent += logEntry;
+            elements.consoleLog.scrollTop = elements.consoleLog.scrollHeight;
+            console.log(message);
+        }
+
+        // Initialize the application when the page loads
+        document.addEventListener('DOMContentLoaded', initializeApp);
+        
+        // Update architecture info on load
+        updateArchitectureInfo();
+    </script>
+</body>
+</html>

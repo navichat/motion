@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSMT Motion Transition Viewer - Real BVH Data</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background: linear-gradient(135deg, #667eea, #764ba2); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; 
+        }
+        #container { width: 100vw; height: 100vh; }
+        #controls { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            color: white; 
+            background: rgba(0,0,0,0.9);
+            padding: 25px;
+            border-radius: 15px;
+            min-width: 350px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        h3 { margin-top: 0; color: #f093fb; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .sequence-info {
+            background: rgba(240, 147, 251, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #f093fb;
+        }
+        .current-phase {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4facfe;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            margin: 10px 0;
+        }
+        .transition-indicator {
+            background: linear-gradient(90deg, #f093fb, #f5576c);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .style-indicator {
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        button { 
+            margin: 5px; 
+            padding: 12px 20px; 
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        button:hover { 
+            background: linear-gradient(45deg, #f5576c, #f093fb);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        select { 
+            margin: 5px; 
+            padding: 10px; 
+            background: #2a2a2a; 
+            color: white; 
+            border: 1px solid #555;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f093fb, #4facfe);
+            border-radius: 4px;
+            transition: width 0.1s ease;
+        }
+        .stats {
+            font-size: 12px;
+            color: #ccc;
+            margin-top: 10px;
+        }
+        .bvh-info {
+            font-size: 11px;
+            color: #aaa;
+            margin: 5px 0;
+            padding: 5px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 5px;
+        }
+        .loading {
+            color: #ffd700;
+            font-weight: bold;
+        }
+        .error {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+    </style>
+    <script src="./three.min.js"></script>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="controls">
+        <h3>🎭 Real BVH Motion Transitions</h3>
+        
+        <div>
+            <label>Transition Sequence:</label><br>
+            <select id="sequenceSelect" onchange="loadBVHSequence()">
+                <option value="emotional_journey">🎭 Emotional Journey</option>
+                <option value="character_styles">🤖 Character Styles</option>
+                <option value="movement_energy">⚡ Movement Energy</option>
+            </select>
+        </div>
+        
+        <div class="current-phase" id="currentPhase">Loading BVH...</div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div id="sequenceInfo" class="sequence-info">
+            Loading real motion transition data...
+        </div>
+        
+        <div>
+            <button onclick="toggleAnimation()">⏯️ Play/Pause</button>
+            <button onclick="resetAnimation()">🔄 Reset</button>
+            <button onclick="toggleAutoRotate()">🌀 Auto Rotate</button>
+        </div>
+        
+        <div class="bvh-info" id="bvhInfo">
+            BVH data will load here...
+        </div>
+        
+        <div class="stats" id="statsInfo">
+            Frame: <span id="frameCount">0</span> / <span id="totalFrames">0</span><br>
+            Duration: <span id="currentTime">0.0</span>s / <span id="totalTime">0.0</span>s
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, clock;
+        let skeleton = null;
+        let animationFrame = 0;
+        let totalFrames = 370;
+        let isAnimating = true;
+        let autoRotate = true;
+        let currentSequence = 'emotional_journey';
+        let bvhMotionData = null;
+        let motionChannels = [];
+        
+        // BVH sequence definitions
+        const bvhSequences = {
+            emotional_journey: {
+                name: 'Emotional Journey',
+                description: 'Real BVH: Neutral → Elated → Angry → Depressed → Neutral',
+                file: '../motion_transitions/emotional_journey_transitions.bvh',
+                timeline: [
+                    {type: 'style', name: 'Neutral', start: 0, duration: 50},
+                    {type: 'transition', name: 'Neutral → Elated', start: 50, duration: 30},
+                    {type: 'style', name: 'Elated', start: 80, duration: 50},
+                    {type: 'transition', name: 'Elated → Angry', start: 130, duration: 30},
+                    {type: 'style', name: 'Angry', start: 160, duration: 50},
+                    {type: 'transition', name: 'Angry → Depressed', start: 210, duration: 30},
+                    {type: 'style', name: 'Depressed', start: 240, duration: 50},
+                    {type: 'transition', name: 'Depressed → Neutral', start: 290, duration: 30},
+                    {type: 'style', name: 'Neutral', start: 320, duration: 50}
+                ]
+            },
+            character_styles: {
+                name: 'Character Styles',
+                description: 'Real BVH: Neutral → Robot → Zombie → Drunk → Neutral',
+                file: '../motion_transitions/character_styles_transitions.bvh',
+                timeline: [
+                    {type: 'style', name: 'Neutral', start: 0, duration: 50},
+                    {type: 'transition', name: 'Neutral → Robot', start: 50, duration: 30},
+                    {type: 'style', name: 'Robot', start: 80, duration: 50},
+                    {type: 'transition', name: 'Robot → Zombie', start: 130, duration: 30},
+                    {type: 'style', name: 'Zombie', start: 160, duration: 50},
+                    {type: 'transition', name: 'Zombie → Drunk', start: 210, duration: 30},
+                    {type: 'style', name: 'Drunk', start: 240, duration: 50},
+                    {type: 'transition', name: 'Drunk → Neutral', start: 290, duration: 30},
+                    {type: 'style', name: 'Neutral', start: 320, duration: 50}
+                ]
+            },
+            movement_energy: {
+                name: 'Movement Energy',
+                description: 'Real BVH: Tiptoe → Skip → March → Crouched → Proud',
+                file: '../motion_transitions/movement_energy_transitions.bvh',
+                timeline: [
+                    {type: 'style', name: 'Tiptoe', start: 0, duration: 50},
+                    {type: 'transition', name: 'Tiptoe → Skip', start: 50, duration: 30},
+                    {type: 'style', name: 'Skip', start: 80, duration: 50},
+                    {type: 'transition', name: 'Skip → March', start: 130, duration: 30},
+                    {type: 'style', name: 'March', start: 160, duration: 50},
+                    {type: 'transition', name: 'March → Crouched', start: 210, duration: 30},
+                    {type: 'style', name: 'Crouched', start: 240, duration: 50},
+                    {type: 'transition', name: 'Crouched → Proud', start: 290, duration: 30},
+                    {type: 'style', name: 'Proud', start: 320, duration: 50}
+                ]
+            }
+        };
+
+        function init() {
+            try {
+                console.log("🎭 Initializing Real BVH Motion Transition Viewer...");
+                updateStatus("Initializing 3D scene...", "loading");
+
+                // Create scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x0f0f23);
+
+                // Create camera
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(4, 2, 6);
+                camera.lookAt(0, 1, 0);
+
+                // Create renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                document.getElementById('container').appendChild(renderer.domElement);
+
+                // Add lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                scene.add(ambientLight);
+
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+                directionalLight.position.set(8, 10, 5);
+                directionalLight.castShadow = true;
+                scene.add(directionalLight);
+
+                // Add colored lights for atmosphere
+                const pinkLight = new THREE.PointLight(0xf093fb, 0.5, 10);
+                pinkLight.position.set(-3, 2, 3);
+                scene.add(pinkLight);
+
+                const blueLight = new THREE.PointLight(0x4facfe, 0.5, 10);
+                blueLight.position.set(3, 2, -3);
+                scene.add(blueLight);
+
+                // Add grid
+                const grid = new THREE.GridHelper(12, 12, 0x666666, 0x333333);
+                scene.add(grid);
+
+                // Add orbit controls
+                addOrbitControls();
+
+                // Initialize clock
+                clock = new THREE.Clock();
+
+                // Start render loop
+                animate();
+                
+                updateStatus("✅ 3D scene initialized", "success");
+                
+                // Load initial BVH sequence
+                loadBVHSequence();
+                
+            } catch (error) {
+                console.error("❌ Initialization error:", error);
+                updateStatus("❌ Failed to initialize: " + error.message, "error");
+            }
+        }
+
+        function updateStatus(message, type = "info") {
+            console.log(message);
+            document.getElementById('currentPhase').innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        function addOrbitControls() {
+            let mouseDown = false;
+            let mouseX = 0, mouseY = 0;
+            
+            renderer.domElement.addEventListener('mousedown', function(event) {
+                mouseDown = true;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            renderer.domElement.addEventListener('mouseup', function() {
+                mouseDown = false;
+            });
+            
+            renderer.domElement.addEventListener('mousemove', function(event) {
+                if (!mouseDown) return;
+                
+                const deltaX = event.clientX - mouseX;
+                const deltaY = event.clientY - mouseY;
+                
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 1, 0);
+                
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+        }
+
+        async function loadBVHSequence() {
+            const select = document.getElementById('sequenceSelect');
+            currentSequence = select.value;
+            const sequence = bvhSequences[currentSequence];
+            
+            updateStatus(`🔄 Loading ${sequence.name} BVH...`, "loading");
+            
+            // Update UI
+            document.getElementById('sequenceInfo').innerHTML = `
+                <strong>${sequence.name}</strong><br>
+                ${sequence.description}<br>
+                <small>Loading from: ${sequence.file}</small>
+            `;
+            
+            try {
+                // Load BVH file
+                const response = await fetch(sequence.file);
+                if (!response.ok) {
+                    throw new Error(`Failed to load BVH file: ${response.status}`);
+                }
+                
+                const bvhText = await response.text();
+                console.log(`Loaded BVH file: ${sequence.file}`);
+                
+                // Parse BVH data
+                const bvhData = parseBVH(bvhText);
+                if (!bvhData) {
+                    throw new Error("Failed to parse BVH data");
+                }
+                
+                bvhMotionData = bvhData.motionData;
+                motionChannels = bvhData.channels;
+                totalFrames = bvhData.numFrames;
+                
+                document.getElementById('bvhInfo').innerHTML = `
+                    <strong>BVH Data Loaded:</strong><br>
+                    • File: ${sequence.file}<br>
+                    • Frames: ${totalFrames}<br>
+                    • Channels: ${motionChannels.length}<br>
+                    • Duration: ${(totalFrames / 30).toFixed(1)}s
+                `;
+                
+                createTransitionSkeleton();
+                resetAnimation();
+                
+                updateStatus(`✅ ${sequence.name} loaded successfully!`, "success");
+                
+            } catch (error) {
+                console.error("Error loading BVH:", error);
+                updateStatus(`❌ Failed to load BVH: ${error.message}`, "error");
+            }
+        }
+
+        function parseBVH(bvhText) {
+            console.log("Parsing BVH data...");
+            
+            const lines = bvhText.split('\n');
+            let motionData = [];
+            let inMotion = false;
+            let frameTime = 0.033333;
+            
+            for (let line of lines) {
+                line = line.trim();
+                
+                if (line.startsWith("Frame Time:")) {
+                    frameTime = parseFloat(line.split(":")[1]);
+                } else if (line === "MOTION") {
+                    inMotion = true;
+                    continue;
+                } else if (line.startsWith("Frames:")) {
+                    // Skip frames count line
+                    continue;
+                } else if (inMotion && line && !line.startsWith("Frame")) {
+                    const values = line.split(/\s+/).map(v => parseFloat(v)).filter(v => !isNaN(v));
+                    if (values.length > 0) {
+                        motionData.push(values);
+                    }
+                }
+            }
+            
+            if (motionData.length === 0) {
+                console.error("No motion data found in BVH");
+                return null;
+            }
+            
+            console.log(`Parsed ${motionData.length} frames with ${motionData[0].length} channels each`);
+            
+            return {
+                motionData: motionData,
+                channels: motionData[0].length,
+                numFrames: motionData.length,
+                frameTime: frameTime
+            };
+        }
+
+        function createTransitionSkeleton() {
+            // Clear previous skeleton
+            if (skeleton) {
+                scene.remove(skeleton);
+            }
+
+            skeleton = new THREE.Group();
+            
+            // Create skeleton joints (simplified for BVH motion display)
+            const joints = [
+                { name: 'hips', pos: [0, 1.0, 0], color: 0xff6b6b, channel: 0 },
+                { name: 'spine', pos: [0, 1.3, 0], color: 0xff8e8e, channel: 6 },
+                { name: 'head', pos: [0, 1.8, 0], color: 0xffb3b3, channel: 15 },
+                { name: 'leftShoulder', pos: [-0.3, 1.5, 0], color: 0x4ecdc4, channel: 18 },
+                { name: 'leftArm', pos: [-0.6, 1.5, 0], color: 0x45b7b8, channel: 21 },
+                { name: 'leftHand', pos: [-0.9, 1.2, 0], color: 0x26a0a3, channel: 24 },
+                { name: 'rightShoulder', pos: [0.3, 1.5, 0], color: 0x6c5ce7, channel: 27 },
+                { name: 'rightArm', pos: [0.6, 1.5, 0], color: 0x74b9ff, channel: 30 },
+                { name: 'rightHand', pos: [0.9, 1.2, 0], color: 0x0984e3, channel: 33 },
+                { name: 'leftHip', pos: [-0.15, 0.9, 0], color: 0xfeca57, channel: 36 },
+                { name: 'leftKnee', pos: [-0.15, 0.5, 0], color: 0xff9ff3, channel: 39 },
+                { name: 'leftFoot', pos: [-0.15, 0.1, 0], color: 0xf368e0, channel: 42 },
+                { name: 'rightHip', pos: [0.15, 0.9, 0], color: 0xff7675, channel: 45 },
+                { name: 'rightKnee', pos: [0.15, 0.5, 0], color: 0xfd79a8, channel: 48 },
+                { name: 'rightFoot', pos: [0.15, 0.1, 0], color: 0xe84393, channel: 51 }
+            ];
+
+            skeleton.joints = joints;
+
+            // Create visual representation
+            joints.forEach((joint, i) => {
+                const geometry = new THREE.SphereGeometry(0.06, 16, 16);
+                const material = new THREE.MeshLambertMaterial({ color: joint.color });
+                const sphere = new THREE.Mesh(geometry, material);
+                
+                sphere.position.set(joint.pos[0], joint.pos[1], joint.pos[2]);
+                sphere.userData = { 
+                    jointIndex: i, 
+                    initialPos: [...joint.pos],
+                    name: joint.name,
+                    channel: joint.channel
+                };
+                
+                skeleton.add(sphere);
+            });
+
+            // Add bones
+            const boneConnections = [
+                [0, 1], [1, 2], // spine to head
+                [1, 3], [3, 4], [4, 5], // left arm
+                [1, 6], [6, 7], [7, 8], // right arm
+                [0, 9], [9, 10], [10, 11], // left leg
+                [0, 12], [12, 13], [13, 14] // right leg
+            ];
+
+            boneConnections.forEach(([from, to]) => {
+                const fromJoint = joints[from];
+                const toJoint = joints[to];
+                
+                const geometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(...fromJoint.pos),
+                    new THREE.Vector3(...toJoint.pos)
+                ]);
+                const material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 3 });
+                const line = new THREE.Line(geometry, material);
+                
+                line.userData = { from, to, isBone: true };
+                skeleton.add(line);
+            });
+
+            scene.add(skeleton);
+        }
+
+        function getCurrentPhase() {
+            const sequence = bvhSequences[currentSequence];
+            for (let phase of sequence.timeline) {
+                if (animationFrame >= phase.start && animationFrame < phase.start + phase.duration) {
+                    return phase;
+                }
+            }
+            return sequence.timeline[sequence.timeline.length - 1];
+        }
+
+        function updateSkeletonAnimation() {
+            if (!skeleton || !skeleton.joints || !bvhMotionData || animationFrame >= bvhMotionData.length) return;
+
+            const currentPhase = getCurrentPhase();
+            
+            // Update UI
+            const phaseElement = document.getElementById('currentPhase');
+            if (currentPhase.type === 'transition') {
+                phaseElement.innerHTML = `<div class="transition-indicator">🔄 ${currentPhase.name}</div>`;
+            } else {
+                phaseElement.innerHTML = `<div class="style-indicator">🎭 ${currentPhase.name}</div>`;
+            }
+            
+            // Update progress bar
+            const progress = (animationFrame / totalFrames) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            
+            // Update stats
+            document.getElementById('frameCount').textContent = animationFrame;
+            document.getElementById('totalFrames').textContent = totalFrames;
+            document.getElementById('currentTime').textContent = (animationFrame / 30).toFixed(1);
+            document.getElementById('totalTime').textContent = (totalFrames / 30).toFixed(1);
+            
+            // Get current frame motion data
+            const frameData = bvhMotionData[animationFrame];
+            
+            // Apply real BVH motion data to skeleton
+            skeleton.children.forEach((child, i) => {
+                if (child.userData && child.userData.jointIndex !== undefined) {
+                    const jointIndex = child.userData.jointIndex;
+                    const joint = skeleton.joints[jointIndex];
+                    const initialPos = child.userData.initialPos;
+                    const channelIndex = joint.channel;
+                    
+                    // Apply real BVH data if available
+                    let offset = [0, 0, 0];
+                    
+                    if (frameData && channelIndex < frameData.length - 2) {
+                        // Use actual BVH motion data (scaled for visibility)
+                        const scale = 0.02; // Scale factor for better visibility
+                        offset[0] = frameData[channelIndex] * scale;
+                        offset[1] = frameData[channelIndex + 1] * scale;
+                        offset[2] = frameData[channelIndex + 2] * scale;
+                    }
+                    
+                    // Apply the motion
+                    child.position.set(
+                        initialPos[0] + offset[0],
+                        initialPos[1] + offset[1], 
+                        initialPos[2] + offset[2]
+                    );
+                }
+                
+                // Update bone lines
+                if (child.userData && child.userData.isBone) {
+                    const fromJoint = skeleton.children[child.userData.from];
+                    const toJoint = skeleton.children[child.userData.to];
+                    
+                    if (fromJoint && toJoint) {
+                        const positions = child.geometry.attributes.position.array;
+                        positions[0] = fromJoint.position.x;
+                        positions[1] = fromJoint.position.y;
+                        positions[2] = fromJoint.position.z;
+                        positions[3] = toJoint.position.x;
+                        positions[4] = toJoint.position.y;
+                        positions[5] = toJoint.position.z;
+                        child.geometry.attributes.position.needsUpdate = true;
+                    }
+                }
+            });
+        }
+
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            console.log("Animation", isAnimating ? "resumed" : "paused");
+        }
+
+        function resetAnimation() {
+            animationFrame = 0;
+            console.log("Animation reset");
+        }
+
+        function toggleAutoRotate() {
+            autoRotate = !autoRotate;
+            console.log("Auto rotate", autoRotate ? "enabled" : "disabled");
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isAnimating) {
+                animationFrame = (animationFrame + 1) % totalFrames;
+                updateSkeletonAnimation();
+            }
+            
+            if (autoRotate && skeleton) {
+                skeleton.rotation.y += 0.008;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

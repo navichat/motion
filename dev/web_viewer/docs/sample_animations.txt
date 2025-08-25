@@ -1,0 +1,18 @@
+# Sample animations status
+
+The following BVH files are referenced in the showcase:
+
+- neutral_reference.bvh ✅ AVAILABLE
+- angry_reference.bvh ✅ AVAILABLE
+- elated_reference.bvh ✅ AVAILABLE
+- depressed_reference.bvh ✅ AVAILABLE
+- proud_reference.bvh ✅ AVAILABLE
+- robot_reference.bvh ✅ AVAILABLE
+- old_reference.bvh ✅ AVAILABLE
+- rushed_reference.bvh ✅ AVAILABLE
+- strutting_reference.bvh ✅ AVAILABLE
+- neutral_walking.bvh ✅ AVAILABLE
+
+✅ ALL BVH FILES ARE PRESENT!
+
+The animations should now load real motion capture data instead of mock data.

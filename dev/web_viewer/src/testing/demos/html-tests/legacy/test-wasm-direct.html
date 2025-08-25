@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct WASM Test</title>
+</head>
+<body>
+    <h1>Direct WASM Module Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        // Test if we can directly load and use the WASM modules
+        async function testWasm() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Load the RealWasmCompute module
+                const script = document.createElement('script');
+                script.src = './dev/web_viewer/js/workers/real-wasm-modules.js';
+                
+                script.onload = async function() {
+                    try {
+                        console.log('RealWasmCompute available:', typeof RealWasmCompute);
+                        results.innerHTML += '<p>✅ RealWasmCompute class loaded successfully</p>';
+                        
+                        if (typeof RealWasmCompute !== 'undefined') {
+                            const wasmCompute = new RealWasmCompute();
+                            results.innerHTML += '<p>✅ RealWasmCompute instance created</p>';
+                            
+                            const initResult = await wasmCompute.initialize();
+                            results.innerHTML += `<p>Initialization result: ${JSON.stringify(initResult, null, 2)}</p>`;
+                            
+                            if (initResult.success) {
+                                results.innerHTML += '<p>✅ WASM modules initialized successfully!</p>';
+                                
+                                // Test matrix multiplication
+                                const matrixResult = await wasmCompute.performMatrixMultiplication(32, 1);
+                                results.innerHTML += `<p>Matrix test result: ${JSON.stringify(matrixResult, null, 2)}</p>`;
+                                
+                            } else {
+                                results.innerHTML += `<p>❌ WASM initialization failed: ${initResult.error}</p>`;
+                            }
+                        }
+                    } catch (error) {
+                        results.innerHTML += `<p>❌ Error using RealWasmCompute: ${error.message}</p>`;
+                        console.error('WASM test error:', error);
+                    }
+                };
+                
+                script.onerror = function() {
+                    results.innerHTML += '<p>❌ Failed to load real-wasm-modules.js</p>';
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                results.innerHTML += `<p>❌ Test error: ${error.message}</p>`;
+                console.error('Test error:', error);
+            }
+        }
+        
+        // Run the test when page loads
+        window.addEventListener('load', testWasm);
+    </script>
+</body>
+</html>

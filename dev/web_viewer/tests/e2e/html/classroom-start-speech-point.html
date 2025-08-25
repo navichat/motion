@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+  <title>Classroom Start → Speech → Point (VRM E2E Smoke)</title>
+  <style>body{font-family:sans-serif;padding:16px} #log{white-space:pre;}</style>
+</head>
+<body>
+  <h1>Classroom Flow: Start → Speech → Point</h1>
+  <p>Creates a BVH timeline, binds a mock VRM adapter, and runs a simple flow across phases.</p>
+  <pre id="log"></pre>
+  <script>
+    (async function(){
+      // Ensure test can read an error if setup fails early
+      window.__classroomFlow = null;
+      const logEl = document.getElementById('log');
+      const log = (m) => { logEl.textContent += m + "\n"; };
+      try {
+        const [tlCode, adCode, vrmCode] = await Promise.all([
+          fetch('/src/components/animation/timeline/BVHTimeline.js').then(r => r.text()),
+          fetch('/src/components/animation/timeline/TimelineChunkAdapter.js').then(r => r.text()),
+          fetch('/src/components/animation/vrm/BVHTimelineVRMIntegration.js').then(r => r.text()),
+        ]);
+
+        const tlMod = { exports: {} }, adMod = { exports: {} }, vrmMod = { exports: {} };
+        const BVHTimelineCtor = (new Function('window','module','exports', tlCode + '; return (module.exports && module.exports.BVHTimeline) || window.BVHTimeline;'))(window, tlMod, tlMod.exports);
+        const AdapterCtor = (new Function('window','module','exports', adCode + '; return (module.exports && module.exports.TimelineChunkAdapter) || (window.TimelineChunkAdapter && window.TimelineChunkAdapter.TimelineChunkAdapter) || window.TimelineChunkAdapter;'))(window, adMod, adMod.exports);
+        const VRMIntegrationCtor = (new Function('window','module','exports', vrmCode + '; return module.exports || window.BVHTimelineVRMIntegration;'))(window, vrmMod, vrmMod.exports);
+
+        const BVHTimeline = typeof BVHTimelineCtor === 'function' ? BVHTimelineCtor : ((window.BVHTimeline && window.BVHTimeline.BVHTimeline) || window.BVHTimeline);
+        const Adapter = typeof AdapterCtor === 'function' ? AdapterCtor : ((window.TimelineChunkAdapter && window.TimelineChunkAdapter.TimelineChunkAdapter) || window.TimelineChunkAdapter);
+        const VRMIntegration = VRMIntegrationCtor || (window.BVHTimelineVRMIntegration && window.BVHTimelineVRMIntegration.BVHTimelineVRMIntegration) || window.BVHTimelineVRMIntegration;
+
+        const timeline = new BVHTimeline({ framerate: 30 });
+        const adapter = new Adapter(timeline);
+        const boneCalls = [], blendCalls = [];
+        const binder = {
+          updateBone: (n,p,r) => boneCalls.push({n,p,r}),
+          updateBlendshape: (n,w) => blendCalls.push({n,w}),
+          update: () => {}
+        };
+        const vrmInt = new VRMIntegration(binder, { smoothing: false, framerate: 30 });
+        vrmInt.connectTimeline(timeline);
+
+        // Phase flags for assertions from Playwright
+        let sawSpeechViseme = false;
+        let sawActionPoint = false;
+
+        // Helper to craft a sparse timeline frame
+        const makeFrame = (i, total, { headYawDeg = 0, viseme = null, action = null } = {}) => {
+          const t = i/30;
+          const md = new Array(24);
+          // index 5 ~ head yaw like previous smoke page
+          md[5] = [0,0,0, 0, headYawDeg, 0];
+          // index 7 ~ right arm proxy (arbitrary index to trigger bone updates)
+          if (action === 'point') {
+            // create a noticeable rotation to ensure VRM integration emits an update
+            md[7] = [0,0,0, -15 + (i/total)*30, 10, 0];
+          }
+          if (viseme) sawSpeechViseme = true;
+          if (action === 'point') sawActionPoint = true;
+          return { time: t, motionData: md, metadata: { viseme, action } };
+        };
+
+        // Build chunks
+        // 1) Start/Idle: light head movement
+        const idleFrames = Array.from({length: 12}, (_,i) => makeFrame(i, 12, { headYawDeg: (i/12)*5 }));
+        adapter.appendChunk('base', { t0: 0.0, dt: 0.4, frames: idleFrames }, { fadeInMs: 60 });
+
+        // 2) Speech: add visemes and a bit more head activity
+        const visCycle = ['A','E','O','rest'];
+        const speechFrames = Array.from({length: 24}, (_,i) => makeFrame(i, 24, { headYawDeg: (i/24)*10, viseme: visCycle[i % visCycle.length] }));
+  adapter.appendChunk('face', { t0: 0.4, dt: 0.8, frames: speechFrames }, { fadeInMs: 80 });
+
+        // 3) Point action overlaps speech tail; ensure it coexists and causes updates
+        const pointFrames = Array.from({length: 18}, (_,i) => makeFrame(i, 18, { headYawDeg: 5 + (i/18)*5, action: 'point' }));
+  adapter.appendChunk('base', { t0: 0.8, dt: 0.6, frames: pointFrames }, { fadeInMs: 60 });
+
+        // Sample frames through the phases and apply to VRM
+        const times = [0.10, 0.22, 0.38, 0.46, 0.60, 0.82, 0.95, 1.05];
+        for (const t of times) {
+          try { if (typeof timeline.seek === 'function') timeline.seek(t); } catch {}
+          if (typeof timeline.getFrameAtTime === 'function') {
+            const tf = await timeline.getFrameAtTime(t);
+            const vf = vrmInt.convertTimelineFrameToVRM(tf, t);
+            vrmInt.applyFrameToVRM(vf, t);
+          }
+        }
+
+  window.__classroomFlow = {
+          boneCalls: boneCalls.length,
+          blendCalls: blendCalls.length,
+          sawSpeechViseme,
+          sawActionPoint,
+          samples: times.length
+        };
+        log('Done. updates(bones,blends): ' + boneCalls.length + ', ' + blendCalls.length);
+        log('flags(viseme,point): ' + sawSpeechViseme + ', ' + sawActionPoint);
+      } catch (e) {
+  const msg = (e && e.stack) ? e.stack : (e && e.message) ? e.message : String(e);
+  window.__classroomFlow = { error: msg };
+  log('Error: ' + msg);
+      }
+    })();
+  </script>
+</body>
+</html>

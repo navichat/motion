@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced AI Conversation Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .status {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #4caf50;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            background: #1976d2;
+        }
+        .conversation {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            background: #fafafa;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .user { background: #e3f2fd; }
+        .ai { background: #e8f5e8; }
+        .system { background: #fff3e0; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Enhanced AI Conversation Demo</h1>
+        <p>This demo tests the enhanced audio-to-audio conversation system with VRM avatar integration.</p>
+        
+        <div class="status" id="status">
+            Loading conversation system...
+        </div>
+        
+        <div>
+            <button id="start-btn" onclick="startConversation()" disabled>Start Conversation</button>
+            <button id="stop-btn" onclick="stopConversation()" disabled>Stop Conversation</button>
+            <button onclick="testTextInput()">Test Text Input</button>
+        </div>
+        
+        <div>
+            <label for="voice-select">Voice:</label>
+            <select id="voice-select" onchange="changeVoice()">
+                <option value="">Loading voices...</option>
+            </select>
+        </div>
+        
+        <div class="conversation" id="conversation">
+            <div class="message system">System initializing...</div>
+        </div>
+        
+        <div>
+            <input type="text" id="text-input" placeholder="Type a message..." style="width: 70%; padding: 8px;">
+            <button onclick="sendTextMessage()">Send</button>
+        </div>
+        
+        <details>
+            <summary>Debug Information</summary>
+            <div id="debug" style="font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; margin: 10px 0;"></div>
+        </details>
+    </div>
+
+    <script type="module">
+        let worker = null;
+        let audioContext = null;
+        let inputNode = null;
+        let outputNode = null;
+        let isConversationActive = false;
+        let voices = {};
+        let currentVoice = "af_heart";
+
+        // UI elements
+        const statusEl = document.getElementById('status');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const voiceSelect = document.getElementById('voice-select');
+        const conversationEl = document.getElementById('conversation');
+        const debugEl = document.getElementById('debug');
+        const textInput = document.getElementById('text-input');
+
+        function updateStatus(message, type = 'info') {
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            addDebug(message);
+        }
+
+        function addDebug(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugEl.innerHTML += `[${timestamp}] ${message}<br>`;
+            debugEl.scrollTop = debugEl.scrollHeight;
+        }
+
+        function addMessage(type, text) {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.textContent = text;
+            conversationEl.appendChild(div);
+            conversationEl.scrollTop = conversationEl.scrollHeight;
+        }
+
+        async function initializeConversation() {
+            try {
+                updateStatus('Creating conversation worker...');
+                worker = new Worker('./js/conversationWorker.js', { type: 'module' });
+
+                worker.addEventListener('message', ({ data }) => {
+                    if (data.error) {
+                        updateStatus(`Error: ${data.error}`, 'error');
+                        return;
+                    }
+
+                    switch (data.type) {
+                        case "status":
+                            if (data.status === "ready") {
+                                voices = data.voices || {};
+                                updateVoiceSelector();
+                                updateStatus('System ready! Click "Start Conversation" to begin.', 'success');
+                                startBtn.disabled = false;
+                                addMessage('system', 'AI conversation system ready. You can now start talking!');
+                            } else if (data.status === "recording_start") {
+                                updateStatus('Listening for speech...', 'info');
+                            } else if (data.status === "recording_end") {
+                                updateStatus('Processing speech...', 'info');
+                            }
+                            break;
+                        case "output":
+                            if (data.text) {
+                                addMessage('ai', data.text);
+                                // Handle audio output if available
+                                if (data.result && data.result.audio && outputNode) {
+                                    outputNode.port.postMessage(data.result.audio);
+                                }
+                            }
+                            break;
+                        case "info":
+                            addDebug(`ℹ️ ${data.message}`);
+                            break;
+                    }
+                });
+
+                worker.addEventListener('error', (error) => {
+                    updateStatus(`Worker error: ${error.message}`, 'error');
+                });
+
+            } catch (error) {
+                updateStatus(`Initialization failed: ${error.message}`, 'error');
+            }
+        }
+
+        function updateVoiceSelector() {
+            voiceSelect.innerHTML = '';
+            if (Object.keys(voices).length > 0) {
+                Object.entries(voices).forEach(([key, voice]) => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = `${voice.name} (${voice.language} ${voice.gender})`;
+                    voiceSelect.appendChild(option);
+                });
+                voiceSelect.value = currentVoice;
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "Default Voice";
+                voiceSelect.appendChild(option);
+            }
+        }
+
+        async function startConversation() {
+            try {
+                updateStatus('Requesting microphone access...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        echoCancellation: true,
+                        autoGainControl: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000,
+                    },
+                });
+
+                // Set up audio processing
+                await setupAudioProcessing(stream);
+                
+                isConversationActive = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                updateStatus('Conversation active - speak now!', 'success');
+                worker?.postMessage({ type: "start_call" });
+
+            } catch (error) {
+                updateStatus(`Failed to start conversation: ${error.message}`, 'error');
+            }
+        }
+
+        async function setupAudioProcessing(stream) {
+            // Input audio context for voice activity detection
+            const inputAudioContext = new AudioContext({ sampleRate: 16000 });
+            const source = inputAudioContext.createMediaStreamSource(stream);
+
+            await inputAudioContext.audioWorklet.addModule('./js/vad-processor.js');
+            inputNode = new AudioWorkletNode(inputAudioContext, "vad-processor");
+            source.connect(inputNode);
+
+            inputNode.port.onmessage = (event) => {
+                const { buffer } = event.data;
+                worker?.postMessage({ type: "audio", buffer });
+            };
+
+            // Output audio context for TTS playback
+            const outputAudioContext = new AudioContext({ sampleRate: 24000 });
+            await outputAudioContext.resume();
+
+            await outputAudioContext.audioWorklet.addModule('./js/play-worklet.js');
+            outputNode = new AudioWorkletNode(outputAudioContext, "buffered-audio-worklet-processor");
+            outputNode.connect(outputAudioContext.destination);
+
+            outputNode.port.onmessage = (event) => {
+                if (event.data.type === "playback_ended") {
+                    updateStatus('Ready for next input...', 'info');
+                    worker?.postMessage({ type: "playback_ended" });
+                }
+            };
+
+            addDebug('✅ Audio processing pipeline established');
+        }
+
+        function stopConversation() {
+            isConversationActive = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            
+            updateStatus('Conversation stopped.', 'info');
+            worker?.postMessage({ type: "end_call" });
+        }
+
+        function changeVoice() {
+            currentVoice = voiceSelect.value;
+            worker?.postMessage({ type: "set_voice", voice: currentVoice });
+            addDebug(`Voice changed to: ${currentVoice}`);
+        }
+
+        function sendTextMessage() {
+            const text = textInput.value.trim();
+            if (text) {
+                addMessage('user', text);
+                // For now, just echo back - you could send to worker for processing
+                setTimeout(() => {
+                    addMessage('ai', `You said: "${text}". Thanks for the message!`);
+                }, 1000);
+                textInput.value = '';
+            }
+        }
+
+        function testTextInput() {
+            const testMessage = "Hello, this is a test message!";
+            addMessage('user', testMessage);
+            setTimeout(() => {
+                addMessage('ai', "Hello! I received your test message. The conversation system is working!");
+            }, 1000);
+        }
+
+        // Global functions for onclick handlers
+        window.startConversation = startConversation;
+        window.stopConversation = stopConversation;
+        window.changeVoice = changeVoice;
+        window.sendTextMessage = sendTextMessage;
+        window.testTextInput = testTextInput;
+
+        // Handle Enter key in text input
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendTextMessage();
+        });
+
+        // Initialize when page loads
+        updateStatus('Initializing conversation system...');
+        initializeConversation();
+    </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskManager Timeout Test</title>
+</head>
+<body>
+    <h1>TaskManager Timeout Test</h1>
+    <button id="testBtn">Test Task Timeout</button>
+    <div id="output"></div>
+
+    <script src="js/FibonacciHeap.js"></script>
+    <script src="js/TaskManager.js"></script>
+    <script src="js/MockGPUJobFactory.js"></script>
+
+    <script>
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>Starting timeout test...</p>';
+
+            const manager = new TaskManager({
+                maxConcurrentTasks: 2,
+                taskTimeout: 5000, // 5 second timeout
+                schedulingInterval: 100,
+                workerPools: {
+                    cpu: { size: 1 }
+                }
+            });
+
+            await manager.start();
+
+            // Create a long-running job that should timeout
+            const longJob = {
+                type: 'LongRunning',
+                simulate: true,
+                params: {
+                    duration: 10000 // 10 seconds - longer than timeout
+                }
+            };
+
+            manager.on('taskFailed', (task) => {
+                output.innerHTML += `<p style="color: red;">Task failed: ${task.error}</p>`;
+            });
+
+            manager.on('taskCompleted', (task) => {
+                output.innerHTML += `<p style="color: green;">Task completed in ${task.endTime - task.startTime}ms</p>`;
+            });
+
+            output.innerHTML += '<p>Scheduling long-running task...</p>';
+            manager.scheduleTask(longJob, 1);
+
+            // Also schedule a quick task to verify processing continues
+            setTimeout(() => {
+                const quickJob = {
+                    type: 'Quick',
+                    simulate: true,
+                    params: {
+                        duration: 100
+                    }
+                };
+                output.innerHTML += '<p>Scheduling quick task...</p>';
+                manager.scheduleTask(quickJob, 1);
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaceFormer Backend Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .status {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .available {
+            background: #d4edda;
+        }
+        .unavailable {
+            background: #f8d7da;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:disabled {
+            background: #ccc;
+        }
+        #log {
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: monospace;
+            padding: 20px;
+            height: 300px;
+            overflow-y: auto;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎭 FaceFormer Backend Test</h1>
+    
+    <h2>Backend Status</h2>
+    <div id="webgpu-status" class="status">WebGPU: Checking...</div>
+    <div id="webnn-status" class="status">WebNN: Checking...</div>
+    <div id="onnx-status" class="status">ONNX Runtime: Checking...</div>
+    <div id="wasm-status" class="status">WASM: Available</div>
+    
+    <h2>Actions</h2>
+    <button onclick="testBackends()">🔍 Test Backends</button>
+    <button onclick="initializeModel()" id="init-btn" disabled>🚀 Initialize Model</button>
+    <button onclick="testInference()" id="test-btn" disabled>🎭 Test Inference</button>
+    
+    <h2>Console Log</h2>
+    <div id="log"></div>
+
+    <!-- Include ONNX Runtime Web -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    
+    <!-- Include FaceFormer -->
+    <script src="./full_faceformer_web.js"></script>
+
+    <script>
+        let faceFormer = null;
+        let selectedBackend = 'auto';
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        async function testBackends() {
+            log('🔍 Testing backend availability...');
+            
+            try {
+                faceFormer = new FullFaceFormerWeb();
+                const backends = await faceFormer.detectAvailableBackends();
+                
+                log(`✅ Backend detection complete: ${JSON.stringify(backends)}`);
+                
+                // Update status indicators
+                document.getElementById('webgpu-status').className = 
+                    `status ${backends.webgpu ? 'available' : 'unavailable'}`;
+                document.getElementById('webgpu-status').textContent = 
+                    `WebGPU: ${backends.webgpu ? 'Available' : 'Not Available'}`;
+                
+                document.getElementById('webnn-status').className = 
+                    `status ${backends.webnn ? 'available' : 'unavailable'}`;
+                document.getElementById('webnn-status').textContent = 
+                    `WebNN: ${backends.webnn ? 'Available' : 'Not Available'}`;
+                
+                document.getElementById('onnx-status').className = 
+                    `status ${backends.onnxruntime ? 'available' : 'unavailable'}`;
+                document.getElementById('onnx-status').textContent = 
+                    `ONNX Runtime: ${backends.onnxruntime ? 'Available' : 'Not Available'}`;
+                
+                // Auto-select best backend
+                if (backends.webgpu) {
+                    selectedBackend = 'webgpu';
+                } else if (backends.webnn) {
+                    selectedBackend = 'webnn';
+                } else if (backends.onnxruntime) {
+                    selectedBackend = 'onnxruntime-web';
+                } else {
+                    selectedBackend = 'wasm';
+                }
+                
+                log(`🎯 Auto-selected backend: ${selectedBackend}`);
+                document.getElementById('init-btn').disabled = false;
+                
+            } catch (error) {
+                log(`❌ Backend test failed: ${error.message}`);
+            }
+        }
+
+        async function initializeModel() {
+            if (!faceFormer) {
+                log('❌ FaceFormer not initialized');
+                return;
+            }
+
+            try {
+                document.getElementById('init-btn').disabled = true;
+                document.getElementById('init-btn').textContent = '⏳ Initializing...';
+                
+                log(`🚀 Initializing VOCASET model with ${selectedBackend} backend...`);
+                
+                const success = await faceFormer.initialize('vocaset', selectedBackend);
+                
+                if (success) {
+                    const info = faceFormer.getSystemInfo();
+                    log(`✅ Model initialized successfully!`);
+                    log(`  Active backend: ${info.activeBackend}`);
+                    log(`  Dataset: ${info.dataset}`);
+                    log(`  Has Wav2Vec2: ${info.hasWav2Vec2}`);
+                    log(`  Has Transformer: ${info.hasTransformer}`);
+                    
+                    document.getElementById('test-btn').disabled = false;
+                    document.getElementById('init-btn').textContent = '✅ Model Ready';
+                } else {
+                    throw new Error('Model initialization failed');
+                }
+                
+            } catch (error) {
+                log(`❌ Initialization failed: ${error.message}`);
+                document.getElementById('init-btn').disabled = false;
+                document.getElementById('init-btn').textContent = '🚀 Initialize Model';
+            }
+        }
+
+        async function testInference() {
+            if (!faceFormer || !faceFormer.initialized) {
+                log('❌ Model not initialized');
+                return;
+            }
+
+            try {
+                log('🎬 Testing inference...');
+                
+                // Create dummy audio data (1 second at 16kHz)
+                const sampleRate = 16000;
+                const duration = 1.0;
+                const audioData = new Float32Array(sampleRate * duration);
+                
+                // Generate sine wave for testing
+                for (let i = 0; i < audioData.length; i++) {
+                    audioData[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate) * 0.1; // 440Hz tone
+                }
+                
+                // Create dummy template
+                const template = new Float32Array(15069); // VOCASET vertex count
+                for (let i = 0; i < template.length; i++) {
+                    template[i] = Math.random() * 0.01 - 0.005; // Small random values
+                }
+                
+                const subjectId = 0;
+                
+                log(`🎵 Processing ${audioData.length} audio samples...`);
+                
+                const startTime = performance.now();
+                const result = await faceFormer.processAudioToAnimation(audioData, template, subjectId);
+                const totalTime = performance.now() - startTime;
+                
+                log(`🎉 Inference complete!`);
+                log(`  Generated frames: ${result.frames}`);
+                log(`  Audio processing: ${result.audioProcessingTime.toFixed(2)}ms`);
+                log(`  Transformer inference: ${result.inferenceTime.toFixed(2)}ms`);
+                log(`  Total time: ${totalTime.toFixed(2)}ms`);
+                log(`  Backend used: ${result.backend}`);
+                log(`  Throughput: ${(result.frames / (totalTime / 1000)).toFixed(1)} FPS`);
+                
+            } catch (error) {
+                log(`❌ Inference failed: ${error.message}`);
+                log(`❌ Stack trace: ${error.stack}`);
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            log('🎭 FaceFormer Backend Test initialized');
+            log('👆 Click "Test Backends" to start');
+        });
+    </script>
+</body>
+</html>

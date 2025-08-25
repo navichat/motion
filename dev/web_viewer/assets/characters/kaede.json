@@ -1,0 +1,75 @@
+{
+	"id": "kaede",
+	"name": "Kaede",
+	"rank": 3,
+	"thumbnail": "/avatars/kaede.png",
+	"color": ["#a58beb", "#7051c3"],
+	"modelFile": "/avatars/kaede.vrm",
+	"previewAnimation": {
+		"primary": "stand_idleb_f",
+		"idle": [
+			"crowd_std_idle_long_2"
+		]
+	},
+	"slogan": "Gyaru Girl",
+	"description": "Kaede loves to party, but her joy doesn’t stop at the dance floor. Her colorful hair and shimmering accessories are reflections of her lively and carefree spirit, inviting you to explore the myriad of expressions and styles unique to Japan's youth culture.",
+	"previewCamera": {
+		"position": [0, 1.35, -1.8],
+		"target": [0, 1.15, 0],
+		"fov": 40
+	},
+	"facingCamera": {
+		"standingHeight": 1.25,
+		"distance": 1.2,
+		"focusPoint": [-0.2, 1.08, 0]
+	},
+	"faceMorphs": {
+		"meshIdx": 0,
+		"keys": [
+			"allNeutral",
+			"allAngry",
+			"allFun",
+			"allJoy",
+			"allSorrow",
+			"allSurprised",
+			"browsAngry",
+			"browsFun",
+			"browsJoy",
+			"browsSorrow",
+			"browsSurprised",
+			"eyesNatrual",
+			"eyesAngry",
+			"eyesClose",
+			"eyesCloseR",
+			"eyesCloseL",
+			"eyesFun",
+			"eyesJoy",
+			"eyesJoyR",
+			"eyesJoyL",
+			"eyesSorrow",
+			"eyesSurpised",
+			"eyesSpread",
+			"eyesIrisHide",
+			"eyesHighlight",
+			"mouthClose",
+			"mouthUp",
+			"mouthDown",
+			"mouthAngry",
+			"mouthSmall",
+			"mouthLarge",
+			"mouthNeutral",
+			"mouthFun",
+			"mouthJoy",
+			"mouthSorrow",
+			"mouthSurprised",
+			"mouthFung",
+			"mouthFungR",
+			"mouthFungL",
+			"mouthA",
+			"mouthI",
+			"mouthU",
+			"mouthE",
+			"mouthO"
+		]
+	}
+}

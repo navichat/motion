@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BVH File Test</title>
+</head>
+<body>
+    <h1>BVH File Loading Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testBVHFiles() {
+            const files = [
+                'emotional_journey_transitions.bvh',
+                'character_styles_transitions.bvh', 
+                'movement_energy_transitions.bvh'
+            ];
+            
+            const results = document.getElementById('results');
+            
+            for (let file of files) {
+                try {
+                    console.log(`Testing: ${file}`);
+                    const response = await fetch(file);
+                    console.log(`Response status: ${response.status}`);
+                    
+                    if (response.ok) {
+                        const text = await response.text();
+                        results.innerHTML += `<p>✅ ${file}: ${text.length} characters loaded</p>`;
+                        console.log(`${file}: ${text.substring(0, 100)}...`);
+                    } else {
+                        results.innerHTML += `<p>❌ ${file}: HTTP ${response.status}</p>`;
+                    }
+                } catch (error) {
+                    results.innerHTML += `<p>❌ ${file}: ${error.message}</p>`;
+                    console.error(`Error loading ${file}:`, error);
+                }
+            }
+        }
+        
+        testBVHFiles();
+    </script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Workload Generation</title>
+</head>
+<body>
+    <h1>Debug Workload Generation</h1>
+    <button id="testButton">Generate Workload</button>
+    <div id="output"></div>
+
+    <!-- Load all necessary scripts -->
+    <script src="./src/core/FibonacciHeap.js" type="module"></script>
+    <script src="./src/testing/MockGPUJobs.js" type="module"></script>
+    <script src="./src/core/TaskManager.js" type="module"></script>
+    <script src="./js/jobs/BaseJob.js" type="module"></script>
+    <script src="./src/compute/wasm/WASMJobs.js" type="module"></script>
+    <script src="./src/compute/webgpu/WebGPUJobs.js" type="module"></script>
+    <script src="./src/compute/webnn/WebNNJobs.js" type="module"></script>
+    <script src="./js/jobs/AIModelJobs.js" type="module"></script>
+    <script src="./src/compute/wasm/RealWASMJobs.js" type="module"></script>
+    <script src="./src/compute/webgpu/RealWebGPUJobs.js" type="module"></script>
+    <script src="./src/compute/webnn/RealWebNNJobs.js" type="module"></script>
+    <script src="./src/ai/AIModelJobs.js" type="module"></script>
+    <script src="./src/ai/AIModelJobFactory.js" type="module"></script>
+    <script src="./src/ai/KNNJobs.js" type="module"></script>
+    <script src="./js/RealJobFactory.js?v=1.0.5" type="module"></script>
+
+    <script>
+        async function testWorkloadGeneration() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>Starting workload generation test...</p>';
+            
+            try {
+                console.log('🔧 Testing workload generation...');
+                
+                // Create workload using the global function
+                const workload = await window.createRealisticWorkload('heavy');
+                
+                console.log('🧠 Generated workload with', workload.length, 'jobs');
+                
+                // Count job types
+                const jobTypes = {};
+                workload.forEach(task => {
+                    if (task && task.job) {
+                        const type = task.job.constructor.name;
+                        jobTypes[type] = (jobTypes[type] || 0) + 1;
+                    }
+                });
+                
+                console.log('🧠 Job type distribution:', jobTypes);
+                
+                // Display results
+                let html = `<p>Generated ${workload.length} jobs</p>`;
+                html += '<h3>Job Type Distribution:</h3><ul>';
+                Object.entries(jobTypes).forEach(([type, count]) => {
+                    html += `<li>${type}: ${count} jobs</li>`;
+                });
+                html += '</ul>';
+                
+                output.innerHTML = html;
+                
+            } catch (error) {
+                console.error('❌ Error generating workload:', error);
+                output.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        document.getElementById('testButton').addEventListener('click', testWorkloadGeneration);
+    </script>
+</body>
+</html>

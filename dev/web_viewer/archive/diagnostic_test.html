@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Motion Viewer Test</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status-panel {
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .test-result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        .success { background: rgba(76, 175, 80, 0.3); border-left: 4px solid #4CAF50; }
+        .error { background: rgba(244, 67, 54, 0.3); border-left: 4px solid #f44336; }
+        .info { background: rgba(33, 150, 243, 0.3); border-left: 4px solid #2196F3; }
+        .warning { background: rgba(255, 152, 0, 0.3); border-left: 4px solid #ff9800; }
+        
+        .canvas-area {
+            width: 100%;
+            height: 400px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 15px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #ccc;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            margin: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        
+        .file-info {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 RSMT Motion Viewer - Diagnostic Test</h1>
+            <p>Testing system compatibility and file access</p>
+        </div>
+        
+        <div class="status-panel">
+            <h3>🔍 System Tests</h3>
+            <div id="test-results"></div>
+            
+            <h3>📁 File Access Tests</h3>
+            <div id="file-results"></div>
+            
+            <div>
+                <button onclick="testBVHFiles()">🔄 Test BVH Files</button>
+                <button onclick="testThreeJS()">🧊 Test 3D Graphics</button>
+                <button onclick="runAllTests()">🚀 Run All Tests</button>
+            </div>
+        </div>
+        
+        <div class="canvas-area">
+            <div class="placeholder">
+                <h3>🖥️ 3D Viewer Area</h3>
+                <p>Graphics will appear here when working</p>
+            </div>
+            <div id="threejs-container"></div>
+        </div>
+        
+        <div class="status-panel">
+            <h3>📊 Results Summary</h3>
+            <div id="summary"></div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        
+        function addResult(test, status, message, details = '') {
+            testResults.push({ test, status, message, details });
+            updateDisplay();
+        }
+        
+        function updateDisplay() {
+            const testContainer = document.getElementById('test-results');
+            const latest = testResults[testResults.length - 1];
+            
+            if (latest) {
+                const div = document.createElement('div');
+                div.className = `test-result ${latest.status}`;
+                div.innerHTML = `
+                    <strong>${latest.test}:</strong> ${latest.message}
+                    ${latest.details ? `<br><small>${latest.details}</small>` : ''}
+                `;
+                testContainer.appendChild(div);
+            }
+            
+            updateSummary();
+        }
+        
+        function updateSummary() {
+            const summary = document.getElementById('summary');
+            const passed = testResults.filter(r => r.status === 'success').length;
+            const failed = testResults.filter(r => r.status === 'error').length;
+            const warnings = testResults.filter(r => r.status === 'warning').length;
+            
+            summary.innerHTML = `
+                <div class="test-result info">
+                    Total Tests: ${testResults.length} | 
+                    ✅ Passed: ${passed} | 
+                    ❌ Failed: ${failed} | 
+                    ⚠️ Warnings: ${warnings}
+                </div>
+            `;
+        }
+        
+        async function testBVHFiles() {
+            addResult("BVH File Test", "info", "Testing BVH file accessibility...");
+            
+            const files = [
+                '../motion_transitions/emotional_journey_transitions.bvh',
+                '../motion_transitions/character_styles_transitions.bvh',
+                '../motion_transitions/movement_energy_transitions.bvh'
+            ];
+            
+            for (let file of files) {
+                try {
+                    const response = await fetch(file);
+                    if (response.ok) {
+                        const text = await response.text();
+                        const lines = text.split('\\n').length;
+                        addResult("BVH File", "success", `✅ ${file.split('/').pop()} loaded`, 
+                                `Size: ${text.length} chars, Lines: ${lines}`);
+                        
+                        // Test if it's valid BVH
+                        if (text.includes('HIERARCHY') && text.includes('MOTION')) {
+                            addResult("BVH Format", "success", "Valid BVH format detected");
+                        } else {
+                            addResult("BVH Format", "warning", "File loaded but format unclear");
+                        }
+                        
+                    } else {
+                        addResult("BVH File", "error", `❌ Failed to load ${file}`, 
+                                `Status: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    addResult("BVH File", "error", `❌ Error accessing ${file}`, error.message);
+                }
+            }
+        }
+        
+        function testThreeJS() {
+            addResult("Three.js Test", "info", "Loading Three.js library...");
+            
+            // Remove any existing script
+            const existingScript = document.querySelector('script[src*="three.js"]');
+            if (existingScript) {
+                existingScript.remove();
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+            
+            script.onload = function() {
+                addResult("Three.js Load", "success", "✅ Three.js library loaded");
+                
+                try {
+                    // Test Three.js functionality
+                    const scene = new THREE.Scene();
+                    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                    const renderer = new THREE.WebGLRenderer({ antialias: true });
+                    
+                    addResult("Three.js Objects", "success", "✅ Scene, camera, renderer created");
+                    
+                    // Try to add to DOM
+                    const container = document.getElementById('threejs-container');
+                    renderer.setSize(400, 200);
+                    container.appendChild(renderer.domElement);
+                    
+                    // Simple scene
+                    scene.background = new THREE.Color(0x1a1a2e);
+                    
+                    const geometry = new THREE.BoxGeometry(1, 1, 1);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: 0x00ff88,
+                        wireframe: true 
+                    });
+                    const cube = new THREE.Mesh(geometry, material);
+                    scene.add(cube);
+                    
+                    camera.position.z = 3;
+                    
+                    // Render
+                    renderer.render(scene, camera);
+                    
+                    addResult("Three.js Render", "success", "✅ 3D scene rendered successfully");
+                    
+                    // Animate
+                    function animate() {
+                        requestAnimationFrame(animate);
+                        cube.rotation.x += 0.01;
+                        cube.rotation.y += 0.01;
+                        renderer.render(scene, camera);
+                    }
+                    animate();
+                    
+                    addResult("Three.js Animation", "success", "✅ Animation loop started");
+                    
+                    // Hide placeholder
+                    document.querySelector('.placeholder').style.display = 'none';
+                    
+                } catch (error) {
+                    addResult("Three.js Test", "error", "❌ Three.js functionality failed", error.message);
+                }
+            };
+            
+            script.onerror = function() {
+                addResult("Three.js Load", "error", "❌ Failed to load Three.js library", 
+                        "CDN might be blocked or unavailable");
+            };
+            
+            document.head.appendChild(script);
+        }
+        
+        function testBasicFeatures() {
+            // Test basic browser features
+            addResult("Browser Test", "success", "✅ JavaScript execution working");
+            
+            if (typeof fetch !== 'undefined') {
+                addResult("Fetch API", "success", "✅ Fetch API available");
+            } else {
+                addResult("Fetch API", "error", "❌ Fetch API not available");
+            }
+            
+            if (typeof requestAnimationFrame !== 'undefined') {
+                addResult("Animation Frame", "success", "✅ RequestAnimationFrame available");
+            } else {
+                addResult("Animation Frame", "error", "❌ RequestAnimationFrame not available");
+            }
+            
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {
+                    addResult("WebGL", "success", "✅ WebGL support detected");
+                } else {
+                    addResult("WebGL", "warning", "⚠️ WebGL not available - 3D graphics may not work");
+                }
+            } catch (error) {
+                addResult("WebGL", "error", "❌ WebGL test failed", error.message);
+            }
+        }
+        
+        async function runAllTests() {
+            // Clear previous results
+            document.getElementById('test-results').innerHTML = '';
+            testResults = [];
+            
+            addResult("Test Suite", "info", "🚀 Starting comprehensive tests...");
+            
+            // Test basic features
+            testBasicFeatures();
+            
+            // Test files
+            await testBVHFiles();
+            
+            // Test Three.js (with delay to let other tests complete)
+            setTimeout(() => {
+                testThreeJS();
+            }, 1000);
+        }
+        
+        // Auto-run basic tests on load
+        window.addEventListener('load', function() {
+            addResult("Page Load", "success", "✅ Page loaded successfully");
+            testBasicFeatures();
+        });
+        
+        // Catch any errors
+        window.addEventListener('error', function(e) {
+            addResult("JavaScript Error", "error", `❌ ${e.message}`, 
+                    `File: ${e.filename}:${e.lineno}:${e.colno}`);
+        });
+    </script>
+</body>
+</html>

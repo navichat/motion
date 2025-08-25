@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio VRM System Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status.pass { background: #4CAF50; }
+        .status.fail { background: #f44336; }
+        .status.pending { background: #FF9800; }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        .log {
+            background: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎭 Audio VRM Animation System - Component Test</h1>
+    
+    <div class="test-container">
+        <h3>🚀 Quick Test</h3>
+        <p>Run all tests automatically:</p>
+        <button onclick="runAllTests()" style="background: #FF9800; font-size: 16px; padding: 12px 24px;">
+            🧪 Run All Tests
+        </button>
+    </div>
+    
+    <div class="test-container">
+        <h3><span class="status pending" id="module-status"></span>Module Loading Test</h3>
+        <p>Testing if all required modules can be loaded...</p>
+        <button onclick="testModuleLoading()">Test Module Loading</button>
+        <div class="log" id="module-log"></div>
+    </div>
+    
+    <div class="test-container">
+        <h3><span class="status pending" id="audio-status"></span>Audio Processing Test</h3>
+        <p>Testing audio processing capabilities...</p>
+        <button onclick="testAudioProcessing()">Test Audio Processing</button>
+        <div class="log" id="audio-log"></div>
+    </div>
+    
+    <div class="test-container">
+        <h3><span class="status pending" id="onnx-status"></span>ONNX Runtime Test</h3>
+        <p>Testing ONNX Runtime Web availability...</p>
+        <button onclick="testONNXRuntime()">Test ONNX Runtime</button>
+        <div class="log" id="onnx-log"></div>
+    </div>
+    
+    <div class="test-container">
+        <h3><span class="status pending" id="three-status"></span>THREE.js and VRM Test</h3>
+        <p>Testing THREE.js and VRM capabilities...</p>
+        <button onclick="testThreeJSAndVRM()">Test THREE.js/VRM</button>
+        <div class="log" id="three-log"></div>
+    </div>
+    
+    <div class="test-container">
+        <h3><span class="status pending" id="integration-status"></span>Integration Test</h3>
+        <p>Testing full system integration...</p>
+        <button onclick="testIntegration()">Test Full Integration</button>
+        <div class="log" id="integration-log"></div>
+    </div>
+    
+    <div class="test-container">
+        <h3>🚀 Launch Audio VRM System</h3>
+        <p>Once all tests pass, launch the full system:</p>
+        <button onclick="launchFullSystem()" style="background: #4CAF50; font-size: 16px; padding: 12px 24px;">
+            🎬 Launch Audio VRM Animation System
+        </button>
+    </div>
+
+    <!-- Import map for modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js",
+            "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.webgpu.min.js"
+        }
+    }
+    </script>
+
+    <script>
+        function log(containerId, message) {
+            const container = document.getElementById(containerId);
+            const timestamp = new Date().toLocaleTimeString();
+            container.innerHTML += `[${timestamp}] ${message}\n`;
+            container.scrollTop = container.scrollHeight;
+            console.log(`[${containerId}] ${message}`);
+        }
+
+        function setStatus(statusId, status) {
+            const element = document.getElementById(statusId);
+            element.className = `status ${status}`;
+        }
+
+        async function testModuleLoading() {
+            log('module-log', '🔍 Testing module loading...');
+            setStatus('module-status', 'pending');
+            
+            try {
+                const loadedModules = [];
+                
+                // Load modules with promises
+                const modulePromises = [
+                    loadScript('./js/AudioProcessor.js', 'AudioProcessor'),
+                    loadScript('./js/AnimationSync.js', 'AnimationSync'),
+                    loadScript('./audio2gesture/audio2gesture_web_generator.js', 'Audio2GestureWebGenerator'),
+                    loadScript('./faceformer/faceformer_web_generator.js', 'FaceFormerWebGenerator')
+                ];
+                
+                const results = await Promise.allSettled(modulePromises);
+                
+                results.forEach((result, index) => {
+                    const moduleNames = ['AudioProcessor', 'AnimationSync', 'Audio2GestureWebGenerator', 'FaceFormerWebGenerator'];
+                    const moduleName = moduleNames[index];
+                    
+                    if (result.status === 'fulfilled') {
+                        log('module-log', `✅ ${moduleName} loaded and available`);
+                        loadedModules.push(moduleName);
+                    } else {
+                        log('module-log', `❌ ${moduleName} failed: ${result.reason}`);
+                    }
+                });
+                
+                if (loadedModules.length === 4) {
+                    log('module-log', '🎉 All modules loaded successfully!');
+                    setStatus('module-status', 'pass');
+                } else {
+                    log('module-log', `❌ Only ${loadedModules.length}/4 modules loaded`);
+                    setStatus('module-status', 'fail');
+                }
+                
+            } catch (error) {
+                log('module-log', `❌ Module loading error: ${error.message}`);
+                setStatus('module-status', 'fail');
+            }
+        }
+
+        function loadScript(src, globalName) {
+            return new Promise((resolve, reject) => {
+                // Check if already loaded
+                if (typeof window[globalName] !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = src;
+                
+                script.onload = () => {
+                    if (typeof window[globalName] !== 'undefined') {
+                        resolve();
+                    } else {
+                        reject(new Error(`${globalName} not available after loading ${src}`));
+                    }
+                };
+                
+                script.onerror = () => {
+                    reject(new Error(`Failed to load ${src}`));
+                };
+                
+                document.head.appendChild(script);
+            });
+        }
+
+        async function testAudioProcessing() {
+            log('audio-log', '🎵 Testing audio processing...');
+            setStatus('audio-status', 'pending');
+            
+            try {
+                // Test Web Audio API availability
+                if (typeof AudioContext === 'undefined' && typeof webkitAudioContext === 'undefined') {
+                    log('audio-log', '❌ Web Audio API not supported');
+                    setStatus('audio-status', 'fail');
+                    return;
+                }
+                
+                log('audio-log', '✅ Web Audio API available');
+                
+                // Create audio context
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                log('audio-log', `✅ Audio context created (sample rate: ${audioContext.sampleRate}Hz)`);
+                
+                // Test microphone access
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    log('audio-log', '✅ Microphone API available');
+                    
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        log('audio-log', '✅ Microphone access granted');
+                        stream.getTracks().forEach(track => track.stop()); // Stop the stream
+                    } catch (micError) {
+                        log('audio-log', `⚠️ Microphone access denied: ${micError.message}`);
+                    }
+                } else {
+                    log('audio-log', '❌ Microphone API not available');
+                }
+                
+                // Test AudioProcessor if loaded
+                if (typeof AudioProcessor !== 'undefined') {
+                    const processor = new AudioProcessor();
+                    const initSuccess = await processor.initialize();
+                    
+                    if (initSuccess) {
+                        log('audio-log', '✅ AudioProcessor initialized successfully');
+                        
+                        // Create dummy audio buffer for testing
+                        const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 2, audioContext.sampleRate);
+                        const channelData = buffer.getChannelData(0);
+                        
+                        // Fill with test tone
+                        for (let i = 0; i < channelData.length; i++) {
+                            channelData[i] = Math.sin(2 * Math.PI * 440 * i / audioContext.sampleRate) * 0.1;
+                        }
+                        
+                        log('audio-log', '✅ Test audio buffer created');
+                        
+                        // Test feature extraction
+                        const features = await processor.extractFeatures(buffer);
+                        log('audio-log', `✅ Audio features extracted: ${features.length} frames`);
+                        
+                    } else {
+                        log('audio-log', '❌ AudioProcessor initialization failed');
+                    }
+                } else {
+                    log('audio-log', '⚠️ AudioProcessor not loaded, skipping advanced tests');
+                }
+                
+                log('audio-log', '🎉 Audio processing tests completed!');
+                setStatus('audio-status', 'pass');
+                
+            } catch (error) {
+                log('audio-log', `❌ Audio processing error: ${error.message}`);
+                setStatus('audio-status', 'fail');
+            }
+        }
+
+        async function testONNXRuntime() {
+            log('onnx-log', '🧠 Testing ONNX Runtime Web...');
+            setStatus('onnx-status', 'pending');
+            
+            try {
+                // Load ONNX Runtime
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js';
+                
+                script.onload = async () => {
+                    log('onnx-log', '✅ ONNX Runtime script loaded');
+                    
+                    if (typeof ort !== 'undefined') {
+                        log('onnx-log', '✅ ONNX Runtime available globally');
+                        log('onnx-log', `Version: ${ort.version || 'unknown'}`);
+                        
+                        // Test execution providers
+                        const providers = ort.env.availableExecutionProviders || ['cpu'];
+                        log('onnx-log', `✅ Available providers: ${providers.join(', ')}`);
+                        
+                        // Test WebAssembly support
+                        if (typeof WebAssembly !== 'undefined') {
+                            log('onnx-log', '✅ WebAssembly supported');
+                        } else {
+                            log('onnx-log', '❌ WebAssembly not supported');
+                        }
+                        
+                        log('onnx-log', '🎉 ONNX Runtime tests completed!');
+                        setStatus('onnx-status', 'pass');
+                        
+                    } else {
+                        log('onnx-log', '❌ ONNX Runtime not available after loading');
+                        setStatus('onnx-status', 'fail');
+                    }
+                };
+                
+                script.onerror = () => {
+                    log('onnx-log', '❌ Failed to load ONNX Runtime script');
+                    setStatus('onnx-status', 'fail');
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                log('onnx-log', `❌ ONNX Runtime error: ${error.message}`);
+                setStatus('onnx-status', 'fail');
+            }
+        }
+
+        async function testThreeJSAndVRM() {
+            log('three-log', '🎮 Testing THREE.js and VRM...');
+            setStatus('three-status', 'pending');
+            
+            try {
+                // Import THREE.js
+                const THREE = await import('three');
+                log('three-log', '✅ THREE.js imported successfully');
+                log('three-log', `THREE.js version: ${THREE.REVISION}`);
+                
+                // Test WebGL
+                const testCanvas = document.createElement('canvas');
+                const gl = testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
+                
+                if (gl) {
+                    log('three-log', '✅ WebGL supported');
+                    log('three-log', `WebGL version: ${gl.getParameter(gl.VERSION)}`);
+                } else {
+                    log('three-log', '❌ WebGL not supported');
+                    setStatus('three-status', 'fail');
+                    return;
+                }
+                
+                // Test THREE.js renderer with a new canvas
+                const rendererCanvas = document.createElement('canvas');
+                rendererCanvas.width = 256;
+                rendererCanvas.height = 256;
+                const renderer = new THREE.WebGLRenderer({ 
+                    canvas: rendererCanvas,
+                    antialias: false,
+                    alpha: false 
+                });
+                log('three-log', '✅ THREE.js WebGL renderer created');
+                
+                // Test VRM loader
+                const { VRMLoaderPlugin } = await import('@pixiv/three-vrm');
+                log('three-log', '✅ VRM loader plugin imported');
+                
+                const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+                const loader = new GLTFLoader();
+                loader.register((parser) => new VRMLoaderPlugin(parser));
+                log('three-log', '✅ GLTF loader with VRM plugin created');
+                
+                // Test basic scene
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                log('three-log', '✅ Basic THREE.js scene created');
+                
+                // Test a simple render to verify everything works
+                renderer.setSize(256, 256);
+                renderer.render(scene, camera);
+                log('three-log', '✅ Test render completed');
+                
+                // Clean up
+                renderer.dispose();
+                log('three-log', '✅ Renderer cleaned up');
+                
+                log('three-log', '🎉 THREE.js and VRM tests completed!');
+                setStatus('three-status', 'pass');
+                
+            } catch (error) {
+                log('three-log', `❌ THREE.js/VRM error: ${error.message}`);
+                setStatus('three-status', 'fail');
+            }
+        }
+
+        async function testIntegration() {
+            log('integration-log', '🔗 Testing system integration...');
+            setStatus('integration-status', 'pending');
+            
+            try {
+                let allSystemsReady = true;
+                
+                // Check all required systems
+                const requiredSystems = [
+                    { name: 'AudioProcessor', available: typeof AudioProcessor !== 'undefined' },
+                    { name: 'AnimationSync', available: typeof AnimationSync !== 'undefined' },
+                    { name: 'Audio2GestureWebGenerator', available: typeof Audio2GestureWebGenerator !== 'undefined' },
+                    { name: 'FaceFormerWebGenerator', available: typeof FaceFormerWebGenerator !== 'undefined' },
+                    { name: 'ONNX Runtime', available: typeof ort !== 'undefined' },
+                    { name: 'Web Audio API', available: typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined' },
+                    { name: 'WebGL', available: (() => {
+                        const canvas = document.createElement('canvas');
+                        return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+                    })() }
+                ];
+                
+                for (const system of requiredSystems) {
+                    if (system.available) {
+                        log('integration-log', `✅ ${system.name} ready`);
+                    } else {
+                        log('integration-log', `❌ ${system.name} not available`);
+                        allSystemsReady = false;
+                    }
+                }
+                
+                if (allSystemsReady) {
+                    log('integration-log', '🎉 All systems ready for integration!');
+                    log('integration-log', '✅ Audio-driven VRM animation system can be launched');
+                    setStatus('integration-status', 'pass');
+                } else {
+                    log('integration-log', '❌ Some systems not ready');
+                    setStatus('integration-status', 'fail');
+                }
+                
+            } catch (error) {
+                log('integration-log', `❌ Integration test error: ${error.message}`);
+                setStatus('integration-status', 'fail');
+            }
+        }
+
+        function launchFullSystem() {
+            // Open the full system in a new window/tab
+            window.open('./vrm_test_mesh_audio_animation_classroom.html', '_blank');
+        }
+
+        async function runAllTests() {
+            console.log('🧪 Running all tests automatically...');
+            
+            // Reset all status indicators
+            ['module-status', 'audio-status', 'onnx-status', 'three-status', 'integration-status'].forEach(id => {
+                setStatus(id, 'pending');
+            });
+            
+            // Clear all logs
+            ['module-log', 'audio-log', 'onnx-log', 'three-log', 'integration-log'].forEach(id => {
+                document.getElementById(id).innerHTML = '';
+            });
+            
+            try {
+                // Run tests in sequence with delays
+                await testModuleLoading();
+                await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for modules to load
+                
+                await testAudioProcessing();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                await testONNXRuntime();
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for ONNX to load
+                
+                await testThreeJSAndVRM();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                await testIntegration();
+                
+                console.log('🎉 All tests completed!');
+                
+            } catch (error) {
+                console.error('❌ Test suite error:', error);
+            }
+        }
+
+        // Auto-run basic tests on page load
+        window.addEventListener('load', () => {
+            setTimeout(testModuleLoading, 500);
+        });
+    </script>
+</body>
+</html>

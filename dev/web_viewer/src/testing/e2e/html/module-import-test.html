@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module Import Test</title>
+</head>
+<body>
+    <h1>Module Import Test</h1>
+    <div id="results"></div>
+    
+    <script type="module">
+        const results = document.getElementById('results');
+        
+        try {
+            // Test individual module imports
+            const { Audio2GestureBVHConverter } = await import('./src/models/motion/audio2gesture/index.js');
+            results.innerHTML += '<p>✅ Audio2Gesture module loaded successfully</p>';
+            
+            const converter = new Audio2GestureBVHConverter();
+            results.innerHTML += '<p>✅ Audio2Gesture instance created: ' + JSON.stringify(converter.options.frameRate) + '</p>';
+            
+        } catch (error) {
+            results.innerHTML += '<p>❌ Audio2Gesture error: ' + error.message + '</p>';
+        }
+        
+        try {
+            const { RSMTBVHConverter } = await import('./src/models/motion/rsmt/index.js');
+            results.innerHTML += '<p>✅ RSMT module loaded successfully</p>';
+            
+            const converter = new RSMTBVHConverter();
+            results.innerHTML += '<p>✅ RSMT instance created: ' + JSON.stringify(converter.frameRate) + '</p>';
+            
+        } catch (error) {
+            results.innerHTML += '<p>❌ RSMT error: ' + error.message + '</p>';
+        }
+        
+        try {
+            // Test main module import
+            const mainModule = await import('./src/index.js');
+            results.innerHTML += '<p>✅ Main module loaded successfully</p>';
+            
+            if (mainModule.Audio2GestureBVHConverter) {
+                results.innerHTML += '<p>✅ Audio2Gesture available through main module</p>';
+            } else {
+                results.innerHTML += '<p>❌ Audio2Gesture not available through main module</p>';
+            }
+            
+            if (mainModule.RSMTBVHConverter) {
+                results.innerHTML += '<p>✅ RSMT available through main module</p>';
+            } else {
+                results.innerHTML += '<p>❌ RSMT not available through main module</p>';
+            }
+            
+        } catch (error) {
+            results.innerHTML += '<p>❌ Main module error: ' + error.message + '</p>';
+        }
+        
+        results.innerHTML += '<p>🎉 Module import test completed!</p>';
+    </script>
+</body>
+</html>

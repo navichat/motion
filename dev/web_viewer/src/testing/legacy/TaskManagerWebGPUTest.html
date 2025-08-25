@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskManager WebGPU Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-output { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>TaskManager WebGPU Integration Test</h1>
+    <div id="test-output" class="test-output">
+        <p>Running tests...</p>
+    </div>
+    
+    <script type="module">
+        // Redirect console output to the page
+        const outputDiv = document.getElementById('test-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const p = document.createElement('p');
+            p.textContent = args.join(' ');
+            p.className = 'success';
+            outputDiv.appendChild(p);
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            const p = document.createElement('p');
+            p.textContent = 'ERROR: ' + args.join(' ');
+            p.className = 'error';
+            outputDiv.appendChild(p);
+        };
+        
+        try {
+            // Import and run the test
+            const testModule = await import('./TaskManagerWebGPUTest.js');
+            console.log('✅ Successfully loaded TaskManagerWebGPUTest module');
+            
+            // The test should export a function to run
+            if (typeof testModule.testTaskManagerWebGPU === 'function') {
+                await testModule.testTaskManagerWebGPU();
+            } else {
+                console.log('Running default test function...');
+                // Try to run any exported test function
+                for (const key in testModule) {
+                    if (typeof testModule[key] === 'function') {
+                        console.log(`Running ${key}...`);
+                        await testModule[key]();
+                        break;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Failed to run tests:', error);
+            console.error('Stack trace:', error.stack);
+        }
+    </script>
+</body>
+</html>

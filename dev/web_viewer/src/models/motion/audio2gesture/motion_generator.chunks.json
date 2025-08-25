@@ -1,0 +1,22 @@
+{
+  "originalFile": "motion_generator.onnx",
+  "originalSize": 127106255,
+  "originalSizeMB": "121.22",
+  "chunks": [
+    {
+      "index": 0,
+      "filename": "motion_generator.chunk.000",
+      "size": 94371840,
+      "sizeMB": "90.00"
+    },
+    {
+      "index": 1,
+      "filename": "motion_generator.chunk.001",
+      "size": 32734415,
+      "sizeMB": "31.22"
+    }
+  ],
+  "totalChunks": 2,
+  "chunkSize": 94371840,
+  "createdAt": "2025-07-12T01:00:21.827Z"
+}

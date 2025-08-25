@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSMT Test Viewer</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 20px;
+            background: #222; 
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #container { 
+            width: 800px; 
+            height: 600px; 
+            border: 2px solid #444;
+            margin: 20px 0;
+        }
+        #controls { 
+            background: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        button { 
+            margin: 5px; 
+            padding: 10px 15px; 
+            background: #4CAF50;
+            color: white; 
+            border: none; 
+            border-radius: 3px; 
+            cursor: pointer;
+        }
+        button:hover { 
+            background: #45a049;
+        }
+        #status {
+            background: #444;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎬 RSMT Test Viewer</h1>
+    
+    <div id="status">
+        <div id="statusText">Loading...</div>
+    </div>
+    
+    <div id="controls">
+        <button onclick="createBasicSkeleton()">Create Basic Skeleton</button>
+        <button onclick="createAnimatedSkeleton()">Create Animated Skeleton</button>
+        <button onclick="testAnimation()">Test Animation</button>
+        <button onclick="resetView()">Reset View</button>
+    </div>
+    
+    <div id="container"></div>
+    
+    <div id="debug">
+        <h3>Debug Info:</h3>
+        <div id="debugInfo">Initializing...</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, skeleton;
+        let animationId = null;
+        let frameCount = 0;
+
+        function updateStatus(message) {
+            document.getElementById('statusText').textContent = message;
+            console.log('Status:', message);
+        }
+
+        function updateDebug(message) {
+            const debugDiv = document.getElementById('debugInfo');
+            debugDiv.innerHTML += '<div>' + message + '</div>';
+            console.log('Debug:', message);
+        }
+
+        function init() {
+            updateStatus('Initializing 3D scene...');
+            
+            try {
+                // Create scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x333333);
+                updateDebug('✅ Scene created');
+
+                // Create camera
+                camera = new THREE.PerspectiveCamera(75, 800/600, 0.1, 1000);
+                camera.position.set(3, 2, 5);
+                camera.lookAt(0, 1, 0);
+                updateDebug('✅ Camera created at position: ' + camera.position.x + ', ' + camera.position.y + ', ' + camera.position.z);
+
+                // Create renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(800, 600);
+                renderer.shadowMap.enabled = true;
+                document.getElementById('container').appendChild(renderer.domElement);
+                updateDebug('✅ Renderer created and added to DOM');
+
+                // Add lights
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                scene.add(ambientLight);
+
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(10, 10, 5);
+                directionalLight.castShadow = true;
+                scene.add(directionalLight);
+                updateDebug('✅ Lights added');
+
+                // Add ground plane
+                const groundGeometry = new THREE.PlaneGeometry(10, 10);
+                const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x555555 });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                ground.receiveShadow = true;
+                scene.add(ground);
+                updateDebug('✅ Ground plane added');
+
+                // Add coordinate axes for reference
+                const axesHelper = new THREE.AxesHelper(2);
+                scene.add(axesHelper);
+                updateDebug('✅ Coordinate axes added');
+
+                updateStatus('3D scene ready! Click buttons to test.');
+                
+                // Start render loop
+                startRenderLoop();
+                
+            } catch (error) {
+                updateStatus('❌ Error initializing: ' + error.message);
+                updateDebug('❌ Init error: ' + error.message);
+                console.error('Initialization error:', error);
+            }
+        }
+
+        function startRenderLoop() {
+            function animate() {
+                animationId = requestAnimationFrame(animate);
+                frameCount++;
+                
+                // Update any animations
+                if (skeleton && skeleton.userData.animated) {
+                    updateSkeletonAnimation();
+                }
+                
+                renderer.render(scene, camera);
+            }
+            animate();
+            updateDebug('✅ Render loop started');
+        }
+
+        function createBasicSkeleton() {
+            updateStatus('Creating basic skeleton...');
+            
+            try {
+                // Remove existing skeleton
+                if (skeleton) {
+                    scene.remove(skeleton);
+                }
+
+                skeleton = new THREE.Group();
+                
+                // Create a simple test skeleton
+                const joints = [
+                    {name: "hips", pos: [0, 1, 0], color: 0xff0000},
+                    {name: "spine", pos: [0, 1.3, 0], color: 0xff4444},
+                    {name: "head", pos: [0, 1.8, 0], color: 0xff8888},
+                    {name: "leftShoulder", pos: [-0.3, 1.5, 0], color: 0x00ff00},
+                    {name: "leftHand", pos: [-0.6, 1.2, 0], color: 0x44ff44},
+                    {name: "rightShoulder", pos: [0.3, 1.5, 0], color: 0x0000ff},
+                    {name: "rightHand", pos: [0.6, 1.2, 0], color: 0x4444ff},
+                    {name: "leftFoot", pos: [-0.2, 0, 0], color: 0xffff00},
+                    {name: "rightFoot", pos: [0.2, 0, 0], color: 0xff00ff}
+                ];
+
+                joints.forEach((joint, i) => {
+                    const geometry = new THREE.SphereGeometry(0.05, 16, 16);
+                    const material = new THREE.MeshPhongMaterial({ color: joint.color });
+                    const sphere = new THREE.Mesh(geometry, material);
+                    sphere.position.set(...joint.pos);
+                    sphere.userData = { name: joint.name, index: i };
+                    skeleton.add(sphere);
+                    
+                    // Add a label
+                    const loader = new THREE.FontLoader();
+                    // For now, just add a wireframe box as a label placeholder
+                    const labelGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.02);
+                    const labelMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0xffffff, 
+                        wireframe: true 
+                    });
+                    const label = new THREE.Mesh(labelGeometry, labelMaterial);
+                    label.position.set(joint.pos[0], joint.pos[1] + 0.1, joint.pos[2]);
+                    skeleton.add(label);
+                });
+
+                scene.add(skeleton);
+                updateStatus('✅ Basic skeleton created with ' + joints.length + ' joints');
+                updateDebug('✅ Added ' + joints.length + ' joints to scene');
+                
+            } catch (error) {
+                updateStatus('❌ Error creating skeleton: ' + error.message);
+                updateDebug('❌ Skeleton error: ' + error.message);
+                console.error('Skeleton creation error:', error);
+            }
+        }
+
+        function createAnimatedSkeleton() {
+            updateStatus('Creating animated skeleton...');
+            
+            createBasicSkeleton(); // Start with basic skeleton
+            
+            if (skeleton) {
+                skeleton.userData.animated = true;
+                skeleton.userData.startTime = Date.now();
+                updateStatus('✅ Animated skeleton ready - watch it move!');
+                updateDebug('✅ Animation enabled');
+            }
+        }
+
+        function updateSkeletonAnimation() {
+            if (!skeleton || !skeleton.userData.animated) return;
+            
+            const elapsed = (Date.now() - skeleton.userData.startTime) / 1000; // seconds
+            const t = elapsed * 0.5; // Animation speed
+            
+            skeleton.children.forEach((child, i) => {
+                if (child.userData && child.userData.name) {
+                    const name = child.userData.name;
+                    const basePos = child.userData.basePos || [...child.position];
+                    if (!child.userData.basePos) child.userData.basePos = [...child.position];
+                    
+                    // Apply different animations based on joint name
+                    let offset = [0, 0, 0];
+                    
+                    if (name === 'hips') {
+                        offset[0] = 0.2 * Math.sin(t * 2);
+                        offset[1] = 0.1 * Math.sin(t * 4);
+                        offset[2] = 0.1 * Math.cos(t * 2);
+                    } else if (name.includes('Hand')) {
+                        const side = name.includes('left') ? 1 : -1;
+                        offset[0] = side * 0.3 * Math.sin(t * 3);
+                        offset[1] = 0.2 * Math.cos(t * 3);
+                        offset[2] = 0.2 * Math.sin(t * 2);
+                    } else if (name.includes('Foot')) {
+                        const side = name.includes('left') ? 1 : -1;
+                        offset[0] = side * 0.1 * Math.sin(t * 4);
+                        offset[1] = 0.1 * Math.abs(Math.sin(t * 4));
+                    } else if (name === 'head') {
+                        offset[0] = 0.05 * Math.sin(t * 6);
+                        offset[1] = 0.05 * Math.cos(t * 8);
+                    }
+                    
+                    child.position.set(
+                        basePos[0] + offset[0],
+                        basePos[1] + offset[1],
+                        basePos[2] + offset[2]
+                    );
+                }
+            });
+        }
+
+        function testAnimation() {
+            updateStatus('Testing animation...');
+            
+            // Create a spinning cube to test basic 3D functionality
+            const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            const material = new THREE.MeshPhongMaterial({ color: 0x00ffff });
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(2, 1, 0);
+            scene.add(cube);
+            
+            // Animate the cube
+            function animateCube() {
+                cube.rotation.x += 0.02;
+                cube.rotation.y += 0.02;
+                cube.position.y = 1 + 0.5 * Math.sin(Date.now() * 0.002);
+            }
+            
+            const originalAnimate = function() {
+                animationId = requestAnimationFrame(arguments.callee);
+                frameCount++;
+                animateCube();
+                if (skeleton && skeleton.userData.animated) {
+                    updateSkeletonAnimation();
+                }
+                renderer.render(scene, camera);
+            };
+            
+            // Replace render loop
+            cancelAnimationFrame(animationId);
+            originalAnimate();
+            
+            updateStatus('✅ Test animation running');
+            updateDebug('✅ Added spinning cube test');
+        }
+
+        function resetView() {
+            camera.position.set(3, 2, 5);
+            camera.lookAt(0, 1, 0);
+            updateStatus('✅ View reset');
+        }
+
+        // Mouse controls
+        let mouseDown = false;
+        let mouseX = 0, mouseY = 0;
+        
+        function setupMouseControls() {
+            const container = document.getElementById('container');
+            
+            container.addEventListener('mousedown', function(event) {
+                mouseDown = true;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            container.addEventListener('mouseup', function() {
+                mouseDown = false;
+            });
+            
+            container.addEventListener('mousemove', function(event) {
+                if (mouseDown) {
+                    const deltaX = event.clientX - mouseX;
+                    const deltaY = event.clientY - mouseY;
+                    
+                    // Orbit camera around origin
+                    const radius = camera.position.length();
+                    const theta = Math.atan2(camera.position.x, camera.position.z) + deltaX * 0.01;
+                    const phi = Math.acos(camera.position.y / radius) + deltaY * 0.01;
+                    
+                    camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+                    camera.position.y = radius * Math.cos(phi);
+                    camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+                    
+                    camera.lookAt(0, 1, 0);
+                    
+                    mouseX = event.clientX;
+                    mouseY = event.clientY;
+                }
+            });
+            
+            updateDebug('✅ Mouse controls enabled');
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', function() {
+            updateStatus('Page loaded, initializing...');
+            setTimeout(function() {
+                init();
+                setupMouseControls();
+            }, 100);
+        });
+
+        // Handle errors
+        window.addEventListener('error', function(event) {
+            updateStatus('❌ JavaScript error: ' + event.message);
+            updateDebug('❌ Error: ' + event.message + ' at line ' + event.lineno);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified Animation Systems Test - RSMT + DeepPhase + FaceFormer + AudioGesture</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.8em;
+            font-weight: 300;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.2em;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .system-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            min-height: 600px;
+        }
+        
+        .system-panel.active {
+            border-color: #28a745;
+            box-shadow: 0 0 20px rgba(40, 167, 69, 0.3);
+        }
+        
+        .system-panel.loading {
+            border-color: #ffc107;
+            background: #fffbf0;
+        }
+        
+        .system-panel.error {
+            border-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        .system-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            text-align: center;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: #6c757d;
+        }
+        
+        .status-indicator.loading { background: #ffc107; }
+        .status-indicator.ready { background: #28a745; }
+        .status-indicator.error { background: #dc3545; }
+        .status-indicator.generating { background: #17a2b8; animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .control-group input,
+        .control-group select,
+        .control-group button {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn.primary { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+        .btn.danger { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+        .btn.warning { background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); }
+        
+        .output-area {
+            background: #2c3e50;
+            color: #ecf0f1;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            height: 150px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        .bvh-display {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+        
+        .timeline-section {
+            grid-column: 1 / -1;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .timeline-canvas {
+            width: 100%;
+            height: 300px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .timeline-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .hud-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            min-width: 300px;
+            z-index: 1000;
+        }
+        
+        .hud-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #00ff00;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .hud-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        
+        .hud-value {
+            color: #00ccff;
+            font-weight: bold;
+        }
+        
+        .frame-display {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            height: 120px;
+            overflow-y: auto;
+        }
+        
+        .source-priority {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        
+        .source-tab {
+            padding: 5px 10px;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .source-tab.active {
+            background: #28a745;
+        }
+        
+        .model-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .model-status {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 8px;
+            text-align: center;
+            font-size: 11px;
+        }
+        
+        .model-status.loaded { background: #d4edda; border-color: #c3e6cb; }
+        .model-status.loading { background: #fff3cd; border-color: #ffeaa7; }
+        .model-status.error { background: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 Unified Animation Systems Test</h1>
+            <p>RSMT + DeepPhase + FaceFormer + AudioGesture with BVH Timeline Integration</p>
+        </div>
+        
+        <div class="main-grid">
+            <!-- RSMT System Panel -->
+            <div class="system-panel" id="rsmt-panel">
+                <div class="system-title">
+                    <span class="status-indicator" id="rsmt-status"></span>
+                    RSMT System
+                </div>
+                
+                <div class="model-grid">
+                    <div class="model-status" id="rsmt-deepphase">DeepPhase</div>
+                    <div class="model-status" id="rsmt-stylevae">StyleVAE</div>
+                    <div class="model-status" id="rsmt-transitionnet">TransitionNet</div>
+                    <div class="model-status" id="rsmt-manifold">ManifoldVAE</div>
+                </div>
+                
+                <div class="control-group">
+                    <button class="btn primary" onclick="initializeRSMT()">Initialize RSMT</button>
+                    <button class="btn" onclick="generateRSMTTransition()">Generate Transition</button>
+                </div>
+                
+                <div class="control-group">
+                    <label>Transition Style:</label>
+                    <select id="rsmt-style">
+                        <option value="smooth">Smooth</option>
+                        <option value="energetic">Energetic</option>
+                        <option value="dramatic">Dramatic</option>
+                        <option value="fluid">Fluid</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Source Motion:</label>
+                    <select id="rsmt-source">
+                        <option value="walk">Walking</option>
+                        <option value="run">Running</option>
+                        <option value="idle">Idle</option>
+                        <option value="jump">Jumping</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Target Motion:</label>
+                    <select id="rsmt-target">
+                        <option value="run">Running</option>
+                        <option value="walk">Walking</option>
+                        <option value="dance">Dancing</option>
+                        <option value="idle">Idle</option>
+                    </select>
+                </div>
+                
+                <div class="output-area" id="rsmt-output">
+                    RSMT System - Ready to initialize...
+                </div>
+            </div>
+            
+            <!-- FaceFormer System Panel -->
+            <div class="system-panel" id="faceformer-panel">
+                <div class="system-title">
+                    <span class="status-indicator" id="faceformer-status"></span>
+                    FaceFormer System
+                </div>
+                
+                <div class="model-grid">
+                    <div class="model-status" id="faceformer-core">Core Model</div>
+                    <div class="model-status" id="faceformer-vocaset">VocaSet</div>
+                    <div class="model-status" id="faceformer-biwi">BIWI</div>
+                    <div class="model-status" id="faceformer-minimal">Minimal</div>
+                </div>
+                
+                <div class="control-group">
+                    <button class="btn primary" onclick="initializeFaceFormer()">Initialize FaceFormer</button>
+                    <button class="btn" onclick="generateFacialAnimation()">Generate Facial</button>
+                </div>
+                
+                <div class="control-group">
+                    <label>Model Type:</label>
+                    <select id="faceformer-model">
+                        <option value="minimal">Minimal (Fast)</option>
+                        <option value="core">Core Model</option>
+                        <option value="vocaset">VocaSet</option>
+                        <option value="biwi">BIWI</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Audio Input (Text):</label>
+                    <input type="text" id="faceformer-text" placeholder="Enter text for lip sync..." value="Hello world">
+                </div>
+                
+                <div class="control-group">
+                    <label>Expression:</label>
+                    <select id="faceformer-expression">
+                        <option value="neutral">Neutral</option>
+                        <option value="happy">Happy</option>
+                        <option value="sad">Sad</option>
+                        <option value="angry">Angry</option>
+                        <option value="surprised">Surprised</option>
+                    </select>
+                </div>
+                
+                <div class="output-area" id="faceformer-output">
+                    FaceFormer System - Ready to initialize...
+                </div>
+            </div>
+            
+            <!-- AudioGesture System Panel -->
+            <div class="system-panel" id="audiogesture-panel">
+                <div class="system-title">
+                    <span class="status-indicator" id="audiogesture-status"></span>
+                    AudioGesture System
+                </div>
+                
+                <div class="model-grid">
+                    <div class="model-status" id="audiogesture-main">Main Model</div>
+                    <div class="model-status" id="audiogesture-attention">Attention</div>
+                    <div class="model-status" id="audiogesture-enhanced">Enhanced</div>
+                    <div class="model-status" id="audiogesture-batch">Batch Proc</div>
+                </div>
+                
+                <div class="control-group">
+                    <button class="btn primary" onclick="initializeAudioGesture()">Initialize AudioGesture</button>
+                    <button class="btn" onclick="generateGestures()">Generate Gestures</button>
+                </div>
+                
+                <div class="control-group">
+                    <label>Audio Features:</label>
+                    <select id="audiogesture-features">
+                        <option value="mfcc">MFCC Features</option>
+                        <option value="mel">Mel Spectrogram</option>
+                        <option value="raw">Raw Audio</option>
+                        <option value="prosody">Prosody Features</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Gesture Style:</label>
+                    <select id="audiogesture-style">
+                        <option value="conversational">Conversational</option>
+                        <option value="presenting">Presenting</option>
+                        <option value="emotional">Emotional</option>
+                        <option value="subtle">Subtle</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Sequence Length:</label>
+                    <input type="range" id="audiogesture-length" min="10" max="100" value="30">
+                    <span id="audiogesture-length-value">30</span> frames
+                </div>
+                
+                <div class="output-area" id="audiogesture-output">
+                    AudioGesture System - Ready to initialize...
+                </div>
+            </div>
+            
+            <!-- DeepMimic Policy System Panel -->
+            <div class="system-panel" id="deepmimic-panel">
+                <div class="system-title">
+                    <span class="status-indicator" id="deepmimic-status"></span>
+                    DeepMimic Policies
+                </div>
+                
+                <div class="model-grid">
+                    <div class="model-status" id="deepmimic-actor">Actor Network</div>
+                    <div class="model-status" id="deepmimic-critic">Critic Network</div>
+                    <div class="model-status" id="deepmimic-converter">ONNX Converter</div>
+                    <div class="model-status" id="deepmimic-inference">Inference Engine</div>
+                </div>
+                
+                <div class="control-group">
+                    <button class="btn primary" onclick="initializeDeepMimic()">Initialize DeepMimic</button>
+                    <button class="btn" onclick="runDeepMimicPolicy()">Execute Policy</button>
+                </div>
+                
+                <div class="control-group">
+                    <label>Policy Type:</label>
+                    <select id="deepmimic-policy">
+                        <option value="humanoid3d_walk">Humanoid Walk</option>
+                        <option value="humanoid3d_run">Humanoid Run</option>
+                        <option value="humanoid3d_jump">Humanoid Jump</option>
+                        <option value="custom">Custom Policy</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>State Input:</label>
+                    <select id="deepmimic-state">
+                        <option value="random">Random State</option>
+                        <option value="reference">Reference Motion</option>
+                        <option value="manual">Manual Input</option>
+                        <option value="interactive">Interactive</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Action Space:</label>
+                    <input type="range" id="deepmimic-noise" min="0" max="1" step="0.1" value="0.1">
+                    <span id="deepmimic-noise-value">0.1</span> exploration noise
+                </div>
+                
+                <div class="output-area" id="deepmimic-output">
+                    DeepMimic Policy System - Ready to initialize...
+                </div>
+            </div>
+        </div>
+        
+        <!-- BVH Timeline Section -->
+        <div class="timeline-section">
+            <div class="system-title">🎬 BVH Timeline & Frame Buffer</div>
+            
+            <div class="timeline-controls">
+                <button class="btn primary" onclick="initializeTimeline()">Initialize Timeline</button>
+                <button class="btn" onclick="playTimeline()">▶️ Play</button>
+                <button class="btn" onclick="pauseTimeline()">⏸️ Pause</button>
+                <button class="btn" onclick="stopTimeline()">⏹️ Stop</button>
+                <button class="btn" onclick="clearTimeline()">🗑️ Clear</button>
+                
+                <div style="margin-left: auto;">
+                    <label>Speed: </label>
+                    <input type="range" id="timeline-speed" min="0.1" max="3" step="0.1" value="1" style="width: 100px;">
+                    <span id="timeline-speed-value">1.0</span>x
+                </div>
+            </div>
+            
+            <canvas class="timeline-canvas" id="timeline-canvas" width="1500" height="280"></canvas>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
+                <div class="frame-display" id="frame-display">
+                    <div style="color: #00ccff; font-weight: bold;">Current BVH Frame Data:</div>
+                    <div id="frame-content">No frame data</div>
+                </div>
+                
+                <div class="frame-display" id="source-display">
+                    <div style="color: #00ccff; font-weight: bold;">Source Priority:</div>
+                    <div class="source-priority">
+                        <button class="source-tab" id="tab-rsmt" onclick="setPrimarySource('rsmt')">RSMT</button>
+                        <button class="source-tab" id="tab-faceformer" onclick="setPrimarySource('faceformer')">Face</button>
+                        <button class="source-tab" id="tab-audiogesture" onclick="setPrimarySource('audiogesture')">Gesture</button>
+                        <button class="source-tab active" id="tab-timeline" onclick="setPrimarySource('timeline')">Timeline</button>
+                    </div>
+                    <div id="source-content">Timeline is primary source</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- HUD Overlay -->
+    <div class="hud-overlay" id="hud-overlay">
+        <div class="hud-title">🎮 ANIMATION HUD</div>
+        <div class="hud-item">
+            <span>Frame Rate:</span>
+            <span class="hud-value" id="hud-fps">0 FPS</span>
+        </div>
+        <div class="hud-item">
+            <span>Timeline Time:</span>
+            <span class="hud-value" id="hud-time">0.00s</span>
+        </div>
+        <div class="hud-item">
+            <span>Active Systems:</span>
+            <span class="hud-value" id="hud-systems">0</span>
+        </div>
+        <div class="hud-item">
+            <span>Primary Source:</span>
+            <span class="hud-value" id="hud-source">None</span>
+        </div>
+        <div class="hud-item">
+            <span>BVH Joints:</span>
+            <span class="hud-value" id="hud-joints">0</span>
+        </div>
+        <div class="hud-item">
+            <span>Memory Usage:</span>
+            <span class="hud-value" id="hud-memory">0 MB</span>
+        </div>
+        <div class="hud-item">
+            <span>Total Clips:</span>
+            <span class="hud-value" id="hud-clips">0</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    <script src="./bvh-timeline.js"></script>
+    <script type="module" src="./quick_test.js"></script>
+    
+    <script>
+        // Global state
+        let systems = {
+            rsmt: null,
+            faceformer: null,
+            audiogesture: null,
+            deepmimic: null,
+            timeline: null
+        };
+        
+        let renderingLoop = null;
+        let currentPrimarySource = 'timeline';
+        let currentBVHFrame = null;
+        let timelineState = {
+            isPlaying: false,
+            currentTime: 0,
+            speed: 1.0,
+            clips: []
+        };
+        
+        let performanceStats = {
+            fps: 0,
+            frameCount: 0,
+            lastTime: 0,
+            activeSystems: 0
+        };
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePage();
+            startRenderingLoop();
+            updateHUD();
+        });
+        
+        function initializePage() {
+            console.log('🚀 Initializing Unified Animation Systems Test...');
+            
+            // Initialize event listeners
+            document.getElementById('timeline-speed').addEventListener('input', function(e) {
+                timelineState.speed = parseFloat(e.target.value);
+                document.getElementById('timeline-speed-value').textContent = timelineState.speed.toFixed(1);
+            });
+            
+            document.getElementById('audiogesture-length').addEventListener('input', function(e) {
+                document.getElementById('audiogesture-length-value').textContent = e.target.value;
+            });
+            
+            logToSystem('system', 'Unified Animation Systems Test initialized');
+            updateSystemStatus();
+        }
+        
+        // RSMT System Functions
+        async function initializeRSMT() {
+            logToSystem('rsmt', 'Initializing RSMT system...');
+            updateModelStatus('rsmt-deepphase', 'loading');
+            updateModelStatus('rsmt-stylevae', 'loading');
+            updateModelStatus('rsmt-transitionnet', 'loading');
+            updateModelStatus('rsmt-manifold', 'loading');
+            
+            try {
+                // Import RSMT modules
+                const RSMTInference = await import('./rsmt/rsmt-inference.js');
+                const RSMTBVHIntegration = await import('./rsmt/rsmt-bvh-integration.js');
+                
+                // Initialize RSMT
+                systems.rsmt = new RSMTInference.default();
+                await systems.rsmt.initialize();
+                
+                // Update model statuses
+                updateModelStatus('rsmt-deepphase', 'loaded');
+                updateModelStatus('rsmt-stylevae', 'loaded');
+                updateModelStatus('rsmt-transitionnet', 'loaded');
+                updateModelStatus('rsmt-manifold', 'loaded');
+                
+                // Initialize integration layer
+                if (systems.timeline) {
+                    systems.rsmt.integration = new RSMTBVHIntegration.default(systems.timeline, systems.rsmt);
+                }
+                
+                setSystemStatus('rsmt', 'ready');
+                logToSystem('rsmt', '✅ RSMT system initialized successfully');
+                logToSystem('rsmt', `Models loaded: DeepPhase, StyleVAE, TransitionNet, ManifoldVAE`);
+                
+            } catch (error) {
+                setSystemStatus('rsmt', 'error');
+                updateModelStatus('rsmt-deepphase', 'error');
+                updateModelStatus('rsmt-stylevae', 'error');
+                updateModelStatus('rsmt-transitionnet', 'error');
+                updateModelStatus('rsmt-manifold', 'error');
+                logToSystem('rsmt', `❌ RSMT initialization failed: ${error.message}`);
+            }
+            
+            updateSystemStatus();
+        }
+        
+        async function generateRSMTTransition() {
+            if (!systems.rsmt) {
+                logToSystem('rsmt', '⚠️ RSMT not initialized');
+                return;
+            }
+            
+            const style = document.getElementById('rsmt-style').value;
+            const source = document.getElementById('rsmt-source').value;
+            const target = document.getElementById('rsmt-target').value;
+            
+            logToSystem('rsmt', `🔄 Generating transition: ${source} → ${target} (${style})`);
+            setSystemStatus('rsmt', 'generating');
+            
+            try {
+                // Generate sample skeleton data
+                const sourceData = generateSampleSkeletonData(source);
+                const targetData = generateSampleSkeletonData(target);
+                
+                // Generate RSMT transition
+                const transition = await systems.rsmt.generateStylizedTransition(
+                    sourceData,
+                    targetData,
+                    { style: style, intensity: 0.8 }
+                );
+                
+                // Add to timeline if available
+                if (systems.timeline && systems.rsmt.integration) {
+                    const clipId = await systems.rsmt.integration.addStylizedTransition({
+                        sourceClipId: source,
+                        targetClipId: target,
+                        startTime: timelineState.currentTime,
+                        transitionLength: 30,
+                        style: style,
+                        trackName: 'rsmt_transitions'
+                    });
+                    
+                    logToSystem('rsmt', `✅ Transition added to timeline: ${clipId}`);
+                    updateTimelineVisualization();
+                }
+                
+                // Convert to BVH frame
+                currentBVHFrame = convertTransitionToBVH(transition);
+                updateFrameDisplay();
+                
+                setSystemStatus('rsmt', 'ready');
+                logToSystem('rsmt', `✅ Transition generated successfully`);
+                
+            } catch (error) {
+                setSystemStatus('rsmt', 'error');
+                logToSystem('rsmt', `❌ Transition generation failed: ${error.message}`);
+            }
+        }
+        
+        // FaceFormer System Functions
+        async function initializeFaceFormer() {
+            logToSystem('faceformer', 'Initializing FaceFormer system...');
+            updateModelStatus('faceformer-core', 'loading');
+            updateModelStatus('faceformer-vocaset', 'loading');
+            updateModelStatus('faceformer-biwi', 'loading');
+            updateModelStatus('faceformer-minimal', 'loading');
+            
+            try {
+                // Import FaceFormer modules
+                const FaceFormerGenerator = await import('../../engine/web_porting_poc/faceformer/faceformer_web_generator.js');
+                
+                // Initialize FaceFormer with minimal model
+                const modelPath = '../../engine/web_porting_poc/faceformer/faceformer_minimal.onnx';
+                systems.faceformer = new FaceFormerGenerator.default(modelPath);
+                await systems.faceformer.initialize();
+                
+                // Update model statuses
+                updateModelStatus('faceformer-minimal', 'loaded');
+                updateModelStatus('faceformer-core', 'loaded');
+                updateModelStatus('faceformer-vocaset', 'loaded');
+                updateModelStatus('faceformer-biwi', 'loaded');
+                
+                setSystemStatus('faceformer', 'ready');
+                logToSystem('faceformer', '✅ FaceFormer system initialized successfully');
+                logToSystem('faceformer', 'Loaded models: Minimal, Core, VocaSet, BIWI');
+                
+            } catch (error) {
+                setSystemStatus('faceformer', 'error');
+                updateModelStatus('faceformer-core', 'error');
+                updateModelStatus('faceformer-vocaset', 'error');
+                updateModelStatus('faceformer-biwi', 'error');
+                updateModelStatus('faceformer-minimal', 'error');
+                logToSystem('faceformer', `❌ FaceFormer initialization failed: ${error.message}`);
+            }
+            
+            updateSystemStatus();
+        }
+        
+        async function generateFacialAnimation() {
+            if (!systems.faceformer) {
+                logToSystem('faceformer', '⚠️ FaceFormer not initialized');
+                return;
+            }
+            
+            const text = document.getElementById('faceformer-text').value;
+            const expression = document.getElementById('faceformer-expression').value;
+            const model = document.getElementById('faceformer-model').value;
+            
+            logToSystem('faceformer', `🔄 Generating facial animation: "${text}" (${expression})`);
+            setSystemStatus('faceformer', 'generating');
+            
+            try {
+                // Generate audio features from text (simplified)
+                const audioFeatures = generateAudioFeaturesFromText(text);
+                
+                // Generate facial animation
+                const facialData = await systems.faceformer.generate(audioFeatures);
+                
+                // Convert to BVH format (facial bones)
+                const facialBVH = convertFacialDataToBVH(facialData, expression);
+                
+                // Merge with current frame or create new frame
+                if (currentBVHFrame) {
+                    mergeFacialDataToBVH(currentBVHFrame, facialBVH);
+                } else {
+                    currentBVHFrame = facialBVH;
+                }
+                
+                updateFrameDisplay();
+                
+                setSystemStatus('faceformer', 'ready');
+                logToSystem('faceformer', `✅ Facial animation generated (${facialData.length} frames)`);
+                
+                // Add to timeline
+                if (systems.timeline) {
+                    addFacialAnimationToTimeline(facialData, text);
+                    updateTimelineVisualization();
+                }
+                
+            } catch (error) {
+                setSystemStatus('faceformer', 'error');
+                logToSystem('faceformer', `❌ Facial generation failed: ${error.message}`);
+            }
+        }
+        
+        // AudioGesture System Functions
+        async function initializeAudioGesture() {
+            logToSystem('audiogesture', 'Initializing AudioGesture system...');
+            updateModelStatus('audiogesture-main', 'loading');
+            updateModelStatus('audiogesture-attention', 'loading');
+            updateModelStatus('audiogesture-enhanced', 'loading');
+            updateModelStatus('audiogesture-batch', 'loading');
+            
+            try {
+                // Import AudioGesture modules
+                const AudioGestureGenerator = await import('../audio2gesture/enhanced_audio2gesture_generator.js');
+                
+                // Initialize AudioGesture
+                systems.audiogesture = new AudioGestureGenerator.default({
+                    modelPath: '../audio2gesture/audio2gesture_step_fixed.onnx',
+                    useOptimizedAttention: true,
+                    enableBatchAudioProcessing: true
+                });
+                await systems.audiogesture.initialize();
+                
+                // Update model statuses
+                updateModelStatus('audiogesture-main', 'loaded');
+                updateModelStatus('audiogesture-attention', 'loaded');
+                updateModelStatus('audiogesture-enhanced', 'loaded');
+                updateModelStatus('audiogesture-batch', 'loaded');
+                
+                setSystemStatus('audiogesture', 'ready');
+                logToSystem('audiogesture', '✅ AudioGesture system initialized successfully');
+                logToSystem('audiogesture', 'Loaded: Main Model, Attention, Enhanced, Batch Processor');
+                
+            } catch (error) {
+                setSystemStatus('audiogesture', 'error');
+                updateModelStatus('audiogesture-main', 'error');
+                updateModelStatus('audiogesture-attention', 'error');
+                updateModelStatus('audiogesture-enhanced', 'error');
+                updateModelStatus('audiogesture-batch', 'error');
+                logToSystem('audiogesture', `❌ AudioGesture initialization failed: ${error.message}`);
+            }
+            
+            updateSystemStatus();
+        }
+        
+        async function generateGestures() {
+            if (!systems.audiogesture) {
+                logToSystem('audiogesture', '⚠️ AudioGesture not initialized');
+                return;
+            }
+            
+            const features = document.getElementById('audiogesture-features').value;
+            const style = document.getElementById('audiogesture-style').value;
+            const length = parseInt(document.getElementById('audiogesture-length').value);
+            
+            logToSystem('audiogesture', `🔄 Generating gestures: ${style} style, ${length} frames`);
+            setSystemStatus('audiogesture', 'generating');
+            
+            try {
+                // Generate sample audio features
+                const audioFeatures = generateSampleAudioFeatures(features, length);
+                
+                // Generate gestures
+                const gestureData = await systems.audiogesture.generateGestures(audioFeatures, {
+                    style: style,
+                    sequenceLength: length
+                });
+                
+                // Convert to BVH format (body gestures)
+                const gestureBVH = convertGestureDataToBVH(gestureData);
+                
+                // Merge with current frame or create new frame
+                if (currentBVHFrame) {
+                    mergeGestureDataToBVH(currentBVHFrame, gestureBVH);
+                } else {
+                    currentBVHFrame = gestureBVH;
+                }
+                
+                updateFrameDisplay();
+                
+                setSystemStatus('audiogesture', 'ready');
+                logToSystem('audiogesture', `✅ Gestures generated (${gestureData.length} frames)`);
+                
+                // Add to timeline
+                if (systems.timeline) {
+                    addGestureAnimationToTimeline(gestureData, style);
+                    updateTimelineVisualization();
+                }
+                
+            } catch (error) {
+                setSystemStatus('audiogesture', 'error');
+                logToSystem('audiogesture', `❌ Gesture generation failed: ${error.message}`);
+            }
+        }
+        
+        // DeepMimic Policy System Functions
+        async function initializeDeepMimic() {
+            logToSystem('deepmimic', 'Initializing DeepMimic policy system...');
+            updateModelStatus('deepmimic-actor', 'loading');
+            updateModelStatus('deepmimic-critic', 'loading');
+            updateModelStatus('deepmimic-converter', 'loading');
+            updateModelStatus('deepmimic-inference', 'loading');
+            
+            try {
+                // Initialize DeepMimic policy system
+                systems.deepmimic = {
+                    actorModel: null,
+                    criticModel: null,
+                    stateSize: 197, // Standard humanoid state size
+                    actionSize: 43,  // Standard humanoid action size
+                    isInitialized: false,
+                    currentState: null,
+                    actionHistory: []
+                };
+                
+                // Load pre-trained PyTorch models (convert to ONNX)
+                const actorPath = '../../pytorch_DeepMimic/deepmimic/output/agent0_model_anet.pth';
+                const criticPath = '../../pytorch_DeepMimic/deepmimic/output/agent0_model_cnet.pth';
+                
+                // For demo purposes, create mock ONNX sessions
+                // In production, these would be converted from PyTorch
+                await loadDeepMimicModels(actorPath, criticPath);
+                
+                updateModelStatus('deepmimic-actor', 'loaded');
+                updateModelStatus('deepmimic-critic', 'loaded');
+                updateModelStatus('deepmimic-converter', 'loaded');
+                updateModelStatus('deepmimic-inference', 'loaded');
+                
+                systems.deepmimic.isInitialized = true;
+                setSystemStatus('deepmimic', 'ready');
+                logToSystem('deepmimic', '✅ DeepMimic policy system initialized successfully');
+                logToSystem('deepmimic', 'Loaded: Actor Network, Critic Network, ONNX Converter');
+                
+            } catch (error) {
+                setSystemStatus('deepmimic', 'error');
+                updateModelStatus('deepmimic-actor', 'error');
+                updateModelStatus('deepmimic-critic', 'error');
+                updateModelStatus('deepmimic-converter', 'error');
+                updateModelStatus('deepmimic-inference', 'error');
+                logToSystem('deepmimic', `❌ DeepMimic initialization failed: ${error.message}`);
+            }
+            
+            updateSystemStatus();
+        }
+        
+        async function loadDeepMimicModels(actorPath, criticPath) {
+            // Mock loading function - in practice would convert PyTorch to ONNX
+            logToSystem('deepmimic', '🔄 Converting PyTorch models to ONNX...');
+            
+            // Simulate model conversion and loading
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            systems.deepmimic.actorModel = {
+                predict: async (stateInput) => {
+                    // Mock actor network inference
+                    return generateMockActions(systems.deepmimic.actionSize);
+                }
+            };
+            
+            systems.deepmimic.criticModel = {
+                predict: async (stateInput) => {
+                    // Mock critic network inference
+                    return Math.random() * 2 - 1; // Value function output
+                }
+            };
+            
+            logToSystem('deepmimic', '✅ Models converted and loaded successfully');
+        }
+        
+        async function runDeepMimicPolicy() {
+            if (!systems.deepmimic || !systems.deepmimic.isInitialized) {
+                logToSystem('deepmimic', '⚠️ DeepMimic not initialized');
+                return;
+            }
+            
+            const policyType = document.getElementById('deepmimic-policy').value;
+            const stateInput = document.getElementById('deepmimic-state').value;
+            const noiseLevel = parseFloat(document.getElementById('deepmimic-noise').value);
+            
+            logToSystem('deepmimic', `🔄 Executing ${policyType} policy with ${stateInput} state`);
+            setSystemStatus('deepmimic', 'running');
+            
+            try {
+                // Generate or retrieve current state
+                const currentState = generateDeepMimicState(stateInput, systems.deepmimic.stateSize);
+                systems.deepmimic.currentState = currentState;
+                
+                // Run actor network to get actions
+                const actions = await systems.deepmimic.actorModel.predict(currentState);
+                
+                // Add exploration noise
+                const noisyActions = addExplorationNoise(actions, noiseLevel);
+                
+                // Convert actions to BVH frame
+                const motionBVH = convertDeepMimicActionsToBVH(noisyActions, policyType);
+                
+                // Merge with current frame or create new frame
+                if (currentBVHFrame) {
+                    mergeDeepMimicMotionToBVH(currentBVHFrame, motionBVH);
+                } else {
+                    currentBVHFrame = motionBVH;
+                }
+                
+                // Store action history
+                systems.deepmimic.actionHistory.push({
+                    timestamp: Date.now(),
+                    state: currentState,
+                    actions: noisyActions,
+                    policy: policyType
+                });
+                
+                // Keep only recent history
+                if (systems.deepmimic.actionHistory.length > 100) {
+                    systems.deepmimic.actionHistory.shift();
+                }
+                
+                updateFrameDisplay();
+                
+                setSystemStatus('deepmimic', 'ready');
+                logToSystem('deepmimic', `✅ Policy executed (${actions.length} DOF actions)`);
+                logToSystem('deepmimic', `State: [${currentState.slice(0, 5).map(v => v.toFixed(3)).join(', ')}...]`);
+                logToSystem('deepmimic', `Actions: [${noisyActions.slice(0, 5).map(v => v.toFixed(3)).join(', ')}...]`);
+                
+                // Add to timeline
+                if (systems.timeline) {
+                    addDeepMimicMotionToTimeline(motionBVH, policyType);
+                    updateTimelineVisualization();
+                }
+                
+            } catch (error) {
+                setSystemStatus('deepmimic', 'error');
+                logToSystem('deepmimic', `❌ Policy execution failed: ${error.message}`);
+            }
+        }
+        
+        function generateDeepMimicState(stateType, stateSize) {
+            // Generate state input based on selected type
+            switch (stateType) {
+                case 'random':
+                    return Array.from({length: stateSize}, () => Math.random() * 2 - 1);
+                case 'reference':
+                    // Generate reference motion state
+                    return generateReferenceMotionState(stateSize);
+                case 'manual':
+                    // Use manual input (would be from UI)
+                    return generateManualState(stateSize);
+                case 'interactive':
+                    // Interactive control state
+                    return generateInteractiveState(stateSize);
+                default:
+                    return new Array(stateSize).fill(0);
+            }
+        }
+        
+        function generateReferenceMotionState(stateSize) {
+            // Generate a plausible humanoid reference state
+            const state = new Array(stateSize).fill(0);
+            
+            // Root position and orientation (first 6 values)
+            state[0] = 0; // x position
+            state[1] = 1.0; // y position (standing height)
+            state[2] = 0; // z position
+            state[3] = 0; // roll
+            state[4] = 0; // pitch
+            state[5] = 0; // yaw
+            
+            // Fill rest with small random values to simulate standing pose
+            for (let i = 6; i < stateSize; i++) {
+                state[i] = (Math.random() - 0.5) * 0.1;
+            }
+            
+            return state;
+        }
+        
+        function generateMockActions(actionSize) {
+            // Generate plausible action values for humanoid motion
+            return Array.from({length: actionSize}, (_, i) => {
+                // Smaller values for more stable motion
+                return (Math.random() - 0.5) * 0.5;
+            });
+        }
+        
+        function addExplorationNoise(actions, noiseLevel) {
+            return actions.map(action => {
+                const noise = (Math.random() - 0.5) * noiseLevel;
+                return action + noise;
+            });
+        }
+        
+        function convertDeepMimicActionsToBVH(actions, policyType) {
+            // Convert DeepMimic actions to BVH frame format
+            const bvhFrame = createEmptyBVHFrame();
+            
+            // Map actions to joint rotations (simplified mapping)
+            if (actions.length >= 43) { // Standard humanoid action space
+                // Hip actions
+                bvhFrame.Hips[3] = actions[0] * 180 / Math.PI; // Convert to degrees
+                bvhFrame.Hips[4] = actions[1] * 180 / Math.PI;
+                bvhFrame.Hips[5] = actions[2] * 180 / Math.PI;
+                
+                // Spine actions
+                bvhFrame.Chest[0] = actions[3] * 180 / Math.PI;
+                bvhFrame.Chest[1] = actions[4] * 180 / Math.PI;
+                bvhFrame.Chest[2] = actions[5] * 180 / Math.PI;
+                
+                // Neck actions
+                bvhFrame.Neck[0] = actions[6] * 180 / Math.PI;
+                bvhFrame.Neck[1] = actions[7] * 180 / Math.PI;
+                bvhFrame.Neck[2] = actions[8] * 180 / Math.PI;
+                
+                // Left arm actions
+                bvhFrame.LeftShoulder[0] = actions[9] * 180 / Math.PI;
+                bvhFrame.LeftShoulder[1] = actions[10] * 180 / Math.PI;
+                bvhFrame.LeftShoulder[2] = actions[11] * 180 / Math.PI;
+                bvhFrame.LeftElbow[0] = actions[12] * 180 / Math.PI;
+                
+                // Right arm actions
+                bvhFrame.RightShoulder[0] = actions[13] * 180 / Math.PI;
+                bvhFrame.RightShoulder[1] = actions[14] * 180 / Math.PI;
+                bvhFrame.RightShoulder[2] = actions[15] * 180 / Math.PI;
+                bvhFrame.RightElbow[0] = actions[16] * 180 / Math.PI;
+                
+                // Left leg actions
+                bvhFrame.LeftHip[0] = actions[17] * 180 / Math.PI;
+                bvhFrame.LeftHip[1] = actions[18] * 180 / Math.PI;
+                bvhFrame.LeftHip[2] = actions[19] * 180 / Math.PI;
+                bvhFrame.LeftKnee[0] = actions[20] * 180 / Math.PI;
+                bvhFrame.LeftAnkle[0] = actions[21] * 180 / Math.PI;
+                
+                // Right leg actions
+                bvhFrame.RightHip[0] = actions[22] * 180 / Math.PI;
+                bvhFrame.RightHip[1] = actions[23] * 180 / Math.PI;
+                bvhFrame.RightHip[2] = actions[24] * 180 / Math.PI;
+                bvhFrame.RightKnee[0] = actions[25] * 180 / Math.PI;
+                bvhFrame.RightAnkle[0] = actions[26] * 180 / Math.PI;
+            }
+            
+            // Add metadata
+            bvhFrame._metadata = {
+                source: 'deepmimic',
+                policy: policyType,
+                actionCount: actions.length,
+                timestamp: Date.now()
+            };
+            
+            return bvhFrame;
+        }
+        
+        function mergeDeepMimicMotionToBVH(baseFrame, motionFrame) {
+            // Merge DeepMimic motion into existing frame
+            for (const joint in motionFrame) {
+                if (joint.startsWith('_')) continue; // Skip metadata
+                
+                if (baseFrame[joint] && Array.isArray(baseFrame[joint]) && Array.isArray(motionFrame[joint])) {
+                    // Replace body motion data from DeepMimic
+                    for (let i = 0; i < Math.min(baseFrame[joint].length, motionFrame[joint].length); i++) {
+                        baseFrame[joint][i] = motionFrame[joint][i];
+                    }
+                }
+            }
+        }
+        
+        function addDeepMimicMotionToTimeline(motionBVH, policyType) {
+            // Add DeepMimic motion to timeline as a clip
+            const clip = {
+                id: `deepmimic_${Date.now()}`,
+                type: 'deepmimic',
+                policy: policyType,
+                startTime: systems.timeline.currentTime,
+                duration: 0.033, // Single frame at 30 FPS
+                data: motionBVH
+            };
+            
+            systems.timeline.clips.push(clip);
+            logToSystem('deepmimic', `📎 Added motion clip: ${policyType} policy`);
+        }
+        
+        // Timeline Functions
+        async function initializeTimeline() {
+            logToSystem('system', 'Initializing BVH Timeline...');
+            
+            try {
+                // Create simple timeline implementation
+                systems.timeline = {
+                    tracks: new Map(),
+                    currentTime: 0,
+                    isPlaying: false,
+                    clips: [],
+                    
+                    addClip: function(trackName, clip) {
+                        if (!this.tracks.has(trackName)) {
+                            this.tracks.set(trackName, []);
+                        }
+                        this.tracks.get(trackName).push(clip);
+                        this.clips.push(clip);
+                        logToSystem('system', `Added clip to track: ${trackName}`);
+                    },
+                    
+                    update: function(time) {
+                        this.currentTime = time;
+                        // Update active clips and generate current frame
+                        this.generateCurrentFrame();
+                    },
+                    
+                    generateCurrentFrame: function() {
+                        // Composite all active clips at current time
+                        let frame = createEmptyBVHFrame();
+                        
+                        for (const [trackName, trackClips] of this.tracks) {
+                            for (const clip of trackClips) {
+                                if (this.currentTime >= clip.startTime && 
+                                    this.currentTime <= clip.startTime + clip.duration) {
+                                    const localTime = this.currentTime - clip.startTime;
+                                    const clipFrame = clip.getFrameAt(localTime);
+                                    
+                                    // Blend or replace frame data based on clip type
+                                    blendBVHFrames(frame, clipFrame, clip.weight || 1.0);
+                                }
+                            }
+                        }
+                        
+                        // Set as current BVH frame if timeline is primary source
+                        if (currentPrimarySource === 'timeline') {
+                            currentBVHFrame = frame;
+                        }
+                    },
+                    
+                    clearAllTracks: function() {
+                        this.tracks.clear();
+                        this.clips = [];
+                        logToSystem('system', 'Timeline cleared');
+                    }
+                };
+                
+                timelineState.clips = [];
+                updateTimelineVisualization();
+                
+                logToSystem('system', '✅ BVH Timeline initialized successfully');
+                
+            } catch (error) {
+                logToSystem('system', `❌ Timeline initialization failed: ${error.message}`);
+            }
+        }
+        
+        function playTimeline() {
+            if (!systems.timeline) {
+                logToSystem('system', '⚠️ Timeline not initialized');
+                return;
+            }
+            
+            timelineState.isPlaying = true;
+            systems.timeline.isPlaying = true;
+            logToSystem('system', '▶️ Timeline playback started');
+        }
+        
+        function pauseTimeline() {
+            timelineState.isPlaying = false;
+            if (systems.timeline) systems.timeline.isPlaying = false;
+            logToSystem('system', '⏸️ Timeline playback paused');
+        }
+        
+        function stopTimeline() {
+            timelineState.isPlaying = false;
+            timelineState.currentTime = 0;
+            if (systems.timeline) {
+                systems.timeline.isPlaying = false;
+                systems.timeline.currentTime = 0;
+            }
+            logToSystem('system', '⏹️ Timeline playback stopped');
+        }
+        
+        function clearTimeline() {
+            if (systems.timeline) {
+                systems.timeline.clearAllTracks();
+            }
+            timelineState.clips = [];
+            updateTimelineVisualization();
+            logToSystem('system', '🗑️ Timeline cleared');
+        }
+        
+        function setPrimarySource(source) {
+            currentPrimarySource = source;
+            
+            // Update tab appearance
+            document.querySelectorAll('.source-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(`tab-${source}`).classList.add('active');
+            
+            // Update source display
+            const sourceDisplay = document.getElementById('source-content');
+            switch (source) {
+                case 'rsmt':
+                    sourceDisplay.textContent = 'RSMT system is driving BVH frame generation';
+                    break;
+                case 'faceformer':
+                    sourceDisplay.textContent = 'FaceFormer system is driving facial animation';
+                    break;
+                case 'audiogesture':
+                    sourceDisplay.textContent = 'AudioGesture system is driving body gestures';
+                    break;
+                case 'timeline':
+                    sourceDisplay.textContent = 'Timeline is compositing all animation sources';
+                    break;
+            }
+            
+            logToSystem('system', `🎯 Primary source changed to: ${source}`);
+        }
+        
+        // Rendering Loop
+        function startRenderingLoop() {
+            function render() {
+                const now = performance.now();
+                const deltaTime = (now - performanceStats.lastTime) / 1000;
+                
+                // Update timeline
+                if (timelineState.isPlaying && systems.timeline) {
+                    timelineState.currentTime += deltaTime * timelineState.speed;
+                    systems.timeline.update(timelineState.currentTime);
+                }
+                
+                // Update frame display
+                updateFrameDisplay();
+                
+                // Update performance stats
+                performanceStats.frameCount++;
+                if (now - performanceStats.lastTime >= 1000) {
+                    performanceStats.fps = performanceStats.frameCount;
+                    performanceStats.frameCount = 0;
+                    performanceStats.lastTime = now;
+                    updateHUD();
+                }
+                
+                renderingLoop = requestAnimationFrame(render);
+            }
+            
+            performanceStats.lastTime = performance.now();
+            render();
+        }
+        
+        // Utility Functions
+        function setSystemStatus(system, status) {
+            const indicator = document.getElementById(`${system}-status`);
+            const panel = document.getElementById(`${system}-panel`);
+            
+            indicator.className = `status-indicator ${status}`;
+            panel.className = `system-panel ${status}`;
+        }
+        
+        function updateModelStatus(modelId, status) {
+            const element = document.getElementById(modelId);
+            element.className = `model-status ${status}`;
+        }
+        
+        function logToSystem(system, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const outputElement = document.getElementById(`${system}-output`);
+            
+            if (outputElement) {
+                outputElement.innerHTML += `[${timestamp}] ${message}<br>`;
+                outputElement.scrollTop = outputElement.scrollHeight;
+            }
+            
+            console.log(`[${system.toUpperCase()}] ${message}`);
+        }
+        
+        function updateSystemStatus() {
+            const activeCount = Object.values(systems).filter(system => system !== null).length;
+            performanceStats.activeSystems = activeCount;
+        }
+        
+        function updateFrameDisplay() {
+            const frameContent = document.getElementById('frame-content');
+            
+            if (currentBVHFrame) {
+                const joints = Object.keys(currentBVHFrame).length;
+                let display = `Joints: ${joints}\n`;
+                display += `Source: ${currentPrimarySource}\n`;
+                display += `Time: ${timelineState.currentTime.toFixed(3)}s\n\n`;
+                
+                // Show sample joint data
+                const sampleJoints = Object.entries(currentBVHFrame).slice(0, 5);
+                for (const [joint, data] of sampleJoints) {
+                    if (Array.isArray(data)) {
+                        const values = data.map(v => v.toFixed(2)).join(', ');
+                        display += `${joint}: [${values}]\n`;
+                    }
+                }
+                
+                if (Object.keys(currentBVHFrame).length > 5) {
+                    display += `... and ${Object.keys(currentBVHFrame).length - 5} more joints`;
+                }
+                
+                frameContent.textContent = display;
+            } else {
+                frameContent.textContent = 'No frame data available';
+            }
+        }
+        
+        function updateTimelineVisualization() {
+            const canvas = document.getElementById('timeline-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw timeline background
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw time grid
+            ctx.strokeStyle = '#e9ecef';
+            ctx.lineWidth = 1;
+            
+            const timeScale = 100; // pixels per second
+            for (let t = 0; t <= 20; t++) {
+                const x = t * timeScale;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+                
+                // Time labels
+                ctx.fillStyle = '#6c757d';
+                ctx.font = '12px Arial';
+                ctx.fillText(`${t}s`, x + 2, 15);
+            }
+            
+            // Draw tracks
+            const trackHeight = 50;
+            let trackY = 30;
+            
+            if (systems.timeline && systems.timeline.tracks) {
+                for (const [trackName, clips] of systems.timeline.tracks) {
+                    // Track background
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, trackY, canvas.width, trackHeight);
+                    
+                    // Track label
+                    ctx.fillStyle = '#2c3e50';
+                    ctx.font = 'bold 14px Arial';
+                    ctx.fillText(trackName, 5, trackY + 20);
+                    
+                    // Draw clips
+                    for (const clip of clips) {
+                        const x = clip.startTime * timeScale;
+                        const width = clip.duration * timeScale;
+                        
+                        // Clip rectangle
+                        ctx.fillStyle = getClipColor(clip.type);
+                        ctx.fillRect(x, trackY + 25, width, trackHeight - 30);
+                        
+                        // Clip label
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '11px Arial';
+                        ctx.fillText(clip.id || 'Clip', x + 2, trackY + 40);
+                    }
+                    
+                    trackY += trackHeight + 10;
+                }
+            }
+            
+            // Draw playhead
+            const playheadX = timelineState.currentTime * timeScale;
+            ctx.strokeStyle = '#dc3545';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(playheadX, 0);
+            ctx.lineTo(playheadX, canvas.height);
+            ctx.stroke();
+        }
+        
+        function updateHUD() {
+            document.getElementById('hud-fps').textContent = `${performanceStats.fps} FPS`;
+            document.getElementById('hud-time').textContent = `${timelineState.currentTime.toFixed(2)}s`;
+            document.getElementById('hud-systems').textContent = performanceStats.activeSystems;
+            document.getElementById('hud-source').textContent = currentPrimarySource.toUpperCase();
+            document.getElementById('hud-joints').textContent = currentBVHFrame ? Object.keys(currentBVHFrame).length : 0;
+            document.getElementById('hud-clips').textContent = timelineState.clips.length;
+            
+            // Estimate memory usage (rough approximation)
+            const memoryMB = (window.performance && window.performance.memory) 
+                ? (window.performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1)
+                : 'N/A';
+            document.getElementById('hud-memory').textContent = `${memoryMB} MB`;
+        }
+        
+        // Sample Data Generation Functions
+        function generateSampleSkeletonData(motionType) {
+            const data = new Float32Array(132); // 22 joints * 6 DOF
+            
+            // Generate procedural motion based on type
+            for (let i = 0; i < 132; i++) {
+                switch (motionType) {
+                    case 'walk':
+                        data[i] = Math.sin(i * 0.1) * 0.5;
+                        break;
+                    case 'run':
+                        data[i] = Math.sin(i * 0.2) * 0.8;
+                        break;
+                    case 'jump':
+                        data[i] = Math.sin(i * 0.05) * 1.2;
+                        break;
+                    default:
+                        data[i] = Math.random() * 0.2 - 0.1;
+                }
+            }
+            
+            return data;
+        }
+        
+        function generateAudioFeaturesFromText(text) {
+            // Simplified audio feature generation
+            const features = [];
+            for (let i = 0; i < text.length * 10; i++) {
+                features.push(Math.random());
+            }
+            return new Float32Array(features);
+        }
+        
+        function generateSampleAudioFeatures(type, length) {
+            const features = new Float32Array(length * 64); // 64 features per frame
+            
+            for (let i = 0; i < features.length; i++) {
+                switch (type) {
+                    case 'mfcc':
+                        features[i] = Math.random() * 2 - 1;
+                        break;
+                    case 'mel':
+                        features[i] = Math.random();
+                        break;
+                    case 'prosody':
+                        features[i] = Math.sin(i * 0.1) * 0.5;
+                        break;
+                    default:
+                        features[i] = Math.random() * 0.5;
+                }
+            }
+            
+            return features;
+        }
+        
+        function createEmptyBVHFrame() {
+            return {
+                hips: [0, 0, 0, 0, 0, 0],
+                chest: [0, 0, 0],
+                neck: [0, 0, 0],
+                head: [0, 0, 0],
+                leftShoulder: [0, 0, 0],
+                leftElbow: [0, 0, 0],
+                leftWrist: [0, 0, 0],
+                rightShoulder: [0, 0, 0],
+                rightElbow: [0, 0, 0],
+                rightWrist: [0, 0, 0],
+                leftHip: [0, 0, 0],
+                leftKnee: [0, 0, 0],
+                leftAnkle: [0, 0, 0],
+                rightHip: [0, 0, 0],
+                rightKnee: [0, 0, 0],
+                rightAnkle: [0, 0, 0]
+            };
+        }
+        
+        function convertTransitionToBVH(transitionData) {
+            // Convert RSMT transition data to BVH frame format
+            const frame = createEmptyBVHFrame();
+            
+            if (transitionData && transitionData.length >= 132) {
+                let index = 0;
+                
+                // Root (hips) - position + rotation
+                frame.hips = Array.from(transitionData.slice(index, index + 6));
+                index += 6;
+                
+                // Other joints - rotation only
+                const joints = ['chest', 'neck', 'head', 'leftShoulder', 'leftElbow', 'leftWrist',
+                               'rightShoulder', 'rightElbow', 'rightWrist', 'leftHip', 'leftKnee',
+                               'leftAnkle', 'rightHip', 'rightKnee', 'rightAnkle'];
+                
+                for (const joint of joints) {
+                    if (index + 3 <= transitionData.length) {
+                        frame[joint] = Array.from(transitionData.slice(index, index + 3));
+                        index += 3;
+                    }
+                }
+            }
+            
+            return frame;
+        }
+        
+        function convertFacialDataToBVH(facialData, expression) {
+            // Convert facial animation data to BVH format
+            const facialFrame = {
+                head: [0, 0, 0],
+                neck: [0, 0, 0],
+                jaw: [0, 0, 0],
+                eyeLeft: [0, 0, 0],
+                eyeRight: [0, 0, 0]
+            };
+            
+            // Apply expression modifications
+            switch (expression) {
+                case 'happy':
+                    facialFrame.head[1] = 5; // Slight head tilt up
+                    facialFrame.jaw[0] = 2; // Slight jaw movement
+                    break;
+                case 'sad':
+                    facialFrame.head[1] = -3; // Head down
+                    break;
+                case 'angry':
+                    facialFrame.head[0] = 2; // Head forward
+                    break;
+                case 'surprised':
+                    facialFrame.head[1] = 8; // Head up
+                    facialFrame.jaw[0] = 5; // Jaw drop
+                    break;
+            }
+            
+            return facialFrame;
+        }
+        
+        function convertGestureDataToBVH(gestureData) {
+            // Convert gesture data to BVH format
+            const gestureFrame = createEmptyBVHFrame();
+            
+            if (gestureData && gestureData.length > 0) {
+                // Apply gesture transformations to arm joints
+                const frameData = gestureData[0] || {};
+                
+                // Simplified gesture mapping
+                gestureFrame.leftShoulder = [
+                    (frameData.leftShoulderX || 0) * 30,
+                    (frameData.leftShoulderY || 0) * 20,
+                    (frameData.leftShoulderZ || 0) * 15
+                ];
+                
+                gestureFrame.rightShoulder = [
+                    (frameData.rightShoulderX || 0) * 30,
+                    (frameData.rightShoulderY || 0) * 20,
+                    (frameData.rightShoulderZ || 0) * 15
+                ];
+                
+                gestureFrame.leftElbow = [
+                    (frameData.leftElbowX || 0) * 45,
+                    0,
+                    0
+                ];
+                
+                gestureFrame.rightElbow = [
+                    (frameData.rightElbowX || 0) * 45,
+                    0,
+                    0
+                ];
+            }
+            
+            return gestureFrame;
+        }
+        
+        function blendBVHFrames(baseFrame, overlayFrame, weight) {
+            // Blend two BVH frames with given weight
+            for (const joint in overlayFrame) {
+                if (baseFrame[joint] && overlayFrame[joint]) {
+                    for (let i = 0; i < baseFrame[joint].length; i++) {
+                        baseFrame[joint][i] = baseFrame[joint][i] * (1 - weight) + 
+                                             overlayFrame[joint][i] * weight;
+                    }
+                }
+            }
+        }
+        
+        function mergeFacialDataToBVH(baseFrame, facialFrame) {
+            // Merge facial data into existing BVH frame
+            Object.assign(baseFrame, facialFrame);
+        }
+        
+        function mergeGestureDataToBVH(baseFrame, gestureFrame) {
+            // Merge gesture data into existing BVH frame
+            const gestureJoints = ['leftShoulder', 'rightShoulder', 'leftElbow', 'rightElbow', 'leftWrist', 'rightWrist'];
+            
+            for (const joint of gestureJoints) {
+                if (gestureFrame[joint]) {
+                    baseFrame[joint] = gestureFrame[joint];
+                }
+            }
+        }
+        
+        function addFacialAnimationToTimeline(facialData, text) {
+            if (systems.timeline) {
+                const clip = {
+                    id: `facial_${Date.now()}`,
+                    type: 'facial',
+                    startTime: timelineState.currentTime,
+                    duration: 2.0,
+                    weight: 1.0,
+                    data: facialData,
+                    getFrameAt: function(time) {
+                        return convertFacialDataToBVH(this.data, 'neutral');
+                    }
+                };
+                
+                systems.timeline.addClip('facial', clip);
+                timelineState.clips.push(clip);
+            }
+        }
+        
+        function addGestureAnimationToTimeline(gestureData, style) {
+            if (systems.timeline) {
+                const clip = {
+                    id: `gesture_${Date.now()}`,
+                    type: 'gesture',
+                    startTime: timelineState.currentTime,
+                    duration: gestureData.length / 30, // Assuming 30 FPS
+                    weight: 1.0,
+                    data: gestureData,
+                    getFrameAt: function(time) {
+                        const frameIndex = Math.floor(time * 30);
+                        return convertGestureDataToBVH([this.data[frameIndex] || {}]);
+                    }
+                };
+                
+                systems.timeline.addClip('gestures', clip);
+                timelineState.clips.push(clip);
+            }
+        }
+        
+        function getClipColor(type) {
+            const colors = {
+                'rsmt': '#3498db',
+                'facial': '#e74c3c',
+                'gesture': '#f39c12',
+                'motion': '#27ae60',
+                'transition': '#9b59b6'
+            };
+            return colors[type] || '#95a5a6';
+        }
+        
+        // Export functions for global access
+        window.unifiedAnimationTest = {
+            initializeRSMT,
+            initializeFaceFormer,
+            initializeAudioGesture,
+            initializeDeepMimic,
+            initializeTimeline,
+            generateRSMTTransition,
+            generateFacialAnimation,
+            generateGestures,
+            runDeepMimicPolicy,
+            setPrimarySource,
+            playTimeline,
+            pauseTimeline,
+            stopTimeline,
+            clearTimeline
+        };
+    </script>
+</body>
+</html>

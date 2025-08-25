@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaceFormer BVH Timeline Integration Demo - Enhanced</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .demo-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .demo-section h2 {
+            color: #4fc3f7;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #e1f5fe;
+        }
+        
+        input, select, button {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            backdrop-filter: blur(5px);
+        }
+        
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        button {
+            background: linear-gradient(45deg, #4fc3f7, #29b6f6);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 195, 247, 0.4);
+        }
+        
+        button:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .error {
+            background: rgba(244, 67, 54, 0.2);
+            border-color: #f44336;
+        }
+        
+        .timeline-visualization {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .track-display {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4fc3f7;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .audio-visualization {
+            height: 100px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .waveform {
+            width: 100%;
+            height: 100%;
+            stroke: #4fc3f7;
+            stroke-width: 2;
+            fill: none;
+        }
+        
+        .progress-bar {
+            background: rgba(255, 255, 255, 0.1);
+            height: 8px;
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #4fc3f7, #29b6f6);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .debug-panel {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 FaceFormer BVH Timeline Integration</h1>
+        
+        <div class="demo-section">
+            <h2>🎙️ Audio to Facial Animation Pipeline</h2>
+            <div class="controls">
+                <div class="control-group">
+                    <label>Audio Input</label>
+                    <input type="file" id="audioInput" accept="audio/*">
+                </div>
+                <div class="control-group">
+                    <label>Subject ID</label>
+                    <select id="subjectSelect">
+                        <option value="0">Subject 0 (Default)</option>
+                        <option value="1">Subject 1</option>
+                        <option value="2">Subject 2</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Animation Intensity</label>
+                    <input type="range" id="intensitySlider" min="0.1" max="2.0" step="0.1" value="1.0">
+                    <span id="intensityValue">1.0</span>
+                </div>
+                <div class="control-group">
+                    <label>Track Weight</label>
+                    <input type="range" id="weightSlider" min="0.0" max="1.0" step="0.1" value="1.0">
+                    <span id="weightValue">1.0</span>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="initializeBtn">🚀 Initialize FaceFormer</button>
+                <button id="generateBtn" disabled>🎭 Generate Facial Animation</button>
+                <button id="playTimelineBtn" disabled>▶️ Play Timeline</button>
+                <button id="stopBtn" disabled>⏹️ Stop</button>
+            </div>
+            
+            <div id="initStatus" class="status" style="display: none;"></div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>🎵 Audio Visualization</h2>
+            <div class="audio-visualization">
+                <svg id="waveformSvg" width="100%" height="100%">
+                    <path id="waveformPath" class="waveform"></path>
+                </svg>
+            </div>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>📈 Timeline Visualization</h2>
+            <div class="timeline-visualization">
+                <div id="timelineDisplay">
+                    <p>Timeline not initialized. Load audio and generate animation to see tracks.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>📊 Performance Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div id="audioProcessingTime" class="stat-value">-</div>
+                    <div class="stat-label">Audio Processing (ms)</div>
+                </div>
+                <div class="stat-card">
+                    <div id="inferenceTime" class="stat-value">-</div>
+                    <div class="stat-label">Neural Inference (ms)</div>
+                </div>
+                <div class="stat-card">
+                    <div id="bvhConversionTime" class="stat-value">-</div>
+                    <div class="stat-label">BVH Conversion (ms)</div>
+                </div>
+                <div class="stat-card">
+                    <div id="frameCount" class="stat-value">-</div>
+                    <div class="stat-label">Generated Frames</div>
+                </div>
+                <div class="stat-card">
+                    <div id="currentTime" class="stat-value">0.00</div>
+                    <div class="stat-label">Timeline Time (s)</div>
+                </div>
+                <div class="stat-card">
+                    <div id="playbackFps" class="stat-value">-</div>
+                    <div class="stat-label">Playback FPS</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>🔧 Debug Panel</h2>
+            <div id="debugPanel" class="debug-panel"></div>
+        </div>
+    </div>
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js"></script>
+    <script src="BVHTimeline.js"></script>
+    <script src="js/FaceformerBVHConverter.js"></script>
+
+    <script>
+        class FaceFormerTimelineDemo {
+            constructor() {
+                this.faceformerConverter = null;
+                this.timeline = null;
+                this.currentAudioBuffer = null;
+                this.isPlaying = false;
+                this.playStartTime = 0;
+                this.animationId = null;
+                this.generatedFrames = [];
+                
+                this.setupEventListeners();
+                this.setupUI();
+                
+                console.log('[Demo] FaceFormer Timeline Demo initialized');
+            }
+            
+            setupEventListeners() {
+                // UI Controls
+                document.getElementById('intensitySlider').addEventListener('input', (e) => {
+                    document.getElementById('intensityValue').textContent = e.target.value;
+                });
+                
+                document.getElementById('weightSlider').addEventListener('input', (e) => {
+                    document.getElementById('weightValue').textContent = e.target.value;
+                });
+                
+                // Buttons
+                document.getElementById('initializeBtn').addEventListener('click', () => this.initializeFaceFormer());
+                document.getElementById('generateBtn').addEventListener('click', () => this.generateAnimation());
+                document.getElementById('playTimelineBtn').addEventListener('click', () => this.playTimeline());
+                document.getElementById('stopBtn').addEventListener('click', () => this.stopPlayback());
+                
+                // Audio input
+                document.getElementById('audioInput').addEventListener('change', (e) => this.loadAudioFile(e));
+            }
+            
+            setupUI() {
+                this.updateStatus('Ready to initialize FaceFormer', false);
+                this.log('Demo initialized. Please load the FaceFormer model first.');
+            }
+            
+            async initializeFaceFormer() {
+                try {
+                    this.updateStatus('Initializing FaceFormer model...', false);
+                    document.getElementById('initializeBtn').disabled = true;
+                    
+                    // Initialize converter
+                    this.faceformerConverter = new FaceformerBVHConverter({
+                        faceformerPath: '../faceformer/faceformer_simple_step.onnx',
+                        framerate: 30,
+                        maxSeqLen: 20
+                    });
+                    
+                    await this.faceformerConverter.initialize();
+                    
+                    // Initialize timeline
+                    this.timeline = new BVHTimeline({
+                        framerate: 30,
+                        enableRealTime: true
+                    });
+                    
+                    this.updateStatus('✅ FaceFormer and Timeline initialized successfully!', false);
+                    this.log('Initialization complete. Ready to process audio files.');
+                    
+                    // Enable audio input
+                    document.getElementById('audioInput').disabled = false;
+                    
+                } catch (error) {
+                    this.updateStatus(`❌ Initialization failed: ${error.message}`, true);
+                    this.log(`Error: ${error.message}`);
+                    document.getElementById('initializeBtn').disabled = false;
+                }
+            }
+            
+            async loadAudioFile(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                try {
+                    this.updateStatus('Loading and processing audio file...', false);
+                    this.log(`Loading audio file: ${file.name}`);
+                    
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.currentAudioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    this.log(`Audio loaded: ${this.currentAudioBuffer.duration.toFixed(2)}s, ${this.currentAudioBuffer.sampleRate}Hz`);
+                    
+                    // Visualize waveform
+                    this.visualizeWaveform();
+                    
+                    // Enable generation button
+                    document.getElementById('generateBtn').disabled = false;
+                    this.updateStatus(`✅ Audio file loaded: ${file.name}`, false);
+                    
+                } catch (error) {
+                    this.updateStatus(`❌ Failed to load audio: ${error.message}`, true);
+                    this.log(`Audio loading error: ${error.message}`);
+                }
+            }
+            
+            visualizeWaveform() {
+                if (!this.currentAudioBuffer) return;
+                
+                const audioData = this.currentAudioBuffer.getChannelData(0);
+                const samples = 1000; // Reduce for visualization
+                const step = Math.floor(audioData.length / samples);
+                
+                let path = '';
+                const width = document.getElementById('waveformSvg').clientWidth;
+                const height = 100;
+                
+                for (let i = 0; i < samples; i++) {
+                    const x = (i / samples) * width;
+                    const y = (audioData[i * step] * 0.5 + 0.5) * height;
+                    
+                    if (i === 0) {
+                        path += `M ${x} ${y}`;
+                    } else {
+                        path += ` L ${x} ${y}`;
+                    }
+                }
+                
+                document.getElementById('waveformPath').setAttribute('d', path);
+                this.log('Waveform visualization updated');
+            }
+            
+            async generateAnimation() {
+                if (!this.faceformerConverter || !this.currentAudioBuffer) {
+                    this.log('Error: FaceFormer not initialized or no audio loaded');
+                    return;
+                }
+                
+                try {
+                    this.updateStatus('Generating facial animation from audio...', false);
+                    document.getElementById('generateBtn').disabled = true;
+                    
+                    const startTime = performance.now();
+                    
+                    // Get configuration
+                    const subjectId = parseInt(document.getElementById('subjectSelect').value);
+                    const intensity = parseFloat(document.getElementById('intensitySlider').value);
+                    const weight = parseFloat(document.getElementById('weightSlider').value);
+                    
+                    this.log(`Generating animation: Subject ${subjectId}, Intensity ${intensity}, Weight ${weight}`);
+                    
+                    // Generate BVH animation
+                    const animationData = await this.faceformerConverter.generateBVHFromAudio(
+                        this.currentAudioBuffer, 
+                        { 
+                            subjectId, 
+                            intensity,
+                            maxFrames: Math.ceil(this.currentAudioBuffer.duration * 30) // 30 FPS
+                        }
+                    );
+                    
+                    // Store generated frames for playback
+                    this.generatedFrames = animationData.frames;
+                    
+                    // Create timeline clip
+                    const facialClip = this.createFacialClip(this.generatedFrames, weight);
+                    
+                    // Add to timeline
+                    const trackId = this.timeline.addTrack('facial', { priority: 10 });
+                    this.timeline.addClip(trackId, facialClip);
+                    
+                    const totalTime = performance.now() - startTime;
+                    
+                    // Update statistics
+                    this.updateStats(animationData.metadata);
+                    this.updateTimelineDisplay();
+                    
+                    this.updateStatus(`✅ Animation generated! ${animationData.frames.length} frames in ${totalTime.toFixed(2)}ms`, false);
+                    this.log(`Generation complete: ${animationData.frames.length} frames generated`);
+                    
+                    // Enable playback
+                    document.getElementById('playTimelineBtn').disabled = false;
+                    document.getElementById('generateBtn').disabled = false;
+                    
+                } catch (error) {
+                    this.updateStatus(`❌ Generation failed: ${error.message}`, true);
+                    this.log(`Generation error: ${error.message}`);
+                    document.getElementById('generateBtn').disabled = false;
+                }
+            }
+            
+            createFacialClip(frames, weight) {
+                return {
+                    type: 'faceformer_facial',
+                    startTime: 0,
+                    duration: this.currentAudioBuffer.duration,
+                    weight: weight,
+                    blendMode: 'additive',
+                    generator: (time, frameIndex) => {
+                        // Return corresponding frame based on time
+                        const frameNum = Math.floor(time * 30); // 30 FPS
+                        
+                        if (frameNum < frames.length) {
+                            return frames[frameNum];
+                        }
+                        
+                        return {
+                            time: time,
+                            motionData: [],
+                            metadata: { type: 'faceformer_empty' }
+                        };
+                    },
+                    metadata: {
+                        audioBuffer: this.currentAudioBuffer,
+                        converter: 'faceformer',
+                        frameCount: frames.length
+                    }
+                };
+            }
+            
+            playTimeline() {
+                if (!this.timeline || this.isPlaying) return;
+                
+                this.isPlaying = true;
+                this.playStartTime = performance.now();
+                
+                document.getElementById('playTimelineBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+                this.log('Timeline playback started');
+                this.animate();
+            }
+            
+            animate() {
+                if (!this.isPlaying) return;
+                
+                const currentTime = (performance.now() - this.playStartTime) / 1000; // Convert to seconds
+                
+                // Update timeline
+                const frame = this.timeline.getFrameAtTime(currentTime);
+                
+                // Update UI
+                document.getElementById('currentTime').textContent = currentTime.toFixed(2);
+                
+                // Update progress bar
+                if (this.currentAudioBuffer) {
+                    const progress = (currentTime / this.currentAudioBuffer.duration) * 100;
+                    document.getElementById('progressFill').style.width = `${Math.min(progress, 100)}%`;
+                }
+                
+                // Log frame data (simplified)
+                if (frame && frame.motionData && frame.motionData.length > 0) {
+                    this.log(`Frame ${Math.floor(currentTime * 30)}: ${frame.motionData.length} bone channels`);
+                }
+                
+                // Stop if we've reached the end
+                if (this.currentAudioBuffer && currentTime >= this.currentAudioBuffer.duration) {
+                    this.stopPlayback();
+                    return;
+                }
+                
+                this.animationId = requestAnimationFrame(() => this.animate());
+            }
+            
+            stopPlayback() {
+                this.isPlaying = false;
+                
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+                
+                document.getElementById('playTimelineBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                
+                // Reset progress
+                document.getElementById('progressFill').style.width = '0%';
+                document.getElementById('currentTime').textContent = '0.00';
+                
+                this.log('Timeline playback stopped');
+            }
+            
+            updateStats(metadata) {
+                if (!metadata || !metadata.stats) return;
+                
+                const stats = metadata.stats;
+                
+                document.getElementById('audioProcessingTime').textContent = stats.audioProcessingTime?.toFixed(2) || '-';
+                document.getElementById('inferenceTime').textContent = stats.inferenceTime?.toFixed(2) || '-';
+                document.getElementById('bvhConversionTime').textContent = stats.bvhConversionTime?.toFixed(2) || '-';
+                document.getElementById('frameCount').textContent = metadata.frameCount || '-';
+                
+                // Calculate FPS
+                if (metadata.processingTime && metadata.frameCount) {
+                    const fps = (metadata.frameCount / (metadata.processingTime / 1000)).toFixed(1);
+                    document.getElementById('playbackFps').textContent = fps;
+                }
+            }
+            
+            updateTimelineDisplay() {
+                if (!this.timeline) return;
+                
+                const tracks = this.timeline.tracks;
+                const display = document.getElementById('timelineDisplay');
+                
+                let html = '<h3>Active Timeline Tracks:</h3>';
+                
+                for (const [trackId, track] of tracks.entries()) {
+                    html += `
+                        <div class="track-display">
+                            <strong>Track "${track.name}" (${trackId})</strong><br>
+                            Priority: ${track.priority} | Clips: ${track.clips.length}<br>
+                            Blend Mode: ${track.blendMode} | Weight: ${track.weight}
+                        </div>
+                    `;
+                }
+                
+                display.innerHTML = html;
+            }
+            
+            updateStatus(message, isError = false) {
+                const status = document.getElementById('initStatus');
+                status.textContent = message;
+                status.className = isError ? 'status error' : 'status';
+                status.style.display = 'block';
+            }
+            
+            log(message) {
+                const panel = document.getElementById('debugPanel');
+                const timestamp = new Date().toLocaleTimeString();
+                panel.innerHTML += `[${timestamp}] ${message}\n`;
+                panel.scrollTop = panel.scrollHeight;
+                console.log(`[FaceFormer Demo] ${message}`);
+            }
+        }
+        
+        // Initialize demo when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.demo = new FaceFormerTimelineDemo();
+        });
+    </script>
+</body>
+</html>

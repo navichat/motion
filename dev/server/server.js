@@ -1,10 +1,10 @@
 import log from '@mwni/log'
-import createCloudkitClient from '@cloudkit/client'
 import { open as openDb } from '@structdb/mysql'
 import { loadResources, loadAnimations } from './engine-stub.js'
 import { readAccount, createGuestAccount, createAccountSession } from './accounts.js'
 import { provisionMeeting } from './meeting.js'
-import schema from './schema.json' assert { type: 'json' }
+import { readFileSync } from 'fs';
+const schema = JSON.parse(readFileSync('./schema.json', 'utf8'));
 import { generateNextAvatarAction } from './avatar.js'
 
 

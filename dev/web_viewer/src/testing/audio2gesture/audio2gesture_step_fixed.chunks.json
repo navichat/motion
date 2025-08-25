@@ -1,0 +1,22 @@
+{
+  "originalFile": "audio2gesture_step_fixed.onnx",
+  "originalSize": 104698925,
+  "originalSizeMB": "99.85",
+  "chunks": [
+    {
+      "index": 0,
+      "filename": "audio2gesture_step_fixed.chunk.000",
+      "size": 94371840,
+      "sizeMB": "90.00"
+    },
+    {
+      "index": 1,
+      "filename": "audio2gesture_step_fixed.chunk.001",
+      "size": 10327085,
+      "sizeMB": "9.85"
+    }
+  ],
+  "totalChunks": 2,
+  "chunkSize": 94371840,
+  "createdAt": "2025-07-12T01:00:30.506Z"
+}

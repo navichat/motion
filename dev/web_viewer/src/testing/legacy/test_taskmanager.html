@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TaskManager Test</title>
+  <script src="./FibonacciHeap.js" defer></script>
+  <script src="./MockGPUJobs.js" defer></script>
+  <script src="./TaskManager.js" defer></script>
+</head>
+<body>
+  <h1>TaskManager Test Page</h1>
+  <script defer>
+    window.addEventListener('load', () => {
+        window.taskManager = new TaskManager({
+            cpuWorkers: 2,
+            gpuWorkers: 1,
+            webnnWorkers: 1,
+            maxConcurrentTasks: 4
+        });
+        window.taskManager.start();
+        window.MockGPUJobFactory = MockGPUJobFactory;
+    });
+  </script>
+</body>
+</html>

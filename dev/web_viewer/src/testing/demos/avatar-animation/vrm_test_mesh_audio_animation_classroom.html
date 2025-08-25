@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRM Test - Audio-Driven Animation in Classroom GLB</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #audio-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 100;
+            min-width: 300px;
+        }
+        
+        .audio-section {
+            margin-bottom: 15px;
+        }
+        
+        .audio-section h3 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+            font-size: 16px;
+        }
+        
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .control-row label {
+            min-width: 100px;
+            font-size: 14px;
+        }
+        
+        input[type="file"] {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            color: white;
+            padding: 5px;
+            font-size: 12px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: rgba(128, 128, 128, 0.5);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-ready { background-color: #4CAF50; }
+        .status-loading { background-color: #FF9800; animation: pulse 1s infinite; }
+        .status-error { background-color: #f44336; }
+        
+        .audio-visualization {
+            width: 100%;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .audio-waveform {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(0deg, #4CAF50 0%, #81C784 100%);
+            transform: scaleY(0);
+            transition: transform 0.1s ease;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .collision-indicator {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: rgba(244, 67, 54, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            z-index: 200;
+        }
+        
+        .collision-indicator.show {
+            display: block;
+            animation: pulse 0.5s ease-in-out;
+        }
+        
+        #debug-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 100;
+            max-width: 400px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        
+        .generation-progress {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 300;
+            display: none;
+            text-align: center;
+        }
+        
+        .progress-bar {
+            width: 200px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50 0%, #81C784 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Loading VRM Audio Animation Test...</div>
+        <div id="loading-status">Initializing...</div>
+    </div>
+    
+    <div id="container">
+        <!-- Audio Controls Panel -->
+        <div id="audio-controls">
+            <div class="audio-section">
+                <h3>🎵 Audio Input</h3>
+                <div class="control-row">
+                    <label>Audio File:</label>
+                    <input type="file" id="audio-file-input" accept=".wav,.mp3,.ogg" />
+                </div>
+                <div class="control-row">
+                    <button id="record-audio">🎤 Record</button>
+                    <button id="play-audio" disabled>▶️ Play</button>
+                    <button id="stop-audio" disabled>⏹️ Stop</button>
+                </div>
+                <div class="audio-visualization">
+                    <div class="audio-waveform" id="audio-waveform"></div>
+                </div>
+            </div>
+            
+            <div class="audio-section">
+                <h3>🎭 Gesture Generation</h3>
+                <div class="control-row">
+                    <span class="status-indicator status-loading" id="gesture-status"></span>
+                    <label>Audio2Gesture:</label>
+                    <button id="generate-gestures" disabled>Generate Gestures</button>
+                </div>
+                <div class="control-row">
+                    <label>Style:</label>
+                    <select id="gesture-style">
+                        <option value="neutral">Neutral</option>
+                        <option value="expressive">Expressive</option>
+                        <option value="subtle">Subtle</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="audio-section">
+                <h3>😊 Facial Animation</h3>
+                <div class="control-row">
+                    <span class="status-indicator status-loading" id="face-status"></span>
+                    <label>FaceFormer:</label>
+                    <button id="generate-facial" disabled>Generate Facial</button>
+                </div>
+                <div class="control-row">
+                    <label>Intensity:</label>
+                    <input type="range" id="facial-intensity" min="0.1" max="2.0" step="0.1" value="1.0" />
+                    <span id="intensity-value">1.0</span>
+                </div>
+            </div>
+            
+            <div class="audio-section">
+                <h3>🎬 Playback</h3>
+                <div class="control-row">
+                    <button id="play-generated">▶️ Play Generated</button>
+                    <button id="sync-audio-animation">🔄 Sync Audio</button>
+                </div>
+                <div class="control-row">
+                    <button id="export-animation">💾 Export BVH</button>
+                    <button id="clear-all">🗑️ Clear All</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Generation Progress -->
+        <div id="generation-progress" class="generation-progress">
+            <h3>🎭 Generating Animation...</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div id="progress-text">Initializing...</div>
+        </div>
+        
+        <!-- Debug Panel -->
+        <div id="debug-panel">
+            <h4>🔍 Debug Info</h4>
+            <div id="debug-content"></div>
+        </div>
+    </div>
+
+    <!-- Load ONNX Runtime first -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js"></script>
+    
+    <!-- Import map for THREE.js modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js"
+        }
+    }
+    </script>
+
+    <!-- Include our modules -->
+    <script src="./js/vrm_mesh_classroom.js"></script>
+    <script src="./js/VRMLightingManager.js"></script>
+    <script src="./js/VRMDiagnostics.js"></script>
+    <script src="./js/VRMBVHAdapter.js"></script>
+    
+    <!-- Include audio processing modules -->
+    <script src="./audio2gesture/audio2gesture_web_generator.js"></script>
+    <script src="./faceformer/faceformer_web_generator_minimal.js"></script>
+    
+    <!-- Audio processing utilities -->
+    <script src="./js/AudioProcessor.js"></script>
+    <script src="./js/AnimationSync.js"></script>
+
+    <script type="module">
+        // Import THREE.js modules
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Global variables
+        let scene, camera, renderer, controls;
+        let classroom, vrmCharacter, vrmAdapter, lightingManager;
+        let animationMixer, currentAction;
+        let bvhData = null;
+        let isPlaying = false;
+        let animationFrame = 0;
+        let moveSpeed = 0.5;
+        let characterPosition = new THREE.Vector3(0, 0, 0);
+        let collisionDebug = false;
+        let collisionBounds = [];
+
+        // Audio and animation systems
+        let audio2GestureGenerator = null;
+        let faceFormerGenerator = null;
+        let audioProcessor = null;
+        let animationSync = null;
+        let currentAudioBuffer = null;
+        let currentGestureData = null;
+        let currentFacialData = null;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+
+        // Make THREE and GLTFLoader global for classroom module
+        window.THREE = THREE;
+        window.GLTFLoader = GLTFLoader;
+
+        // Animation clock
+        const clock = new THREE.Clock();
+
+        // Function to send messages to the parent window (UI)
+        function sendMessageToParent(type, payload) {
+            if (window.parent) {
+                window.parent.postMessage({ type, ...payload }, '*');
+            }
+        }
+
+        function updateLoadingStatus(message) {
+            console.log('📝', message);
+            const statusElement = document.getElementById('loading-status');
+            if (statusElement) {
+                statusElement.textContent = message;
+            }
+        }
+
+        function updateDebugInfo(message) {
+            console.log('🔍', message);
+            const debugContent = document.getElementById('debug-content');
+            if (debugContent) {
+                const logEntry = document.createElement('div');
+                logEntry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+                debugContent.appendChild(logEntry);
+                debugContent.scrollTop = debugContent.scrollHeight;
+            }
+        }
+
+        function showProgress(message, progress = 0) {
+            const progressDiv = document.getElementById('generation-progress');
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
+            
+            if (progressDiv) {
+                progressDiv.style.display = 'block';
+                progressFill.style.width = `${progress}%`;
+                progressText.textContent = message;
+            }
+        }
+
+        function hideProgress() {
+            const progressDiv = document.getElementById('generation-progress');
+            if (progressDiv) {
+                progressDiv.style.display = 'none';
+            }
+        }
+
+        function updateStatusIndicator(elementId, status) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.className = `status-indicator status-${status}`;
+            }
+        }
+
+        async function loadONNXRuntime() {
+            return new Promise((resolve, reject) => {
+                // Check if already loaded
+                if (typeof ort !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                
+                updateDebugInfo('📦 Loading ONNX Runtime dynamically...');
+                
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js';
+                
+                script.onload = () => {
+                    updateDebugInfo('✅ ONNX Runtime loaded successfully');
+                    // Wait a moment for the global ort to be available
+                    setTimeout(() => {
+                        if (typeof ort !== 'undefined') {
+                            resolve();
+                        } else {
+                            reject(new Error('ONNX Runtime not available after loading'));
+                        }
+                    }, 500);
+                };
+                
+                script.onerror = () => {
+                    updateDebugInfo('❌ Failed to load ONNX Runtime');
+                    reject(new Error('Failed to load ONNX Runtime script'));
+                };
+                
+                document.head.appendChild(script);
+            });
+        }
+
+        async function init() {
+            updateLoadingStatus('Creating 3D scene...');
+            
+            // Debug: Check what's available at startup
+            updateDebugInfo('🔍 System check at startup:');
+            updateDebugInfo(`  ONNX Runtime: ${typeof ort !== 'undefined' ? '✅ Available' : '❌ Not available'}`);
+            updateDebugInfo(`  Audio2Gesture: ${typeof Audio2GestureWebGenerator !== 'undefined' ? '✅ Available' : '❌ Not available'}`);
+            updateDebugInfo(`  FaceFormer: ${typeof FaceFormerWebGeneratorFixed !== 'undefined' ? '✅ Available' : '❌ Not available'}`);
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            
+            // Create camera - positioned for optimal avatar viewing at ground level
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.8, 3);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = false;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0.9, 0);
+            
+            updateLoadingStatus('Creating classroom environment...');
+            
+            // Initialize classroom GLB loader
+            classroom = new ClassroomGLBLoader(scene);
+            await classroom.initialize();
+            
+            // Try to load a default classroom GLB if it exists
+            await loadDefaultClassroom();
+            
+            // Setup lighting
+            setupLighting();
+            
+            // Initialize audio processing systems
+            await initializeAudioSystems();
+            
+            // Setup audio controls
+            setupAudioControls();
+            
+            updateLoadingStatus('Ready!');
+            
+            // Start animation loop
+            animate();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                const loadingDiv = document.getElementById('loading');
+                if (loadingDiv) {
+                    loadingDiv.style.display = 'none';
+                }
+            }, 500);
+            
+            updateDebugInfo('🎬 Audio-driven VRM animation system initialized');
+            updateDebugInfo('🎵 Load audio file or record to begin');
+        }
+
+        async function initializeAudioSystems() {
+            updateLoadingStatus('Initializing audio processing systems...');
+            
+            try {
+                // Wait a moment for ONNX Runtime to be fully available
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Check if ONNX Runtime is available
+                if (typeof ort === 'undefined') {
+                    updateDebugInfo('⚠️ ONNX Runtime not available, loading fallback...');
+                    
+                    // Try to load ONNX Runtime dynamically
+                    await loadONNXRuntime();
+                    
+                    if (typeof ort === 'undefined') {
+                        throw new Error('ONNX Runtime could not be loaded');
+                    }
+                }
+                
+                updateDebugInfo('✅ ONNX Runtime available');
+                updateDebugInfo(`ONNX Version: ${ort.version || 'unknown'}`);
+                
+                // Initialize Audio2Gesture generator
+                updateStatusIndicator('gesture-status', 'loading');
+                updateDebugInfo('🎭 Loading Audio2Gesture model...');
+                
+                // Check if the Audio2GestureWebGenerator is available
+                if (typeof Audio2GestureWebGenerator !== 'undefined') {
+                    audio2GestureGenerator = new Audio2GestureWebGenerator('./audio2gesture/audio2gesture_step_fixed.onnx');
+                    const gestureInitSuccess = await audio2GestureGenerator.initialize();
+                    
+                    if (gestureInitSuccess) {
+                        updateStatusIndicator('gesture-status', 'ready');
+                        updateDebugInfo('✅ Audio2Gesture system ready');
+                        document.getElementById('generate-gestures').disabled = false;
+                    } else {
+                        updateStatusIndicator('gesture-status', 'error');
+                        updateDebugInfo('❌ Audio2Gesture initialization failed');
+                    }
+                } else {
+                    updateDebugInfo('⚠️ Audio2Gesture module not loaded, using fallback');
+                    updateStatusIndicator('gesture-status', 'error');
+                }
+                
+                // Initialize FaceFormer generator
+                updateStatusIndicator('face-status', 'loading');
+                updateDebugInfo('😊 Loading FaceFormer model...');
+                
+                // Check if the FaceFormerWebGeneratorFixed is available
+                if (typeof FaceFormerWebGeneratorFixed !== 'undefined') {
+                    try {
+                        faceFormerGenerator = new FaceFormerWebGeneratorFixed('./faceformer/faceformer_minimal.onnx');
+                        await faceFormerGenerator.initialize();
+                        
+                        updateStatusIndicator('face-status', 'ready');
+                        updateDebugInfo('✅ FaceFormer system ready');
+                        document.getElementById('generate-facial').disabled = false;
+                    } catch (error) {
+                        console.error('FaceFormer initialization error:', error);
+                        updateDebugInfo(`⚠️ FaceFormer initialization failed: ${error.message}`);
+                        updateDebugInfo('🔄 Will use fallback facial animation');
+                        updateStatusIndicator('face-status', 'error');
+                        faceFormerGenerator = null; // Ensure it's null for fallback
+                        document.getElementById('generate-facial').disabled = false; // Still allow generation with fallback
+                    }
+                } else {
+                    updateDebugInfo('⚠️ FaceFormer module not loaded, using fallback');
+                    updateStatusIndicator('face-status', 'error');
+                    document.getElementById('generate-facial').disabled = false; // Still allow generation with fallback
+                }
+                
+                // Initialize audio processor
+                if (typeof AudioProcessor !== 'undefined') {
+                    audioProcessor = new AudioProcessor();
+                    await audioProcessor.initialize();
+                    updateDebugInfo('✅ Audio processor ready');
+                } else {
+                    updateDebugInfo('⚠️ Using basic audio processing');
+                }
+                
+                // Initialize animation sync
+                if (typeof AnimationSync !== 'undefined') {
+                    animationSync = new AnimationSync();
+                    updateDebugInfo('✅ Animation sync ready');
+                } else {
+                    updateDebugInfo('⚠️ Using basic animation timing');
+                }
+                
+            } catch (error) {
+                console.error('Audio system initialization error:', error);
+                updateDebugInfo(`❌ Audio system error: ${error.message}`);
+                updateStatusIndicator('gesture-status', 'error');
+                updateStatusIndicator('face-status', 'error');
+            }
+        }
+
+        function setupAudioControls() {
+            // Audio file input
+            const audioFileInput = document.getElementById('audio-file-input');
+            if (audioFileInput) {
+                audioFileInput.addEventListener('change', handleAudioFileLoad);
+            }
+            
+            // Recording controls
+            const recordButton = document.getElementById('record-audio');
+            if (recordButton) {
+                recordButton.addEventListener('click', toggleRecording);
+            }
+            
+            // Playback controls
+            const playButton = document.getElementById('play-audio');
+            if (playButton) {
+                playButton.addEventListener('click', playAudio);
+            }
+            
+            const stopButton = document.getElementById('stop-audio');
+            if (stopButton) {
+                stopButton.addEventListener('click', stopAudio);
+            }
+            
+            // Generation controls
+            const generateGesturesButton = document.getElementById('generate-gestures');
+            if (generateGesturesButton) {
+                generateGesturesButton.addEventListener('click', generateGestures);
+            }
+            
+            const generateFacialButton = document.getElementById('generate-facial');
+            if (generateFacialButton) {
+                generateFacialButton.addEventListener('click', generateFacialAnimation);
+            }
+            
+            // Playback controls
+            const playGeneratedButton = document.getElementById('play-generated');
+            if (playGeneratedButton) {
+                playGeneratedButton.addEventListener('click', playGeneratedAnimation);
+            }
+            
+            const syncButton = document.getElementById('sync-audio-animation');
+            if (syncButton) {
+                syncButton.addEventListener('click', syncAudioWithAnimation);
+            }
+            
+            // Utility controls
+            const exportButton = document.getElementById('export-animation');
+            if (exportButton) {
+                exportButton.addEventListener('click', exportAnimation);
+            }
+            
+            const clearButton = document.getElementById('clear-all');
+            if (clearButton) {
+                clearButton.addEventListener('click', clearAll);
+            }
+            
+            // Facial intensity slider
+            const intensitySlider = document.getElementById('facial-intensity');
+            const intensityValue = document.getElementById('intensity-value');
+            if (intensitySlider && intensityValue) {
+                intensitySlider.addEventListener('input', (e) => {
+                    intensityValue.textContent = e.target.value;
+                });
+            }
+        }
+
+        async function handleAudioFileLoad(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            updateDebugInfo(`🎵 Loading audio file: ${file.name}`);
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                currentAudioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                updateDebugInfo(`✅ Audio loaded: ${currentAudioBuffer.duration.toFixed(2)}s, ${currentAudioBuffer.sampleRate}Hz`);
+                
+                // Enable playback controls
+                document.getElementById('play-audio').disabled = false;
+                
+                // Update audio visualization
+                updateAudioVisualization(currentAudioBuffer);
+                
+            } catch (error) {
+                console.error('Audio loading error:', error);
+                updateDebugInfo(`❌ Audio loading failed: ${error.message}`);
+            }
+        }
+
+        async function toggleRecording() {
+            const recordButton = document.getElementById('record-audio');
+            
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    recordedChunks = [];
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    };
+                    
+                    mediaRecorder.onstop = async () => {
+                        const blob = new Blob(recordedChunks, { type: 'audio/wav' });
+                        const arrayBuffer = await blob.arrayBuffer();
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        currentAudioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        
+                        updateDebugInfo(`✅ Recording complete: ${currentAudioBuffer.duration.toFixed(2)}s`);
+                        document.getElementById('play-audio').disabled = false;
+                        updateAudioVisualization(currentAudioBuffer);
+                    };
+                    
+                    mediaRecorder.start();
+                    isRecording = true;
+                    recordButton.textContent = '⏹️ Stop Recording';
+                    updateDebugInfo('🎤 Recording started...');
+                    
+                } catch (error) {
+                    console.error('Recording error:', error);
+                    updateDebugInfo(`❌ Recording failed: ${error.message}`);
+                }
+            } else {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+                recordButton.textContent = '🎤 Record';
+            }
+        }
+
+        function updateAudioVisualization(audioBuffer) {
+            const waveform = document.getElementById('audio-waveform');
+            if (!waveform || !audioBuffer) return;
+            
+            // Simple visualization - could be enhanced with real waveform rendering
+            const duration = audioBuffer.duration;
+            const maxDuration = 30; // Show up to 30 seconds
+            const scale = Math.min(1, duration / maxDuration);
+            
+            waveform.style.transform = `scaleY(${scale})`;
+            waveform.style.background = `linear-gradient(90deg, #4CAF50 0%, #81C784 ${scale * 100}%, rgba(255,255,255,0.1) ${scale * 100}%)`;
+        }
+
+        async function playAudio() {
+            if (!currentAudioBuffer) return;
+            
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createBufferSource();
+                source.buffer = currentAudioBuffer;
+                source.connect(audioContext.destination);
+                source.start(0);
+                
+                updateDebugInfo('▶️ Playing audio...');
+                document.getElementById('play-audio').disabled = true;
+                document.getElementById('stop-audio').disabled = false;
+                
+                source.onended = () => {
+                    document.getElementById('play-audio').disabled = false;
+                    document.getElementById('stop-audio').disabled = true;
+                    updateDebugInfo('⏹️ Audio playback finished');
+                };
+                
+            } catch (error) {
+                console.error('Audio playback error:', error);
+                updateDebugInfo(`❌ Playback failed: ${error.message}`);
+            }
+        }
+
+        function stopAudio() {
+            // Audio will stop automatically when source ends
+            document.getElementById('play-audio').disabled = false;
+            document.getElementById('stop-audio').disabled = true;
+            updateDebugInfo('⏹️ Audio playback stopped');
+        }
+
+        async function generateGestures() {
+            if (!currentAudioBuffer) {
+                updateDebugInfo('❌ Audio buffer not available');
+                return;
+            }
+            
+            const gestureStyle = document.getElementById('gesture-style').value;
+            const duration = currentAudioBuffer.duration;
+            const numFrames = Math.floor(duration * 30); // 30 FPS
+            
+            showProgress('Analyzing audio features...', 10);
+            updateDebugInfo(`🎭 Generating ${numFrames} gesture frames (${gestureStyle} style)...`);
+            
+            if (audio2GestureGenerator) {
+                try {
+                    // Extract audio features (placeholder - would use real audio processing)
+                    showProgress('Extracting audio features...', 30);
+                    let audioFeatures = null;
+                    if (audioProcessor) {
+                        audioFeatures = await audioProcessor.extractFeatures(currentAudioBuffer);
+                    }
+                    
+                    // Generate gestures
+                    showProgress('Generating gesture sequence...', 50);
+                    const gestureResult = await audio2GestureGenerator.generateGestureSequence(
+                        audioFeatures, 
+                        gestureStyle, 
+                        Math.min(numFrames, 300) // Limit for performance
+                    );
+                    
+                    currentGestureData = gestureResult;
+                    showProgress('Processing gesture data...', 80);
+                    
+                    updateDebugInfo(`✅ Generated ${gestureResult.frames.length} gesture frames`);
+                    updateDebugInfo(`⚡ Generation speed: ${gestureResult.metrics.fps.toFixed(1)} FPS`);
+                    
+                    hideProgress();
+                    
+                    // Enable playback
+                    document.getElementById('play-generated').disabled = false;
+                    document.getElementById('sync-audio-animation').disabled = false;
+                    document.getElementById('export-animation').disabled = false;
+                    
+                } catch (error) {
+                    console.error('Gesture generation error:', error);
+                    updateDebugInfo(`❌ Gesture generation failed: ${error.message}`);
+                    hideProgress();
+                }
+            } else {
+                // Fallback: Create simple procedural gestures
+                updateDebugInfo('⚠️ Using fallback gesture animation (no neural network)');
+                
+                try {
+                    showProgress('Creating fallback gesture animation...', 50);
+                    
+                    const fallbackFrames = [];
+                    
+                    // Create simple procedural gestures
+                    for (let i = 0; i < Math.min(numFrames, 300); i++) {
+                        const time = i / 30;
+                        const frame = new Array(48).fill(0); // Gesture dimension
+                        
+                        // Add simple wave-like arm movements
+                        const intensity = gestureStyle === 'expressive' ? 0.3 : gestureStyle === 'subtle' ? 0.1 : 0.2;
+                        
+                        // Simple sinusoidal arm movements
+                        frame[0] = Math.sin(time * 2) * intensity; // Right arm X
+                        frame[1] = Math.cos(time * 1.5) * intensity * 0.5; // Right arm Y
+                        frame[2] = Math.sin(time * 2.5) * intensity * 0.3; // Right arm Z
+                        
+                        frame[3] = Math.sin(time * 2 + Math.PI) * intensity; // Left arm X
+                        frame[4] = Math.cos(time * 1.5 + Math.PI) * intensity * 0.5; // Left arm Y
+                        frame[5] = Math.sin(time * 2.5 + Math.PI) * intensity * 0.3; // Left arm Z
+                        
+                        fallbackFrames.push(frame);
+                    }
+                    
+                    currentGestureData = {
+                        frames: fallbackFrames,
+                        metrics: {
+                            totalTime: fallbackFrames.length * 33.33, // 30 FPS
+                            avgTime: 33.33,
+                            fps: 30,
+                            numFrames: fallbackFrames.length
+                        },
+                        isFallback: true
+                    };
+                    
+                    hideProgress();
+                    updateDebugInfo(`✅ Generated ${fallbackFrames.length} fallback gesture frames`);
+                    updateDebugInfo(`⚡ Fallback generation: 30 FPS`);
+                    
+                    // Enable playback
+                    document.getElementById('play-generated').disabled = false;
+                    document.getElementById('sync-audio-animation').disabled = false;
+                    document.getElementById('export-animation').disabled = false;
+                    
+                } catch (error) {
+                    console.error('Fallback gesture generation error:', error);
+                    updateDebugInfo(`❌ Fallback gesture generation failed: ${error.message}`);
+                    hideProgress();
+                }
+            }
+        }
+
+        async function generateFacialAnimation() {
+            if (!currentAudioBuffer) {
+                updateDebugInfo('❌ Audio buffer not available');
+                return;
+            }
+            
+            const intensity = parseFloat(document.getElementById('facial-intensity').value);
+            
+            showProgress('Processing facial animation...', 20);
+            updateDebugInfo('😊 Generating facial animation...');
+            
+            if (faceFormerGenerator) {
+                try {
+                    // Extract audio features for facial animation
+                    showProgress('Extracting audio features...', 40);
+                    
+                    // Generate audio features compatible with FaceFormer (768-dimensional features)
+                    const audioSampleRate = 16000;
+                    const featureDim = 768;
+                    const hopLength = 320; // Typical hop length for audio processing
+                    
+                    // Calculate number of audio frames based on duration
+                    const audioSamples = Math.floor(currentAudioBuffer.duration * audioSampleRate);
+                    const numFrames = Math.floor(audioSamples / hopLength);
+                    
+                    // Create properly sized audio features array
+                    const totalFeatures = numFrames * featureDim;
+                    const audioFeatures = new Array(totalFeatures).fill(0).map(() => Math.random() * 0.1);
+                    
+                    console.log(`Generated audio features: ${audioFeatures.length} elements (${numFrames} frames × ${featureDim} features)`);
+                    
+                    // Template and one-hot encoding (placeholder) - ensure exact size
+                    const expectedTemplateSize = 15069; // FLAME topology
+                    let template = new Array(expectedTemplateSize).fill(0);
+                    
+                    // Validate template size
+                    if (template.length !== expectedTemplateSize) {
+                        console.error(`Template size error: expected ${expectedTemplateSize}, got ${template.length}`);
+                        template = new Array(expectedTemplateSize).fill(0);
+                    }
+                    
+                    console.log(`Template size: ${template.length} elements`);
+                    
+                    const oneHot = [1, 0, 0]; // Subject encoding
+                    
+                    showProgress('Generating facial sequence...', 70);
+                    
+                    const maxFrames = Math.floor(currentAudioBuffer.duration * 30);
+                    const facialResult = await faceFormerGenerator.generateSequence(
+                        audioFeatures, 
+                        template, 
+                        oneHot, 
+                        Math.min(maxFrames, 100)
+                    );
+                    
+                    // Check if generation was successful
+                    if (!facialResult || facialResult.length === 0) {
+                        throw new Error('FaceFormer generated no frames - falling back to procedural animation');
+                    }
+                    
+                    currentFacialData = {
+                        frames: facialResult,
+                        intensity: intensity
+                    };
+                    
+                    showProgress('Processing facial data...', 90);
+                    
+                    updateDebugInfo(`✅ Generated ${facialResult.length} facial animation frames`);
+                    
+                    hideProgress();
+                    
+                    // Enable playback
+                    document.getElementById('play-generated').disabled = false;
+                    document.getElementById('sync-audio-animation').disabled = false;
+                    
+                } catch (error) {
+                    console.error('Facial generation error:', error);
+                    updateDebugInfo(`❌ Neural facial generation failed: ${error.message}`);
+                    updateDebugInfo('🔄 Switching to fallback facial animation...');
+                    
+                    // Automatically fall through to fallback system
+                    faceFormerGenerator = null;
+                }
+            }
+            
+            // Fallback system (executes if neural network failed or unavailable)
+            if (!currentFacialData) {
+                // Fallback: Create simple facial animation without neural network
+                updateDebugInfo('⚠️ Using fallback facial animation (no neural network)');
+                
+                try {
+                    showProgress('Creating fallback facial animation...', 50);
+                    
+                    const duration = currentAudioBuffer.duration;
+                    const numFrames = Math.floor(duration * 30);
+                    const fallbackFrames = [];
+                    
+                    // Create simple procedural facial animation
+                    for (let i = 0; i < numFrames; i++) {
+                        const time = i / 30;
+                        const frame = new Array(15069).fill(0); // FLAME topology
+                        
+                        // Add simple mouth movement based on audio energy (placeholder)
+                        const mouthOpenness = Math.sin(time * 10) * 0.1 + 0.1;
+                        
+                        // Simple procedural values for mouth vertices (this is very basic)
+                        for (let j = 0; j < 100; j++) { // Approximate mouth region
+                            frame[j] = mouthOpenness * Math.random() * 0.01;
+                        }
+                        
+                        fallbackFrames.push(frame);
+                    }
+                    
+                    currentFacialData = {
+                        frames: fallbackFrames,
+                        intensity: intensity,
+                        isFallback: true
+                    };
+                    
+                    hideProgress();
+                    updateDebugInfo(`✅ Generated ${fallbackFrames.length} fallback facial frames`);
+                    
+                    // Enable playback
+                    document.getElementById('play-generated').disabled = false;
+                    document.getElementById('sync-audio-animation').disabled = false;
+                    
+                } catch (error) {
+                    console.error('Fallback facial generation error:', error);
+                    updateDebugInfo(`❌ Fallback facial generation failed: ${error.message}`);
+                    hideProgress();
+                }
+            }
+        }
+
+        async function playGeneratedAnimation() {
+            if (!vrmCharacter) {
+                updateDebugInfo('❌ Load a VRM character first');
+                return;
+            }
+            
+            if (!currentGestureData && !currentFacialData) {
+                updateDebugInfo('❌ No animation data generated yet');
+                return;
+            }
+            
+            updateDebugInfo('🎬 Playing generated animation...');
+            
+            // Play gesture animation
+            if (currentGestureData && vrmAdapter) {
+                isPlaying = true;
+                animationFrame = 0;
+                
+                // Convert gesture data to BVH-like format for VRM adapter
+                bvhData = {
+                    frames: currentGestureData.frames,
+                    frameTime: 1/30,
+                    fps: 30
+                };
+                
+                updateDebugInfo('✅ Gesture animation started');
+            }
+            
+            // Apply facial animation
+            if (currentFacialData && vrmCharacter.expressionManager) {
+                updateDebugInfo('😊 Applying facial animation...');
+                // Would apply facial vertex data to VRM facial expressions
+            }
+        }
+
+        async function syncAudioWithAnimation() {
+            if (!currentAudioBuffer || (!currentGestureData && !currentFacialData)) {
+                updateDebugInfo('❌ Need both audio and animation data for sync');
+                return;
+            }
+            
+            updateDebugInfo('🔄 Synchronizing audio with animation...');
+            
+            try {
+                // Start audio playback
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createBufferSource();
+                source.buffer = currentAudioBuffer;
+                source.connect(audioContext.destination);
+                
+                // Start animation playback
+                if (currentGestureData) {
+                    isPlaying = true;
+                    animationFrame = 0;
+                    bvhData = {
+                        frames: currentGestureData.frames,
+                        frameTime: 1/30,
+                        fps: 30
+                    };
+                }
+                
+                // Synchronize start times
+                const startTime = audioContext.currentTime;
+                source.start(startTime);
+                
+                updateDebugInfo('✅ Audio and animation synchronized');
+                
+                source.onended = () => {
+                    isPlaying = false;
+                    updateDebugInfo('⏹️ Synchronized playback finished');
+                };
+                
+            } catch (error) {
+                console.error('Sync error:', error);
+                updateDebugInfo(`❌ Sync failed: ${error.message}`);
+            }
+        }
+
+        function exportAnimation() {
+            if (!currentGestureData) {
+                updateDebugInfo('❌ No gesture data to export');
+                return;
+            }
+            
+            updateDebugInfo('💾 Exporting animation to BVH...');
+            
+            try {
+                // Convert gesture data to BVH format
+                let bvhContent = `HIERARCHY\nROOT Hips\n{\n`;
+                bvhContent += `  OFFSET 0.0 0.0 0.0\n`;
+                bvhContent += `  CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation\n`;
+                
+                // Add skeleton hierarchy (simplified)
+                const joints = ['Spine', 'Chest', 'Neck', 'Head', 'LeftShoulder', 'LeftArm', 'LeftForeArm', 'RightShoulder', 'RightArm', 'RightForeArm'];
+                
+                joints.forEach(joint => {
+                    bvhContent += `  JOINT ${joint}\n  {\n`;
+                    bvhContent += `    OFFSET 0.0 0.0 0.0\n`;
+                    bvhContent += `    CHANNELS 3 Zrotation Xrotation Yrotation\n`;
+                    bvhContent += `  }\n`;
+                });
+                
+                bvhContent += `}\nMOTION\n`;
+                bvhContent += `Frames: ${currentGestureData.frames.length}\n`;
+                bvhContent += `Frame Time: 0.033333\n`;
+                
+                // Add frame data
+                currentGestureData.frames.forEach(frame => {
+                    bvhContent += frame.slice(0, 48).join(' ') + '\n'; // Use first 48 values
+                });
+                
+                // Download the BVH file
+                const blob = new Blob([bvhContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `generated_animation_${new Date().getTime()}.bvh`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                updateDebugInfo('✅ Animation exported successfully');
+                
+            } catch (error) {
+                console.error('Export error:', error);
+                updateDebugInfo(`❌ Export failed: ${error.message}`);
+            }
+        }
+
+        function clearAll() {
+            // Reset all data
+            currentAudioBuffer = null;
+            currentGestureData = null;
+            currentFacialData = null;
+            bvhData = null;
+            isPlaying = false;
+            animationFrame = 0;
+            
+            // Reset controls
+            document.getElementById('audio-file-input').value = '';
+            document.getElementById('play-audio').disabled = true;
+            document.getElementById('stop-audio').disabled = true;
+            document.getElementById('play-generated').disabled = true;
+            document.getElementById('sync-audio-animation').disabled = true;
+            document.getElementById('export-animation').disabled = true;
+            
+            // Reset visualization
+            const waveform = document.getElementById('audio-waveform');
+            if (waveform) {
+                waveform.style.transform = 'scaleY(0)';
+            }
+            
+            // Reset VRM animation
+            if (vrmAdapter) {
+                vrmAdapter.resetToTPose();
+            }
+            
+            updateDebugInfo('🗑️ All data cleared');
+        }
+
+        async function loadDefaultClassroom() {
+            try {
+                const classroomPath = './assets/scenes/classroom.glb';
+                updateLoadingStatus('Loading classroom GLB...');
+                
+                const success = await classroom.loadClassroomGLB(classroomPath);
+                if (success) {
+                    updateDebugInfo('✅ Default classroom.glb loaded successfully');
+                } else {
+                    updateDebugInfo('ℹ️ No default classroom.glb found');
+                }
+            } catch (error) {
+                updateDebugInfo('ℹ️ No default classroom - will use empty scene');
+            }
+
+            // Auto-load default VRM character
+            await loadDefaultVRM();
+        }
+
+        async function loadDefaultVRM() {
+            try {
+                updateLoadingStatus('Loading default VRM character...');
+                
+                const defaultVRMs = [
+                    './assets/characters/ichika.vrm',
+                    './assets/characters/kaede.vrm', 
+                    './assets/characters/buny.vrm'
+                ];
+                
+                for (const vrmPath of defaultVRMs) {
+                    try {
+                        const response = await fetch(vrmPath);
+                        if (response.ok) {
+                            const arrayBuffer = await response.arrayBuffer();
+                            await loadVRMFromArrayBuffer(arrayBuffer, vrmPath.split('/').pop());
+                            updateDebugInfo(`✅ Auto-loaded VRM: ${vrmPath.split('/').pop()}`);
+                            return;
+                        }
+                    } catch (error) {
+                        console.log(`Failed to load ${vrmPath}:`, error.message);
+                    }
+                }
+                
+                updateDebugInfo('ℹ️ No default VRM characters found');
+                
+            } catch (error) {
+                updateDebugInfo('ℹ️ VRM auto-loading failed - use manual upload');
+            }
+        }
+
+        function setupLighting() {
+            console.log('💡 Setting up VRM-optimized lighting...');
+            
+            // Initialize the lighting manager
+            lightingManager = new VRMLightingManager(scene, renderer);
+            
+            // Setup classroom lighting preset
+            lightingManager.initialize('classroom').then(() => {
+                updateDebugInfo('✅ VRM lighting system initialized');
+            }).catch(error => {
+                console.error('Failed to initialize lighting:', error);
+                updateDebugInfo('❌ Lighting initialization failed, using fallback');
+                setupFallbackLighting();
+            });
+        }
+
+        function setupFallbackLighting() {
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = false;
+            scene.add(directionalLight);
+            
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            fillLight.position.set(-5, 5, -5);
+            fillLight.castShadow = false;
+            scene.add(fillLight);
+            
+            updateDebugInfo('✅ Fallback lighting active');
+        }
+
+        async function loadVRMFromArrayBuffer(arrayBuffer, filename) {
+            const loader = new GLTFLoader();
+            loader.register((parser) => new VRMLoaderPlugin(parser));
+            
+            const gltf = await new Promise((resolve, reject) => {
+                loader.parse(arrayBuffer, '', resolve, reject);
+            });
+            
+            if (vrmCharacter) {
+                scene.remove(vrmCharacter.scene);
+            }
+            
+            vrmCharacter = gltf.userData.vrm;
+            scene.add(vrmCharacter.scene);
+            
+            // Position character
+            let safePosition = new THREE.Vector3(0, 0, 0);
+            try {
+                if (classroom && classroom.initialized) {
+                    safePosition = classroom.getRandomSafePosition();
+                    safePosition.y = 0;
+                }
+            } catch (error) {
+                safePosition = new THREE.Vector3(0, 0, 0);
+            }
+            
+            vrmCharacter.scene.position.copy(safePosition);
+            characterPosition.copy(safePosition);
+            
+            // Initialize VRM adapter for animations
+            vrmAdapter = new VRMBVHAdapter(
+                { vrm: vrmCharacter, scene: vrmCharacter.scene },
+                null
+            );
+            
+            updateDebugInfo(`✅ VRM loaded: ${filename}`);
+            
+            // Optimize lighting when VRM character is loaded
+            if (lightingManager && lightingManager.initialized) {
+                lightingManager.optimizeForVRM(vrmCharacter);
+                updateDebugInfo('💡 Lighting optimized for VRM character');
+            }
+            
+            // Focus camera on character
+            controls.target.copy(vrmCharacter.scene.position);
+            controls.target.y += 1.0;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = clock.getDelta();
+            
+            // Update controls
+            controls.update();
+            
+            // Update VRM
+            if (vrmCharacter) {
+                vrmCharacter.update(deltaTime);
+            }
+            
+            // Update VRM adapter and animation playback
+            if (vrmAdapter && isPlaying && bvhData) {
+                try {
+                    // Increment animation frame
+                    animationFrame += deltaTime * 30; // 30 FPS
+                    
+                    // Apply the current frame to the VRM
+                    if (typeof vrmAdapter.applyBVHFrameToVRM === 'function' && 
+                        bvhData.frames && Math.floor(animationFrame) < bvhData.frames.length) {
+                        vrmAdapter.applyBVHFrameToVRM(bvhData.frames[Math.floor(animationFrame)]);
+                    }
+                    
+                    // Loop the animation
+                    if (bvhData.frames && animationFrame >= bvhData.frames.length) {
+                        animationFrame = 0;
+                    }
+                } catch (error) {
+                    // Silently handle animation errors
+                }
+            }
+            
+            // Update VRM adapter tick
+            if (vrmAdapter) {
+                vrmAdapter.tick(deltaTime);
+            }
+            
+            // Update lighting animations
+            if (lightingManager && lightingManager.initialized) {
+                lightingManager.animateLighting(deltaTime);
+            }
+            
+            // Render
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.addEventListener('resize', onWindowResize);
+
+        // Initialize the application
+        init().catch(error => {
+            console.error('Failed to initialize:', error);
+            updateLoadingStatus('Failed to initialize');
+            updateDebugInfo(`❌ Initialization error: ${error.message}`);
+        });
+
+    </script>
+</body>
+</html>

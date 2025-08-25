@@ -1,0 +1,6 @@
+eyeBlinkLeft: 0.4811
+eyeBlinkRight: 0.6235
+mouthSmile: 0.1529
+mouthFrown: 0.0030
+browUp: 0.1520
+browDown: 0.1972

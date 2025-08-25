@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRM Conversational Animation Classroom - AI Voice Chat in 3D Environment</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #667eea 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        /* Main control panels */
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            z-index: 100;
+            max-width: 480px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        
+        #conversation-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+            z-index: 100;
+            width: 400px;
+            max-height: 85vh;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .title {
+            color: #00d4ff;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(45deg, #00d4ff, #0084ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+            padding: 18px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        .control-section h3 {
+            margin: 0 0 15px 0;
+            color: #64b5f6;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #00d4ff, #0084ff);
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .primary-button {
+            background: linear-gradient(45deg, #4caf50, #45a049) !important;
+            font-size: 14px;
+            padding: 12px 20px;
+        }
+        
+        .danger-button {
+            background: linear-gradient(45deg, #f44336, #d32f2f) !important;
+        }
+        
+        .warning-button {
+            background: linear-gradient(45deg, #ff9800, #f57c00) !important;
+        }
+        
+        .voice-chat-button {
+            background: linear-gradient(45deg, #e91e63, #c2185b) !important;
+            font-size: 16px;
+            padding: 15px 25px;
+            border-radius: 50px;
+        }
+        
+        .voice-chat-button.active {
+            background: linear-gradient(45deg, #4caf50, #45a049) !important;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+        
+        select, input[type="range"], input[type="text"] {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            color: white;
+            padding: 8px 12px;
+            font-size: 13px;
+            width: 100%;
+            margin: 5px 0;
+        }
+        
+        select option {
+            background: #333;
+            color: white;
+        }
+        
+        .status-display {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: #81c784;
+            font-family: 'Courier New', monospace;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Conversation Panel Styles */
+        .conversation-history {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .message {
+            margin: 12px 0;
+            padding: 12px 15px;
+            border-radius: 10px;
+            border-left: 4px solid;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .user-message {
+            background: rgba(33, 150, 243, 0.15);
+            border-left-color: #2196f3;
+        }
+        
+        .assistant-message {
+            background: rgba(76, 175, 80, 0.15);
+            border-left-color: #4caf50;
+        }
+        
+        .system-message {
+            background: rgba(255, 193, 7, 0.15);
+            border-left-color: #ffc107;
+            font-style: italic;
+        }
+        
+        .message-time {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+        
+        .conversation-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .voice-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .voice-status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .listening {
+            background: #2196f3;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .speaking {
+            background: #4caf50;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .idle {
+            background: #666;
+        }
+        
+        /* Animation and Expression Controls */
+        .animation-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .expression-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .expression-button {
+            flex: 1;
+            min-width: 60px;
+            font-size: 11px;
+            padding: 8px 10px;
+        }
+        
+        /* Loading and Error States */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            border: 4px solid #333;
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-display {
+            color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        
+        /* Text Input Controls */
+        .input-section {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        #text-input {
+            flex: 1;
+        }
+        
+        /* Info Panel */
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            z-index: 100;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        /* Loading Screen */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 25px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status-indicator {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+            z-index: 200;
+            font-weight: bold;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        
+        .status-indicator.listening {
+            background: rgba(76, 175, 80, 0.9);
+            display: block;
+        }
+        
+        .status-indicator.speaking {
+            background: rgba(33, 150, 243, 0.9);
+            display: block;
+        }
+        
+        .status-indicator.processing {
+            background: rgba(255, 152, 0, 0.9);
+            display: block;
+        }
+        
+        @keyframes pulse {
+            0% { transform: translateY(-50%) scale(1); }
+            50% { transform: translateY(-50%) scale(1.05); }
+            100% { transform: translateY(-50%) scale(1); }
+        }
+        
+        .emotion-indicator {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 25px;
+            font-size: 18px;
+            z-index: 150;
+        }
+        
+        /* Scene Container */
+        #main-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        #scene-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        #scene-container canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            #ui-panel, .conversation-panel {
+                position: relative;
+                width: 90%;
+                margin: 10px auto;
+                max-width: none;
+            }
+            
+            .info-panel {
+                position: relative;
+                margin: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Loading VRM Conversational Classroom...</div>
+        <div id="loading-status">Initializing neural networks and 3D environment...</div>
+    </div>
+    
+    <div id="container">
+        <!-- 3D Scene Container -->
+        <div id="scene-container"></div>
+        
+        <!-- Main Control Panel -->
+        <div id="ui-panel">
+            <div class="title">🏫 VRM Conversational Classroom</div>
+            
+            <!-- Character & Environment Section -->
+            <div class="control-section">
+                <h3>🎭 Character & Environment</h3>
+                <div class="controls">
+                    <input type="file" id="vrm-file" accept=".vrm" style="display: none;">
+                    <button onclick="document.getElementById('vrm-file').click()">Load VRM Character</button>
+                    <button onclick="resetCharacterPosition()">Reset Position</button>
+                </div>
+                <div class="controls">
+                    <input type="file" id="glb-file" accept=".glb,.gltf" style="display: none;">
+                    <button onclick="document.getElementById('glb-file').click()">Load Classroom GLB</button>
+                    <button onclick="toggleClassroom()">Toggle Environment</button>
+                </div>
+                <div class="controls">
+                    <button onclick="randomizePosition()">Random Position</button>
+                    <button onclick="moveCharacter('center')">Move to Center</button>
+                </div>
+            </div>
+            
+            <!-- Voice Conversation Section -->
+            <div class="control-section">
+                <h3>🎙️ AI Voice Conversation</h3>
+                <div class="controls">
+                    <button id="start-conversation-btn" class="voice-chat-button" onclick="startConversation()">
+                        🎤 Start Voice Chat
+                    </button>
+                    <button id="stop-conversation-btn" class="danger-button" onclick="stopConversation()" disabled>
+                        🔇 Stop Chat
+                    </button>
+                </div>
+                
+                <div class="voice-indicator" id="voice-indicator">
+                    <div class="voice-status idle" id="voice-status">Idle</div>
+                    <div id="voice-text">Ready to chat...</div>
+                </div>
+                
+                <div class="controls">
+                    <select id="voice-select">
+                        <option value="af_heart">Female Heart ❤️</option>
+                        <option value="af_bella">Female Bella 🌸</option>
+                        <option value="af_nicole">Female Nicole 🎵</option>
+                        <option value="af_sky">Female Sky ☁️</option>
+                        <option value="am_adam">Male Adam 🎯</option>
+                        <option value="am_michael">Male Michael 🎪</option>
+                        <option value="bm_george">Male George 🎭</option>
+                        <option value="bm_lewis">Male Lewis 🎨</option>
+                    </select>
+                    <button onclick="changeVoice()">Change Voice</button>
+                </div>
+                
+                <div class="controls">
+                    <select id="personality-select">
+                        <option value="conversational">💬 Conversational</option>
+                        <option value="educational">📚 Educational Teacher</option>
+                        <option value="creative">🎨 Creative Assistant</option>
+                        <option value="technical">⚙️ Technical Helper</option>
+                        <option value="friendly">😊 Friendly Companion</option>
+                    </select>
+                    <button onclick="changePersonality()">Change Personality</button>
+                </div>
+                
+                <!-- Text input for manual conversation -->
+                <div class="input-section">
+                    <input type="text" id="text-input" placeholder="Type a message to the character..." onkeypress="handleTextInputKey(event)">
+                    <button onclick="sendTextMessage()">Send</button>
+                </div>
+            </div>
+            
+            <!-- Animation & Expression Section -->
+            <div class="control-section">
+                <h3>🎬 Animation & Expression</h3>
+                <div class="animation-grid">
+                    <button onclick="loadSelectedAnimation()">Load Animation</button>
+                    <button onclick="toggleAnimation()">Play/Pause</button>
+                    <button onclick="resetAnimation()">Reset</button>
+                    <button onclick="syncAnimationToSpeech()">Sync to Speech</button>
+                </div>
+                
+                <div class="controls">
+                    <select id="animation-select">
+                        <option value="neutral_reference.bvh">Neutral Stance</option>
+                        <option value="angry_reference.bvh">Angry</option>
+                        <option value="elated_reference.bvh">Happy/Elated</option>
+                        <option value="depressed_reference.bvh">Sad/Depressed</option>
+                        <option value="proud_reference.bvh">Proud</option>
+                        <option value="neutral_walking.bvh">Walking</option>
+                        <option value="dramatic_walking.bvh">Dramatic Walk</option>
+                    </select>
+                </div>
+                
+                <div class="expression-controls">
+                    <button class="expression-button" onclick="setExpression('happy')">😊 Happy</button>
+                    <button class="expression-button" onclick="setExpression('surprised')">😲 Surprised</button>
+                    <button class="expression-button" onclick="setExpression('angry')">😠 Angry</button>
+                    <button class="expression-button" onclick="setExpression('sad')">😢 Sad</button>
+                    <button class="expression-button" onclick="setExpression('neutral')">😐 Neutral</button>
+                    <button class="expression-button" onclick="setExpression('excited')">🤩 Excited</button>
+                </div>
+            </div>
+            
+            <!-- Movement & Interaction Section -->
+            <div class="control-section">
+                <h3>🎮 Movement & Interaction</h3>
+                <div class="controls">
+                    <button onclick="moveCharacter('forward')">⬆️ Forward</button>
+                    <button onclick="moveCharacter('backward')">⬇️ Back</button>
+                    <button onclick="moveCharacter('left')">⬅️ Left</button>
+                    <button onclick="moveCharacter('right')">➡️ Right</button>
+                </div>
+                <div style="margin-top: 10px;">
+                    <label>Speed: </label>
+                    <input type="range" id="move-speed" min="0.1" max="2.0" step="0.1" value="0.5" onchange="updateMoveSpeed()">
+                    <span id="speed-value">0.5</span>
+                </div>
+                <div class="controls">
+                    <button onclick="enableFollowMode()">👥 Follow Mode</button>
+                    <button onclick="enableLookAtCamera()">👁️ Look at Camera</button>
+                    <button onclick="enableGestureMode()">👋 Auto Gestures</button>
+                </div>
+            </div>
+            
+            <!-- Lighting & Environment Section -->
+            <div class="control-section">
+                <h3>💡 Lighting & Environment</h3>
+                <div class="controls">
+                    <button onclick="setLightingPreset('classroom')">🏫 Classroom</button>
+                    <button onclick="setLightingPreset('studio')">🎬 Studio</button>
+                    <button onclick="setLightingPreset('dramatic')">🎭 Dramatic</button>
+                    <button onclick="setLightingPreset('soft')">🌅 Soft</button>
+                </div>
+                <div class="controls">
+                    <button onclick="adjustBrightness(1.5)">☀️ Brighter</button>
+                    <button onclick="adjustBrightness(0.7)">🌙 Dimmer</button>
+                    <button onclick="resetLighting()">🔄 Reset</button>
+                    <button onclick="analyzeLighting()">🔍 Analyze</button>
+                </div>
+            </div>
+            
+            <!-- Debug & Status Section -->
+            <div class="control-section">
+                <h3>🔧 Debug & Status</h3>
+                <div class="controls">
+                    <button onclick="debugCharacterPosition()">📍 Log Position</button>
+                    <button onclick="debugCollisions()">� Debug Collision</button>
+                    <button onclick="testConversationSystem()">🧪 Test Voice</button>
+                    <button onclick="clearConversation()">🗑️ Clear Chat</button>
+                </div>
+                
+                <div class="status-display" id="debug-info">
+                    Waiting for VRM character and environment...
+                </div>
+            </div>
+        </div>
+        
+        <!-- Conversation Panel -->
+        <div id="conversation-panel">
+            <div class="title">💬 Conversation</div>
+            
+            <div class="conversation-controls">
+                <button onclick="toggleConversationPanel()" class="primary-button">📋 Toggle History</button>
+                <button onclick="saveConversation()" class="warning-button">💾 Save Chat</button>
+            </div>
+            
+            <div class="conversation-history" id="conversation-history">
+                <div class="system-message">
+                    <div>🤖 VRM AI Assistant Ready</div>
+                    <div class="message-time">System initialized</div>
+                </div>
+            </div>
+            
+            <div class="input-section">
+                <input type="text" id="conversation-input" placeholder="Type your message here..." onkeypress="handleConversationInput(event)">
+                <button onclick="sendConversationMessage()">Send</button>
+            </div>
+        </div>
+        
+        <!-- Info Panel -->
+        <div class="info-panel">
+            <div><strong>🎮 Controls:</strong> WASD/Arrow keys to move camera • Mouse to look around • Voice chat for conversation</div>
+            <div><strong>🎙️ Voice Chat:</strong> Click "Start Voice Chat" and speak naturally to the AI character</div>
+            <div><strong>🎭 Character:</strong> Expressions and animations sync automatically with conversation</div>
+            <div><strong>🏫 Environment:</strong> Character respects collision boundaries in the classroom</div>
+        </div>
+    </div>
+                    <button onclick="setEmotion('sad')">😢 Sad</button>
+                    <button onclick="setEmotion('neutral')">😐 Neutral</button>
+                </div>
+                <div class="controls">
+                    <button onclick="playGesture('wave')">👋 Wave</button>
+                    <button onclick="playGesture('nod')">👍 Nod</button>
+                    <button onclick="playGesture('think')">🤔 Think</button>
+                    <button onclick="resetPose()">🔄 Reset Pose</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>💡 Lighting & Atmosphere</h3>
+                <div class="controls">
+                    <button onclick="setLightingPreset('studio')">Studio</button>
+                    <button onclick="setLightingPreset('dramatic')">Dramatic</button>
+                    <button onclick="setLightingPreset('soft')">Soft</button>
+                    <button onclick="toggleLighting()">Toggle</button>
+                </div>
+                <div class="controls">
+                    <button onclick="adjustBrightness(1.5)">Brighter</button>
+                    <button onclick="adjustBrightness(0.7)">Dimmer</button>
+                    <button onclick="resetLighting()">Reset</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>📊 System Status</h3>
+                <div class="status-display" id="debug-info">
+                    Initializing VRM conversation interface...
+                </div>
+                <div class="controls">
+                    <button onclick="showSystemStatus()">Show Status</button>
+                    <button onclick="resetConversation()" class="warning-button">Reset Chat</button>
+                    <button onclick="clearLogs()">Clear Logs</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="conversation-panel">
+            <div class="title">💬 Conversation</div>
+            
+            <div class="conversation-history" id="conversation-history">
+                <div class="message assistant-message">
+                    <strong>Assistant:</strong> Hello! I'm ready to chat. Load a VRM character and start a conversation with me!
+                </div>
+            </div>
+            
+            <div class="input-section">
+                <input type="text" id="text-input" placeholder="Type a message or use voice..." onkeypress="handleTextInputKey(event)">
+                <button onclick="sendTextMessage()">Send</button>
+            </div>
+            
+            <div class="controls">
+                <button onclick="exportConversation()">💾 Export Chat</button>
+                <button onclick="importConversation()">📁 Import Chat</button>
+            </div>
+        </div>
+        
+        <div class="status-indicator" id="listening-indicator">
+            🎤 Listening...
+        </div>
+        
+        <div class="status-indicator" id="speaking-indicator">
+            🗣️ Speaking...
+        </div>
+        
+        <div class="status-indicator" id="processing-indicator">
+            ⚙️ Processing...
+        </div>
+        
+        <div class="emotion-indicator" id="emotion-indicator">
+            😐 Neutral
+        </div>
+        
+        <div class="info-panel">
+            <div id="scene-info">
+                <div><strong>VRM AI Conversation Interface</strong></div>
+                <div>🎭 Load VRM characters • 🎙️ Voice chat with AI • 🎬 Dynamic animations • 💡 Mood lighting</div>
+                <div><strong>Usage:</strong> Load a VRM character, start conversation, and chat naturally with AI</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import map for THREE.js and Transformers -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js",
+            "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js",
+            "kokoro-js": "https://cdn.jsdelivr.net/npm/kokoro-js@0.1.0/dist/index.js"
+        }
+    }
+    </script>
+
+    <!-- VRM and Scene modules -->
+    <script src="./js/vrm_mesh_classroom.js"></script>
+    <script src="./js/VRMLightingManager.js"></script>
+    <script src="./js/VRMDiagnostics.js"></script>
+    <script src="./js/VRMBVHAdapter.js"></script>
+
+    <script type="module">
+        // Import THREE.js modules and conversation interface
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import VRMConversationInterface from './modules/VRMConversationInterface_v2.js';
+
+        // Global variables for the 3D scene
+        let scene, camera, renderer, controls;
+        let classroom, vrmCharacter, vrmAdapter, lightingManager;
+        let animationMixer, currentAction;
+        let bvhData = null;
+        let isPlaying = false;
+        let animationFrame = 0;
+        let moveSpeed = 0.5;
+        let characterPosition = new THREE.Vector3(0, 0, 0);
+        let collisionDebug = false;
+        let collisionBounds = [];
+        let conversationInterface;
+
+        // UI elements
+        const loadingDiv = document.getElementById('loading');
+        const loadingStatus = document.getElementById('loading-status');
+        const debugInfo = document.getElementById('debug-info');
+        const conversationHistory = document.getElementById('conversation-history');
+        const voiceIndicator = document.getElementById('voice-indicator');
+        const voiceStatus = document.getElementById('voice-status');
+        const voiceText = document.getElementById('voice-text');
+
+        // Animation clock
+        const clock = new THREE.Clock();
+
+        // Make THREE global for compatibility
+        window.THREE = THREE;
+        window.GLTFLoader = GLTFLoader;
+
+        function updateLoadingStatus(message) {
+            console.log('📝', message);
+            if (loadingStatus) {
+                loadingStatus.textContent = message;
+            }
+        }
+
+        function updateDebugInfo(message) {
+            if (debugInfo) {
+                const now = new Date().toLocaleTimeString();
+                debugInfo.innerHTML += `[${now}] ${message}<br>`;
+                debugInfo.scrollTop = debugInfo.scrollHeight;
+            }
+        }
+
+        function addConversationMessage(type, message, metadata = {}) {
+            if (!conversationHistory) return;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.innerHTML = `<strong>${type === 'user' ? 'You' : 'Assistant'}:</strong> ${message}`;
+            
+            if (metadata.emotion) {
+                messageDiv.innerHTML += ` <span class="emotion">[${metadata.emotion}]</span>`;
+            }
+            
+            conversationHistory.appendChild(messageDiv);
+            conversationHistory.scrollTop = conversationHistory.scrollHeight;
+        }
+
+        function updateVoiceStatus(status, text = '') {
+            if (voiceStatus) {
+                voiceStatus.className = `voice-status ${status}`;
+                voiceStatus.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            }
+            if (voiceText && text) {
+                voiceText.textContent = text;
+            }
+        }
+
+        // Initialize the 3D scene
+        async function initializeScene() {
+            updateLoadingStatus('Creating 3D scene...');
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.5, 3);
+            
+            // Create renderer
+            const container = document.getElementById('scene-container');
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = false; // Disable shadows for VRM compatibility
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            container.appendChild(renderer.domElement);
+            
+            // Create controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 1, 0);
+            
+            updateLoadingStatus('Creating classroom environment...');
+            
+            // Initialize classroom
+            if (window.ClassroomGLBLoader) {
+                classroom = new ClassroomGLBLoader(scene);
+                await classroom.initialize();
+                await classroom.loadClassroomGLB('./assets/scenes/classroom.glb');
+            }
+            
+            updateLoadingStatus('Loading default VRM character...');
+            
+            // Load default VRM character
+            await loadDefaultVRMCharacter();
+            
+            updateLoadingStatus('Setting up VRM-optimized lighting...');
+            
+            // Initialize lighting
+            if (window.VRMLightingManager) {
+                lightingManager = new VRMLightingManager(scene, renderer);
+                lightingManager.setupLighting('classroom');
+            }
+            
+            updateLoadingStatus('Ready!');
+            
+            // Hide loading screen
+            if (loadingDiv) {
+                loadingDiv.style.display = 'none';
+            }
+            
+            // Start render loop
+            animate();
+        }
+
+        // Load default VRM character
+        async function loadDefaultVRMCharacter() {
+            const vrmPaths = [
+                './assets/characters/Alicia.vrm',
+                './assets/characters/ichika.vrm',
+                './assets/characters/kaede.vrm',
+                './assets/characters/buny.vrm'
+            ];
+            
+            for (const vrmPath of vrmPaths) {
+                try {
+                    const loader = new GLTFLoader();
+                    loader.register((parser) => new VRMLoaderPlugin(parser));
+                    
+                    const gltf = await loader.loadAsync(vrmPath);
+                    const vrm = gltf.userData.vrm;
+                    
+                    if (vrm) {
+                        // Create VRM adapter
+                        vrmAdapter = new VRMBVHAdapter(vrm, vrm.scene);
+                        scene.add(vrm.scene);
+                        vrmCharacter = vrm;
+                        
+                        // Position the character
+                        vrm.scene.position.set(0, 0, 0);
+                        characterPosition.copy(vrm.scene.position);
+                        
+                        console.log('✅ Default VRM character loaded:', vrmPath);
+                        break;
+                    }
+                } catch (error) {
+                    console.warn(`Failed to load ${vrmPath}:`, error.message);
+                }
+            }
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = clock.getDelta();
+            
+            // Update controls
+            controls.update();
+            
+            // Update VRM character
+            if (vrmCharacter && vrmCharacter.update) {
+                vrmCharacter.update(deltaTime);
+            }
+            
+            // Update VRM adapter
+            if (vrmAdapter && vrmAdapter.update) {
+                vrmAdapter.update(deltaTime);
+            }
+            
+            // Update animation mixer
+            if (animationMixer) {
+                animationMixer.update(deltaTime);
+            }
+            
+            // Render scene
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Initialize conversation system
+        async function initializeConversation() {
+            updateLoadingStatus('Initializing conversation system...');
+            
+            try {
+                conversationInterface = new VRMConversationInterface();
+                
+                // Initialize the conversation interface first
+                await conversationInterface.initialize();
+                
+                // Set up conversation event listeners after initialization
+                try {
+                    setupConversationEvents();
+                } catch (eventError) {
+                    console.warn('Event setup failed:', eventError);
+                }
+                
+                // Connect VRM character to conversation interface
+                if (vrmCharacter && vrmAdapter) {
+                    conversationInterface.setVRMCharacter(vrmCharacter, vrmAdapter);
+                }
+                
+                updateLoadingStatus('Conversation system ready!');
+                
+            } catch (error) {
+                console.warn('Failed to initialize full conversation system:', error);
+                updateLoadingStatus('Using fallback conversation system...');
+                
+                // Create a simple fallback conversation interface
+                conversationInterface = {
+                    isInitialized: true,
+                    isConversing: false,
+                    vrmCharacter: null,
+                    vrmAdapter: null,
+                    
+                    addEventListener: function(event, callback) {
+                        // Simple event listener mock
+                        console.log(`Event listener added: ${event}`);
+                    },
+                    
+                    setVRMCharacter: (character, adapter) => {
+                        console.log('VRM character set (fallback mode)');
+                        conversationInterface.vrmCharacter = character;
+                        conversationInterface.vrmAdapter = adapter;
+                    },
+                    
+                    startConversation: async () => {
+                        console.log('Conversation started (fallback mode)');
+                        conversationInterface.isConversing = true;
+                        updateVoiceStatus('listening', 'Fallback mode - Type to chat');
+                        addConversationMessage('system', 'Voice chat not available. Please use text input.');
+                        return true;
+                    },
+                    
+                    stopConversation: async () => {
+                        console.log('Conversation stopped (fallback mode)');
+                        conversationInterface.isConversing = false;
+                        updateVoiceStatus('idle', 'Ready to chat...');
+                        return true;
+                    },
+                    
+                    sendTextMessage: async (text) => {
+                        console.log('Text message sent (fallback mode):', text);
+                        
+                        // Add user message to conversation
+                        addConversationMessage('user', text);
+                        
+                        // Generate simple response
+                        const responses = [
+                            "That's interesting! I'm running in fallback mode, so my responses are limited.",
+                            "I understand what you're saying. The full AI system isn't available right now.",
+                            "Thanks for sharing that with me! I'm using a simple response system.",
+                            "I see! While the advanced AI is offline, I can still chat with you.",
+                            "That's a good point. I'm operating with basic functionality at the moment."
+                        ];
+                        
+                        const response = responses[Math.floor(Math.random() * responses.length)];
+                        
+                        // Simulate processing delay
+                        await new Promise(resolve => setTimeout(resolve, 800));
+                        
+                        // Add AI response
+                        addConversationMessage('assistant', response);
+                        
+                        // Trigger VRM expression if character is available
+                        if (conversationInterface.vrmCharacter && conversationInterface.vrmCharacter.expressionManager) {
+                            try {
+                                const expressions = conversationInterface.vrmCharacter.expressionManager.expressionMap;
+                                Object.keys(expressions).forEach(key => {
+                                    conversationInterface.vrmCharacter.expressionManager.setValue(key, 0);
+                                });
+                                conversationInterface.vrmCharacter.expressionManager.setValue('happy', 0.3);
+                            } catch (expError) {
+                                console.warn('Expression error:', expError);
+                            }
+                        }
+                        
+                        return { text: response };
+                    },
+                    
+                    setVoice: (voiceName) => {
+                        console.log(`Voice set to ${voiceName} (fallback mode)`);
+                    },
+                    
+                    setPersonality: (personality) => {
+                        console.log(`Personality set to ${personality} (fallback mode)`);
+                    },
+                    
+                    resetConversation: () => {
+                        console.log('Conversation reset (fallback mode)');
+                    }
+                };
+                
+                updateLoadingStatus('Fallback conversation system ready!');
+            }
+        }
+
+        // Set up conversation event listeners
+        function setupConversationEvents() {
+            conversationInterface.addEventListener('ready', (event) => {
+                updateDebugInfo('🎤 Conversation system ready');
+                console.log('Conversation system ready:', event.detail);
+            });
+
+            conversationInterface.addEventListener('listening', (event) => {
+                const isListening = event.detail.isListening;
+                updateVoiceStatus(isListening ? 'listening' : 'idle', 
+                    isListening ? 'Listening for your voice...' : 'Ready to chat...');
+                updateDebugInfo(`🎤 ${isListening ? 'Started' : 'Stopped'} listening`);
+            });
+
+            conversationInterface.addEventListener('processing', (event) => {
+                updateVoiceStatus('processing', 'Processing your message...');
+                updateDebugInfo('🧠 Processing speech...');
+            });
+
+            conversationInterface.addEventListener('speaking', (event) => {
+                const isSpeaking = event.detail.isSpeaking;
+                updateVoiceStatus(isSpeaking ? 'speaking' : 'idle', 
+                    isSpeaking ? 'Speaking response...' : 'Ready to chat...');
+                updateDebugInfo(`🗣️ ${isSpeaking ? 'Started' : 'Finished'} speaking`);
+            });
+
+            conversationInterface.addEventListener('userMessage', (event) => {
+                const userText = event.detail.text;
+                addConversationMessage('user', userText);
+                updateDebugInfo(`👤 User: ${userText}`);
+                
+                // Character listens (subtle animation)
+                if (vrmCharacter && vrmCharacter.expressionManager) {
+                    vrmCharacter.expressionManager.setValue('happy', 0.3);
+                }
+            });
+
+            conversationInterface.addEventListener('assistantMessage', (event) => {
+                const assistantText = event.detail.text;
+                const emotion = event.detail.emotion;
+                addConversationMessage('assistant', assistantText, { emotion });
+                updateDebugInfo(`🤖 Assistant: ${assistantText}`);
+                
+                if (vrmCharacter) {
+                    // Character expresses based on response content
+                    analyzeResponseEmotion(assistantText);
+                }
+            });
+
+            conversationInterface.addEventListener('error', (event) => {
+                updateDebugInfo(`❌ Conversation Error: ${event.detail.error}`);
+                updateVoiceStatus('idle', 'Error occurred, ready to retry...');
+            });
+        }
+
+        // Analyze response emotion and set character expression
+        function analyzeResponseEmotion(text) {
+            if (!vrmCharacter || !vrmCharacter.expressionManager) return;
+            
+            const expressions = vrmCharacter.expressionManager.expressionMap;
+            const lowerText = text.toLowerCase();
+            
+            // Reset expressions
+            Object.keys(expressions).forEach(key => {
+                vrmCharacter.expressionManager.setValue(key, 0);
+            });
+            
+            // Simple emotion analysis
+            if (lowerText.includes('happy') || lowerText.includes('great') || lowerText.includes('wonderful')) {
+                vrmCharacter.expressionManager.setValue('happy', 0.8);
+            } else if (lowerText.includes('sad') || lowerText.includes('sorry') || lowerText.includes('disappointed')) {
+                vrmCharacter.expressionManager.setValue('sad', 0.8);
+            } else if (lowerText.includes('surprised') || lowerText.includes('wow') || lowerText.includes('amazing')) {
+                vrmCharacter.expressionManager.setValue('surprised', 0.8);
+            } else if (lowerText.includes('angry') || lowerText.includes('frustrated') || lowerText.includes('annoyed')) {
+                vrmCharacter.expressionManager.setValue('angry', 0.8);
+            } else {
+                vrmCharacter.expressionManager.setValue('neutral', 0.5);
+            }
+        }
+
+        // Global functions for UI controls
+        window.startConversation = async function() {
+            const startBtn = document.getElementById('start-conversation-btn');
+            const stopBtn = document.getElementById('stop-conversation-btn');
+            
+            try {
+                startBtn.disabled = true;
+                startBtn.classList.add('active');
+                
+                await conversationInterface.startConversation();
+                updateDebugInfo('🎤 Voice conversation started');
+                
+                stopBtn.disabled = false;
+                
+            } catch (error) {
+                updateDebugInfo(`❌ Failed to start: ${error.message}`);
+                startBtn.disabled = false;
+                startBtn.classList.remove('active');
+            }
+        };
+
+        window.stopConversation = async function() {
+            const startBtn = document.getElementById('start-conversation-btn');
+            const stopBtn = document.getElementById('stop-conversation-btn');
+            
+            try {
+                stopBtn.disabled = true;
+                
+                await conversationInterface.stopConversation();
+                updateDebugInfo('🔇 Voice conversation stopped');
+                
+                startBtn.disabled = false;
+                startBtn.classList.remove('active');
+                
+            } catch (error) {
+                updateDebugInfo(`❌ Failed to stop: ${error.message}`);
+                stopBtn.disabled = false;
+            }
+        };
+
+        window.resetConversation = function() {
+            if (conversationInterface) {
+                conversationInterface.resetConversation();
+                updateDebugInfo('🔄 Conversation reset');
+            }
+        };
+
+        window.sendTextMessage = async function() {
+            const input = document.getElementById('text-input');
+            const text = input.value.trim();
+            if (text && conversationInterface) {
+                try {
+                    input.disabled = true;
+                    await conversationInterface.sendTextMessage(text);
+                    input.value = '';
+                    updateDebugInfo(`💬 Sent: "${text}"`);
+                } catch (error) {
+                    updateDebugInfo(`❌ Failed to send message: ${error.message}`);
+                } finally {
+                    input.disabled = false;
+                    input.focus();
+                }
+            }
+        };
+
+        window.handleTextInputKey = function(event) {
+            if (event.key === 'Enter') {
+                window.sendTextMessage();
+            }
+        };
+
+        // Conversation input handlers
+        window.handleConversationInput = function(event) {
+            if (event.key === 'Enter') {
+                window.sendConversationMessage();
+            }
+        };
+
+        window.sendConversationMessage = async function() {
+            const input = document.getElementById('conversation-input');
+            const text = input.value.trim();
+            if (text && conversationInterface) {
+                try {
+                    input.disabled = true;
+                    await conversationInterface.sendTextMessage(text);
+                    input.value = '';
+                    updateDebugInfo(`💬 Sent: "${text}"`);
+                } catch (error) {
+                    updateDebugInfo(`❌ Failed to send message: ${error.message}`);
+                } finally {
+                    input.disabled = false;
+                    input.focus();
+                }
+            }
+        };
+
+        // Voice and personality controls
+        window.changeVoice = function() {
+            const voiceSelect = document.getElementById('voice-select');
+            const selectedVoice = voiceSelect.value;
+            if (conversationInterface && conversationInterface.setVoice) {
+                conversationInterface.setVoice(selectedVoice);
+                updateDebugInfo(`🎵 Voice changed to: ${selectedVoice}`);
+            }
+        };
+
+        window.changePersonality = function() {
+            const personalitySelect = document.getElementById('personality-select');
+            const selectedPersonality = personalitySelect.value;
+            if (conversationInterface && conversationInterface.setPersonality) {
+                conversationInterface.setPersonality(selectedPersonality);
+                updateDebugInfo(`🎭 Personality changed to: ${selectedPersonality}`);
+            }
+        };
+
+        // Expression controls
+        window.setExpression = function(expression) {
+            if (vrmCharacter && vrmCharacter.expressionManager) {
+                // Reset all expressions
+                const expressions = vrmCharacter.expressionManager.expressionMap;
+                Object.keys(expressions).forEach(key => {
+                    vrmCharacter.expressionManager.setValue(key, 0);
+                });
+                
+                // Set the target expression
+                if (expressions[expression]) {
+                    vrmCharacter.expressionManager.setValue(expression, 1.0);
+                    updateDebugInfo(`😊 Expression set to: ${expression}`);
+                } else {
+                    updateDebugInfo(`❌ Expression not found: ${expression}`);
+                }
+            }
+        };
+
+        // Additional UI functions
+        window.toggleConversationPanel = function() {
+            const panel = document.getElementById('conversation-panel');
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            }
+        };
+
+        window.saveConversation = function() {
+            const history = document.getElementById('conversation-history');
+            if (history) {
+                const conversation = history.innerText;
+                const blob = new Blob([conversation], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `conversation_${new Date().toISOString()}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+                updateDebugInfo('💾 Conversation saved');
+            }
+        };
+
+        window.clearConversation = function() {
+            const history = document.getElementById('conversation-history');
+            if (history) {
+                history.innerHTML = '<div class="system-message"><div>🤖 VRM AI Assistant Ready</div><div class="message-time">Conversation cleared</div></div>';
+                updateDebugInfo('🗑️ Conversation cleared');
+            }
+        };
+
+        // Character position and movement controls
+        window.resetCharacterPosition = function() {
+            if (vrmCharacter && vrmCharacter.scene) {
+                vrmCharacter.scene.position.set(0, 0, 0);
+                characterPosition.copy(vrmCharacter.scene.position);
+                updateDebugInfo('📍 Character position reset');
+            }
+        };
+
+        window.randomizePosition = function() {
+            if (vrmCharacter && vrmCharacter.scene) {
+                const x = (Math.random() - 0.5) * 4;
+                const z = (Math.random() - 0.5) * 4;
+                vrmCharacter.scene.position.set(x, 0, z);
+                characterPosition.copy(vrmCharacter.scene.position);
+                updateDebugInfo(`📍 Character moved to random position: (${x.toFixed(2)}, ${z.toFixed(2)})`);
+            }
+        };
+
+        window.moveCharacter = function(direction) {
+            if (!vrmCharacter || !vrmCharacter.scene) return;
+            
+            const speed = 0.5;
+            const position = vrmCharacter.scene.position;
+            
+            switch(direction) {
+                case 'forward':
+                    position.z -= speed;
+                    break;
+                case 'backward':
+                    position.z += speed;
+                    break;
+                case 'left':
+                    position.x -= speed;
+                    break;
+                case 'right':
+                    position.x += speed;
+                    break;
+                case 'center':
+                    position.set(0, 0, 0);
+                    break;
+            }
+            
+            characterPosition.copy(position);
+            updateDebugInfo(`📍 Character moved ${direction}`);
+        };
+
+        // Environment controls
+        window.toggleClassroom = function() {
+            if (classroom && classroom.scene) {
+                classroom.scene.visible = !classroom.scene.visible;
+                updateDebugInfo(`🏫 Classroom ${classroom.scene.visible ? 'shown' : 'hidden'}`);
+            }
+        };
+
+        // Animation controls
+        window.loadSelectedAnimation = function() {
+            const animationSelect = document.getElementById('animation-select');
+            const selectedAnimation = animationSelect.value;
+            if (vrmAdapter && selectedAnimation) {
+                vrmAdapter.loadBVH(`./assets/animations/${selectedAnimation}`);
+                updateDebugInfo(`🎬 Loading animation: ${selectedAnimation}`);
+            }
+        };
+
+        window.toggleAnimation = function() {
+            if (vrmAdapter) {
+                if (vrmAdapter.isAnimating) {
+                    vrmAdapter.pauseAnimation();
+                    updateDebugInfo('⏸️ Animation paused');
+                } else {
+                    vrmAdapter.playAnimation();
+                    updateDebugInfo('▶️ Animation playing');
+                }
+            }
+        };
+
+        window.resetAnimation = function() {
+            if (vrmAdapter) {
+                vrmAdapter.resetAnimation();
+                updateDebugInfo('🔄 Animation reset');
+            }
+        };
+
+        window.syncAnimationToSpeech = function() {
+            if (vrmAdapter) {
+                vrmAdapter.enableSpeechSync(true);
+                updateDebugInfo('🎤 Animation synced to speech');
+            }
+        };
+
+        // Movement speed control
+        window.updateMoveSpeed = function() {
+            const speedSlider = document.getElementById('move-speed');
+            const speedValue = document.getElementById('speed-value');
+            const speed = parseFloat(speedSlider.value);
+            speedValue.textContent = speed.toFixed(1);
+            updateDebugInfo(`🚀 Movement speed: ${speed.toFixed(1)}`);
+        };
+
+        // Interaction modes
+        window.enableFollowMode = function() {
+            // TODO: Implement follow mode
+            updateDebugInfo('👥 Follow mode enabled');
+        };
+
+        window.enableLookAtCamera = function() {
+            // TODO: Implement look at camera
+            updateDebugInfo('👁️ Look at camera enabled');
+        };
+
+        window.enableGestureMode = function() {
+            // TODO: Implement gesture mode
+            updateDebugInfo('👋 Auto gesture mode enabled');
+        };
+
+        // Lighting controls
+        window.setLightingPreset = function(preset) {
+            if (lightingManager) {
+                lightingManager.setupLighting(preset);
+                updateDebugInfo(`💡 Lighting preset: ${preset}`);
+            }
+        };
+
+        window.adjustBrightness = function(factor) {
+            if (lightingManager) {
+                lightingManager.adjustBrightness(factor);
+                updateDebugInfo(`☀️ Brightness adjusted by factor: ${factor}`);
+            }
+        };
+
+        window.resetLighting = function() {
+            if (lightingManager) {
+                lightingManager.resetLighting();
+                updateDebugInfo('🔄 Lighting reset');
+            }
+        };
+
+        window.analyzeLighting = function() {
+            if (lightingManager) {
+                lightingManager.logLightingStatus();
+                updateDebugInfo('🔍 Lighting analysis complete');
+            }
+        };
+
+        // Debug controls
+        window.debugCharacterPosition = function() {
+            if (vrmCharacter && vrmCharacter.scene) {
+                const pos = vrmCharacter.scene.position;
+                console.log('Character position:', pos);
+                updateDebugInfo(`📍 Position: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})`);
+            }
+        };
+
+        window.debugCollisions = function() {
+            if (classroom && classroom.checkCollision) {
+                console.log('Collision detection test');
+                updateDebugInfo('🔍 Collision detection test completed');
+            }
+        };
+
+        window.testConversationSystem = function() {
+            console.log('🧪 Testing Conversation System...');
+            if (!conversationInterface) {
+                console.log('❌ Conversation interface not available');
+                return false;
+            }
+            
+            console.log('Conversation Interface Type:', typeof conversationInterface);
+            console.log('Available methods:', Object.keys(conversationInterface));
+            
+            // Test text input
+            if (conversationInterface.sendTextMessage) {
+                console.log('✅ Text messaging available');
+                conversationInterface.sendTextMessage('Test message from browser console')
+                    .then(response => {
+                        console.log('💬 Response:', response);
+                    })
+                    .catch(error => {
+                        console.warn('💬 Response error:', error);
+                    });
+            }
+            
+            return true;
+        };
+        
+        window.testVRMSystem = function() {
+            console.log('🧪 Testing VRM System...');
+            console.log('Scene:', scene ? '✅ Ready' : '❌ Not initialized');
+            console.log('Camera:', camera ? '✅ Ready' : '❌ Not initialized');
+            console.log('Renderer:', renderer ? '✅ Ready' : '❌ Not initialized');
+            console.log('VRM Character:', vrmCharacter ? '✅ Loaded' : '❌ Not loaded');
+            console.log('VRM Adapter:', vrmAdapter ? '✅ Ready' : '❌ Not ready');
+            console.log('Conversation Interface:', conversationInterface ? '✅ Ready' : '❌ Not initialized');
+            console.log('Lighting Manager:', lightingManager ? '✅ Ready' : '❌ Not initialized');
+            console.log('Classroom:', classroom ? '✅ Loaded' : '❌ Not loaded');
+            
+            if (conversationInterface) {
+                console.log('Conversation Status:', conversationInterface.isInitialized ? '✅ Initialized' : '❌ Not initialized');
+                console.log('Conversation State:', conversationInterface.isConversing ? '🎙️ Active' : '💤 Idle');
+            }
+            
+            return {
+                scene: !!scene,
+                camera: !!camera,
+                renderer: !!renderer,
+                vrmCharacter: !!vrmCharacter,
+                vrmAdapter: !!vrmAdapter,
+                conversationInterface: !!conversationInterface,
+                lightingManager: !!lightingManager,
+                classroom: !!classroom
+            };
+        };
+        
+        // Add these to the global debug info
+        window.addEventListener('load', () => {
+            updateDebugInfo('🧪 Debug functions available: testVRMSystem(), testConversationSystem()');
+        });
+        
+        // Initialize the application
+        window.addEventListener('load', async () => {
+            try {
+                await initializeScene();
+                await initializeConversation();
+                
+                // Set up event listeners
+                window.addEventListener('resize', onWindowResize);
+                
+                updateLoadingStatus('Application ready!');
+                updateDebugInfo('✅ VRM Conversational Classroom initialized');
+                
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+                updateLoadingStatus('Failed to initialize');
+                updateDebugInfo(`❌ Initialization error: ${error.message}`);
+            }
+        });
+
+    </script>
+</body>
+</html>

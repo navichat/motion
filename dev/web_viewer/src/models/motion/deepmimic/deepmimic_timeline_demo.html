@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepMimic BVH Timeline Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-group {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .control-group h3 {
+            margin-top: 0;
+            color: #ffeb3b;
+            font-size: 1.2em;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(45deg, #ee5a24, #ff6b6b);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .primary-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+        }
+        
+        .primary-btn:hover {
+            background: linear-gradient(45deg, #45a049, #4CAF50);
+        }
+        
+        .danger-btn {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+        }
+        
+        .danger-btn:hover {
+            background: linear-gradient(45deg, #d32f2f, #f44336);
+        }
+        
+        select, input[type="number"], input[type="range"] {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        select option {
+            background: #333;
+            color: white;
+        }
+        
+        .timeline-viz {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 200px;
+            position: relative;
+            overflow-x: auto;
+        }
+        
+        .timeline-track {
+            height: 40px;
+            margin: 10px 0;
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+        
+        .timeline-clip {
+            background: linear-gradient(45deg, #2196F3, #03DAC6);
+            height: 80%;
+            position: absolute;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .timeline-clip:hover {
+            transform: scale(1.05);
+            z-index: 10;
+        }
+        
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #ff4444;
+            z-index: 100;
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ffeb3b;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .log {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        
+        .log-info { background: rgba(33, 150, 243, 0.2); }
+        .log-success { background: rgba(76, 175, 80, 0.2); }
+        .log-warning { background: rgba(255, 152, 0, 0.2); }
+        .log-error { background: rgba(244, 67, 54, 0.2); }
+        
+        .motion-params {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .slider-container label {
+            min-width: 80px;
+            font-size: 12px;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+        }
+        
+        .value-display {
+            min-width: 60px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 DeepMimic BVH Timeline Integration Demo</h1>
+        
+        <div id="initialization" class="control-group">
+            <h3>System Status</h3>
+            <div id="status">Initializing...</div>
+            <button id="initBtn" class="primary-btn">Initialize System</button>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h3>🎬 Motion Templates</h3>
+                <div class="button-group">
+                    <button onclick="addMotionTemplate('idle')">Idle</button>
+                    <button onclick="addMotionTemplate('walk')">Walk</button>
+                    <button onclick="addMotionTemplate('run')">Run</button>
+                    <button onclick="addMotionTemplate('jump')">Jump</button>
+                    <button onclick="addMotionTemplate('dance')">Dance</button>
+                    <button onclick="addMotionTemplate('combat')">Combat</button>
+                    <button onclick="addMotionTemplate('acrobatic')">Acrobatic</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>🎮 Timeline Control</h3>
+                <div class="button-group">
+                    <button id="playBtn" class="primary-btn" onclick="togglePlayback()">▶️ Play</button>
+                    <button onclick="seekToTime(0)">⏮️ Start</button>
+                    <button onclick="seekToTime(5)">⏭️ +5s</button>
+                    <button class="danger-btn" onclick="clearTimeline()">🗑️ Clear</button>
+                </div>
+                <div class="slider-container">
+                    <label>Time:</label>
+                    <input type="range" id="timeSlider" min="0" max="30" step="0.1" value="0" onchange="seekToTime(this.value)">
+                    <span id="timeDisplay" class="value-display">0.0s</span>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>🤖 Real-time Motion</h3>
+                <div>
+                    <select id="realtimeModel">
+                        <option value="walk">Walk</option>
+                        <option value="run">Run</option>
+                        <option value="dance_a">Dance A</option>
+                        <option value="dance_b">Dance B</option>
+                    </select>
+                    <button onclick="startRealtimeMotion()" class="primary-btn">Start Real-time</button>
+                    <button onclick="stopRealtimeMotion()" class="danger-btn">Stop</button>
+                </div>
+                
+                <div class="motion-params">
+                    <div class="slider-container">
+                        <label>Speed:</label>
+                        <input type="range" id="speedSlider" min="0" max="3" step="0.1" value="1" onchange="updateMotionParams()">
+                        <span id="speedDisplay" class="value-display">1.0</span>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label>Direction:</label>
+                        <input type="range" id="directionSlider" min="-180" max="180" step="5" value="0" onchange="updateMotionParams()">
+                        <span id="directionDisplay" class="value-display">0°</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>📝 Custom Motion</h3>
+                <div>
+                    <select id="customModel">
+                        <option value="walk">Walk</option>
+                        <option value="run">Run</option>
+                        <option value="jump">Jump</option>
+                        <option value="kick">Kick</option>
+                        <option value="punch">Punch</option>
+                    </select>
+                    <input type="number" id="customDuration" placeholder="Duration (s)" value="3" min="0.5" max="20" step="0.5">
+                    <button onclick="addCustomMotion()" class="primary-btn">Add Motion</button>
+                </div>
+                
+                <div class="motion-params">
+                    <div class="slider-container">
+                        <label>Weight:</label>
+                        <input type="range" id="weightSlider" min="0" max="1" step="0.1" value="1" onchange="updateCustomParams()">
+                        <span id="weightDisplay" class="value-display">1.0</span>
+                    </div>
+                    
+                    <div>
+                        <label>Blend Mode:</label>
+                        <select id="blendMode">
+                            <option value="replace">Replace</option>
+                            <option value="additive">Additive</option>
+                            <option value="weighted">Weighted</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="timeline-viz" id="timelineViz">
+            <h3>📊 Timeline Visualization</h3>
+            <div id="timelineTracks"></div>
+            <div class="playhead" id="playhead" style="left: 0px;"></div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="activeClipsCount">0</div>
+                <div class="stat-label">Active Clips</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="currentModel">None</div>
+                <div class="stat-label">Current Model</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="frameRate">0</div>
+                <div class="stat-label">Frame Rate (FPS)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="performanceTime">0ms</div>
+                <div class="stat-label">Avg Frame Time</div>
+            </div>
+        </div>
+        
+        <div class="log" id="logContainer">
+            <div class="log-entry log-info">System ready. Click Initialize to begin.</div>
+        </div>
+    </div>
+    
+    <!-- Include required libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
+    
+    <!-- Include our modules -->
+    <script src="deepmimic-inference.js"></script>
+    <script src="deepmimic-bvh-generator.js"></script>
+    <script src="../js/BVHTimeline.js"></script>
+    <script src="bvh-timeline-deepmimic-integration.js"></script>
+    
+    <script>
+        // Global variables
+        let timeline = null;
+        let deepMimicGenerator = null;
+        let timelineIntegration = null;
+        let isInitialized = false;
+        let isPlaying = false;
+        let realtimeClipId = null;
+        let animationFrame = null;
+        
+        // Initialize the system
+        async function initializeSystem() {
+            try {
+                log('Initializing DeepMimic BVH Timeline system...', 'info');
+                document.getElementById('initBtn').disabled = true;
+                
+                // Create BVH Timeline
+                timeline = new BVHTimeline({
+                    framerate: 30,
+                    maxBufferSize: 300,
+                    lookaheadFrames: 60
+                });
+                
+                // Create DeepMimic Generator
+                deepMimicGenerator = new DeepMimicBVHGenerator({
+                    frameRate: 30,
+                    smoothingFactor: 0.15
+                });
+                
+                // Initialize generator with auto-discovery
+                await deepMimicGenerator.initialize();
+                
+                // Create timeline integration
+                timelineIntegration = new BVHTimelineDeepMimicIntegration(
+                    timeline, 
+                    deepMimicGenerator,
+                    {
+                        defaultTrack: 'deepmimic',
+                        bufferAhead: 2.0,
+                        maxClips: 15
+                    }
+                );
+                
+                // Set up timeline callbacks
+                timeline.onFrameUpdate = (frame) => {
+                    updateVisualization();
+                };
+                
+                isInitialized = true;
+                
+                log('System initialized successfully!', 'success');
+                log(`Available models: ${deepMimicGenerator.getAvailableModels().join(', ')}`, 'info');
+                
+                updateStatus('System Ready');
+                updateStats();
+                startVisualizationLoop();
+                
+            } catch (error) {
+                log(`Initialization failed: ${error.message}`, 'error');
+                document.getElementById('initBtn').disabled = false;
+            }
+        }
+        
+        // Add motion from template
+        async function addMotionTemplate(templateName) {
+            if (!isInitialized) {
+                log('System not initialized', 'warning');
+                return;
+            }
+            
+            try {
+                log(`Adding motion template: ${templateName}`, 'info');
+                const startTime = timeline.currentTime;
+                
+                const clipId = await timelineIntegration.addMotionFromTemplate(
+                    templateName, 
+                    startTime,
+                    { templateUsed: templateName }
+                );
+                
+                log(`Added ${templateName} motion clip: ${clipId}`, 'success');
+                updateStats();
+                updateTimelineVisualization();
+                
+            } catch (error) {
+                log(`Failed to add ${templateName}: ${error.message}`, 'error');
+            }
+        }
+        
+        // Start real-time motion
+        async function startRealtimeMotion() {
+            if (!isInitialized) {
+                log('System not initialized', 'warning');
+                return;
+            }
+            
+            try {
+                const model = document.getElementById('realtimeModel').value;
+                
+                if (realtimeClipId) {
+                    await stopRealtimeMotion();
+                }
+                
+                log(`Starting real-time motion: ${model}`, 'info');
+                
+                const targetMotion = getMotionParams();
+                
+                realtimeClipId = await timelineIntegration.addRealTimeMotion({
+                    model: model,
+                    targetMotion: targetMotion,
+                    trackName: 'realtime'
+                });
+                
+                log(`Real-time motion started: ${realtimeClipId}`, 'success');
+                updateStats();
+                
+            } catch (error) {
+                log(`Failed to start real-time motion: ${error.message}`, 'error');
+            }
+        }
+        
+        // Stop real-time motion
+        async function stopRealtimeMotion() {
+            if (realtimeClipId) {
+                timelineIntegration.removeClip(realtimeClipId);
+                log(`Stopped real-time motion: ${realtimeClipId}`, 'info');
+                realtimeClipId = null;
+                updateStats();
+            }
+        }
+        
+        // Add custom motion
+        async function addCustomMotion() {
+            if (!isInitialized) {
+                log('System not initialized', 'warning');
+                return;
+            }
+            
+            try {
+                const model = document.getElementById('customModel').value;
+                const duration = parseFloat(document.getElementById('customDuration').value);
+                const weight = parseFloat(document.getElementById('weightSlider').value);
+                const blendMode = document.getElementById('blendMode').value;
+                
+                log(`Adding custom motion: ${model} for ${duration}s`, 'info');
+                
+                const clipId = await timelineIntegration.addMotionClip({
+                    model: model,
+                    duration: duration,
+                    startTime: timeline.currentTime,
+                    weight: weight,
+                    blendMode: blendMode
+                });
+                
+                log(`Added custom motion clip: ${clipId}`, 'success');
+                updateStats();
+                updateTimelineVisualization();
+                
+            } catch (error) {
+                log(`Failed to add custom motion: ${error.message}`, 'error');
+            }
+        }
+        
+        // Get motion parameters from UI
+        function getMotionParams() {
+            const speed = parseFloat(document.getElementById('speedSlider').value);
+            const direction = parseFloat(document.getElementById('directionSlider').value) * Math.PI / 180;
+            
+            return {
+                speed: speed,
+                direction: [
+                    Math.sin(direction) * speed,
+                    0,
+                    Math.cos(direction) * speed
+                ]
+            };
+        }
+        
+        // Update motion parameters for real-time motion
+        function updateMotionParams() {
+            document.getElementById('speedDisplay').textContent = document.getElementById('speedSlider').value;
+            document.getElementById('directionDisplay').textContent = document.getElementById('directionSlider').value + '°';
+            
+            if (realtimeClipId) {
+                const targetMotion = getMotionParams();
+                timelineIntegration.updateTargetMotion(realtimeClipId, targetMotion);
+            }
+        }
+        
+        // Update custom motion parameters
+        function updateCustomParams() {
+            document.getElementById('weightDisplay').textContent = document.getElementById('weightSlider').value;
+        }
+        
+        // Timeline controls
+        function togglePlayback() {
+            if (!isInitialized) return;
+            
+            if (isPlaying) {
+                timeline.pause();
+                document.getElementById('playBtn').innerHTML = '▶️ Play';
+                isPlaying = false;
+            } else {
+                timeline.play();
+                document.getElementById('playBtn').innerHTML = '⏸️ Pause';
+                isPlaying = true;
+            }
+        }
+        
+        function seekToTime(time) {
+            if (!isInitialized) return;
+            
+            timeline.seek(parseFloat(time));
+            document.getElementById('timeSlider').value = time;
+            document.getElementById('timeDisplay').textContent = parseFloat(time).toFixed(1) + 's';
+        }
+        
+        function clearTimeline() {
+            if (!isInitialized) return;
+            
+            timelineIntegration.clearAllMotions();
+            timeline.clearAll();
+            realtimeClipId = null;
+            log('Timeline cleared', 'info');
+            updateStats();
+            updateTimelineVisualization();
+        }
+        
+        // Visualization and updates
+        function updateVisualization() {
+            // Update time display
+            const currentTime = timeline.currentTime;
+            document.getElementById('timeDisplay').textContent = currentTime.toFixed(1) + 's';
+            document.getElementById('timeSlider').value = currentTime;
+            
+            // Update playhead position
+            const timelineWidth = document.getElementById('timelineViz').offsetWidth - 40;
+            const maxTime = 30; // 30 seconds visible
+            const playheadPos = (currentTime / maxTime) * timelineWidth;
+            document.getElementById('playhead').style.left = playheadPos + 'px';
+        }
+        
+        function updateStats() {
+            if (!isInitialized) return;
+            
+            const stats = timelineIntegration.getMotionStats();
+            const perfStats = deepMimicGenerator.getPerformanceStats();
+            
+            document.getElementById('activeClipsCount').textContent = stats.activeClips;
+            document.getElementById('currentModel').textContent = deepMimicGenerator.currentModelName || 'None';
+            document.getElementById('frameRate').textContent = perfStats.fps.toFixed(1);
+            document.getElementById('performanceTime').textContent = perfStats.averageTime.toFixed(1) + 'ms';
+        }
+        
+        function updateTimelineVisualization() {
+            // Simple timeline visualization
+            const tracksContainer = document.getElementById('timelineTracks');
+            tracksContainer.innerHTML = '';
+            
+            if (!isInitialized) return;
+            
+            const stats = timelineIntegration.getMotionStats();
+            
+            for (const trackName of stats.tracks) {
+                const trackDiv = document.createElement('div');
+                trackDiv.className = 'timeline-track';
+                trackDiv.innerHTML = `<strong>${trackName}</strong>`;
+                tracksContainer.appendChild(trackDiv);
+                
+                // Add clips visualization (simplified)
+                // In a real implementation, you'd query the actual clips
+            }
+        }
+        
+        function startVisualizationLoop() {
+            function updateLoop() {
+                if (isInitialized) {
+                    updateVisualization();
+                    updateStats();
+                }
+                animationFrame = requestAnimationFrame(updateLoop);
+            }
+            updateLoop();
+        }
+        
+        function updateStatus(status) {
+            document.getElementById('status').textContent = status;
+        }
+        
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Keep only last 50 log entries
+            while (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+        
+        // Initialize sliders
+        document.addEventListener('DOMContentLoaded', () => {
+            updateMotionParams();
+            updateCustomParams();
+            
+            // Auto-initialize on page load
+            setTimeout(() => {
+                document.getElementById('initBtn').click();
+            }, 500);
+        });
+        
+        // Event listeners for timeline slider
+        document.getElementById('timeSlider').addEventListener('input', (e) => {
+            document.getElementById('timeDisplay').textContent = parseFloat(e.target.value).toFixed(1) + 's';
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+            }
+            if (timelineIntegration) {
+                timelineIntegration.dispose();
+            }
+            if (deepMimicGenerator) {
+                deepMimicGenerator.dispose();
+            }
+            if (timeline) {
+                timeline.dispose();
+            }
+        });
+    </script>
+</body>
+</html>

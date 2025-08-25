@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSMT Modern Showcase - VRM Character Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .main-content {
+            flex: 1;
+            position: relative;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .control-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-section h3 {
+            margin: 0 0 15px 0;
+            color: #64b5f6;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .control-row label {
+            min-width: 80px;
+            font-size: 12px;
+            color: #b0bec5;
+        }
+        
+        select, button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        select:hover, button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        button {
+            background: linear-gradient(45deg, #42a5f5, #1976d2);
+            border: none;
+            font-weight: 500;
+        }
+        
+        button:hover {
+            background: linear-gradient(45deg, #1976d2, #1565c0);
+        }
+        
+        .status {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #81c784;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .info-panel {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #42a5f5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .diagnostic-button {
+            background: #ff5722 !important;
+        }
+        
+        .diagnostic-button:hover {
+            background: #d84315 !important;
+        }
+        
+        .success-button {
+            background: #4caf50 !important;
+        }
+        
+        .success-button:hover {
+            background: #388e3c !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2 style="margin-top: 0; color: #42a5f5;">RSMT Modern Showcase</h2>
+            <p style="font-size: 12px; color: #90a4ae; margin-bottom: 20px;">
+                Real-time VRM character animation with BVH motion capture integration
+            </p>
+            
+            <div class="control-section">
+                <h3>🎭 Character</h3>
+                <div class="control-row">
+                    <label>Character:</label>
+                    <select id="character-select" onchange="loadSelectedCharacter()">
+                        <option value="">Default Skeleton</option>
+                        <option value="ichika.vrm">Ichika</option>
+                    </select>
+                </div>
+                <div class="control-row">
+                    <label>Display:</label>
+                    <select id="display-mode" onchange="changeDisplayMode()">
+                        <option value="skeleton">Skeleton</option>
+                        <option value="textured_skeleton">Textured Skeleton</option>
+                        <option value="character">VRM Character</option>
+                        <option value="both">Both</option>
+                    </select>
+                </div>
+                <button onclick="loadSelectedCharacter()">🔄 Reload Character</button>
+            </div>
+            
+            <div class="control-section">
+                <h3>🎬 Animation</h3>
+                <div class="control-row">
+                    <label>Animation:</label>
+                    <select id="animation-select" onchange="loadSelectedAnimation()">
+                        <option value="neutral_reference.bvh">Neutral Reference</option>
+                        <option value="elated_reference.bvh">Elated</option>
+                        <option value="angry_reference.bvh">Angry</option>
+                        <option value="depressed_reference.bvh">Depressed</option>
+                    </select>
+                </div>
+                <div class="control-row">
+                    <button onclick="togglePlayback()">⏯️ Play/Pause</button>
+                    <button onclick="resetAnimation()">⏮️ Reset</button>
+                </div>
+                <div class="control-row">
+                    <label>Speed:</label>
+                    <input type="range" id="speed-slider" min="0.1" max="3" step="0.1" value="1" onchange="updateAnimationSpeed()">
+                    <span id="speed-value">1.0x</span>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>📹 Camera</h3>
+                <div class="control-row">
+                    <button onclick="setCameraMode('front')">👤 Front</button>
+                    <button onclick="setCameraMode('side')">📐 Side</button>
+                    <button onclick="setCameraMode('free')">🕹️ Free</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>🏫 Environment</h3>
+                <div class="control-row">
+                    <button onclick="toggleClassroom()">🏫 Toggle Classroom</button>
+                    <button onclick="enhanceVRMLighting(window.vrmCharacter)" class="success-button">💡 Enhance Lighting</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>🔧 Diagnostics</h3>
+                <div class="control-row">
+                    <button onclick="fixVRMShaders()" class="diagnostic-button">🔧 Fix VRM Shaders</button>
+                </div>
+                <div class="control-row">
+                    <button onclick="diagnoseMaterials()" class="diagnostic-button">🔍 Diagnose Materials</button>
+                </div>
+                <div class="control-row">
+                    <button onclick="testLighting()">💡 Test Lighting</button>
+                    <button onclick="toggleShadows()">🌑 Toggle Shadows</button>
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <div><strong>Character:</strong> <span id="current-character">Default Skeleton</span></div>
+                <div><strong>Display Mode:</strong> <span id="display-mode-info">skeleton</span></div>
+                <div><strong>Animation:</strong> <span id="current-animation">neutral_reference.bvh</span></div>
+                <div><strong>Frame:</strong> <span id="current-frame">0/0</span></div>
+                <div><strong>Camera:</strong> <span id="camera-mode-info">free</span></div>
+                <div><strong>Classroom:</strong> <span id="classroom-status">Hidden</span></div>
+            </div>
+            
+            <div class="status" id="status">
+                🚀 Initializing RSMT Modern Showcase...
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div id="canvas-container"></div>
+            
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: 20px; font-size: 14px;">Loading VRM character and environment...</p>
+                <p style="font-size: 12px; color: #90a4ae;" id="loading-status">Initializing...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import maps for ES modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.js"
+        }
+    }
+    </script>
+
+    <!-- Module Scripts -->
+    <script type="module" src="./js/VRMBVHAdapter.js"></script>
+    <script type="module" src="./js/FacialExpressionSystem.js"></script>
+    <script type="module" src="./js/AnimationBlender.js"></script>
+    <script type="module" src="./js/VRMMaterialExtractor.js"></script>
+    <script type="module" src="./js/ClassroomEnvironment.js"></script>
+    <script type="module" src="./js/EnhancedCharacterSystem.js"></script>
+    <script type="module" src="./js/ClassroomCameraController.js"></script>
+    <script type="module" src="./js/AdvancedVRMLoader.js"></script>
+
+    <script type="module">
+        console.log('🚀 Starting Modern RSMT Viewer with ES Modules...');
+        console.log('📋 Module Availability Check:');
+        
+        // Check module availability
+        const modules = ['VRMBVHAdapter', 'FacialExpressionSystem', 'AnimationBlender', 'VRMMaterialExtractor', 'ClassroomEnvironment', 'EnhancedCharacterSystem', 'ClassroomCameraController'];
+        modules.forEach(moduleName => {
+            const available = window[moduleName] !== undefined;
+            console.log(`${available ? '✅' : '❌'} ${moduleName}: ${available ? 'Available' : 'Not Available'}`);
+        });
+        
+        // Import THREE.js and setup
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+        
+        // Global variables
+        let scene, camera, renderer, controls;
+        let characterSystem, cameraController;
+        let skeletonGroup, jointMeshes = {}, boneCylinders = [];
+        let currentCharacterFile = null;
+        let classroomVisible = true;
+        let isPlaying = false;
+        let animationFrame = 0;
+        let animationSpeed = 1.0;
+        let currentAnimation = 'neutral_reference.bvh';
+        let bvhData = {};
+        
+        // UI elements
+        const statusDiv = document.getElementById('status');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingStatus = document.getElementById('loading-status');
+        
+        function updateLoadingStatus(message) {
+            console.log('📝', message);
+            if (loadingStatus) {
+                loadingStatus.textContent = message;
+            }
+        }
+        
+        function hideLoadingOverlay() {
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+        
+        async function init() {
+            updateLoadingStatus('Importing THREE.js module...');
+            
+            // Make THREE global for other modules
+            window.THREE = THREE;
+            
+            // Setup THREE.js loaders
+            try {
+                window.THREELoaders = {
+                    GLTFLoader: GLTFLoader,
+                    VRMLoaderPlugin: VRMLoaderPlugin
+                };
+                console.log('✅ GLTFLoader loaded successfully via import map');
+                console.log('✅ VRMLoaderPlugin loaded successfully via import map');
+            } catch (error) {
+                console.error('❌ Failed to setup loaders:', error);
+                throw error;
+            }
+            
+            console.log('📦 Loaders: GLTF ✅ | VRM ✅');
+            updateLoadingStatus('THREE.js loaded successfully!');
+            
+            updateLoadingStatus('Creating 3D scene...');
+            await createScene();
+            
+            updateLoadingStatus('Setting up professional lighting and environment...');
+            setupLighting();
+            
+            updateLoadingStatus('Creating demo skeleton...');
+            createDemoSkeleton();
+            
+            updateLoadingStatus('Initializing character system...');
+            await initializeCharacterSystem();
+            
+            updateLoadingStatus('Starting animation...');
+            startAnimation();
+            
+            updateLoadingStatus('Loading default animation...');
+            await loadAnimation('neutral_reference.bvh');
+            
+            updateLoadingStatus('Complete!');
+            initializeDemoCompleted();
+        }
+        
+        async function createScene() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(3, 2, 3);
+            camera.lookAt(0, 1, 0);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = false; // Disabled for VRM compatibility
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            
+            // Add renderer to DOM
+            const canvasContainer = document.getElementById('canvas-container');
+            canvasContainer.appendChild(renderer.domElement);
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            console.log('✅ Scene created successfully');
+        }
+        
+        function setupLighting() {
+            // Ambient light for overall illumination
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            // Key light (main directional light)
+            const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            keyLight.position.set(2, 3, 2);
+            keyLight.castShadow = false; // Disabled for VRM compatibility
+            keyLight.shadow.mapSize.width = 2048;
+            keyLight.shadow.mapSize.height = 2048;
+            scene.add(keyLight);
+            window.keyLight = keyLight;
+            
+            // Fill light (softer, from opposite side)
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            fillLight.position.set(-1, 2, -1);
+            fillLight.color.setHex(0xfff5e6); // Warm fill light
+            scene.add(fillLight);
+            window.fillLight = fillLight;
+            
+            // Rim light (for character outline)
+            const rimLight = new THREE.DirectionalLight(0xbbd4ff, 0.7);
+            rimLight.position.set(0, 1, -3);
+            scene.add(rimLight);
+            window.rimLight = rimLight;
+            
+            // Face light (specific for character face illumination)
+            const faceLight = new THREE.SpotLight(0xffffff, 1.2);
+            faceLight.position.set(0, 2, 1.5);
+            faceLight.angle = Math.PI / 6;
+            faceLight.penumbra = 0.3;
+            faceLight.castShadow = false;
+            scene.add(faceLight);
+            window.faceLight = faceLight;
+            
+            console.log('✅ Professional lighting setup complete');
+        }
+        
+        function createDemoSkeleton() {
+            // Create skeleton group
+            skeletonGroup = new THREE.Group();
+            skeletonGroup.name = 'BVH_Skeleton';
+            
+            // Standard BVH skeleton structure for humanoid
+            const bvhJoints = {
+                'Hips': { parent: null, position: [0, 1, 0] },
+                'Chest': { parent: 'Hips', position: [0, 0.2, 0] },
+                'Chest2': { parent: 'Chest', position: [0, 0.15, 0] },
+                'Chest3': { parent: 'Chest2', position: [0, 0.15, 0] },
+                'Chest4': { parent: 'Chest3', position: [0, 0.1, 0] },
+                'Neck': { parent: 'Chest4', position: [0, 0.1, 0] },
+                'Head': { parent: 'Neck', position: [0, 0.15, 0] },
+                
+                // Right arm
+                'RightCollar': { parent: 'Chest3', position: [0.1, 0.05, 0] },
+                'RightShoulder': { parent: 'RightCollar', position: [0.15, 0, 0] },
+                'RightElbow': { parent: 'RightShoulder', position: [0.25, 0, 0] },
+                'RightWrist': { parent: 'RightElbow', position: [0.25, 0, 0] },
+                
+                // Left arm
+                'LeftCollar': { parent: 'Chest3', position: [-0.1, 0.05, 0] },
+                'LeftShoulder': { parent: 'LeftCollar', position: [-0.15, 0, 0] },
+                'LeftElbow': { parent: 'LeftShoulder', position: [-0.25, 0, 0] },
+                'LeftWrist': { parent: 'LeftElbow', position: [-0.25, 0, 0] },
+                
+                // Right leg
+                'RightHip': { parent: 'Hips', position: [0.1, -0.05, 0] },
+                'RightKnee': { parent: 'RightHip', position: [0, -0.4, 0] },
+                'RightAnkle': { parent: 'RightKnee', position: [0, -0.4, 0] },
+                'RightToe': { parent: 'RightAnkle', position: [0, -0.1, 0.1] },
+                
+                // Left leg
+                'LeftHip': { parent: 'Hips', position: [-0.1, -0.05, 0] },
+                'LeftKnee': { parent: 'LeftHip', position: [0, -0.4, 0] },
+                'LeftAnkle': { parent: 'LeftKnee', position: [0, -0.4, 0] },
+                'LeftToe': { parent: 'LeftAnkle', position: [0, -0.1, 0.1] }
+            };
+            
+            // Create joint meshes with hierarchy
+            function createHierarchicalSkeleton(joints) {
+                const jointMeshes = {};
+                
+                function createJoint(jointName) {
+                    if (jointMeshes[jointName]) return jointMeshes[jointName];
+                    
+                    const jointData = joints[jointName];
+                    if (!jointData) return null;
+                    
+                    // Create joint geometry
+                    const geometry = new THREE.SphereGeometry(0.02, 8, 8);
+                    const material = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    
+                    // Set position
+                    mesh.position.set(...jointData.position);
+                    mesh.name = jointName;
+                    mesh.userData.jointName = jointName;
+                    
+                    jointMeshes[jointName] = mesh;
+                    
+                    // Handle hierarchy
+                    if (jointData.parent) {
+                        const parentMesh = createJoint(jointData.parent);
+                        if (parentMesh) {
+                            parentMesh.add(mesh);
+                        } else {
+                            skeletonGroup.add(mesh);
+                        }
+                    } else {
+                        // Root joint
+                        skeletonGroup.add(mesh);
+                    }
+                    
+                    return mesh;
+                }
+                
+                // Create all joints with proper hierarchy
+                for (const jointName of Object.keys(joints)) {
+                    createJoint(jointName);
+                }
+                
+                return jointMeshes;
+            }
+            
+            jointMeshes = createHierarchicalSkeleton(bvhJoints);
+            
+            // Add skeleton to scene
+            scene.add(skeletonGroup);
+            
+            // Position camera to view skeleton
+            camera.position.set(3, 2, 3);
+            camera.lookAt(0, 1, 0);
+            
+            console.log('✅ Demo skeleton created with', Object.keys(jointMeshes).length, 'joints');
+        }
+        
+        // Enhanced VRM lighting setup following chat demo patterns
+        window.enhanceVRMLighting = function(vrmCharacter) {
+            if (!vrmCharacter || !vrmCharacter.vrm) {
+                console.warn('⚠️ No VRM character provided for lighting enhancement');
+                return;
+            }
+            
+            console.log('💡 Enhancing VRM character lighting...');
+            
+            // Update existing lights for better anime character lighting
+            if (window.keyLight) {
+                window.keyLight.intensity = 1.8; // Increase key light
+                window.keyLight.position.set(1.5, 2.5, 2); // Closer to character
+            }
+            
+            if (window.fillLight) {
+                window.fillLight.intensity = 1.2; // Softer fill
+                window.fillLight.color.setHex(0xfff5e6); // Warmer fill light
+            }
+            
+            if (window.rimLight) {
+                window.rimLight.intensity = 1.0;
+                window.rimLight.color.setHex(0xbbd4ff); // Cool rim light
+            }
+            
+            if (window.faceLight) {
+                window.faceLight.intensity = 1.5; // Important for face visibility
+                window.faceLight.position.set(0, 1.8, 1.2); // Focus on face height
+            }
+            
+            // Add character-specific lighting
+            const characterLight = new THREE.SpotLight(0xffffff, 0.8);
+            characterLight.position.set(0, 2, 1);
+            characterLight.target = vrmCharacter.vrm.scene;
+            characterLight.angle = Math.PI / 4;
+            characterLight.penumbra = 0.3;
+            characterLight.castShadow = false; // Avoid VRM shader conflicts
+            scene.add(characterLight);
+            
+            // Store reference for later adjustment
+            window.characterLight = characterLight;
+            
+            // Apply anime-style material enhancements
+            vrmCharacter.vrm.scene.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    // Enhance material properties for anime look
+                    if (child.material.isMToonMaterial) {
+                        // MToon materials get special treatment
+                        child.material.shadeMultiply = new THREE.Color(0.8, 0.8, 0.9); // Slightly cool shadows
+                        child.material.parametricRimColorFactor = 0.5; // Subtle rim lighting
+                        child.material.parametricRimLiftFactor = 0.3;
+                    } else if (child.material.isMeshStandardMaterial || child.material.isMeshBasicMaterial) {
+                        // Standard materials get improved lighting response
+                        child.material.roughness = 0.8; // Slightly rough for anime look
+                        child.material.metalness = 0.1; // Very low metalness
+                    }
+                    
+                    // Ensure materials receive lighting properly
+                    child.material.needsUpdate = true;
+                    child.castShadow = false; // Avoid shadow issues
+                    child.receiveShadow = false;
+                }
+            });
+            
+            console.log('✅ VRM lighting enhancement complete');
+        };
+        
+        async function initializeCharacterSystem() {
+            try {
+                characterSystem = new window.EnhancedCharacterSystem(scene, skeletonGroup);
+                
+                // Initialize with textured skeleton in classroom
+                await characterSystem.initializeTexturedSkeletonInClassroom();
+                
+                // Try to auto-load Ichika VRM character
+                try {
+                    updateLoadingStatus('Loading Ichika VRM character...');
+                    
+                    const vrmCharacter = await window.AdvancedVRMLoader.loadVRMCharacter('./assets/avatars/ichika.vrm');
+                    
+                    if (vrmCharacter && vrmCharacter.vrm) {
+                        console.log('🔧 Applying VRM shader compatibility fixes...');
+                        
+                        // Apply aggressive material replacement to avoid shader issues
+                        aggressiveVRMMaterialReplacement(vrmCharacter.vrm.scene);
+                        
+                        console.log('✅ VRM shader compatibility fixes applied');
+                        
+                        // Initialize VRM-BVH adapter for proper rigging
+                        if (window.VRMBVHAdapter) {
+                            console.log('🔗 Creating VRM-BVH adapter');
+                            window.currentVRMAdapter = new window.VRMBVHAdapter(vrmCharacter.vrm, skeletonGroup);
+                            
+                            // Initialize the adapter with bone mapping
+                            const initialized = window.currentVRMAdapter.initialize();
+                            
+                            if (initialized) {
+                                // Set up idle animations like in the chat system
+                                window.currentVRMAdapter.setIdleAnimations({
+                                    breathing: { enabled: true, amplitude: 0.015, frequency: 0.3 },
+                                    blinking: { enabled: true, interval: 2500, duration: 120 },
+                                    headMovement: { enabled: true, amplitude: 0.03, frequency: 0.08 },
+                                    facialExpressions: { enabled: true, currentExpression: 'neutral' }
+                                });
+                                
+                                // Enable camera-looking behavior
+                                window.currentVRMAdapter.lookAtCameraAsIfHuman(camera);
+                                
+                                // Store the VRM model globally
+                                window.vrmCharacter = vrmCharacter;
+                                
+                                // Apply enhanced VRM lighting
+                                if (typeof enhanceVRMLighting === 'function') {
+                                    enhanceVRMLighting(window.vrmCharacter);
+                                }
+                                
+                                console.log('🎉 Full Ichika VRM character loaded with skeleton!');
+                            }
+                        }
+                    }
+                } catch (vrmError) {
+                    console.warn('⚠️ Failed to auto-load Ichika VRM:', vrmError);
+                    
+                    // Fallback to textured skeleton approach
+                    await characterSystem.applyVRMTextureToSkeleton('./assets/avatars/ichika.vrm');
+                    characterSystem.setDisplayMode('textured_skeleton');
+                    console.log('✅ Fallback: Ichika textured skeleton loaded');
+                }
+                
+                // Initialize camera controller
+                cameraController = new window.ClassroomCameraController(camera, scene);
+                cameraController.setCameraMode('front');
+                
+                console.log('✅ Character system with Ichika VRM initialized');
+                
+            } catch (error) {
+                console.error('❌ Failed to initialize character system:', error);
+                throw error;
+            }
+        }
+        
+        function aggressiveVRMMaterialReplacement(vrmScene) {
+            console.log('🔧 Applying aggressive VRM material replacement...');
+            let replacedCount = 0;
+            
+            vrmScene.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    
+                    materials.forEach((mat, index) => {
+                        // Replace ANY material that could cause shader issues
+                        const needsReplacement = mat.isMToonMaterial || 
+                                               (mat.uniforms && Object.keys(mat.uniforms).length > 0) ||
+                                               mat.type === 'ShaderMaterial' ||
+                                               mat.type === 'RawShaderMaterial' ||
+                                               !mat.isMeshBasicMaterial;
+                        
+                        if (needsReplacement) {
+                            console.log(`🔄 Replacing material: ${mat.type} -> MeshBasicMaterial`);
+                            
+                            const newMaterial = new THREE.MeshBasicMaterial({
+                                map: mat.map || null,
+                                color: mat.color || new THREE.Color(0.8, 0.8, 0.8),
+                                transparent: mat.transparent || false,
+                                opacity: mat.opacity || 1.0,
+                                side: mat.side || THREE.FrontSide,
+                                name: `Replaced_${mat.name || 'Material'}_${index}`
+                            });
+                            
+                            if (Array.isArray(child.material)) {
+                                child.material[index] = newMaterial;
+                            } else {
+                                child.material = newMaterial;
+                            }
+                            
+                            replacedCount++;
+                        }
+                    });
+                    
+                    // Disable shadows completely
+                    child.castShadow = false;
+                    child.receiveShadow = false;
+                }
+            });
+            
+            console.log(`✅ Replaced ${replacedCount} materials aggressively`);
+        }
+        
+        // Character management functions - Enhanced with VRM rigging
+        window.loadSelectedCharacter = async function() {
+            const select = document.getElementById('character-select');
+            const characterFile = select.value;
+            
+            if (characterFile && characterSystem) {
+                try {
+                    statusDiv.textContent = `Loading VRM character: ${characterFile}`;
+                    updateLoadingStatus(`Loading VRM character: ${characterFile}`);
+                    
+                    // Try to load the actual VRM character first
+                    console.log('🎭 Attempting to load VRM character:', characterFile);
+                    
+                    // Use the AdvancedVRMLoader that's already in the system
+                    if (window.AdvancedVRMLoader) {
+                        const vrmModel = await window.AdvancedVRMLoader.loadVRMCharacter(`./assets/avatars/${characterFile}`);
+                        
+                        if (vrmModel && vrmModel.vrm) {
+                            // Apply aggressive material replacement immediately
+                            aggressiveVRMMaterialReplacement(vrmModel.vrm.scene);
+                            
+                            // Initialize VRM-BVH adapter for proper rigging
+                            if (window.VRMBVHAdapter) {
+                                console.log('🔗 Creating VRM-BVH adapter');
+                                window.currentVRMAdapter = new window.VRMBVHAdapter(vrmModel.vrm, skeletonGroup);
+                                
+                                // Initialize the adapter with bone mapping
+                                const initialized = window.currentVRMAdapter.initialize();
+                                
+                                if (initialized) {
+                                    // Set up idle animations like in the chat system
+                                    window.currentVRMAdapter.setIdleAnimations({
+                                        breathing: { enabled: true, amplitude: 0.015, frequency: 0.3 },
+                                        blinking: { enabled: true, interval: 2500, duration: 120 },
+                                        headMovement: { enabled: true, amplitude: 0.03, frequency: 0.08 },
+                                        facialExpressions: { enabled: true, currentExpression: 'neutral' }
+                                    });
+                                    
+                                    // Enable camera-looking behavior
+                                    window.currentVRMAdapter.lookAtCameraAsIfHuman(camera);
+                                    
+                                    // Store the VRM model globally
+                                    window.vrmCharacter = vrmModel;
+                                    
+                                    // Set display mode to show both VRM and skeleton
+                                    characterSystem.setDisplayMode('both');
+                                    document.getElementById('display-mode').value = 'both';
+                                    
+                                    statusDiv.textContent = `VRM character loaded: ${characterFile.replace('.vrm', '')}`;
+                                    currentCharacterFile = characterFile;
+                                    
+                                    // Update info panel
+                                    const displayName = characterFile.replace('.vrm', '').replace(/^\w/, c => c.toUpperCase());
+                                    document.getElementById('current-character').textContent = `${displayName} (VRM + Skeleton)`;
+                                    
+                                    console.log('✅ VRM character loaded and rigged to BVH system:', characterFile);
+                                    console.log('🎭 VRM-BVH adapter initialized with', window.currentVRMAdapter.getAvailableBones().length, 'bones');
+                                    
+                                    // Apply enhanced VRM lighting
+                                    if (typeof enhanceVRMLighting === 'function') {
+                                        enhanceVRMLighting(window.vrmCharacter);
+                                    }
+                                    
+                                    return; // Success - exit early
+                                } else {
+                                    console.warn('⚠️ Failed to initialize VRM-BVH adapter');
+                                }
+                            } else {
+                                console.warn('⚠️ VRMBVHAdapter not available');
+                            }
+                        } else {
+                            console.warn('⚠️ Failed to load VRM model');
+                        }
+                    } else {
+                        console.warn('⚠️ AdvancedVRMLoader not available');
+                    }
+                    
+                    // Fallback to textured skeleton if VRM loading fails
+                    console.log('⚠️ Falling back to textured skeleton approach');
+                    
+                    const characterName = characterFile.replace('.vrm', '');
+                    
+                    // Apply VRM textures to the BVH skeleton
+                    await characterSystem.applyVRMTextureToSkeleton(`./assets/avatars/${characterFile}`);
+                    
+                    // Set display mode to textured skeleton
+                    characterSystem.setDisplayMode('textured_skeleton');
+                    document.getElementById('display-mode').value = 'textured_skeleton';
+                    
+                    statusDiv.textContent = `Textured skeleton: ${characterName}`;
+                    currentCharacterFile = characterFile;
+                    
+                    // Update info panel
+                    const displayName = characterName.replace(/^\w/, c => c.toUpperCase());
+                    document.getElementById('current-character').textContent = `${displayName} (Textured Skeleton)`;
+                    
+                    console.log('✅ Character textures applied to skeleton:', characterFile);
+                    
+                } catch (error) {
+                    console.error('❌ Failed to load VRM character:', error);
+                    statusDiv.textContent = `Failed to load character: ${error.message}`;
+                }
+            } else if (!characterFile) {
+                // Reset to default skeleton if no character selected
+                if (characterSystem) {
+                    characterSystem.setDisplayMode('skeleton');
+                    document.getElementById('display-mode').value = 'skeleton';
+                    statusDiv.textContent = 'Default skeleton mode';
+                    document.getElementById('current-character').textContent = 'Default Skeleton';
+                    
+                    // Clear VRM adapter
+                    window.currentVRMAdapter = null;
+                    window.vrmCharacter = null;
+                }
+            } else {
+                console.warn('⚠️ Character system not ready');
+            }
+        };
+        
+        // VRM-BVH Animation Integration
+        let animationClock = new THREE.Clock();
+        let currentBVHFrame = 0;
+        
+        // Enhanced display mode change to handle VRM character
+        window.changeDisplayMode = function() {
+            const select = document.getElementById('display-mode');
+            const mode = select.value;
+            
+            if (characterSystem) {
+                characterSystem.setDisplayMode(mode);
+                statusDiv.textContent = `Display mode: ${mode}`;
+                
+                // Update info panel
+                document.getElementById('display-mode-info').textContent = mode;
+                
+                // Show/hide VRM character based on mode
+                if (window.vrmCharacter && window.vrmCharacter.vrm) {
+                    const vrmScene = window.vrmCharacter.vrm.scene;
+                    if (vrmScene) {
+                        vrmScene.visible = (mode === 'character' || mode === 'both');
+                    }
+                }
+                
+                console.log('🎭 Display mode changed to:', mode);
+            } else {
+                console.warn('⚠️ Character system not ready');
+            }
+        };
+        
+        // Other control functions
+        window.toggleClassroom = function() {
+            if (characterSystem) {
+                const visible = characterSystem.toggleClassroomVisibility();
+                classroomVisible = visible;
+                statusDiv.textContent = classroomVisible ? 'Classroom ON' : 'Classroom OFF';
+                document.getElementById('classroom-status').textContent = visible ? 'Visible' : 'Hidden';
+                console.log('🏫 Classroom visibility:', visible ? 'ON' : 'OFF');
+            }
+        };
+        
+        window.setCameraMode = function(mode) {
+            if (cameraController) {
+                cameraController.setCameraMode(mode);
+                statusDiv.textContent = `Camera mode: ${mode}`;
+                document.getElementById('camera-mode-info').textContent = mode;
+                console.log('📹 Camera mode changed to:', mode);
+            }
+        };
+        
+        // Animation functions
+        window.loadSelectedAnimation = function() {
+            const select = document.getElementById('animation-select');
+            const animationFile = select.value;
+            loadAnimation(animationFile);
+        };
+        
+        window.togglePlayback = function() {
+            isPlaying = !isPlaying;
+            statusDiv.textContent = isPlaying ? 'Playing animation' : 'Animation paused';
+            console.log('🎬 Animation', isPlaying ? 'playing' : 'paused');
+        };
+        
+        window.resetAnimation = function() {
+            animationFrame = 0;
+            currentBVHFrame = 0;
+            statusDiv.textContent = 'Animation reset';
+            console.log('⏮️ Animation reset to frame 0');
+        };
+        
+        window.updateAnimationSpeed = function() {
+            const slider = document.getElementById('speed-slider');
+            const speedValue = document.getElementById('speed-value');
+            animationSpeed = parseFloat(slider.value);
+            speedValue.textContent = `${animationSpeed.toFixed(1)}x`;
+            console.log('⚡ Animation speed set to:', animationSpeed);
+        };
+        
+        // Load BVH animation data
+        async function loadAnimation(filename) {
+            try {
+                console.log('🎬 Loading animation:', filename);
+                document.getElementById('current-animation').textContent = filename;
+                
+                console.log('📡 Fetching BVH file:', filename);
+                const response = await fetch(filename);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                console.log('🔍 Response status:', response.status, response.statusText);
+                
+                const bvhText = await response.text();
+                console.log('📄 BVH text length:', bvhText.length, 'characters');
+                
+                const animationData = parseBVHData(bvhText);
+                bvhData[filename] = animationData;
+                currentAnimation = filename;
+                
+                console.log('✅ BVH data parsed for', filename, '- Frames:', animationData.frames.length);
+                
+                // Reset animation
+                animationFrame = 0;
+                currentBVHFrame = 0;
+                
+            } catch (error) {
+                console.error('❌ Failed to load animation:', error);
+                statusDiv.textContent = `Failed to load animation: ${error.message}`;
+            }
+        }
+        
+        function parseBVHData(bvhText) {
+            const lines = bvhText.split('\n');
+            let motionStartIndex = -1;
+            let frameTime = 1/30; // Default 30 FPS
+            
+            // Find motion section
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith('Frame Time:')) {
+                    frameTime = parseFloat(lines[i].split(':')[1]);
+                    console.log('📊 Parsing BVH - Frame time:', frameTime);
+                }
+                if (lines[i] === 'MOTION') {
+                    motionStartIndex = i;
+                    break;
+                }
+            }
+            
+            if (motionStartIndex === -1) {
+                throw new Error('No MOTION section found in BVH file');
+            }
+            
+            // Parse frames
+            const frames = [];
+            let framesCount = 0;
+            let channelsCount = 0;
+            
+            // Get frames count
+            if (lines[motionStartIndex + 1].startsWith('Frames:')) {
+                framesCount = parseInt(lines[motionStartIndex + 1].split(':')[1]);
+            }
+            
+            // Parse frame data
+            for (let i = motionStartIndex + 3; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line && line.length > 0) {
+                    const values = line.split(/\s+/).map(v => parseFloat(v));
+                    if (values.length > 0 && !isNaN(values[0])) {
+                        frames.push(values);
+                        if (channelsCount === 0) {
+                            channelsCount = values.length;
+                        }
+                    }
+                }
+            }
+            
+            console.log('📊 Parsed', frames.length, 'frames with', channelsCount, 'channels each');
+            
+            return { frames, frameTime, channelsCount };
+        }
+        
+        function startAnimation() {
+            console.log('🎬 Starting VRM-enabled animation loop');
+            
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                const deltaTime = animationClock.getDelta();
+                
+                // Update VRM adapter if available (for idle animations)
+                if (window.currentVRMAdapter) {
+                    window.currentVRMAdapter.tick(deltaTime);
+                }
+                
+                // Update character system
+                if (characterSystem) {
+                    try {
+                        characterSystem.update();
+                    } catch (e) {
+                        console.warn('⚠️ Character system update error:', e.message);
+                    }
+                }
+                
+                // Update camera controller
+                if (cameraController) {
+                    try {
+                        cameraController.update();
+                    } catch (e) {
+                        console.warn('⚠️ Camera controller error:', e.message);
+                    }
+                }
+                
+                // Apply BVH animation frame to VRM character
+                if (window.currentVRMAdapter && bvhData && currentAnimation) {
+                    const animData = bvhData[currentAnimation];
+                    if (animData && animData.frames && animData.frames.length > 0) {
+                        // Get current frame based on animation progress
+                        const frameIndex = Math.floor(currentBVHFrame) % animData.frames.length;
+                        const frameData = animData.frames[frameIndex];
+                        
+                        if (frameData) {
+                            // Apply BVH frame to VRM character
+                            window.currentVRMAdapter.applyBVHFrameToVRM(frameData);
+                        }
+                        
+                        // Advance frame
+                        if (isPlaying) {
+                            currentBVHFrame += animationSpeed;
+                        }
+                        
+                        // Update UI
+                        document.getElementById('current-frame').textContent = `${frameIndex + 1}/${animData.frames.length}`;
+                    }
+                }
+                
+                // Update regular BVH skeleton animation
+                if (isPlaying && bvhData && currentAnimation) {
+                    const animData = bvhData[currentAnimation];
+                    if (animData && animData.frames && animData.frames.length > 0) {
+                        const frameIndex = Math.floor(animationFrame) % animData.frames.length;
+                        const frameData = animData.frames[frameIndex];
+                        
+                        if (frameData && typeof applyBVHFrame === 'function') {
+                            try {
+                                applyBVHFrame(frameData);
+                            } catch (e) {
+                                console.warn('⚠️ BVH frame application error:', e.message);
+                            }
+                        }
+                        
+                        animationFrame += animationSpeed;
+                    }
+                }
+                
+                // Render the scene
+                if (renderer && scene && camera) {
+                    try {
+                        renderer.render(scene, camera);
+                    } catch (e) {
+                        console.warn('⚠️ Render error:', e.message);
+                    }
+                }
+            }
+            
+            animate();
+        }
+        
+        function initializeDemoCompleted() {
+            hideLoadingOverlay();
+            
+            console.log('🎉 RSMT Viewer initialization complete!');
+            console.log('📊 System Configuration:');
+            console.log('  - Shadow mapping: DISABLED (VRM compatibility)');
+            console.log('  - Tone mapping:', renderer.toneMapping);
+            console.log('  - Output color space:', renderer.outputColorSpace);
+            console.log('  - Character system: LOADED');
+            console.log('  - Camera controller: LOADED');
+            console.log('  - VRM character:', window.vrmCharacter ? 'LOADED' : 'NOT LOADED');
+            console.log('  - Current character file:', currentCharacterFile || 'None');
+            console.log('🔧 Use fixVRMShaders() if you see shader errors');
+            console.log('💡 Use testLighting() to check lighting setup');
+            console.log('🌑 Use toggleShadows() to test shadow compatibility');
+            
+            statusDiv.textContent = '🎉 RSMT Modern Showcase ready! Select a character to begin.';
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Utility functions for debugging
+        window.fixVRMShaders = function() {
+            console.log('🔧 Attempting to fix VRM shader issues...');
+            
+            if (!window.vrmCharacter?.vrm?.scene) {
+                console.log('❌ No VRM character loaded');
+                return 'No VRM character to fix';
+            }
+            
+            aggressiveVRMMaterialReplacement(window.vrmCharacter.vrm.scene);
+            return 'VRM materials replaced with compatible versions';
+        };
+        
+        window.diagnoseMaterials = function() {
+            console.log('🔍 Running comprehensive material diagnostics...');
+            
+            if (!scene) {
+                console.warn('⚠️ Scene not available for diagnostics');
+                return;
+            }
+            
+            let totalObjects = 0;
+            let materialsFound = 0;
+            
+            scene.traverse((object) => {
+                totalObjects++;
+                if (object.material) {
+                    materialsFound++;
+                    console.log(`Material: ${object.material.type} on ${object.name || 'unnamed'}`);
+                }
+            });
+            
+            console.log(`📊 Diagnostics: ${totalObjects} objects, ${materialsFound} materials`);
+        };
+        
+        window.testLighting = function() {
+            console.log('💡 Testing lighting configuration...');
+            console.log('Key light intensity:', window.keyLight?.intensity);
+            console.log('Fill light intensity:', window.fillLight?.intensity);
+            console.log('Rim light intensity:', window.rimLight?.intensity);
+            console.log('Face light intensity:', window.faceLight?.intensity);
+        };
+        
+        window.toggleShadows = function() {
+            const enabled = !renderer.shadowMap.enabled;
+            renderer.shadowMap.enabled = enabled;
+            console.log(`🌑 Shadows ${enabled ? 'enabled' : 'disabled'}`);
+            return `Shadows ${enabled ? 'enabled' : 'disabled'}`;
+        };
+        
+        // Start the application
+        init().catch(error => {
+            console.error('💥 Failed to initialize RSMT Viewer:', error);
+            statusDiv.textContent = `Initialization failed: ${error.message}`;
+            hideLoadingOverlay();
+        });
+        
+    </script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module Test</title>
+</head>
+<body>
+    <h1>Module Loading Test</h1>
+    <div id="test-results"></div>
+
+    <!-- Import map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/examples/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.1.0/lib/three-vrm.module.js"
+        }
+    }
+    </script>
+
+    <!-- Load modules -->
+    <script src="./js/VRMBVHAdapter.js"></script>
+    <script src="./js/FacialExpressionSystem.js"></script>
+    <script src="./js/AnimationBlender.js"></script>
+    <script src="./js/VRMMaterialExtractor.js"></script>
+    <script src="./js/ClassroomEnvironment.js"></script>
+    <script src="./js/EnhancedCharacterSystem.js"></script>
+    <script src="./js/ClassroomCameraController.js"></script>
+
+    <script>
+        function testModules() {
+            const results = document.getElementById('test-results');
+            const modules = [
+                'VRMBVHAdapter',
+                'FacialExpressionSystem', 
+                'AnimationBlender',
+                'VRMMaterialExtractor',
+                'ClassroomEnvironment',
+                'EnhancedCharacterSystem',
+                'ClassroomCameraController'
+            ];
+
+            let html = '<h2>Module Availability Test:</h2><ul>';
+            
+            modules.forEach(moduleName => {
+                const available = typeof window[moduleName] !== 'undefined';
+                const status = available ? '✅' : '❌';
+                html += `<li>${status} ${moduleName}: ${available ? 'Available' : 'Not Found'}</li>`;
+                console.log(`${status} ${moduleName}:`, available ? window[moduleName] : 'Not found');
+            });
+            
+            html += '</ul>';
+            results.innerHTML = html;
+        }
+
+        // Test after a brief delay to ensure all scripts load
+        setTimeout(testModules, 500);
+    </script>
+</body>
+</html>

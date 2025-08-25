@@ -102,7 +102,7 @@ Robust backend system handling user management, avatar generation, session coord
 #### Dependencies
 ```json
 {
-  "@cloudkit/client": "^1.3.1",     // Cloud computing integration
+ // Cloud computing integration
   "@mwni/events": "^3.0.0",         // Event system
   "@mwni/log": "^2.2.0",            // Logging
   "@mwni/random": "^1.0.1",         // Random utilities

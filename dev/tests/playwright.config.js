@@ -45,6 +45,30 @@ export default defineConfig({
       },
     },
     {
+      name: 'chromium-webgpu',
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Enable WebGPU and enhanced GPU acceleration
+        launchOptions: {
+          args: [
+            '--enable-webgl',
+            '--enable-accelerated-2d-canvas',
+            '--enable-gpu-rasterization',
+            '--enable-unsafe-webgpu',
+            '--enable-features=Vulkan,UseSkiaRenderer,WebGPU',
+            '--disable-vulkan-fallback-to-gl-for-testing',
+            '--use-vulkan=native',
+            '--force-gpu-mem-available-mb=2048',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--enable-dawn-features=allow_unsafe_apis',
+            '--use-gl=angle',
+            '--use-angle=vulkan'
+          ]
+        }
+      },
+    },
+    {
       name: 'firefox',
       use: { 
         ...devices['Desktop Firefox'],

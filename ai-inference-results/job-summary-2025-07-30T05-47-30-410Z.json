@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-07-30T05:47:30.397Z",
+  "totalCompletedTasks": 5,
+  "uniqueJobTypes": 5,
+  "jobTypeCounts": {
+    "Whisper": 1,
+    "VAD": 1,
+    "TinyLlama": 1,
+    "DiabloGPT": 1,
+    "UnifiedKNN": 1
+  },
+  "taskManagerState": {
+    "pendingCount": 0
+  },
+  "jobTypesList": [
+    "DiabloGPT",
+    "TinyLlama",
+    "UnifiedKNN",
+    "VAD",
+    "Whisper"
+  ]
+}

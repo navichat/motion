@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+  <title>Classroom Conversation Backends (VRM E2E)</title>
+  <style>body{font-family:sans-serif;padding:16px;background:#0b0f14;color:#d7e1ee} #log{white-space:pre;background:#0a0e13;border:1px solid #16202c;border-radius:6px;padding:8px;height:140px;overflow:auto}</style>
+</head>
+<body>
+  <h1>Classroom Conversation Backends</h1>
+  <p>Sets up BVHTimeline + VRMIntegration and schedules TTS-driven visemes/energy using the requested backend.</p>
+  <pre id="log"></pre>
+
+  <!-- Idempotent runtime/model bootstrap: honors ?kokoroJs=...&runtime.ort=...&speecht5=... -->
+  <script src="/src/testing/real_inference_bootstrap.js"></script>
+  <script src="/src/audio/AudioEnvelope.js"></script>
+  <script src="/src/utils/scheduler/FibonacciHeap.js"></script>
+  <script src="/src/utils/scheduler/TaskScheduler.js"></script>
+  <script src="/src/components/animation/timeline/TimelineChunkAdapter.js"></script>
+  <script src="/src/components/animation/timeline/BVHTimeline.js"></script>
+  <script src="/src/orchestrator/SpeechGestureScheduler.js"></script>
+  <script src="/src/orchestrator/IchikaOrchestrator.js"></script>
+  <script src="/src/components/animation/vrm/AvatarBinder.js"></script>
+  <script src="/src/components/animation/vrm/BVHTimelineVRMIntegration.js"></script>
+  <script>
+    (function(){
+      const log = (m) => { const el=document.getElementById('log'); el.textContent += m + "\n"; el.scrollTop = el.scrollHeight; };
+      const qs = new URLSearchParams(location.search);
+      const backend = qs.get('backend') || 'speech';
+      const text = qs.get('text') || 'hello classroom';
+      log('Backend: ' + backend);
+
+      // Timeline + orchestrator
+      const BVHTLCtor = (window.BVHTimeline && window.BVHTimeline.BVHTimeline) || window.BVHTimeline;
+      const timeline = new BVHTLCtor({ framerate: 30, lookaheadFrames: 0, onFrameUpdate: ()=>{} });
+      const Orch = window.IchikaOrchestrator; const orch = new Orch({ timeline, quantumMs: 16, onEvent: (e)=>{ if (e.type==='speech') log('speech@ t0='+(e.t0||0)); }});
+      timeline.play && timeline.play();
+
+      // VRM binder stub (records blendshape updates)
+      const binder = window.AvatarBinder ? new window.AvatarBinder() : new (class { constructor(){ this.blendshapeRecords=[]; } updateBone(){} update(){} updateBlendshape(n,w){ this.blendshapeRecords.push({name:n,weight:w}); } })();
+      new window.BVHTimelineVRMIntegration(binder, { smoothing: false, framerate: 30 }).connectTimeline(timeline);
+
+      function buildTts(text, durationSec){
+        const clean=(text||'').toLowerCase(); const dur = durationSec || Math.max(0.6, Math.min(6.0, Math.max(0.6, clean.length*0.08)));
+        const vis=[]; const step=Math.max(0.06, dur/Math.max(6, clean.length||1));
+          const vmap = { a: 'a', e: 'e', i: 'i', o: 'o', u: 'u' };
+          let t = 0;
+          for (const ch of clean) {
+            vis.push({ time: t, id: vmap[ch] || 'rest' });
+            t += step;
+          }
+        const fps=30; const frames=Math.round(dur*fps); const energy=Array.from({length:frames},(_,i)=>0.15+0.3*Math.abs(Math.sin(i/4)));
+        return { duration: dur, visemes: vis, energy };
+      }
+
+      function energyFromAudioBuffer(abuf){
+        try { const ch0 = abuf.getChannelData(0); const env = window.AudioEnvelope?.computeRmsEnvelope ? window.AudioEnvelope.computeRmsEnvelope(ch0, abuf.sampleRate, 50, 25) : []; return env; } catch { return []; }
+      }
+
+      async function scheduleFromTts(tts){
+        orch.scheduleSpeechFromTts(tts, { fps: 30 });
+        // Pump scheduler briefly to ensure frames apply during tests
+        const start = performance.now();
+        (function pump(){ orch.runSlice(8).then(()=>{ if (performance.now()-start < 1200) requestAnimationFrame(pump); }); })();
+        log('Scheduled TTS: dur=' + tts.duration.toFixed(2) + ' vis=' + (tts.visemes?.length||0));
+      }
+
+      async function ensureKokoro(maxWaitMs=2500){
+        const t0 = performance.now();
+        while (!(window.kokoro && typeof window.kokoro.create==='function')){ if (performance.now()-t0>maxWaitMs) break; await new Promise(r=>setTimeout(r,50)); }
+        try{ if (!window.__kk) window.__kk = await window.kokoro.create(); return window.__kk; } catch{ return null; }
+      }
+
+      async function run(){
+        if (backend === 'speech'){
+          await scheduleFromTts(buildTts(text));
+          log('Using backend: speech');
+        } else if (backend === 'kokoro'){
+          const inst = await ensureKokoro();
+          if (!inst){ log('kokoro error: not loaded; using fallback'); await scheduleFromTts(buildTts(text)); }
+          else {
+            try {
+              const out = await inst.speak(text);
+              let abuf = null; if (out && typeof out.getAudioBuffer==='function') abuf = await out.getAudioBuffer(); else if (out?.buffer?.sampleRate) abuf = out.buffer;
+              const tts = buildTts(text, abuf?.duration); const env = abuf ? energyFromAudioBuffer(abuf) : [];
+              if (env.length) tts.energy = env; await scheduleFromTts(tts);
+              log('kokoro audio ok');
+            } catch (e){ log('kokoro synth error: ' + (e?.message||e)); await scheduleFromTts(buildTts(text)); }
+          }
+          log('Using backend: kokoro');
+        } else if (backend === 'speecht5'){
+          try {
+            const g = window; const canOrt = !!(g.ort && g.ModelUrlConfig && g.ModelUrlConfig.getModelUrl && g.ModelUrlConfig.getModelUrl('speecht5'));
+            if (canOrt){ await scheduleFromTts(buildTts(text)); log('SpeechT5 ORT init ok'); }
+            else { await scheduleFromTts(buildTts(text)); log('SpeechT5 stub/fallback'); }
+          } catch (e){ await scheduleFromTts(buildTts(text)); log('SpeechT5 error; fallback'); }
+          log('Using backend: speecht5');
+        } else {
+          await scheduleFromTts(buildTts(text));
+          log('Using backend: beeps');
+        }
+
+        // Report stats after a short delay so frames apply
+        setTimeout(()=>{
+          const expressions = Array.isArray(binder.blendshapeRecords) ? binder.blendshapeRecords.length : 0;
+          window.__classroomConv = { expressions, backend, log: document.getElementById('log').textContent };
+          log('expressions=' + expressions);
+        }, 800);
+      }
+
+      run();
+    })();
+  </script>
+</body>
+</html>

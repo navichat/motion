@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module Import Test</title>
+</head>
+<body>
+    <h1>Testing ES6 Module Import</h1>
+    <div id="result"></div>
+    
+    <script type="module">
+        try {
+            const { MockGPUJob } = await import('./MockGPUJobs.js');
+            console.log('✅ Successfully imported MockGPUJob:', MockGPUJob);
+            document.getElementById('result').innerHTML = '✅ Module import successful!';
+            
+            // Test creating an instance
+            const job = new MockGPUJob('test', 1000);
+            console.log('✅ Created test job:', job);
+            
+        } catch (error) {
+            console.error('❌ Failed to import module:', error);
+            document.getElementById('result').innerHTML = `❌ Import failed: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

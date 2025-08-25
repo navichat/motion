@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify TTS Models</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #0f0f0f;
+            color: #ffffff;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #1a1a1a;
+            border-radius: 8px;
+        }
+        .test-button {
+            background-color: #00d4ff;
+            color: #000;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background-color: #0099cc;
+        }
+        .test-button:disabled {
+            background-color: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+        .log-output {
+            background-color: #000;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+        .model-status {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .model-card {
+            background-color: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #666;
+        }
+        .model-card.available {
+            border-left-color: #00ff00;
+        }
+        .model-card.unavailable {
+            border-left-color: #ff0000;
+        }
+        .model-card.testing {
+            border-left-color: #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 TTS Model Verification</h1>
+    
+    <div class="test-section">
+        <h2>Model Repository Check</h2>
+        <p>Checking if TTS models exist on HuggingFace and have required files...</p>
+        
+        <div>
+            <button class="test-button" onclick="checkModels()">Check Model Availability</button>
+            <button class="test-button" onclick="testWorkingModels()" disabled id="testBtn">Test Working Models</button>
+        </div>
+        
+        <div class="model-status" id="modelStatus"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Verification Results</h2>
+        <div class="log-output" id="testLog"></div>
+    </div>
+    
+    <script>
+        const models = [
+            { name: "Xenova SpeechT5", id: "Xenova/speecht5_tts", type: "model" },
+            { name: "Xenova SpeechT5 Pipeline", id: "Xenova/speecht5_tts", type: "pipeline" },
+            { name: "Xenova MMS TTS", id: "Xenova/mms-tts-eng", type: "pipeline" },
+            { name: "ESPnet VITS", id: "espnet/kan-bayashi_ljspeech_vits", type: "pipeline" },
+            { name: "Microsoft SpeechT5", id: "microsoft/speecht5_tts", type: "model" },
+            { name: "Kokoro TTS", id: "hexgrad/Kokoro-82M", type: "pipeline" }
+        ];
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('testLog');
+            const timestamp = new Date().toISOString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            logDiv.textContent += `${timestamp} ${prefix} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateModelStatus(modelId, status, message) {
+            const card = document.querySelector(`[data-model="${modelId}"]`);
+            if (card) {
+                card.className = `model-card ${status}`;
+                card.querySelector('.status').textContent = message;
+            }
+        }
+        
+        async function checkModels() {
+            log('Starting model availability check...');
+            
+            const statusDiv = document.getElementById('modelStatus');
+            statusDiv.innerHTML = models.map(model => `
+                <div class="model-card" data-model="${model.id}">
+                    <div style="font-weight: bold;">${model.name}</div>
+                    <div style="font-size: 12px; color: #ccc;">${model.id}</div>
+                    <div class="status" style="font-size: 12px; margin-top: 5px;">Checking...</div>
+                </div>
+            `).join('');
+            
+            let availableCount = 0;
+            
+            for (const model of models) {
+                try {
+                    log(`Checking ${model.name} (${model.id})...`);
+                    updateModelStatus(model.id, 'testing', 'Checking...');
+                    
+                    // Check if model config exists
+                    const configUrl = `https://huggingface.co/${model.id}/resolve/main/config.json`;
+                    const configResponse = await fetch(configUrl, { method: 'HEAD' });
+                    
+                    if (configResponse.ok) {
+                        log(`✅ ${model.name} config found`, 'success');
+                        
+                        // Check for required files
+                        const requiredFiles = [
+                            'tokenizer.json',
+                            'tokenizer_config.json'
+                        ];
+                        
+                        if (model.type === 'model') {
+                            requiredFiles.push('onnx/decoder_model_merged.onnx');
+                            requiredFiles.push('onnx/encoder_model.onnx');
+                        } else {
+                            requiredFiles.push('onnx/model.onnx');
+                        }
+                        
+                        let filesFound = 0;
+                        for (const file of requiredFiles) {
+                            const fileUrl = `https://huggingface.co/${model.id}/resolve/main/${file}`;
+                            try {
+                                const fileResponse = await fetch(fileUrl, { method: 'HEAD' });
+                                if (fileResponse.ok) {
+                                    filesFound++;
+                                    log(`  ✅ Found ${file}`);
+                                } else {
+                                    log(`  ❌ Missing ${file}`, 'warning');
+                                }
+                            } catch (e) {
+                                log(`  ❌ Error checking ${file}: ${e.message}`, 'warning');
+                            }
+                        }
+                        
+                        if (filesFound === requiredFiles.length) {
+                            updateModelStatus(model.id, 'available', `Available (${filesFound}/${requiredFiles.length} files)`);
+                            availableCount++;
+                            log(`✅ ${model.name} is fully available`, 'success');
+                        } else {
+                            updateModelStatus(model.id, 'unavailable', `Missing files (${filesFound}/${requiredFiles.length})`);
+                            log(`⚠️ ${model.name} is missing required files`, 'warning');
+                        }
+                    } else {
+                        updateModelStatus(model.id, 'unavailable', `Config not found (${configResponse.status})`);
+                        log(`❌ ${model.name} config not found (${configResponse.status})`, 'error');
+                    }
+                    
+                } catch (error) {
+                    updateModelStatus(model.id, 'unavailable', `Error: ${error.message}`);
+                    log(`❌ Error checking ${model.name}: ${error.message}`, 'error');
+                }
+            }
+            
+            log(`\nSummary: ${availableCount}/${models.length} models are available`);
+            
+            if (availableCount > 0) {
+                document.getElementById('testBtn').disabled = false;
+                log('Ready to test working models!', 'success');
+            } else {
+                log('No working models found - will use Web Speech API only', 'warning');
+            }
+        }
+        
+        async function testWorkingModels() {
+            log('Testing working models with Transformers.js...');
+            
+            try {
+                // Load Transformers.js
+                const { pipeline, AutoTokenizer, SpeechT5ForTextToSpeech } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.6.3');
+                log('Transformers.js loaded successfully');
+                
+                // Test each available model
+                const availableModels = models.filter(model => {
+                    const card = document.querySelector(`[data-model="${model.id}"]`);
+                    return card && card.classList.contains('available');
+                });
+                
+                for (const model of availableModels) {
+                    try {
+                        log(`Testing ${model.name}...`);
+                        updateModelStatus(model.id, 'testing', 'Testing...');
+                        
+                        const startTime = performance.now();
+                        
+                        let ttsModel;
+                        if (model.type === 'pipeline') {
+                            ttsModel = await pipeline("text-to-speech", model.id, {
+                                device: "wasm",
+                                dtype: "fp32"
+                            });
+                        } else {
+                            ttsModel = await SpeechT5ForTextToSpeech.from_pretrained(model.id, {
+                                dtype: "fp32",
+                                device: "wasm"
+                            });
+                        }
+                        
+                        const loadTime = performance.now() - startTime;
+                        
+                        updateModelStatus(model.id, 'available', `Loaded (${loadTime.toFixed(0)}ms)`);
+                        log(`✅ ${model.name} loaded successfully in ${loadTime.toFixed(2)}ms`, 'success');
+                        
+                        // Quick test
+                        if (typeof ttsModel === 'function') {
+                            const testResult = await ttsModel("Hello world");
+                            log(`✅ ${model.name} test synthesis successful`, 'success');
+                        } else {
+                            log(`✅ ${model.name} model ready for generation`, 'success');
+                        }
+                        
+                    } catch (error) {
+                        updateModelStatus(model.id, 'unavailable', `Test failed: ${error.message}`);
+                        log(`❌ ${model.name} test failed: ${error.message}`, 'error');
+                    }
+                }
+                
+                log('Model testing complete!');
+                
+            } catch (error) {
+                log(`Failed to load Transformers.js: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-start check
+        window.addEventListener('load', () => {
+            log('Model verification tool loaded');
+            log('This tool checks if TTS models exist and have required files');
+            log('Click "Check Model Availability" to start...');
+        });
+        
+    </script>
+</body>
+</html>

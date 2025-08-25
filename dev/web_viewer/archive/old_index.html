@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSMT Animation Viewer</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background: linear-gradient(135deg, #1e3c72, #2a5298); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; 
+        }
+        #container { width: 100vw; height: 100vh; }
+        #controls { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            color: white; 
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 300px;
+            backdrop-filter: blur(10px);
+        }
+        h3 { margin-top: 0; color: #4CAF50; }
+        button { 
+            margin: 5px; 
+            padding: 12px 20px; 
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        button:hover { 
+            background: linear-gradient(45deg, #45a049, #4CAF50);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        select, input[type="range"] { 
+            margin: 5px; 
+            padding: 8px; 
+            background: #333; 
+            color: white; 
+            border: 1px solid #555;
+            border-radius: 5px;
+        }
+        .control-group {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        #info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="controls">
+        <h3>🎬 RSMT Animation Viewer</h3>
+        
+        <div class="control-group">
+            <label>Animation Controls:</label>
+            <button onclick="loadDemoAnimation()">🎭 Load Demo Animation</button>
+            <button onclick="playAnimation()">▶️ Play</button>
+            <button onclick="pauseAnimation()">⏸️ Pause</button>
+            <button onclick="resetAnimation()">⏮️ Reset</button>
+        </div>
+        
+        <div class="control-group">
+            <label>Speed: <span id="speedValue">1.0</span>x</label>
+            <input type="range" id="speedSlider" min="0.1" max="3.0" step="0.1" value="1.0" onchange="updateSpeed()">
+        </div>
+        
+        <div class="control-group">
+            <label>Frame: <span id="frameValue">0</span></label>
+            <input type="range" id="frameSlider" min="0" max="100" value="0" onchange="seekToFrame()">
+        </div>
+        
+        <div class="control-group">
+            <label>Camera:</label>
+            <button onclick="resetCamera()">🎥 Reset View</button>
+            <button onclick="toggleAutoRotate()">🔄 Auto Rotate</button>
+        </div>
+    </div>
+    
+    <div id="info">
+        <strong>RSMT - Real-time Stylized Motion Transition</strong><br>
+        Use mouse to orbit camera<br>
+        Wheel to zoom, Right-click to pan
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, skeleton, clock;
+        let isPlaying = false;
+        let animationFrame = 0;
+        let totalFrames = 60;
+        let autoRotate = false;
+
+        function init() {
+            console.log("Starting RSMT Viewer initialization...");
+            
+            try {
+                // Create scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x222222);
+                console.log("✅ Scene created");
+
+                // Get container dimensions
+                const container = document.getElementById('container');
+                const width = container.clientWidth || window.innerWidth;
+                const height = container.clientHeight || window.innerHeight;
+                console.log("Container dimensions:", width, "x", height);
+
+                // Create camera
+                camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+                camera.position.set(2, 1, 3);
+                console.log("✅ Camera created");
+
+                // Create renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(width, height);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                container.appendChild(renderer.domElement);
+                console.log("✅ Renderer created and added to container");
+
+                // Add lights
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                scene.add(ambientLight);
+
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(5, 5, 5);
+                directionalLight.castShadow = true;
+                scene.add(directionalLight);
+                console.log("✅ Lights added");
+
+                // Add ground
+                const groundGeometry = new THREE.PlaneGeometry(10, 10);
+                const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                ground.receiveShadow = true;
+                scene.add(ground);
+                console.log("✅ Ground added");
+
+                // Add coordinate axes for debugging
+                const axesHelper = new THREE.AxesHelper(2);
+                scene.add(axesHelper);
+                console.log("✅ Coordinate axes added");
+
+                // Add orbit controls
+                addOrbitControls();
+
+                // Initialize clock
+                clock = new THREE.Clock();
+
+                // Start render loop
+                animate();
+                
+                console.log("✅ RSMT Viewer initialized successfully!");
+                
+                // Auto-load demo after a short delay
+                setTimeout(() => {
+                    console.log("Auto-loading demo animation...");
+                    loadDemoAnimation();
+                }, 1000);
+                
+            } catch (error) {
+                console.error("❌ Initialization error:", error);
+                alert("Failed to initialize 3D viewer: " + error.message);
+            }
+        }
+
+        function addOrbitControls() {
+            // Simple orbit controls implementation
+            let mouseDown = false;
+            let mouseX = 0, mouseY = 0;
+            
+            renderer.domElement.addEventListener('mousedown', function(event) {
+                mouseDown = true;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            renderer.domElement.addEventListener('mouseup', function() {
+                mouseDown = false;
+            });
+            
+            renderer.domElement.addEventListener('mousemove', function(event) {
+                if (mouseDown) {
+                    const deltaX = event.clientX - mouseX;
+                    const deltaY = event.clientY - mouseY;
+                    
+                    camera.position.x = Math.cos(deltaX * 0.01) * 3;
+                    camera.position.z = Math.sin(deltaX * 0.01) * 3;
+                    camera.position.y = Math.max(0.5, camera.position.y + deltaY * 0.01);
+                    
+                    camera.lookAt(0, 1, 0);
+                    
+                    mouseX = event.clientX;
+                    mouseY = event.clientY;
+                }
+            });
+        }
+
+        function loadDemoAnimation() {
+            console.log("Loading demo animation...");
+            
+            // Create a simple test skeleton first
+            createTestSkeleton();
+            console.log("Test skeleton created");
+            
+            // Then create enhanced version
+            setTimeout(() => {
+                createEnhancedDemoSkeleton();
+                console.log("Enhanced demo animation loaded!");
+            }, 1000);
+        }
+        
+        function createTestSkeleton() {
+            console.log("Creating test skeleton...");
+            
+            // Clear previous skeleton
+            if (skeleton) {
+                scene.remove(skeleton);
+                console.log("Removed previous skeleton");
+            }
+
+            // Create a simple test - just colored spheres
+            skeleton = new THREE.Group();
+            
+            // Add some bright colored spheres at different positions
+            const testSpheres = [
+                { pos: [0, 1, 0], color: 0xff0000, name: "center" },
+                { pos: [-1, 1, 0], color: 0x00ff00, name: "left" },
+                { pos: [1, 1, 0], color: 0x0000ff, name: "right" },
+                { pos: [0, 2, 0], color: 0xffff00, name: "top" },
+                { pos: [0, 0, 0], color: 0xff00ff, name: "bottom" }
+            ];
+            
+            testSpheres.forEach((sphere, i) => {
+                const geometry = new THREE.SphereGeometry(0.1, 16, 16);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: sphere.color,
+                    emissive: sphere.color,
+                    emissiveIntensity: 0.2
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(...sphere.pos);
+                mesh.userData = { name: sphere.name, index: i };
+                skeleton.add(mesh);
+                console.log(`Added test sphere ${sphere.name} at`, sphere.pos);
+            });
+            
+            scene.add(skeleton);
+            console.log("Test skeleton added to scene with", testSpheres.length, "spheres");
+        }
+
+        function createDemoSkeleton() {
+            // Clear previous skeleton
+            if (skeleton) {
+                scene.remove(skeleton);
+            }
+
+            // Create skeleton group
+            skeleton = new THREE.Group();
+            
+            // Define skeleton structure
+            const joints = [
+                {name: "hips", pos: [0, 1, 0], parent: -1},
+                {name: "spine", pos: [0, 1.2, 0], parent: 0},
+                {name: "chest", pos: [0, 1.4, 0], parent: 1},
+                {name: "neck", pos: [0, 1.6, 0], parent: 2},
+                {name: "head", pos: [0, 1.8, 0], parent: 3},
+                {name: "leftShoulder", pos: [-0.2, 1.4, 0], parent: 2},
+                {name: "leftElbow", pos: [-0.5, 1.2, 0], parent: 5},
+                {name: "leftHand", pos: [-0.8, 1.0, 0], parent: 6},
+                {name: "rightShoulder", pos: [0.2, 1.4, 0], parent: 2},
+                {name: "rightElbow", pos: [0.5, 1.2, 0], parent: 8},
+                {name: "rightHand", pos: [0.8, 1.0, 0], parent: 9},
+                {name: "leftHip", pos: [-0.1, 0.9, 0], parent: 0},
+                {name: "leftKnee", pos: [-0.1, 0.5, 0], parent: 11},
+                {name: "leftFoot", pos: [-0.1, 0.1, 0], parent: 12},
+                {name: "rightHip", pos: [0.1, 0.9, 0], parent: 0},
+                {name: "rightKnee", pos: [0.1, 0.5, 0], parent: 14},
+                {name: "rightFoot", pos: [0.1, 0.1, 0], parent: 15}
+            ];
+
+            // Create joint spheres and bones
+            joints.forEach((joint, i) => {
+                // Create joint sphere
+                const geometry = new THREE.SphereGeometry(0.03, 8, 8);
+                const material = new THREE.MeshPhongMaterial({ color: 0xff4444 });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(...joint.pos);
+                skeleton.add(sphere);
+
+                // Create bone to parent
+                if (joint.parent >= 0) {
+                    const parentPos = joints[joint.parent].pos;
+                    const boneGeometry = new THREE.CylinderGeometry(0.01, 0.01, 
+                        Math.sqrt(
+                            Math.pow(joint.pos[0] - parentPos[0], 2) +
+                            Math.pow(joint.pos[1] - parentPos[1], 2) +
+                            Math.pow(joint.pos[2] - parentPos[2], 2)
+                        ));
+                    const boneMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff });
+                    const bone = new THREE.Mesh(boneGeometry, boneMaterial);
+                    
+                    // Position bone between joint and parent
+                    bone.position.set(
+                        (joint.pos[0] + parentPos[0]) / 2,
+                        (joint.pos[1] + parentPos[1]) / 2,
+                        (joint.pos[2] + parentPos[2]) / 2
+                    );
+                    
+                    // Rotate bone to point from parent to joint
+                    const direction = new THREE.Vector3(
+                        joint.pos[0] - parentPos[0],
+                        joint.pos[1] - parentPos[1],
+                        joint.pos[2] - parentPos[2]
+                    ).normalize();
+                    bone.lookAt(new THREE.Vector3().addVectors(bone.position, direction));
+                    bone.rotateX(Math.PI / 2);
+                    
+                    skeleton.add(bone);
+                }
+            });
+
+            scene.add(skeleton);
+        }
+
+        function playAnimation() {
+            isPlaying = true;
+            console.log("Animation playing");
+        }
+
+        function pauseAnimation() {
+            isPlaying = false;
+            console.log("Animation paused");
+        }
+
+        function resetAnimation() {
+            animationFrame = 0;
+            isPlaying = true;
+            document.getElementById('frameSlider').value = 0;
+            document.getElementById('frameValue').textContent = 0;
+            console.log("Animation reset");
+        }
+
+        function updateSpeed() {
+            const slider = document.getElementById('speedSlider');
+            const speed = parseFloat(slider.value);
+            document.getElementById('speedValue').textContent = speed.toFixed(1);
+        }
+
+        function seekToFrame() {
+            const slider = document.getElementById('frameSlider');
+            animationFrame = parseInt(slider.value);
+            document.getElementById('frameValue').textContent = animationFrame;
+            updateSkeletonAnimation();
+        }
+
+        function resetCamera() {
+            camera.position.set(2, 1, 3);
+            camera.lookAt(0, 1, 0);
+        }
+
+        function toggleAutoRotate() {
+            autoRotate = !autoRotate;
+        }
+
+        function updateSkeletonAnimation() {
+            if (!skeleton || !skeleton.joints) return;
+
+            const t = (animationFrame / totalFrames) * Math.PI * 2;
+            
+            // Enhanced walking animation with much more dramatic movement
+            const walkCycle = t * 2; // 2 complete cycles
+            
+            skeleton.children.forEach((child, i) => {
+                if (child.userData && child.userData.jointIndex !== undefined) {
+                    const jointIndex = child.userData.jointIndex;
+                    const joint = skeleton.joints[jointIndex];
+                    const initialPos = child.userData.initialPos;
+                    
+                    // Apply different animations based on joint type
+                    let offset = [0, 0, 0];
+                    
+                    if (joint.name === 'hips') {
+                        // Hip movement - side sway and forward motion
+                        offset[0] = 0.3 * Math.sin(walkCycle);
+                        offset[1] = 0.08 * Math.sin(walkCycle * 4);
+                        offset[2] = (animationFrame / totalFrames) * 2.0;
+                        
+                    } else if (joint.name.includes('leftArm') || joint.name.includes('leftHand')) {
+                        // Left arm swinging (opposite to right leg)
+                        const swing = 0.4 * Math.sin(walkCycle + Math.PI);
+                        offset[0] = swing * 0.5;
+                        offset[2] = swing;
+                        
+                    } else if (joint.name.includes('rightArm') || joint.name.includes('rightHand')) {
+                        // Right arm swinging (with left leg)
+                        const swing = 0.4 * Math.sin(walkCycle);
+                        offset[0] = swing * 0.5;
+                        offset[2] = swing;
+                        
+                    } else if (joint.name.includes('leftLeg') || joint.name.includes('leftFoot')) {
+                        // Left leg stepping motion
+                        const step = 0.3 * Math.sin(walkCycle + Math.PI);
+                        offset[0] = step * 0.3;
+                        offset[1] = Math.max(0, step) * 0.2; // Lift leg when stepping
+                        offset[2] = step * 0.5;
+                        
+                    } else if (joint.name.includes('rightLeg') || joint.name.includes('rightFoot')) {
+                        // Right leg stepping motion
+                        const step = 0.3 * Math.sin(walkCycle);
+                        offset[0] = step * 0.3;
+                        offset[1] = Math.max(0, step) * 0.2; // Lift leg when stepping
+                        offset[2] = step * 0.5;
+                        
+                    } else if (joint.name.includes('spine')) {
+                        // Spine counter-rotation
+                        const twist = 0.1 * Math.sin(walkCycle * 0.5);
+                        offset[0] = twist;
+                        
+                    } else if (joint.name === 'head') {
+                        // Head bobbing
+                        offset[1] = 0.05 * Math.sin(walkCycle * 4);
+                        
+                    } else if (joint.name.includes('shoulder')) {
+                        // Shoulder movement
+                        const shoulderMove = 0.05 * Math.sin(walkCycle);
+                        offset[1] = shoulderMove;
+                    }
+                    
+                    // Apply the offset to the initial position
+                    child.position.set(
+                        initialPos[0] + offset[0],
+                        initialPos[1] + offset[1],
+                        initialPos[2] + offset[2]
+                    );
+                }
+                
+                // Update bones between joints
+                if (child.userData && child.userData.parentIndex !== undefined) {
+                    const parentIndex = child.userData.parentIndex;
+                    const childIndex = child.userData.childIndex;
+                    
+                    // Find the corresponding joint spheres
+                    const parentSphere = skeleton.children.find(c => 
+                        c.userData && c.userData.jointIndex === parentIndex);
+                    const childSphere = skeleton.children.find(c => 
+                        c.userData && c.userData.jointIndex === childIndex);
+                    
+                    if (parentSphere && childSphere) {
+                        // Update bone position and orientation
+                        const parentPos = parentSphere.position;
+                        const childPos = childSphere.position;
+                        
+                        // Position bone at midpoint
+                        child.position.copy(parentPos).add(childPos).multiplyScalar(0.5);
+                        
+                        // Calculate distance and update scale
+                        const distance = parentPos.distanceTo(childPos);
+                        child.scale.y = distance / 1.0; // Assuming original height was 1.0
+                        
+                        // Orient bone from parent to child
+                        const direction = new THREE.Vector3().subVectors(childPos, parentPos).normalize();
+                        child.lookAt(new THREE.Vector3().addVectors(child.position, direction));
+                        child.rotateX(Math.PI / 2);
+                    }
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update animation
+            if (isPlaying && skeleton) {
+                const speed = parseFloat(document.getElementById('speedSlider').value);
+                animationFrame = (animationFrame + speed) % totalFrames;
+                
+                document.getElementById('frameValue').textContent = Math.floor(animationFrame);
+                document.getElementById('frameSlider').value = Math.floor(animationFrame);
+                
+                updateSkeletonAnimation();
+            }
+
+            // Auto rotate camera
+            if (autoRotate) {
+                const time = clock.getElapsedTime();
+                camera.position.x = Math.cos(time * 0.5) * 3;
+                camera.position.z = Math.sin(time * 0.5) * 3;
+                camera.lookAt(0, 1, 0);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            const container = document.getElementById('container');
+            const width = container.clientWidth || window.innerWidth;
+            const height = container.clientHeight || window.innerHeight;
+            
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+            console.log("Window resized to:", width, "x", height);
+        });
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

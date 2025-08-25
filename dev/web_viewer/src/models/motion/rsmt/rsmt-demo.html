@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSMT BVH Timeline Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.8;
+            font-size: 1.1em;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        .control-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section h3 {
+            color: #2c3e50;
+            margin: 0 0 15px 0;
+            font-size: 1.3em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn.secondary {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+        }
+        
+        .btn.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        
+        .btn.success {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        }
+        
+        .visualization {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid #e9ecef;
+            min-height: 600px;
+        }
+        
+        .timeline-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            min-height: 300px;
+        }
+        
+        .status-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .status-value {
+            color: #3498db;
+            font-weight: 600;
+        }
+        
+        .log-area {
+            background: #2c3e50;
+            color: #ecf0f1;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .style-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .style-btn {
+            padding: 8px 12px;
+            background: #fff;
+            border: 2px solid #3498db;
+            color: #3498db;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .style-btn.active,
+        .style-btn:hover {
+            background: #3498db;
+            color: white;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #a00;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .error.active {
+            display: block;
+        }
+        
+        .success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #060;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .success.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>RSMT BVH Timeline Integration</h1>
+            <p>Real-time Stylized Motion Transition System with BVH Timeline</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="control-panel">
+                <!-- Initialization Section -->
+                <div class="section">
+                    <h3>System Initialization</h3>
+                    <div class="form-group">
+                        <button id="initSystem" class="btn success">Initialize RSMT System</button>
+                        <button id="resetSystem" class="btn danger">Reset System</button>
+                    </div>
+                    <div id="initStatus" class="status-item">
+                        <span class="status-label">Status:</span>
+                        <span id="systemStatus" class="status-value">Not Initialized</span>
+                    </div>
+                </div>
+                
+                <!-- Motion Library Section -->
+                <div class="section">
+                    <h3>Motion Library</h3>
+                    <div class="form-group">
+                        <button id="loadSampleMotions" class="btn">Load Sample Motions</button>
+                        <button id="clearMotions" class="btn secondary">Clear Library</button>
+                    </div>
+                    <div class="form-group">
+                        <label for="motionList">Available Motions:</label>
+                        <select id="motionList" multiple style="height: 100px;">
+                            <option value="walk">Walking Motion</option>
+                            <option value="run">Running Motion</option>
+                            <option value="idle">Idle Pose</option>
+                            <option value="jump">Jumping Motion</option>
+                            <option value="dance">Dance Motion</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Transition Generation Section -->
+                <div class="section">
+                    <h3>Transition Generation</h3>
+                    <div class="form-group">
+                        <label for="sourceMotion">Source Motion:</label>
+                        <select id="sourceMotion">
+                            <option value="">Select source...</option>
+                            <option value="walk">Walking</option>
+                            <option value="run">Running</option>
+                            <option value="idle">Idle</option>
+                            <option value="jump">Jumping</option>
+                            <option value="dance">Dance</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="targetMotion">Target Motion:</label>
+                        <select id="targetMotion">
+                            <option value="">Select target...</option>
+                            <option value="walk">Walking</option>
+                            <option value="run">Running</option>
+                            <option value="idle">Idle</option>
+                            <option value="jump">Jumping</option>
+                            <option value="dance">Dance</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Transition Style:</label>
+                        <div class="style-buttons">
+                            <div class="style-btn active" data-style="smooth">Smooth</div>
+                            <div class="style-btn" data-style="sharp">Sharp</div>
+                            <div class="style-btn" data-style="fluid">Fluid</div>
+                            <div class="style-btn" data-style="energetic">Energetic</div>
+                            <div class="style-btn" data-style="gentle">Gentle</div>
+                            <div class="style-btn" data-style="dramatic">Dramatic</div>
+                            <div class="style-btn" data-style="natural">Natural</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="transitionLength">Transition Length (frames):</label>
+                        <input type="range" id="transitionLength" min="10" max="120" value="30">
+                        <span id="transitionLengthValue">30</span> frames
+                    </div>
+                    <div class="form-group">
+                        <label for="startTime">Start Time (seconds):</label>
+                        <input type="number" id="startTime" value="0" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <button id="generateTransition" class="btn">Generate RSMT Transition</button>
+                        <button id="previewTransition" class="btn secondary">Preview Only</button>
+                    </div>
+                </div>
+                
+                <!-- Playback Controls -->
+                <div class="section">
+                    <h3>Playback Controls</h3>
+                    <div class="form-group">
+                        <button id="playTimeline" class="btn success">Play Timeline</button>
+                        <button id="pauseTimeline" class="btn secondary">Pause</button>
+                        <button id="stopTimeline" class="btn danger">Stop</button>
+                    </div>
+                    <div class="form-group">
+                        <label for="playbackSpeed">Playback Speed:</label>
+                        <input type="range" id="playbackSpeed" min="0.1" max="2" step="0.1" value="1">
+                        <span id="playbackSpeedValue">1.0</span>x
+                    </div>
+                </div>
+            </div>
+            
+            <div class="visualization">
+                <!-- Timeline Visualization -->
+                <div class="section">
+                    <h3>Timeline Visualization</h3>
+                    <div class="timeline-container">
+                        <canvas id="timelineCanvas" width="600" height="200"></canvas>
+                        <div class="loading" id="timelineLoading">
+                            <div class="spinner"></div>
+                            <p>Generating RSMT transition...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Performance Stats -->
+                <div class="section">
+                    <h3>Performance Statistics</h3>
+                    <div class="status-panel">
+                        <div class="status-item">
+                            <span class="status-label">Transitions Generated:</span>
+                            <span id="transitionsGenerated" class="status-value">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Cache Hit Rate:</span>
+                            <span id="cacheHitRate" class="status-value">0%</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Average Generation Time:</span>
+                            <span id="avgGenerationTime" class="status-value">0ms</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Active Sessions:</span>
+                            <span id="activeSessions" class="status-value">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Current Time:</span>
+                            <span id="currentTime" class="status-value">0.00s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Messages -->
+        <div id="errorMessage" class="error"></div>
+        <div id="successMessage" class="success"></div>
+        
+        <!-- Console Log -->
+        <div class="log-area" id="consoleLog">
+            <div>RSMT BVH Timeline Demo - Ready</div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    <script src="../bvh-timeline.js"></script>
+    <script src="rsmt-inference.js"></script>
+    <script src="rsmt-bvh-integration.js"></script>
+    
+    <script>
+        // Global state
+        let timeline = null;
+        let rsmt = null;
+        let integration = null;
+        let selectedStyle = 'smooth';
+        let playbackInterval = null;
+        let currentTime = 0;
+        let isPlaying = false;
+        
+        // UI Elements
+        const elements = {
+            initSystem: document.getElementById('initSystem'),
+            resetSystem: document.getElementById('resetSystem'),
+            systemStatus: document.getElementById('systemStatus'),
+            loadSampleMotions: document.getElementById('loadSampleMotions'),
+            clearMotions: document.getElementById('clearMotions'),
+            sourceMotion: document.getElementById('sourceMotion'),
+            targetMotion: document.getElementById('targetMotion'),
+            transitionLength: document.getElementById('transitionLength'),
+            transitionLengthValue: document.getElementById('transitionLengthValue'),
+            startTime: document.getElementById('startTime'),
+            generateTransition: document.getElementById('generateTransition'),
+            previewTransition: document.getElementById('previewTransition'),
+            playTimeline: document.getElementById('playTimeline'),
+            pauseTimeline: document.getElementById('pauseTimeline'),
+            stopTimeline: document.getElementById('stopTimeline'),
+            playbackSpeed: document.getElementById('playbackSpeed'),
+            playbackSpeedValue: document.getElementById('playbackSpeedValue'),
+            timelineCanvas: document.getElementById('timelineCanvas'),
+            timelineLoading: document.getElementById('timelineLoading'),
+            errorMessage: document.getElementById('errorMessage'),
+            successMessage: document.getElementById('successMessage'),
+            consoleLog: document.getElementById('consoleLog')
+        };
+        
+        // Initialize event listeners
+        function initEventListeners() {
+            elements.initSystem.addEventListener('click', initializeSystem);
+            elements.resetSystem.addEventListener('click', resetSystem);
+            elements.loadSampleMotions.addEventListener('click', loadSampleMotions);
+            elements.clearMotions.addEventListener('click', clearMotions);
+            elements.generateTransition.addEventListener('click', generateTransition);
+            elements.previewTransition.addEventListener('click', previewTransition);
+            elements.playTimeline.addEventListener('click', playTimeline);
+            elements.pauseTimeline.addEventListener('click', pauseTimeline);
+            elements.stopTimeline.addEventListener('click', stopTimeline);
+            
+            // Range sliders
+            elements.transitionLength.addEventListener('input', (e) => {
+                elements.transitionLengthValue.textContent = e.target.value;
+            });
+            
+            elements.playbackSpeed.addEventListener('input', (e) => {
+                elements.playbackSpeedValue.textContent = parseFloat(e.target.value).toFixed(1);
+            });
+            
+            // Style buttons
+            document.querySelectorAll('.style-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    selectedStyle = e.target.dataset.style;
+                    log(`Selected style: ${selectedStyle}`);
+                });
+            });
+        }
+        
+        // Initialize system
+        async function initializeSystem() {
+            try {
+                log('Initializing RSMT System...');
+                showLoading(true);
+                
+                // Initialize timeline
+                timeline = new BVHTimeline();
+                log('BVH Timeline initialized');
+                
+                // Initialize RSMT
+                rsmt = new RSMTInference();
+                await rsmt.initialize();
+                log('RSMT inference engine initialized');
+                
+                // Initialize integration layer
+                integration = new RSMTBVHIntegration(timeline, rsmt, {
+                    frameRate: 30,
+                    defaultTransitionLength: 30,
+                    cacheTransitions: true
+                });
+                log('RSMT BVH Integration initialized');
+                
+                elements.systemStatus.textContent = 'Initialized';
+                elements.systemStatus.style.color = '#27ae60';
+                
+                showSuccess('RSMT System initialized successfully!');
+                updatePerformanceStats();
+                
+            } catch (error) {
+                log(`Error initializing system: ${error.message}`, 'error');
+                showError(`Failed to initialize system: ${error.message}`);
+                elements.systemStatus.textContent = 'Error';
+                elements.systemStatus.style.color = '#e74c3c';
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Reset system
+        function resetSystem() {
+            try {
+                if (integration) {
+                    integration.dispose();
+                    integration = null;
+                }
+                
+                if (rsmt) {
+                    rsmt.dispose();
+                    rsmt = null;
+                }
+                
+                timeline = null;
+                selectedStyle = 'smooth';
+                
+                stopTimeline();
+                clearCanvas();
+                
+                elements.systemStatus.textContent = 'Not Initialized';
+                elements.systemStatus.style.color = '#7f8c8d';
+                
+                log('System reset');
+                showSuccess('System reset successfully');
+                
+            } catch (error) {
+                log(`Error resetting system: ${error.message}`, 'error');
+                showError(`Failed to reset system: ${error.message}`);
+            }
+        }
+        
+        // Load sample motions
+        function loadSampleMotions() {
+            if (!timeline) {
+                showError('Please initialize the system first');
+                return;
+            }
+            
+            try {
+                log('Loading sample motions...');
+                
+                // Create sample motion clips
+                const motions = [
+                    { id: 'walk', name: 'Walking', duration: 2.0 },
+                    { id: 'run', name: 'Running', duration: 1.5 },
+                    { id: 'idle', name: 'Idle', duration: 3.0 },
+                    { id: 'jump', name: 'Jumping', duration: 1.0 },
+                    { id: 'dance', name: 'Dance', duration: 4.0 }
+                ];
+                
+                motions.forEach(motion => {
+                    const clip = createSampleMotionClip(motion);
+                    timeline.addClip(`motion_${motion.id}`, clip);
+                    log(`Added motion: ${motion.name}`);
+                });
+                
+                updateTimelineVisualization();
+                showSuccess(`Loaded ${motions.length} sample motions`);
+                
+            } catch (error) {
+                log(`Error loading sample motions: ${error.message}`, 'error');
+                showError(`Failed to load sample motions: ${error.message}`);
+            }
+        }
+        
+        // Create sample motion clip
+        function createSampleMotionClip(motion) {
+            const generator = async (time, frameIndex) => {
+                // Generate procedural motion data based on motion type
+                const frame = createProceduralFrame(motion.id, time, frameIndex);
+                return frame;
+            };
+            
+            return new BVHClip({
+                id: motion.id,
+                type: 'sample_motion',
+                startTime: 0,
+                duration: motion.duration,
+                weight: 1.0,
+                blendMode: 'replace',
+                generator: generator,
+                metadata: {
+                    name: motion.name,
+                    type: motion.id
+                }
+            });
+        }
+        
+        // Create procedural frame
+        function createProceduralFrame(motionType, time, frameIndex) {
+            const frame = {
+                time: time,
+                motionData: {},
+                metadata: {
+                    type: motionType,
+                    frame: frameIndex,
+                    timestamp: Date.now()
+                }
+            };
+            
+            // Generate motion data based on type
+            switch (motionType) {
+                case 'walk':
+                    frame.motionData = generateWalkingMotion(time);
+                    break;
+                case 'run':
+                    frame.motionData = generateRunningMotion(time);
+                    break;
+                case 'idle':
+                    frame.motionData = generateIdleMotion(time);
+                    break;
+                case 'jump':
+                    frame.motionData = generateJumpingMotion(time);
+                    break;
+                case 'dance':
+                    frame.motionData = generateDanceMotion(time);
+                    break;
+                default:
+                    frame.motionData = generateIdleMotion(time);
+            }
+            
+            return frame;
+        }
+        
+        // Generate walking motion
+        function generateWalkingMotion(time) {
+            const cycle = time * 2; // 2 Hz walking cycle
+            const motionData = {};
+            
+            // Procedural walking animation
+            motionData.hips = [0, 1 + Math.sin(cycle * 4) * 0.05, 0, 0, Math.sin(cycle) * 5, 0];
+            motionData.leftUpperLeg = [Math.sin(cycle) * 30, 0, 0];
+            motionData.rightUpperLeg = [Math.sin(cycle + Math.PI) * 30, 0, 0];
+            motionData.leftLowerLeg = [Math.max(0, Math.sin(cycle) * 45), 0, 0];
+            motionData.rightLowerLeg = [Math.max(0, Math.sin(cycle + Math.PI) * 45), 0, 0];
+            
+            // Arms
+            motionData.leftUpperArm = [Math.sin(cycle + Math.PI) * 20, 0, 0];
+            motionData.rightUpperArm = [Math.sin(cycle) * 20, 0, 0];
+            
+            return motionData;
+        }
+        
+        // Generate running motion
+        function generateRunningMotion(time) {
+            const cycle = time * 3; // 3 Hz running cycle
+            const motionData = {};
+            
+            motionData.hips = [0, 1 + Math.sin(cycle * 6) * 0.1, 0, 0, Math.sin(cycle) * 8, 0];
+            motionData.leftUpperLeg = [Math.sin(cycle) * 45, 0, 0];
+            motionData.rightUpperLeg = [Math.sin(cycle + Math.PI) * 45, 0, 0];
+            motionData.leftLowerLeg = [Math.max(0, Math.sin(cycle) * 60), 0, 0];
+            motionData.rightLowerLeg = [Math.max(0, Math.sin(cycle + Math.PI) * 60), 0, 0];
+            
+            // More dramatic arm swing
+            motionData.leftUpperArm = [Math.sin(cycle + Math.PI) * 35, 0, 0];
+            motionData.rightUpperArm = [Math.sin(cycle) * 35, 0, 0];
+            
+            return motionData;
+        }
+        
+        // Generate idle motion
+        function generateIdleMotion(time) {
+            const breathing = Math.sin(time * 1.5) * 2;
+            const motionData = {};
+            
+            motionData.hips = [0, 1, 0, 0, 0, 0];
+            motionData.chest = [breathing, 0, 0];
+            motionData.head = [Math.sin(time * 0.5) * 2, 0, 0];
+            
+            return motionData;
+        }
+        
+        // Generate jumping motion  
+        function generateJumpingMotion(time) {
+            const jumpCycle = time * 4;
+            const height = Math.max(0, Math.sin(jumpCycle) * 0.5);
+            const motionData = {};
+            
+            motionData.hips = [0, 1 + height, 0, 0, 0, 0];
+            motionData.leftUpperLeg = [-30 + height * 60, 0, 0];
+            motionData.rightUpperLeg = [-30 + height * 60, 0, 0];
+            motionData.leftUpperArm = [height * 45, 0, 0];
+            motionData.rightUpperArm = [height * 45, 0, 0];
+            
+            return motionData;
+        }
+        
+        // Generate dance motion
+        function generateDanceMotion(time) {
+            const beat = time * 2.5;
+            const motionData = {};
+            
+            motionData.hips = [Math.sin(beat) * 0.1, 1 + Math.sin(beat * 2) * 0.1, 0, 0, Math.sin(beat) * 10, 0];
+            motionData.chest = [Math.sin(beat * 1.5) * 5, Math.cos(beat) * 5, 0];
+            motionData.leftUpperArm = [Math.sin(beat) * 30, Math.cos(beat * 1.3) * 20, 0];
+            motionData.rightUpperArm = [Math.sin(beat + Math.PI/2) * 30, Math.cos(beat * 1.3 + Math.PI) * 20, 0];
+            
+            return motionData;
+        }
+        
+        // Generate transition
+        async function generateTransition() {
+            if (!integration) {
+                showError('Please initialize the system first');
+                return;
+            }
+            
+            const sourceMotion = elements.sourceMotion.value;
+            const targetMotion = elements.targetMotion.value;
+            
+            if (!sourceMotion || !targetMotion) {
+                showError('Please select both source and target motions');
+                return;
+            }
+            
+            try {
+                log(`Generating RSMT transition: ${sourceMotion} -> ${targetMotion} (${selectedStyle})`);
+                showLoading(true);
+                
+                const clipId = await integration.addStylizedTransition({
+                    sourceClipId: sourceMotion,
+                    targetClipId: targetMotion,
+                    startTime: parseFloat(elements.startTime.value),
+                    transitionLength: parseInt(elements.transitionLength.value),
+                    style: selectedStyle,
+                    trackName: 'rsmt_transitions',
+                    weight: 1.0,
+                    blendMode: 'replace'
+                });
+                
+                log(`Transition generated successfully: ${clipId}`);
+                showSuccess(`RSMT transition generated: ${clipId}`);
+                
+                updateTimelineVisualization();
+                updatePerformanceStats();
+                
+            } catch (error) {
+                log(`Error generating transition: ${error.message}`, 'error');
+                showError(`Failed to generate transition: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Preview transition
+        async function previewTransition() {
+            log('Preview transition functionality would show motion preview here');
+            showSuccess('Preview functionality - would display motion preview');
+        }
+        
+        // Clear motions
+        function clearMotions() {
+            if (timeline) {
+                timeline.clearAllTracks();
+                updateTimelineVisualization();
+                log('All motions cleared');
+                showSuccess('Motion library cleared');
+            }
+        }
+        
+        // Play timeline
+        function playTimeline() {
+            if (!timeline) {
+                showError('Please initialize the system first');
+                return;
+            }
+            
+            if (isPlaying) return;
+            
+            isPlaying = true;
+            const speed = parseFloat(elements.playbackSpeed.value);
+            const fps = 30;
+            
+            playbackInterval = setInterval(() => {
+                currentTime += (1 / fps) * speed;
+                
+                // Update timeline
+                timeline.update(currentTime);
+                
+                // Update UI
+                document.getElementById('currentTime').textContent = currentTime.toFixed(2) + 's';
+                
+                // Update visualization
+                updateTimelineVisualization();
+                
+            }, 1000 / fps);
+            
+            log(`Playback started at ${speed}x speed`);
+        }
+        
+        // Pause timeline
+        function pauseTimeline() {
+            if (playbackInterval) {
+                clearInterval(playbackInterval);
+                playbackInterval = null;
+                isPlaying = false;
+                log('Playback paused');
+            }
+        }
+        
+        // Stop timeline
+        function stopTimeline() {
+            pauseTimeline();
+            currentTime = 0;
+            document.getElementById('currentTime').textContent = '0.00s';
+            if (timeline) {
+                timeline.update(0);
+            }
+            updateTimelineVisualization();
+            log('Playback stopped');
+        }
+        
+        // Update timeline visualization
+        function updateTimelineVisualization() {
+            const canvas = elements.timelineCanvas;
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (!timeline) return;
+            
+            // Draw timeline background
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw tracks
+            let trackY = 20;
+            const trackHeight = 30;
+            const timeScale = 100; // pixels per second
+            
+            Object.entries(timeline.tracks).forEach(([trackName, track]) => {
+                // Track background
+                ctx.fillStyle = '#e9ecef';
+                ctx.fillRect(0, trackY, canvas.width, trackHeight);
+                
+                // Track label
+                ctx.fillStyle = '#2c3e50';
+                ctx.font = '12px Arial';
+                ctx.fillText(trackName, 5, trackY + 15);
+                
+                // Draw clips
+                track.clips.forEach(clip => {
+                    const x = clip.startTime * timeScale + 100;
+                    const width = clip.duration * timeScale;
+                    
+                    // Clip background
+                    ctx.fillStyle = clip.type === 'rsmt_transition' ? '#3498db' : '#27ae60';
+                    ctx.fillRect(x, trackY + 2, width, trackHeight - 4);
+                    
+                    // Clip label
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '10px Arial';
+                    ctx.fillText(clip.id, x + 2, trackY + 15);
+                });
+                
+                trackY += trackHeight + 10;
+            });
+            
+            // Draw playhead
+            const playheadX = currentTime * timeScale + 100;
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(playheadX, 0);
+            ctx.lineTo(playheadX, canvas.height);
+            ctx.stroke();
+            
+            // Draw time markers
+            ctx.fillStyle = '#7f8c8d';
+            ctx.font = '10px Arial';
+            for (let t = 0; t <= 10; t++) {
+                const x = t * timeScale + 100;
+                ctx.fillText(t + 's', x, 15);
+                
+                ctx.strokeStyle = '#bdc3c7';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x, 20);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+        }
+        
+        // Update performance stats
+        function updatePerformanceStats() {
+            if (!integration) return;
+            
+            const stats = integration.getPerformanceStats();
+            
+            document.getElementById('transitionsGenerated').textContent = stats.transitionsGenerated;
+            document.getElementById('cacheHitRate').textContent = (stats.cacheHitRate * 100).toFixed(1) + '%';
+            document.getElementById('avgGenerationTime').textContent = stats.averageTransitionTime.toFixed(1) + 'ms';
+            document.getElementById('activeSessions').textContent = stats.activeSessions;
+        }
+        
+        // Clear canvas
+        function clearCanvas() {
+            const canvas = elements.timelineCanvas;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        // Show loading
+        function showLoading(show) {
+            elements.timelineLoading.classList.toggle('active', show);
+        }
+        
+        // Show error message
+        function showError(message) {
+            elements.errorMessage.textContent = message;
+            elements.errorMessage.classList.add('active');
+            setTimeout(() => elements.errorMessage.classList.remove('active'), 5000);
+        }
+        
+        // Show success message
+        function showSuccess(message) {
+            elements.successMessage.textContent = message;
+            elements.successMessage.classList.add('active');
+            setTimeout(() => elements.successMessage.classList.remove('active'), 3000);
+        }
+        
+        // Logging function
+        function log(message, level = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            if (level === 'error') {
+                logEntry.style.color = '#e74c3c';
+            } else if (level === 'success') {
+                logEntry.style.color = '#27ae60';
+            }
+            
+            elements.consoleLog.appendChild(logEntry);
+            elements.consoleLog.scrollTop = elements.consoleLog.scrollHeight;
+            
+            console.log(`[RSMT Demo] ${message}`);
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            initEventListeners();
+            updateTimelineVisualization();
+            log('RSMT BVH Timeline Demo loaded');
+        });
+        
+        // Update performance stats periodically
+        setInterval(updatePerformanceStats, 1000);
+    </script>
+</body>
+</html>

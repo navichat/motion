@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepMimic ONNX Validation Suite</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            background-color: #1e7e34;
+        }
+        
+        .btn-warning {
+            background-color: #ffc107;
+            color: black;
+        }
+        
+        .btn-warning:hover:not(:disabled) {
+            background-color: #e0a800;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background-color: #c82333;
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        select, input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .result-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .result-card.pass {
+            border-left: 4px solid #28a745;
+        }
+        
+        .result-card.fail {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .result-card.error {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        
+        .result-details {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .status.info {
+            background-color: #d6f9ff;
+            color: #0c5460;
+            border: 1px solid #b8f5ff;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+        
+        .tolerance-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .tolerance-controls label {
+            font-weight: bold;
+            min-width: 120px;
+        }
+        
+        .tolerance-controls input {
+            width: 100px;
+        }
+        
+        .provider-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .provider-card {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            text-align: center;
+        }
+        
+        .provider-card.active {
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+        
+        .provider-card.unavailable {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            opacity: 0.6;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .pass { color: #28a745; }
+        .fail { color: #dc3545; }
+        .error { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>DeepMimic ONNX Validation Suite</h1>
+    <p>Comprehensive validation framework to ensure JavaScript ONNX inference matches Python TensorFlow outputs across different execution providers.</p>
+    
+    <div class="container">
+        <h2>System Status</h2>
+        <div id="systemStatus" class="status info">Initializing validation framework...</div>
+        
+        <div class="provider-grid">
+            <div class="provider-card" id="provider-webgpu">
+                <strong>WebGPU</strong><br>
+                <span id="webgpu-status">Checking...</span>
+            </div>
+            <div class="provider-card" id="provider-webnn">
+                <strong>WebNN</strong><br>
+                <span id="webnn-status">Checking...</span>
+            </div>
+            <div class="provider-card" id="provider-webgl">
+                <strong>WebGL</strong><br>
+                <span id="webgl-status">Checking...</span>
+            </div>
+            <div class="provider-card" id="provider-wasm">
+                <strong>WASM</strong><br>
+                <span id="wasm-status">Checking...</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Validation Configuration</h2>
+        
+        <div class="tolerance-controls">
+            <label>Absolute Tolerance:</label>
+            <input type="number" id="absoluteTolerance" value="0.00001" step="0.000001" min="0">
+            
+            <label>Relative Tolerance:</label>
+            <input type="number" id="relativeTolerance" value="0.0001" step="0.00001" min="0">
+            
+            <button id="updateToleranceBtn" class="btn-warning">Update Tolerance</button>
+        </div>
+        
+        <div class="controls">
+            <div>
+                <label>Load ONNX Model:</label>
+                <input type="file" id="modelFileInput" accept=".onnx">
+                <button id="loadModelBtn" class="btn-primary">Load Model</button>
+            </div>
+            
+            <div>
+                <label>Load Validation Data:</label>
+                <input type="file" id="validationFileInput" accept=".json">
+                <button id="loadValidationBtn" class="btn-primary">Load Reference Data</button>
+            </div>
+            
+            <div>
+                <label>Select Execution Provider:</label>
+                <select id="providerSelect">
+                    <option value="auto">Auto (Best Available)</option>
+                    <option value="webgpu">WebGPU</option>
+                    <option value="webnn">WebNN</option>
+                    <option value="webgl">WebGL</option>
+                    <option value="wasm">WASM</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="validateSingleBtn" class="btn-success" disabled>Validate Current Model</button>
+            <button id="validateAllProvidersBtn" class="btn-success" disabled>Test All Providers</button>
+            <button id="runBenchmarkBtn" class="btn-warning" disabled>Run Performance Benchmark</button>
+            <button id="exportResultsBtn" class="btn-primary" disabled>Export Results</button>
+        </div>
+        
+        <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-fill" id="progressFill">0%</div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Validation Results</h2>
+        <div id="validationResults" class="results-grid">
+            <div class="result-card">
+                <div class="result-title">No validation results yet</div>
+                <div class="result-details">Load a model and validation data to begin testing</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Performance Comparison</h2>
+        <div id="performanceTable">
+            <p>Performance data will appear here after running validations</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Detailed Test Results</h2>
+        <div id="detailedResults">
+            <p>Detailed test case results will appear here</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>System Log</h2>
+        <div class="log" id="systemLog"></div>
+        <button id="clearLogBtn" class="btn-danger">Clear Log</button>
+    </div>
+    
+    <!-- Load dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js"></script>
+    
+    <!-- Load validation framework -->
+    <script src="onnx_validation_framework.js"></script>
+    
+    <script>
+        class ValidationDemo {
+            constructor() {
+                this.validator = new ONNXValidationFramework();
+                this.currentModel = null;
+                this.validationData = null;
+                this.allResults = {};
+                
+                this.setupEventListeners();
+                this.initializeDemo();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('loadModelBtn').addEventListener('click', () => this.loadModel());
+                document.getElementById('loadValidationBtn').addEventListener('click', () => this.loadValidationData());
+                document.getElementById('updateToleranceBtn').addEventListener('click', () => this.updateTolerance());
+                document.getElementById('validateSingleBtn').addEventListener('click', () => this.validateSingle());
+                document.getElementById('validateAllProvidersBtn').addEventListener('click', () => this.validateAllProviders());
+                document.getElementById('runBenchmarkBtn').addEventListener('click', () => this.runBenchmark());
+                document.getElementById('exportResultsBtn').addEventListener('click', () => this.exportResults());
+                document.getElementById('clearLogBtn').addEventListener('click', () => this.clearLog());
+            }
+            
+            async initializeDemo() {
+                try {
+                    await this.validator.initialize();
+                    this.checkProviderAvailability();
+                    this.updateStatus('Validation framework ready', 'success');
+                    this.log('Validation demo initialized successfully');
+                } catch (error) {
+                    this.updateStatus('Failed to initialize validation framework', 'error');
+                    this.log(`Error: ${error.message}`);
+                }
+            }
+            
+            checkProviderAvailability() {
+                const providers = [
+                    { id: 'webgpu', name: 'WebGPU', check: () => !!navigator.gpu },
+                    { id: 'webnn', name: 'WebNN', check: () => 'ml' in navigator },
+                    { id: 'webgl', name: 'WebGL', check: () => !!document.createElement('canvas').getContext('webgl') },
+                    { id: 'wasm', name: 'WASM', check: () => typeof WebAssembly !== 'undefined' }
+                ];
+                
+                providers.forEach(provider => {
+                    const element = document.getElementById(`provider-${provider.id}`);
+                    const statusElement = document.getElementById(`${provider.id}-status`);
+                    
+                    if (provider.check()) {
+                        element.classList.add('active');
+                        statusElement.textContent = 'Available';
+                        this.log(`${provider.name} execution provider available`);
+                    } else {
+                        element.classList.add('unavailable');
+                        statusElement.textContent = 'Not Available';
+                    }
+                });
+            }
+            
+            async loadModel() {
+                const fileInput = document.getElementById('modelFileInput');
+                const file = fileInput.files[0];
+                
+                if (!file) {
+                    this.log('Please select an ONNX model file');
+                    return;
+                }
+                
+                try {
+                    this.log(`Loading model: ${file.name}`);
+                    this.showProgress('Loading model...', 25);
+                    
+                    const url = URL.createObjectURL(file);
+                    const modelName = file.name.replace('.onnx', '');
+                    
+                    await this.validator.loadModel(url, modelName);
+                    this.currentModel = { name: modelName, path: url };
+                    
+                    this.hideProgress();
+                    this.updateButtons();
+                    this.log(`Successfully loaded model: ${modelName}`);
+                    
+                } catch (error) {
+                    this.hideProgress();
+                    this.log(`Error loading model: ${error.message}`);
+                }
+            }
+            
+            async loadValidationData() {
+                const fileInput = document.getElementById('validationFileInput');
+                const file = fileInput.files[0];
+                
+                if (!file) {
+                    this.log('Please select a validation data JSON file');
+                    return;
+                }
+                
+                try {
+                    this.log(`Loading validation data: ${file.name}`);
+                    this.showProgress('Loading validation data...', 25);
+                    
+                    const text = await file.text();
+                    this.validationData = JSON.parse(text);
+                    
+                    this.hideProgress();
+                    this.updateButtons();
+                    this.log(`Loaded validation data for: ${this.validationData.model_name}`);
+                    this.log(`Test cases: ${Object.keys(this.validationData.javascript_test_data.test_cases).length}`);
+                    
+                } catch (error) {
+                    this.hideProgress();
+                    this.log(`Error loading validation data: ${error.message}`);
+                }
+            }
+            
+            updateTolerance() {
+                const absTol = parseFloat(document.getElementById('absoluteTolerance').value);
+                const relTol = parseFloat(document.getElementById('relativeTolerance').value);
+                
+                this.validator.tolerance = {
+                    absolute: absTol,
+                    relative: relTol
+                };
+                
+                this.log(`Updated tolerance: absolute=${absTol}, relative=${relTol}`);
+            }
+            
+            async validateSingle() {
+                if (!this.currentModel || !this.validationData) {
+                    this.log('Please load both a model and validation data');
+                    return;
+                }
+                
+                try {
+                    this.showProgress('Running validation...', 0);
+                    this.log(`Starting validation for ${this.currentModel.name}`);
+                    
+                    // Create temporary validation data file
+                    const validationBlob = new Blob([JSON.stringify(this.validationData)], {
+                        type: 'application/json'
+                    });
+                    const validationUrl = URL.createObjectURL(validationBlob);
+                    
+                    const result = await this.validator.validateModel(
+                        this.currentModel.name,
+                        this.currentModel.path,
+                        validationUrl
+                    );
+                    
+                    this.allResults[this.currentModel.name] = result;
+                    this.displayResults(result);
+                    this.hideProgress();
+                    this.updateButtons();
+                    
+                    URL.revokeObjectURL(validationUrl);
+                    
+                } catch (error) {
+                    this.hideProgress();
+                    this.log(`Validation error: ${error.message}`);
+                }
+            }
+            
+            async validateAllProviders() {
+                if (!this.currentModel || !this.validationData) {
+                    this.log('Please load both a model and validation data');
+                    return;
+                }
+                
+                try {
+                    this.showProgress('Testing all providers...', 0);
+                    this.log(`Testing all execution providers for ${this.currentModel.name}`);
+                    
+                    const validationBlob = new Blob([JSON.stringify(this.validationData)], {
+                        type: 'application/json'
+                    });
+                    const validationUrl = URL.createObjectURL(validationBlob);
+                    
+                    const results = await this.validator.validateAllProviders(
+                        this.currentModel.name,
+                        this.currentModel.path,
+                        validationUrl
+                    );
+                    
+                    this.allResults[`${this.currentModel.name}_all_providers`] = results;
+                    this.displayProviderComparison(results);
+                    this.hideProgress();
+                    this.updateButtons();
+                    
+                    URL.revokeObjectURL(validationUrl);
+                    
+                } catch (error) {
+                    this.hideProgress();
+                    this.log(`Provider validation error: ${error.message}`);
+                }
+            }
+            
+            async runBenchmark() {
+                if (!this.currentModel) {
+                    this.log('Please load a model first');
+                    return;
+                }
+                
+                try {
+                    this.showProgress('Running benchmark...', 0);
+                    this.log(`Running performance benchmark for ${this.currentModel.name}`);
+                    
+                    // Create dummy input for benchmarking
+                    const dummyInput = new Array(197).fill(0);
+                    const iterations = 100;
+                    
+                    let totalTime = 0;
+                    const times = [];
+                    
+                    for (let i = 0; i < iterations; i++) {
+                        const result = await this.validator.runInference(this.currentModel.name, dummyInput);
+                        times.push(result.inferenceTime);
+                        totalTime += result.inferenceTime;
+                        
+                        this.showProgress(`Benchmark: ${i + 1}/${iterations}`, (i + 1) / iterations * 100);
+                    }
+                    
+                    const avgTime = totalTime / iterations;
+                    const minTime = Math.min(...times);
+                    const maxTime = Math.max(...times);
+                    const stdDev = Math.sqrt(times.reduce((sum, time) => sum + Math.pow(time - avgTime, 2), 0) / iterations);
+                    
+                    this.log(`Benchmark results (${iterations} iterations):`);
+                    this.log(`  Average: ${avgTime.toFixed(2)}ms`);
+                    this.log(`  Min: ${minTime.toFixed(2)}ms`);
+                    this.log(`  Max: ${maxTime.toFixed(2)}ms`);
+                    this.log(`  Std Dev: ${stdDev.toFixed(2)}ms`);
+                    
+                    this.hideProgress();
+                    
+                } catch (error) {
+                    this.hideProgress();
+                    this.log(`Benchmark error: ${error.message}`);
+                }
+            }
+            
+            displayResults(result) {
+                const container = document.getElementById('validationResults');
+                const resultsHtml = Object.entries(result.results).map(([testName, testResult]) => {
+                    const statusClass = testResult.status === 'pass' ? 'pass' : 
+                                       testResult.status === 'error' ? 'error' : 'fail';
+                    
+                    let details = `Provider: ${testResult.executionProvider}<br>`;
+                    if (testResult.inferenceTime) {
+                        details += `Time: ${testResult.inferenceTime.toFixed(2)}ms<br>`;
+                    }
+                    
+                    if (testResult.comparison) {
+                        details += `Max Abs Diff: ${testResult.comparison.maxAbsoluteDiff.toFixed(2e)}<br>`;
+                        details += `Max Rel Diff: ${testResult.comparison.maxRelativeDiff.toFixed(2e)}`;
+                    }
+                    
+                    if (testResult.error) {
+                        details += `Error: ${testResult.error}`;
+                    }
+                    
+                    return `
+                        <div class="result-card ${statusClass}">
+                            <div class="result-title">${testName}</div>
+                            <div class="result-details">${details}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+                container.innerHTML = resultsHtml;
+                
+                // Update detailed results table
+                this.updateDetailedResultsTable(result);
+            }
+            
+            displayProviderComparison(results) {
+                const container = document.getElementById('performanceTable');
+                
+                const rows = Object.entries(results).map(([provider, result]) => {
+                    if (result.status === 'error') {
+                        return `<tr><td>${provider}</td><td class="error">ERROR</td><td>-</td><td>-</td><td>-</td></tr>`;
+                    }
+                    
+                    const status = result.passRate === 1 ? 'PASS' : 'FAIL';
+                    const statusClass = result.passRate === 1 ? 'pass' : 'fail';
+                    
+                    return `
+                        <tr>
+                            <td>${provider}</td>
+                            <td class="${statusClass}">${status}</td>
+                            <td>${(result.passRate * 100).toFixed(1)}%</td>
+                            <td>${result.averageInferenceTime.toFixed(2)}ms</td>
+                            <td>${result.passedTests}/${result.totalTests}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Provider</th>
+                                <th>Status</th>
+                                <th>Pass Rate</th>
+                                <th>Avg Time</th>
+                                <th>Tests</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                `;
+            }
+            
+            updateDetailedResultsTable(result) {
+                const container = document.getElementById('detailedResults');
+                
+                const rows = Object.entries(result.results).map(([testName, testResult]) => {
+                    const statusClass = testResult.status === 'pass' ? 'pass' : 
+                                       testResult.status === 'error' ? 'error' : 'fail';
+                    
+                    let tolerance = '-';
+                    if (testResult.comparison) {
+                        tolerance = `Abs: ${testResult.comparison.maxAbsoluteDiff.toFixed(2e)}, Rel: ${testResult.comparison.maxRelativeDiff.toFixed(2e)}`;
+                    }
+                    
+                    return `
+                        <tr>
+                            <td>${testName}</td>
+                            <td class="${statusClass}">${testResult.status.toUpperCase()}</td>
+                            <td>${testResult.inferenceTime ? testResult.inferenceTime.toFixed(2) + 'ms' : '-'}</td>
+                            <td>${tolerance}</td>
+                            <td>${testResult.description || '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Test Case</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                                <th>Max Diff</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                `;
+            }
+            
+            exportResults() {
+                const report = {
+                    timestamp: new Date().toISOString(),
+                    model: this.currentModel ? this.currentModel.name : null,
+                    tolerance: this.validator.tolerance,
+                    results: this.allResults
+                };
+                
+                const blob = new Blob([JSON.stringify(report, null, 2)], {
+                    type: 'application/json'
+                });
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `validation_report_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                this.log('Exported validation results');
+            }
+            
+            showProgress(message, percentage) {
+                const progressBar = document.getElementById('progressBar');
+                const progressFill = document.getElementById('progressFill');
+                
+                progressBar.style.display = 'block';
+                progressFill.style.width = `${percentage}%`;
+                progressFill.textContent = `${message} ${percentage.toFixed(0)}%`;
+            }
+            
+            hideProgress() {
+                document.getElementById('progressBar').style.display = 'none';
+            }
+            
+            updateButtons() {
+                const hasModel = !!this.currentModel;
+                const hasValidation = !!this.validationData;
+                const hasResults = Object.keys(this.allResults).length > 0;
+                
+                document.getElementById('validateSingleBtn').disabled = !hasModel || !hasValidation;
+                document.getElementById('validateAllProvidersBtn').disabled = !hasModel || !hasValidation;
+                document.getElementById('runBenchmarkBtn').disabled = !hasModel;
+                document.getElementById('exportResultsBtn').disabled = !hasResults;
+            }
+            
+            updateStatus(message, type) {
+                const statusDiv = document.getElementById('systemStatus');
+                statusDiv.textContent = message;
+                statusDiv.className = `status ${type}`;
+            }
+            
+            log(message) {
+                const logDiv = document.getElementById('systemLog');
+                const timestamp = new Date().toLocaleTimeString();
+                logDiv.textContent += `[${timestamp}] ${message}\n`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+            
+            clearLog() {
+                document.getElementById('systemLog').textContent = '';
+            }
+        }
+        
+        // Initialize demo when page loads
+        window.addEventListener('load', () => {
+            window.validationDemo = new ValidationDemo();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real BVH Motion Data Viewer</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; 
+            color: white;
+        }
+        #container { width: 100vw; height: 100vh; }
+        #controls { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 380px;
+            z-index: 100;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        .info { margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 5px; font-size: 14px; }
+        .success { background: rgba(76, 175, 80, 0.3); }
+        .error { background: rgba(244, 67, 54, 0.3); }
+        .warning { background: rgba(255, 193, 7, 0.3); }
+        button { 
+            width: 100%; margin: 5px 0; padding: 12px; 
+            background: linear-gradient(45deg, #4CAF50, #45a049); color: white; border: none; 
+            border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;
+        }
+        button:hover { background: linear-gradient(45deg, #45a049, #4CAF50); transform: translateY(-1px); }
+        select { 
+            width: 100%; margin: 5px 0; padding: 10px; 
+            background: #333; color: white; border: 1px solid #555; border-radius: 5px;
+        }
+        .phase-indicator {
+            padding: 10px; margin: 10px 0; border-radius: 8px; text-align: center;
+            font-weight: bold; font-size: 16px;
+        }
+        .phase-style { background: linear-gradient(45deg, #4facfe, #00f2fe); }
+        .phase-transition { background: linear-gradient(45deg, #f093fb, #f5576c); }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="controls">
+        <h3>🎭 Real BVH Motion Viewer</h3>
+        
+        <div class="info" id="status">Loading...</div>
+        
+        <div>
+            <label><strong>Motion Sequence:</strong></label>
+            <select id="sequenceSelect" onchange="loadSequence()">
+                <option value="emotional_journey">🎭 Emotional Journey</option>
+                <option value="character_styles">🤖 Character Styles</option>
+                <option value="movement_energy">⚡ Movement Energy</option>
+            </select>
+        </div>
+        
+        <div class="phase-indicator phase-style" id="phaseDisplay">
+            Loading motion...
+        </div>
+        
+        <div class="info">
+            <strong>Progress:</strong> Frame <span id="frameNum">0</span> / <span id="totalFrameNum">0</span><br>
+            <strong>Time:</strong> <span id="timeDisplay">0.0</span>s / <span id="totalTimeDisplay">0.0</span>s<br>
+            <strong>BVH Status:</strong> <span id="bvhStatus">Not loaded</span>
+        </div>
+        
+        <button onclick="togglePlayback()">▶️ <span id="playText">Play</span></button>
+        <button onclick="resetMotion()">🔄 Reset to Start</button>
+        <button onclick="toggleCamera()">📹 <span id="cameraText">Auto Camera: OFF</span></button>
+        <button onclick="changeSpeed()">⚡ Speed: <span id="speedText">1.0x</span></button>
+        
+        <div class="info" id="motionInfo">
+            <strong>Motion Analysis:</strong><br>
+            Root Position: <span id="rootPos">-</span><br>
+            Main Rotation: <span id="mainRot">-</span><br>
+            Motion Intensity: <span id="motionIntensity">-</span>
+        </div>
+        
+        <div class="info" id="debugOutput" style="font-family: monospace; font-size: 11px; max-height: 100px; overflow-y: auto;">
+            <strong>Debug:</strong> Starting...
+        </div>
+    </div>
+
+    <script src="./three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let skeleton = null;
+        let bvhData = null;
+        let currentFrame = 0;
+        let totalFrames = 0;
+        let isPlaying = false;
+        let autoCamera = false;
+        let playbackSpeed = 1.0;
+        let currentSequence = 'emotional_journey';
+        
+        // Motion phase definitions
+        const motionPhases = {
+            emotional_journey: [
+                {name: 'Neutral Walking', start: 0, end: 50, type: 'style'},
+                {name: 'Neutral → Elated', start: 50, end: 80, type: 'transition'},
+                {name: 'Elated Walking', start: 80, end: 130, type: 'style'},
+                {name: 'Elated → Angry', start: 130, end: 160, type: 'transition'},
+                {name: 'Angry Walking', start: 160, end: 210, type: 'style'},
+                {name: 'Angry → Depressed', start: 210, end: 240, type: 'transition'},
+                {name: 'Depressed Walking', start: 240, end: 290, type: 'style'},
+                {name: 'Depressed → Neutral', start: 290, end: 370, type: 'transition'}
+            ],
+            character_styles: [
+                {name: 'Neutral Walking', start: 0, end: 50, type: 'style'},
+                {name: 'Neutral → Robot', start: 50, end: 80, type: 'transition'},
+                {name: 'Robot Walking', start: 80, end: 130, type: 'style'},
+                {name: 'Robot → Zombie', start: 130, end: 160, type: 'transition'},
+                {name: 'Zombie Walking', start: 160, end: 210, type: 'style'},
+                {name: 'Zombie → Drunk', start: 210, end: 240, type: 'transition'},
+                {name: 'Drunk Walking', start: 240, end: 290, type: 'style'},
+                {name: 'Drunk → Neutral', start: 290, end: 370, type: 'transition'}
+            ],
+            movement_energy: [
+                {name: 'Tiptoe Walking', start: 0, end: 50, type: 'style'},
+                {name: 'Tiptoe → Skip', start: 50, end: 80, type: 'transition'},
+                {name: 'Skip Walking', start: 80, end: 130, type: 'style'},
+                {name: 'Skip → March', start: 130, end: 160, type: 'transition'},
+                {name: 'March Walking', start: 160, end: 210, type: 'style'},
+                {name: 'March → Crouched', start: 210, end: 240, type: 'transition'},
+                {name: 'Crouched Walking', start: 240, end: 290, type: 'style'},
+                {name: 'Crouched → Proud', start: 290, end: 370, type: 'transition'}
+            ]
+        };
+        
+        function log(message, type = 'info') {
+            const debugOutput = document.getElementById('debugOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            debugOutput.innerHTML += `[${timestamp}] ${message}<br>`;
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+            console.log(`[${type}] ${message}`);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `info ${type}`;
+            log(message, type);
+        }
+        
+        async function init() {
+            try {
+                updateStatus('Initializing Three.js...', 'warning');
+                
+                if (typeof THREE === 'undefined') {
+                    updateStatus('❌ Three.js library not found', 'error');
+                    return;
+                }
+                
+                // Create scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x1a1a2e);
+                
+                // Create camera
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(3, 2, 4);
+                camera.lookAt(0, 1.5, 0);
+                
+                // Create renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                document.getElementById('container').appendChild(renderer.domElement);
+                
+                // Add lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+                directionalLight.position.set(8, 10, 5);
+                directionalLight.castShadow = true;
+                scene.add(directionalLight);
+                
+                // Add subtle colored lights
+                const light1 = new THREE.PointLight(0x4facfe, 0.3, 15);
+                light1.position.set(-4, 3, 2);
+                scene.add(light1);
+                
+                const light2 = new THREE.PointLight(0xf093fb, 0.3, 15);
+                light2.position.set(4, 3, -2);
+                scene.add(light2);
+                
+                // Add grid
+                const grid = new THREE.GridHelper(6, 6, 0x444444, 0x222222);
+                scene.add(grid);
+                
+                // Add mouse controls
+                addMouseControls();
+                
+                updateStatus('✅ Scene created successfully', 'success');
+                
+                // Start animation loop
+                animate();
+                
+                // Load initial sequence
+                await loadSequence();
+                
+            } catch (error) {
+                updateStatus(`❌ Initialization failed: ${error.message}`, 'error');
+                log(`Init error: ${error.stack}`, 'error');
+            }
+        }
+        
+        function addMouseControls() {
+            let mouseDown = false;
+            let mouseX = 0, mouseY = 0;
+            
+            renderer.domElement.addEventListener('mousedown', (e) => {
+                mouseDown = true;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+            
+            renderer.domElement.addEventListener('mouseup', () => {
+                mouseDown = false;
+            });
+            
+            renderer.domElement.addEventListener('mousemove', (e) => {
+                if (!mouseDown || autoCamera) return;
+                
+                const deltaX = e.clientX - mouseX;
+                const deltaY = e.clientY - mouseY;
+                
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 1.5, 0);
+                
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+        }
+        
+        async function loadSequence() {
+            const select = document.getElementById('sequenceSelect');
+            currentSequence = select.value;
+            
+            const filename = `${currentSequence}_transitions.bvh`;
+            updateStatus(`🔄 Loading ${filename}...`, 'warning');
+            
+            try {
+                const response = await fetch(filename);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch ${filename}: ${response.status}`);
+                }
+                
+                const bvhText = await response.text();
+                updateStatus(`✅ BVH file loaded (${bvhText.length} chars)`, 'success');
+                
+                // Parse the BVH data
+                bvhData = parseBVHData(bvhText);
+                if (!bvhData) {
+                    throw new Error('Failed to parse BVH data');
+                }
+                
+                totalFrames = bvhData.frames.length;
+                currentFrame = 0;
+                
+                document.getElementById('totalFrameNum').textContent = totalFrames;
+                document.getElementById('totalTimeDisplay').textContent = (totalFrames / 30).toFixed(1);
+                document.getElementById('bvhStatus').textContent = `✅ ${bvhData.joints.length} joints, ${totalFrames} frames`;
+                
+                // Create skeleton
+                createSkeletonFromBVH();
+                
+                updateStatus(`✅ Motion sequence loaded successfully!`, 'success');
+                
+            } catch (error) {
+                updateStatus(`❌ Failed to load sequence: ${error.message}`, 'error');
+                log(`Load error: ${error.stack}`, 'error');
+            }
+        }
+        
+        function parseBVHData(bvhText) {
+            log('Parsing BVH data...');
+            
+            const lines = bvhText.split('\n').map(line => line.trim());
+            let joints = [];
+            let frames = [];
+            let inMotion = false;
+            let frameTime = 1/30;
+            
+            // Parse hierarchy
+            let currentJoint = null;
+            let jointStack = [];
+            let channelCount = 0;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
+                if (line === 'MOTION') {
+                    inMotion = true;
+                    continue;
+                } else if (line.startsWith('Frame Time:')) {
+                    frameTime = parseFloat(line.split(':')[1]);
+                    continue;
+                } else if (line.startsWith('Frames:')) {
+                    continue;
+                }
+                
+                if (!inMotion) {
+                    if (line.startsWith('ROOT') || line.startsWith('JOINT')) {
+                        const jointName = line.split(/\s+/)[1];
+                        currentJoint = {
+                            name: jointName,
+                            parent: jointStack.length > 0 ? jointStack[jointStack.length - 1] : null,
+                            children: [],
+                            offset: [0, 0, 0],
+                            channels: [],
+                            channelStart: channelCount
+                        };
+                        
+                        if (currentJoint.parent) {
+                            currentJoint.parent.children.push(currentJoint);
+                        }
+                        
+                        joints.push(currentJoint);
+                        jointStack.push(currentJoint);
+                        
+                    } else if (line.startsWith('OFFSET') && currentJoint) {
+                        const parts = line.split(/\s+/);
+                        currentJoint.offset = [
+                            parseFloat(parts[1]) * 0.01, // Scale to reasonable size
+                            parseFloat(parts[2]) * 0.01,
+                            parseFloat(parts[3]) * 0.01
+                        ];
+                        
+                    } else if (line.startsWith('CHANNELS') && currentJoint) {
+                        const parts = line.split(/\s+/);
+                        const numChannels = parseInt(parts[1]);
+                        currentJoint.channels = parts.slice(2, 2 + numChannels);
+                        channelCount += numChannels;
+                        
+                    } else if (line === '}') {
+                        jointStack.pop();
+                        currentJoint = jointStack.length > 0 ? jointStack[jointStack.length - 1] : null;
+                    }
+                } else if (line && !line.startsWith('Frame')) {
+                    // Parse motion data
+                    const values = line.split(/\s+/).map(v => parseFloat(v)).filter(v => !isNaN(v));
+                    if (values.length === channelCount) {
+                        frames.push(values);
+                    }
+                }
+            }
+            
+            log(`Parsed ${joints.length} joints, ${frames.length} frames`);
+            
+            return {
+                joints: joints,
+                frames: frames,
+                frameTime: frameTime,
+                channelCount: channelCount
+            };
+        }
+        
+        function createSkeletonFromBVH() {
+            if (skeleton) {
+                scene.remove(skeleton);
+            }
+            
+            if (!bvhData) return;
+            
+            skeleton = new THREE.Group();
+            skeleton.bvhJoints = [];
+            
+            // Create visual joints
+            bvhData.joints.forEach((joint, index) => {
+                const size = joint.name === 'joint_0' ? 0.06 : 0.04; // Root joint larger
+                const color = joint.name === 'joint_0' ? 0xff4444 : 
+                             (index % 3 === 0 ? 0x44ff44 : index % 3 === 1 ? 0x4444ff : 0xffff44);
+                
+                const geometry = new THREE.SphereGeometry(size, 12, 12);
+                const material = new THREE.MeshLambertMaterial({ 
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.1
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                
+                sphere.userData = {
+                    jointIndex: index,
+                    joint: joint,
+                    initialPosition: new THREE.Vector3(),
+                    currentPosition: new THREE.Vector3(),
+                    currentRotation: new THREE.Euler()
+                };
+                
+                skeleton.add(sphere);
+                skeleton.bvhJoints.push(sphere);
+            });
+            
+            // Create bones between joints
+            bvhData.joints.forEach((joint, index) => {
+                joint.children.forEach(childJoint => {
+                    const childIndex = bvhData.joints.indexOf(childJoint);
+                    if (childIndex !== -1) {
+                        const geometry = new THREE.BufferGeometry().setFromPoints([
+                            new THREE.Vector3(0, 0, 0),
+                            new THREE.Vector3(0, 0, 0)
+                        ]);
+                        const material = new THREE.LineBasicMaterial({ 
+                            color: 0xffffff, 
+                            linewidth: 2 
+                        });
+                        const line = new THREE.Line(geometry, material);
+                        
+                        line.userData = {
+                            parentIndex: index,
+                            childIndex: childIndex,
+                            isBone: true
+                        };
+                        
+                        skeleton.add(line);
+                    }
+                });
+            });
+            
+            scene.add(skeleton);
+            log(`Created skeleton with ${skeleton.bvhJoints.length} joints`);
+        }
+        
+        function getCurrentPhase() {
+            const phases = motionPhases[currentSequence];
+            for (let phase of phases) {
+                if (currentFrame >= phase.start && currentFrame < phase.end) {
+                    return phase;
+                }
+            }
+            return phases[phases.length - 1];
+        }
+        
+        function updateMotion() {
+            if (!skeleton || !bvhData || currentFrame >= bvhData.frames.length) return;
+            
+            const frameData = bvhData.frames[currentFrame];
+            const currentPhase = getCurrentPhase();
+            
+            // Update UI
+            document.getElementById('frameNum').textContent = Math.floor(currentFrame);
+            document.getElementById('timeDisplay').textContent = (currentFrame / 30).toFixed(1);
+            
+            const phaseDisplay = document.getElementById('phaseDisplay');
+            phaseDisplay.textContent = `${currentPhase.name}`;
+            phaseDisplay.className = `phase-indicator phase-${currentPhase.type}`;
+            
+            // Apply BVH motion data to joints
+            skeleton.bvhJoints.forEach((jointMesh, index) => {
+                const joint = bvhData.joints[index];
+                const parent = joint.parent ? skeleton.bvhJoints[bvhData.joints.indexOf(joint.parent)] : null;
+                
+                // Start with parent position or origin
+                let position = new THREE.Vector3();
+                if (parent) {
+                    position.copy(parent.userData.currentPosition);
+                }
+                
+                // Add joint offset
+                position.add(new THREE.Vector3(...joint.offset));
+                
+                // Apply channel data
+                let channelIndex = joint.channelStart;
+                joint.channels.forEach(channel => {
+                    if (channelIndex < frameData.length) {
+                        const value = frameData[channelIndex];
+                        
+                        // Apply transformations based on channel type
+                        if (channel === 'Xposition') position.x += value * 0.001;
+                        else if (channel === 'Yposition') position.y += value * 0.001;
+                        else if (channel === 'Zposition') position.z += value * 0.001;
+                        else if (channel === 'Xrotation') {
+                            // Apply rotation effect as slight position offset for visibility
+                            position.y += Math.sin(value * Math.PI / 180) * 0.05;
+                        }
+                        else if (channel === 'Yrotation') {
+                            position.x += Math.sin(value * Math.PI / 180) * 0.05;
+                        }
+                        else if (channel === 'Zrotation') {
+                            position.z += Math.sin(value * Math.PI / 180) * 0.05;
+                        }
+                    }
+                    channelIndex++;
+                });
+                
+                // Update joint position
+                jointMesh.position.copy(position);
+                jointMesh.userData.currentPosition.copy(position);
+            });
+            
+            // Update bone lines
+            skeleton.children.forEach(child => {
+                if (child.userData && child.userData.isBone) {
+                    const parentJoint = skeleton.bvhJoints[child.userData.parentIndex];
+                    const childJoint = skeleton.bvhJoints[child.userData.childIndex];
+                    
+                    const positions = child.geometry.attributes.position.array;
+                    positions[0] = parentJoint.position.x;
+                    positions[1] = parentJoint.position.y;
+                    positions[2] = parentJoint.position.z;
+                    positions[3] = childJoint.position.x;
+                    positions[4] = childJoint.position.y;
+                    positions[5] = childJoint.position.z;
+                    child.geometry.attributes.position.needsUpdate = true;
+                }
+            });
+            
+            // Update motion analysis
+            if (frameData.length >= 6) {
+                document.getElementById('rootPos').textContent = 
+                    `(${frameData[0].toFixed(3)}, ${frameData[1].toFixed(3)}, ${frameData[2].toFixed(3)})`;
+                document.getElementById('mainRot').textContent = 
+                    `(${frameData[3].toFixed(1)}°, ${frameData[4].toFixed(1)}°, ${frameData[5].toFixed(1)}°)`;
+                
+                // Calculate motion intensity from frame-to-frame changes
+                const intensity = Math.abs(frameData[3]) + Math.abs(frameData[4]) + Math.abs(frameData[5]);
+                document.getElementById('motionIntensity').textContent = intensity.toFixed(1);
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (isPlaying && bvhData) {
+                currentFrame = (currentFrame + playbackSpeed) % totalFrames;
+                updateMotion();
+            }
+            
+            if (autoCamera && skeleton) {
+                const time = Date.now() * 0.001;
+                camera.position.x = Math.cos(time * 0.3) * 4;
+                camera.position.z = Math.sin(time * 0.3) * 4;
+                camera.lookAt(0, 1.5, 0);
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function togglePlayback() {
+            isPlaying = !isPlaying;
+            document.getElementById('playText').textContent = isPlaying ? 'Pause' : 'Play';
+            updateStatus(isPlaying ? 'Playing motion...' : 'Motion paused', 'success');
+        }
+        
+        function resetMotion() {
+            currentFrame = 0;
+            updateStatus('Motion reset to beginning', 'success');
+        }
+        
+        function toggleCamera() {
+            autoCamera = !autoCamera;
+            document.getElementById('cameraText').textContent = autoCamera ? 'Auto Camera: ON' : 'Auto Camera: OFF';
+        }
+        
+        function changeSpeed() {
+            playbackSpeed = playbackSpeed >= 2 ? 0.25 : playbackSpeed + 0.25;
+            document.getElementById('speedText').textContent = playbackSpeed.toFixed(2) + 'x';
+            updateStatus(`Playback speed: ${playbackSpeed.toFixed(2)}x`, 'success');
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Initialize
+        if (typeof THREE !== 'undefined') {
+            init();
+        } else {
+            window.addEventListener('load', init);
+        }
+    </script>
+</body>
+</html>

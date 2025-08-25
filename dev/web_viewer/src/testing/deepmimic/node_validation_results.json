@@ -1,0 +1,687 @@
+{
+  "startTime": "2025-07-20T19:22:58.648Z",
+  "tolerance": 0.001,
+  "models": {
+    "humanoid3d_humanoid3d_backflip": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_backflip.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 1.017943
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.276669
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.241052
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.591451
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.30299
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.4860209999999999
+      }
+    },
+    "humanoid3d_humanoid3d_cartwheel": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_cartwheel.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.768223
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.58917
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.318261
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.220986
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.241175
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.427563
+      }
+    },
+    "humanoid3d_humanoid3d_crawl": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_crawl.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 1.509591
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.29485
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.182623
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.17717
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.204137
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.47367419999999993
+      }
+    },
+    "humanoid3d_humanoid3d_dance_a": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_dance_a.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.521464
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.202719
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.201451
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 4.289832
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.263998
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 1.0958928
+      }
+    },
+    "humanoid3d_humanoid3d_dance_b": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_dance_b.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.504828
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.295586
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.270756
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.268561
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.279639
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.323874
+      }
+    },
+    "humanoid3d_humanoid3d_getup_facedown": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_getup_facedown.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.529908
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.280962
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.284983
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.274505
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.268219
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.3277154
+      }
+    },
+    "humanoid3d_humanoid3d_getup_faceup": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_getup_faceup.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.484716
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.354223
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.204621
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.189491
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.176082
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.28182660000000004
+      }
+    },
+    "humanoid3d_humanoid3d_jump": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_jump.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.482971
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.278333
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.271821
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.281704
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.267336
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.316433
+      }
+    },
+    "humanoid3d_humanoid3d_kick": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_kick.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.531257
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.223726
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.182999
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.23651
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.211966
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.27729159999999997
+      }
+    },
+    "humanoid3d_humanoid3d_punch": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_punch.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.541106
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.229807
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.228975
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.405759
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.315548
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.344239
+      }
+    },
+    "humanoid3d_humanoid3d_roll": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_roll.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.525439
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.305101
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.301085
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.297231
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.295179
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.34480700000000003
+      }
+    },
+    "humanoid3d_humanoid3d_run": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_run.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.694271
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.27257
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.203022
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.193088
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.184931
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.3095764
+      }
+    },
+    "humanoid3d_humanoid3d_spinkick": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_spinkick.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.469453
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.278834
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.27011
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.279067
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.265
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 0.31249279999999996
+      }
+    },
+    "humanoid3d_humanoid3d_walk": {
+      "modelPath": "compatible_humanoid3d_humanoid3d_walk.onnx",
+      "testCases": [
+        {
+          "caseIndex": 0,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.425029
+        },
+        {
+          "caseIndex": 1,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 32.746708
+        },
+        {
+          "caseIndex": 2,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.327864
+        },
+        {
+          "caseIndex": 3,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.200301
+        },
+        {
+          "caseIndex": 4,
+          "passed": true,
+          "maxDifference": 0,
+          "averageDifference": 0,
+          "inferenceTime": 0.189855
+        }
+      ],
+      "summary": {
+        "total": 5,
+        "passed": 5,
+        "failed": 0,
+        "averageError": 0,
+        "maxError": 0,
+        "averageInferenceTime": 6.777951400000001
+      }
+    }
+  },
+  "summary": {
+    "totalModels": 14,
+    "successfulModels": 14,
+    "totalTestCases": 70,
+    "passedTestCases": 70,
+    "averagePassRate": 100,
+    "averageInferenceTime": 0.8642398714285715
+  },
+  "endTime": "2025-07-20T19:22:59.034Z"
+}

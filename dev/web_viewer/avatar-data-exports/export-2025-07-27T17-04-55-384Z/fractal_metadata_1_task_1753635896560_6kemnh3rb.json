@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "executionTime": 1629,
+  "workerType": "cpu",
+  "steps": 15,
+  "complexity": 1,
+  "jobType": "WASMFractal",
+  "wasmOptimized": true,
+  "inferenceType": "SIMULATED_WASM",
+  "timestamp": "2025-07-27T17:05:02.506Z",
+  "taskId": "task_1753635896560_6kemnh3rb"
+}

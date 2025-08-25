@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proper Skeletal Animation Viewer</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; 
+            color: white;
+        }
+        #container { width: 100vw; height: 100vh; }
+        #controls { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 380px;
+            z-index: 100;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        .info { margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 5px; font-size: 14px; }
+        .success { background: rgba(76, 175, 80, 0.3); }
+        .error { background: rgba(244, 67, 54, 0.3); }
+        .warning { background: rgba(255, 193, 7, 0.3); }
+        button { 
+            width: 100%; margin: 5px 0; padding: 12px; 
+            background: linear-gradient(45deg, #4CAF50, #45a049); color: white; border: none; 
+            border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;
+        }
+        button:hover { background: linear-gradient(45deg, #45a049, #4CAF50); transform: translateY(-1px); }
+        select { 
+            width: 100%; margin: 5px 0; padding: 10px; 
+            background: #333; color: white; border: 1px solid #555; border-radius: 5px;
+        }
+        .phase-indicator {
+            padding: 10px; margin: 10px 0; border-radius: 8px; text-align: center;
+            font-weight: bold; font-size: 16px;
+        }
+        .phase-style { background: linear-gradient(45deg, #4facfe, #00f2fe); }
+        .phase-transition { background: linear-gradient(45deg, #f093fb, #f5576c); }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="controls">
+        <h3>🦴 Proper Skeletal Animation</h3>
+        
+        <div class="info" id="status">Loading...</div>
+        
+        <div>
+            <label><strong>Motion Sequence:</strong></label>
+            <select id="sequenceSelect" onchange="loadSequence()">
+                <option value="emotional_journey">🎭 Emotional Journey</option>
+                <option value="character_styles">🤖 Character Styles</option>
+                <option value="movement_energy">⚡ Movement Energy</option>
+            </select>
+        </div>
+        
+        <div class="phase-indicator phase-style" id="phaseDisplay">
+            Loading motion...
+        </div>
+        
+        <div class="info">
+            <strong>Progress:</strong> Frame <span id="frameNum">0</span> / <span id="totalFrameNum">0</span><br>
+            <strong>Time:</strong> <span id="timeDisplay">0.0</span>s / <span id="totalTimeDisplay">0.0</span>s<br>
+            <strong>BVH Status:</strong> <span id="bvhStatus">Not loaded</span>
+        </div>
+        
+        <button onclick="togglePlayback()">▶️ <span id="playText">Play</span></button>
+        <button onclick="resetMotion()">🔄 Reset to Start</button>
+        <button onclick="toggleCamera()">📹 <span id="cameraText">Auto Camera: OFF</span></button>
+        <button onclick="changeSpeed()">⚡ Speed: <span id="speedText">1.0x</span></button>
+        
+        <div class="info" id="motionInfo">
+            <strong>Skeleton Info:</strong><br>
+            Root Position: <span id="rootPos">-</span><br>
+            Total Joints: <span id="jointCount">-</span><br>
+            Animation: <span id="animStatus">Stopped</span>
+        </div>
+        
+        <div class="info" id="debugOutput" style="font-family: monospace; font-size: 11px; max-height: 100px; overflow-y: auto;">
+            <strong>Debug:</strong> Starting...
+        </div>
+    </div>
+
+    <script src="./three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let skeleton = null;
+        let bvhData = null;
+        let currentFrame = 0;
+        let totalFrames = 0;
+        let isPlaying = false;
+        let autoCamera = false;
+        let playbackSpeed = 1.0;
+        let currentSequence = 'emotional_journey';
+        
+        // Standard human skeleton structure - simplified but recognizable
+        const humanSkeleton = {
+            joints: [
+                {name: 'root', pos: [0, 1.0, 0], parent: null, size: 0.08, color: 0xff4444},
+                {name: 'spine1', pos: [0, 1.3, 0], parent: 0, size: 0.06, color: 0x44ff44},
+                {name: 'spine2', pos: [0, 1.5, 0], parent: 1, size: 0.06, color: 0x44ff44},
+                {name: 'neck', pos: [0, 1.7, 0], parent: 2, size: 0.05, color: 0x4444ff},
+                {name: 'head', pos: [0, 1.85, 0], parent: 3, size: 0.07, color: 0xffff44},
+                
+                // Left arm
+                {name: 'leftShoulder', pos: [-0.25, 1.6, 0], parent: 2, size: 0.05, color: 0xff44ff},
+                {name: 'leftElbow', pos: [-0.5, 1.4, 0], parent: 5, size: 0.04, color: 0xff44ff},
+                {name: 'leftWrist', pos: [-0.75, 1.2, 0], parent: 6, size: 0.03, color: 0xff44ff},
+                
+                // Right arm
+                {name: 'rightShoulder', pos: [0.25, 1.6, 0], parent: 2, size: 0.05, color: 0x44ffff},
+                {name: 'rightElbow', pos: [0.5, 1.4, 0], parent: 8, size: 0.04, color: 0x44ffff},
+                {name: 'rightWrist', pos: [0.75, 1.2, 0], parent: 9, size: 0.03, color: 0x44ffff},
+                
+                // Left leg
+                {name: 'leftHip', pos: [-0.15, 0.9, 0], parent: 0, size: 0.06, color: 0xff8844},
+                {name: 'leftKnee', pos: [-0.15, 0.5, 0], parent: 11, size: 0.05, color: 0xff8844},
+                {name: 'leftAnkle', pos: [-0.15, 0.1, 0], parent: 12, size: 0.04, color: 0xff8844},
+                
+                // Right leg
+                {name: 'rightHip', pos: [0.15, 0.9, 0], parent: 0, size: 0.06, color: 0x88ff44},
+                {name: 'rightKnee', pos: [0.15, 0.5, 0], parent: 14, size: 0.05, color: 0x88ff44},
+                {name: 'rightAnkle', pos: [0.15, 0.1, 0], parent: 15, size: 0.04, color: 0x88ff44}
+            ]
+        };
+        
+        // Motion phase definitions
+        const motionPhases = {
+            emotional_journey: [
+                {name: 'Neutral Walking', start: 0, end: 50, type: 'style'},
+                {name: 'Neutral → Elated', start: 50, end: 80, type: 'transition'},
+                {name: 'Elated Walking', start: 80, end: 130, type: 'style'},
+                {name: 'Elated → Angry', start: 130, end: 160, type: 'transition'},
+                {name: 'Angry Walking', start: 160, end: 210, type: 'style'},
+                {name: 'Angry → Depressed', start: 210, end: 240, type: 'transition'},
+                {name: 'Depressed Walking', start: 240, end: 290, type: 'style'},
+                {name: 'Depressed → Neutral', start: 290, end: 370, type: 'transition'}
+            ],
+            character_styles: [
+                {name: 'Neutral Walking', start: 0, end: 50, type: 'style'},
+                {name: 'Neutral → Robot', start: 50, end: 80, type: 'transition'},
+                {name: 'Robot Walking', start: 80, end: 130, type: 'style'},
+                {name: 'Robot → Zombie', start: 130, end: 160, type: 'transition'},
+                {name: 'Zombie Walking', start: 160, end: 210, type: 'style'},
+                {name: 'Zombie → Drunk', start: 210, end: 240, type: 'transition'},
+                {name: 'Drunk Walking', start: 240, end: 290, type: 'style'},
+                {name: 'Drunk → Neutral', start: 290, end: 370, type: 'transition'}
+            ],
+            movement_energy: [
+                {name: 'Tiptoe Walking', start: 0, end: 50, type: 'style'},
+                {name: 'Tiptoe → Skip', start: 50, end: 80, type: 'transition'},
+                {name: 'Skip Walking', start: 80, end: 130, type: 'style'},
+                {name: 'Skip → March', start: 130, end: 160, type: 'transition'},
+                {name: 'March Walking', start: 160, end: 210, type: 'style'},
+                {name: 'March → Crouched', start: 210, end: 240, type: 'transition'},
+                {name: 'Crouched Walking', start: 240, end: 290, type: 'style'},
+                {name: 'Crouched → Proud', start: 290, end: 370, type: 'transition'}
+            ]
+        };
+        
+        function log(message, type = 'info') {
+            const debugOutput = document.getElementById('debugOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            debugOutput.innerHTML += `[${timestamp}] ${message}<br>`;
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+            console.log(`[${type}] ${message}`);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `info ${type}`;
+            log(message, type);
+        }
+        
+        async function init() {
+            try {
+                updateStatus('Initializing Three.js...', 'warning');
+                
+                if (typeof THREE === 'undefined') {
+                    updateStatus('❌ Three.js library not found', 'error');
+                    return;
+                }
+                
+                // Create scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x1a1a2e);
+                
+                // Create camera
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(2, 1.5, 3);
+                camera.lookAt(0, 1, 0);
+                
+                // Create renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                document.getElementById('container').appendChild(renderer.domElement);
+                
+                // Add lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+                directionalLight.position.set(8, 10, 5);
+                directionalLight.castShadow = true;
+                scene.add(directionalLight);
+                
+                // Add subtle colored lights
+                const light1 = new THREE.PointLight(0x4facfe, 0.3, 15);
+                light1.position.set(-4, 3, 2);
+                scene.add(light1);
+                
+                const light2 = new THREE.PointLight(0xf093fb, 0.3, 15);
+                light2.position.set(4, 3, -2);
+                scene.add(light2);
+                
+                // Add grid
+                const grid = new THREE.GridHelper(4, 4, 0x444444, 0x222222);
+                scene.add(grid);
+                
+                // Add mouse controls
+                addMouseControls();
+                
+                updateStatus('✅ Scene created successfully', 'success');
+                
+                // Create skeleton first
+                createProperSkeleton();
+                
+                // Start animation loop
+                animate();
+                
+                // Load BVH data
+                await loadSequence();
+                
+            } catch (error) {
+                updateStatus(`❌ Initialization failed: ${error.message}`, 'error');
+                log(`Init error: ${error.stack}`, 'error');
+            }
+        }
+        
+        function addMouseControls() {
+            let mouseDown = false;
+            let mouseX = 0, mouseY = 0;
+            
+            renderer.domElement.addEventListener('mousedown', (e) => {
+                mouseDown = true;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+            
+            renderer.domElement.addEventListener('mouseup', () => {
+                mouseDown = false;
+            });
+            
+            renderer.domElement.addEventListener('mousemove', (e) => {
+                if (!mouseDown || autoCamera) return;
+                
+                const deltaX = e.clientX - mouseX;
+                const deltaY = e.clientY - mouseY;
+                
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 1, 0);
+                
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+        }
+        
+        function createProperSkeleton() {
+            if (skeleton) {
+                scene.remove(skeleton);
+            }
+            
+            skeleton = new THREE.Group();
+            skeleton.joints = [];
+            skeleton.bones = [];
+            
+            // Create joints based on human skeleton structure
+            humanSkeleton.joints.forEach((jointDef, index) => {
+                const geometry = new THREE.SphereGeometry(jointDef.size, 12, 12);
+                const material = new THREE.MeshLambertMaterial({ 
+                    color: jointDef.color,
+                    emissive: jointDef.color,
+                    emissiveIntensity: 0.1
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                
+                // Set initial position
+                sphere.position.set(...jointDef.pos);
+                sphere.castShadow = true;
+                
+                sphere.userData = {
+                    jointIndex: index,
+                    name: jointDef.name,
+                    parent: jointDef.parent,
+                    initialPosition: new THREE.Vector3(...jointDef.pos),
+                    restPosition: new THREE.Vector3(...jointDef.pos)
+                };
+                
+                skeleton.add(sphere);
+                skeleton.joints.push(sphere);
+            });
+            
+            // Create bones between connected joints
+            humanSkeleton.joints.forEach((jointDef, index) => {
+                if (jointDef.parent !== null) {
+                    const parentPos = humanSkeleton.joints[jointDef.parent].pos;
+                    const currentPos = jointDef.pos;
+                    
+                    const geometry = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(...parentPos),
+                        new THREE.Vector3(...currentPos)
+                    ]);
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: 0xffffff, 
+                        linewidth: 3 
+                    });
+                    const line = new THREE.Line(geometry, material);
+                    
+                    line.userData = {
+                        parentIndex: jointDef.parent,
+                        childIndex: index,
+                        isBone: true
+                    };
+                    
+                    skeleton.add(line);
+                    skeleton.bones.push(line);
+                }
+            });
+            
+            scene.add(skeleton);
+            
+            document.getElementById('jointCount').textContent = skeleton.joints.length;
+            log(`Created proper skeleton with ${skeleton.joints.length} joints and ${skeleton.bones.length} bones`);
+            updateStatus('✅ Skeleton created - human-like structure', 'success');
+        }
+        
+        async function loadSequence() {
+            const select = document.getElementById('sequenceSelect');
+            currentSequence = select.value;
+            
+            const filename = `${currentSequence}_transitions.bvh`;
+            updateStatus(`🔄 Loading motion data from ${filename}...`, 'warning');
+            
+            try {
+                const response = await fetch(filename);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch ${filename}: ${response.status}`);
+                }
+                
+                const bvhText = await response.text();
+                updateStatus(`✅ BVH file loaded (${Math.round(bvhText.length/1024)}KB)`, 'success');
+                
+                // Parse motion data
+                bvhData = parseMotionData(bvhText);
+                if (!bvhData) {
+                    throw new Error('Failed to parse motion data');
+                }
+                
+                totalFrames = bvhData.length;
+                currentFrame = 0;
+                
+                document.getElementById('totalFrameNum').textContent = totalFrames;
+                document.getElementById('totalTimeDisplay').textContent = (totalFrames / 30).toFixed(1);
+                document.getElementById('bvhStatus').textContent = `✅ ${totalFrames} motion frames loaded`;
+                
+                updateStatus(`✅ Motion data ready - ${totalFrames} frames`, 'success');
+                
+            } catch (error) {
+                updateStatus(`❌ Failed to load motion: ${error.message}`, 'error');
+                
+                // Use procedural motion as fallback
+                totalFrames = 300;
+                bvhData = null;
+                document.getElementById('bvhStatus').textContent = '⚠️ Using procedural motion';
+                updateStatus('Using procedural motion (BVH failed)', 'warning');
+            }
+        }
+        
+        function parseMotionData(bvhText) {
+            const lines = bvhText.split('\n');
+            let motionFrames = [];
+            let inMotion = false;
+            
+            for (let line of lines) {
+                line = line.trim();
+                
+                if (line === 'MOTION') {
+                    inMotion = true;
+                    continue;
+                } else if (line.startsWith('Frame Time:') || line.startsWith('Frames:')) {
+                    continue;
+                } else if (inMotion && line && !line.startsWith('Frame')) {
+                    const values = line.split(/\s+/).map(v => parseFloat(v)).filter(v => !isNaN(v));
+                    if (values.length > 0) {
+                        motionFrames.push(values);
+                    }
+                }
+            }
+            
+            log(`Parsed ${motionFrames.length} motion frames`);
+            return motionFrames.length > 0 ? motionFrames : null;
+        }
+        
+        function getCurrentPhase() {
+            const phases = motionPhases[currentSequence];
+            for (let phase of phases) {
+                if (currentFrame >= phase.start && currentFrame < phase.end) {
+                    return phase;
+                }
+            }
+            return phases[phases.length - 1];
+        }
+        
+        function updateMotion() {
+            if (!skeleton) return;
+            
+            const currentPhase = getCurrentPhase();
+            const time = Date.now() * 0.001;
+            
+            // Update UI
+            document.getElementById('frameNum').textContent = Math.floor(currentFrame);
+            document.getElementById('timeDisplay').textContent = (currentFrame / 30).toFixed(1);
+            document.getElementById('animStatus').textContent = isPlaying ? 'Playing' : 'Stopped';
+            
+            const phaseDisplay = document.getElementById('phaseDisplay');
+            phaseDisplay.textContent = `${currentPhase.name}`;
+            phaseDisplay.className = `phase-indicator phase-${currentPhase.type}`;
+            
+            // Apply motion to skeleton - keep human structure!
+            skeleton.joints.forEach((joint, index) => {
+                const restPos = joint.userData.restPosition;
+                let newPos = restPos.clone();
+                
+                if (bvhData && Math.floor(currentFrame) < bvhData.length) {
+                    // Use real BVH data with careful scaling
+                    const frameData = bvhData[Math.floor(currentFrame)];
+                    
+                    // Apply small motion variations based on BVH data
+                    if (frameData.length > index * 3) {
+                        const motionScale = 0.002; // Very small scale to maintain structure
+                        const dataIndex = Math.min(index * 3, frameData.length - 3);
+                        
+                        newPos.x += (frameData[dataIndex] || 0) * motionScale;
+                        newPos.y += (frameData[dataIndex + 1] || 0) * motionScale;
+                        newPos.z += (frameData[dataIndex + 2] || 0) * motionScale;
+                    }
+                    
+                    // Show root position
+                    if (index === 0 && frameData.length >= 3) {
+                        document.getElementById('rootPos').textContent = 
+                            `(${frameData[0].toFixed(3)}, ${frameData[1].toFixed(3)}, ${frameData[2].toFixed(3)})`;
+                    }
+                    
+                } else {
+                    // Procedural motion with recognizable human patterns
+                    const motionIntensity = 0.03;
+                    
+                    if (currentPhase.name.includes('Elated') || currentPhase.name.includes('Skip')) {
+                        // Happy/bouncy motion
+                        newPos.y += Math.sin(time * 4 + index * 0.2) * motionIntensity;
+                        if (index >= 5 && index <= 10) { // Arms
+                            newPos.y += Math.sin(time * 6) * motionIntensity * 0.5;
+                        }
+                    } else if (currentPhase.name.includes('Angry') || currentPhase.name.includes('March')) {
+                        // Sharp, aggressive motion
+                        newPos.x += Math.sin(time * 5 + index * 0.3) * motionIntensity * 0.7;
+                        if (index >= 11) { // Legs
+                            newPos.y += Math.abs(Math.sin(time * 3)) * motionIntensity * 0.5;
+                        }
+                    } else if (currentPhase.name.includes('Depressed') || currentPhase.name.includes('Crouched')) {
+                        // Drooping, low motion
+                        newPos.y -= motionIntensity * 0.3;
+                        newPos.y += Math.sin(time * 1.5 + index * 0.1) * motionIntensity * 0.2;
+                    } else if (currentPhase.name.includes('Robot')) {
+                        // Mechanical, stepped motion
+                        const step = 0.05;
+                        newPos.x += Math.round(Math.sin(time * 2 + index * 0.5) / step) * step * motionIntensity;
+                        newPos.y += Math.round(Math.cos(time * 1.5) / step) * step * motionIntensity * 0.3;
+                    } else if (currentPhase.name.includes('Zombie')) {
+                        // Shambling, uneven motion
+                        newPos.x += Math.sin(time * 1.2 + index * 0.7) * motionIntensity * 0.6;
+                        newPos.y += Math.sin(time * 0.9 + index * 0.4) * motionIntensity * 0.4;
+                        if (index >= 5 && index <= 10) { // Arms droop
+                            newPos.y -= motionIntensity * 0.2;
+                        }
+                    } else if (currentPhase.name.includes('Tiptoe')) {
+                        // Light, careful motion
+                        newPos.y += Math.abs(Math.sin(time * 3)) * motionIntensity * 0.3;
+                        if (index >= 11) { // Legs on tiptoes
+                            newPos.y += motionIntensity * 0.2;
+                        }
+                    } else {
+                        // Neutral walking
+                        newPos.y += Math.sin(time * 2 + index * 0.2) * motionIntensity * 0.4;
+                        if (index >= 11) { // Legs walking rhythm
+                            newPos.y += Math.sin(time * 2.5 + (index % 2) * Math.PI) * motionIntensity * 0.3;
+                        }
+                    }
+                }
+                
+                joint.position.copy(newPos);
+            });
+            
+            // Update bone connections to maintain skeleton structure
+            skeleton.bones.forEach(bone => {
+                const parentJoint = skeleton.joints[bone.userData.parentIndex];
+                const childJoint = skeleton.joints[bone.userData.childIndex];
+                
+                const positions = bone.geometry.attributes.position.array;
+                positions[0] = parentJoint.position.x;
+                positions[1] = parentJoint.position.y;
+                positions[2] = parentJoint.position.z;
+                positions[3] = childJoint.position.x;
+                positions[4] = childJoint.position.y;
+                positions[5] = childJoint.position.z;
+                bone.geometry.attributes.position.needsUpdate = true;
+            });
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (isPlaying) {
+                currentFrame = (currentFrame + playbackSpeed) % totalFrames;
+                updateMotion();
+            }
+            
+            if (autoCamera && skeleton) {
+                const time = Date.now() * 0.001;
+                camera.position.x = Math.cos(time * 0.3) * 3;
+                camera.position.z = Math.sin(time * 0.3) * 3;
+                camera.lookAt(0, 1, 0);
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function togglePlayback() {
+            isPlaying = !isPlaying;
+            document.getElementById('playText').textContent = isPlaying ? 'Pause' : 'Play';
+            updateStatus(isPlaying ? 'Playing motion...' : 'Motion paused', 'success');
+        }
+        
+        function resetMotion() {
+            currentFrame = 0;
+            updateStatus('Motion reset to beginning', 'success');
+        }
+        
+        function toggleCamera() {
+            autoCamera = !autoCamera;
+            document.getElementById('cameraText').textContent = autoCamera ? 'Auto Camera: ON' : 'Auto Camera: OFF';
+        }
+        
+        function changeSpeed() {
+            playbackSpeed = playbackSpeed >= 2 ? 0.25 : playbackSpeed + 0.25;
+            document.getElementById('speedText').textContent = playbackSpeed.toFixed(2) + 'x';
+            updateStatus(`Playback speed: ${playbackSpeed.toFixed(2)}x`, 'success');
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Initialize
+        if (typeof THREE !== 'undefined') {
+            init();
+        } else {
+            window.addEventListener('load', init);
+        }
+    </script>
+</body>
+</html>

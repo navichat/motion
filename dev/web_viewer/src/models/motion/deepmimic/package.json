@@ -1,0 +1,39 @@
+{
+  "name": "deepmimic-js-validation",
+  "version": "1.0.0",
+  "description": "DeepMimic JavaScript validation suite for comparing Python TensorFlow outputs with JavaScript ONNX Runtime",
+  "main": "validate-deepmimic.js",
+  "scripts": {
+    "test": "node validate-deepmimic.js",
+    "validate": "node validate-deepmimic.js ./validation_results 1e-4",
+    "validate-strict": "node validate-deepmimic.js ./validation_results 1e-6",
+    "validate-relaxed": "node validate-deepmimic.js ./validation_results 1e-3",
+    "serve": "python3 -m http.server 8080"
+  },
+  "keywords": [
+    "deepmimic",
+    "onnx",
+    "tensorflow",
+    "validation",
+    "webgpu",
+    "webnn",
+    "wasm"
+  ],
+  "author": "DeepMimic Validation Team",
+  "license": "MIT",
+  "dependencies": {
+    "onnxruntime-node": "1.14.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/navichat/motion"
+  },
+  "bugs": {
+    "url": "https://github.com/navichat/motion/issues"
+  },
+  "homepage": "https://github.com/navichat/motion#readme"
+}

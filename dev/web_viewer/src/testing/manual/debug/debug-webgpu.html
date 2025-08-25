@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU Debug Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .debug-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 WebGPU NaN Debug Test</h1>
+        <p>Testing where NaN values are introduced in the WebGPU pipeline...</p>
+        
+        <button onclick="runBasicTest()">Run Basic Test</button>
+        <button onclick="runWebGPUTest()">Run WebGPU Test (Large)</button>
+        <button onclick="runLexemeTest()">Run Lexeme Feature Test</button>
+        <button onclick="runScaleTest()">Run Scale Test</button>
+        <button onclick="clearLog()">Clear Log</button>
+        
+        <div id="debug-output" class="debug-output"></div>
+    </div>
+
+    <script src="audio2gesture/optimized_multihead_attention.js"></script>
+    <script>
+        let debugOutput = document.getElementById('debug-output');
+        
+        // Override console.log to capture debug output
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog(...args);
+            debugOutput.textContent += args.join(' ') + '\n';
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        };
+        
+        function clearLog() {
+            debugOutput.textContent = '';
+        }
+        
+        async function runBasicTest() {
+            console.log('🧪 Running basic test...');
+            console.log('==============================');
+            
+            try {
+                // Create simple test data
+                const hiddenState = [[[0.1, 0.2, 0.3, 0.4]]]; // 1 batch, 1 sequence, 4 dimensions
+                const audioFeatures = [0.1, 0.2]; // 2 audio features
+                
+                console.log('Input hiddenState:', hiddenState);
+                console.log('Input audioFeatures:', audioFeatures);
+                
+                // Initialize attention
+                const attention = new OptimizedAudio2GestureAttention({
+                    numHeads: 2,
+                    hiddenDim: 4
+                });
+                
+                await attention.initializeBackend('cpu');
+                console.log('Initialized backend:', attention.currentBackend);
+                
+                // Run computation
+                const result = await attention.computeMultiHeadAttention(hiddenState, audioFeatures);
+                console.log('✅ Basic test completed');
+                console.log('Result shape:', result.length, 'x', result[0].length, 'x', result[0][0].length);
+                
+            } catch (error) {
+                console.log('❌ Basic test failed:', error.message);
+            }
+        }
+        
+        async function runWebGPUTest() {
+            console.log('🎮 Running WebGPU test (LARGE DATA)...');
+            console.log('==============================');
+            
+            try {
+                // Create test data matching the test suite dimensions
+                const hiddenState = [];
+                const batchSize = 4;
+                const sequenceLength = 1;
+                const hiddenDim = 1024; // Much larger!
+                
+                for (let b = 0; b < batchSize; b++) {
+                    const batch = [];
+                    for (let s = 0; s < sequenceLength; s++) {
+                        const sequence = [];
+                        for (let d = 0; d < hiddenDim; d++) {
+                            sequence.push((Math.random() - 0.5) * 0.1);
+                        }
+                        batch.push(sequence);
+                    }
+                    hiddenState.push(batch);
+                }
+                
+                // Generate audio features matching test suite
+                const audioFeatures = [];
+                for (let m = 0; m < 80; m++) {
+                    const row = [];
+                    for (let f = 0; f < 30; f++) {
+                        row.push((Math.random() - 0.5) * 0.2);
+                    }
+                    audioFeatures.push(row);
+                }
+                
+                // Generate lexeme features matching test suite
+                const lexemeFeatures = [];
+                for (let i = 0; i < 96; i++) {
+                    lexemeFeatures.push((Math.random() - 0.5) * 0.15);
+                }
+                
+                console.log('Generated test data shapes (MATCHING TEST SUITE):');
+                console.log('- hiddenState:', hiddenState.length, 'x', hiddenState[0].length, 'x', hiddenState[0][0].length);
+                console.log('- audioFeatures:', audioFeatures.length, 'x', audioFeatures[0].length);
+                console.log('- lexemeFeatures:', lexemeFeatures.length);
+                
+                // Initialize attention for WebGPU
+                const attention = new OptimizedAudio2GestureAttention({
+                    numHeads: 8,
+                    hiddenDim: hiddenDim
+                });
+                
+                const success = await attention.initializeBackend('webgpu');
+                console.log('WebGPU initialization:', success ? 'SUCCESS' : 'FAILED');
+                console.log('Current backend:', attention.currentBackend);
+                
+                if (success) {
+                    // Run computation with BOTH audio and lexeme features
+                    const result = await attention.computeMultiHeadAttention(hiddenState, audioFeatures, lexemeFeatures);
+                    console.log('✅ WebGPU test completed');
+                    console.log('Result shape:', result.length, 'x', result[0].length, 'x', result[0][0].length);
+                    
+                    // Check result for NaN values
+                    let nanCount = 0;
+                    let totalCount = 0;
+                    for (let b = 0; b < result.length; b++) {
+                        for (let s = 0; s < result[b].length; s++) {
+                            for (let d = 0; d < result[b][s].length; d++) {
+                                totalCount++;
+                                if (!isFinite(result[b][s][d])) {
+                                    nanCount++;
+                                }
+                            }
+                        }
+                    }
+                    console.log(`📊 Final result validation: ${nanCount}/${totalCount} non-finite (${(nanCount/totalCount*100).toFixed(1)}%)`);
+                } else {
+                    console.log('❌ WebGPU not available, test skipped');
+                }
+                
+            } catch (error) {
+                console.log('❌ WebGPU test failed:', error.message);
+                console.log('Error stack:', error.stack);
+            }
+        }
+        
+        async function runLexemeTest() {
+            console.log('🔤 Running Lexeme Feature Test...');
+            console.log('==============================');
+            
+            try {
+                // Simple test data to isolate lexeme feature issue
+                const hiddenState = [[[0.1, 0.2, 0.3, 0.4]]]; // 1 batch, 1 sequence, 4 dimensions
+                const lexemeFeatures = [0.1, 0.2, 0.3, 0.4]; // 4 lexeme features
+                
+                console.log('Input hiddenState:', hiddenState);
+                console.log('Input lexemeFeatures:', lexemeFeatures);
+                
+                // Test with CPU first
+                const cpuAttention = new OptimizedAudio2GestureAttention({
+                    numHeads: 2,
+                    hiddenDim: 4
+                });
+                
+                await cpuAttention.initializeBackend('cpu');
+                const cpuResult = await cpuAttention.computeMultiHeadAttention(hiddenState, null, lexemeFeatures);
+                console.log('✅ CPU lexeme test completed');
+                
+                // Test with WebGPU
+                const webgpuAttention = new OptimizedAudio2GestureAttention({
+                    numHeads: 2,
+                    hiddenDim: 4
+                });
+                
+                const success = await webgpuAttention.initializeBackend('webgpu');
+                if (success) {
+                    const webgpuResult = await webgpuAttention.computeMultiHeadAttention(hiddenState, null, lexemeFeatures);
+                    console.log('✅ WebGPU lexeme test completed');
+                    
+                    // Check for differences
+                    let maxDiff = 0;
+                    for (let b = 0; b < cpuResult.length; b++) {
+                        for (let s = 0; s < cpuResult[b].length; s++) {
+                            for (let d = 0; d < cpuResult[b][s].length; d++) {
+                                const diff = Math.abs(cpuResult[b][s][d] - webgpuResult[b][s][d]);
+                                maxDiff = Math.max(maxDiff, diff);
+                            }
+                        }
+                    }
+                    console.log('Max difference CPU vs WebGPU:', maxDiff);
+                } else {
+                    console.log('❌ WebGPU not available for lexeme test');
+                }
+                
+            } catch (error) {
+                console.log('❌ Lexeme test failed:', error.message);
+                console.log('Error stack:', error.stack);
+            }
+        }
+        
+        async function runScaleTest() {
+            console.log('📏 Running Scale Test (Progressive Size Increase)...');
+            console.log('======================================================');
+            
+            const testSizes = [
+                { batch: 1, seq: 1, hidden: 8, heads: 8 },      // 8 elements, 8 heads
+                { batch: 1, seq: 1, hidden: 64, heads: 8 },     // 64 elements, 8 heads
+                { batch: 1, seq: 1, hidden: 256, heads: 8 },    // 256 elements, 8 heads
+                { batch: 1, seq: 1, hidden: 512, heads: 8 },    // 512 elements, 8 heads
+                { batch: 1, seq: 1, hidden: 1024, heads: 8 },   // 1024 elements, 8 heads
+                { batch: 4, seq: 1, hidden: 1024, heads: 8 },   // 4096 elements, 8 heads (full test suite)
+            ];
+            
+            for (const size of testSizes) {
+                try {
+                    console.log(`\n🧪 Testing size: ${size.batch}×${size.seq}×${size.hidden} = ${size.batch*size.seq*size.hidden} elements`);
+                    
+                    // Generate test data
+                    const hiddenState = [];
+                    for (let b = 0; b < size.batch; b++) {
+                        const batch = [];
+                        for (let s = 0; s < size.seq; s++) {
+                            const sequence = [];
+                            for (let d = 0; d < size.hidden; d++) {
+                                sequence.push((Math.random() - 0.5) * 0.1);
+                            }
+                            batch.push(sequence);
+                        }
+                        hiddenState.push(batch);
+                    }
+                    
+                    // Test with WebGPU
+                    const attention = new OptimizedAudio2GestureAttention({
+                        numHeads: size.heads,
+                        hiddenDim: size.hidden
+                    });
+                    
+                    const success = await attention.initializeBackend('webgpu');
+                    if (success) {
+                        const result = await attention.computeMultiHeadAttention(hiddenState);
+                        
+                        // Check result for NaN
+                        let nanCount = 0;
+                        let totalCount = 0;
+                        for (let b = 0; b < result.length; b++) {
+                            for (let s = 0; s < result[b].length; s++) {
+                                for (let d = 0; d < result[b][s].length; d++) {
+                                    totalCount++;
+                                    if (!isFinite(result[b][s][d])) {
+                                        nanCount++;
+                                    }
+                                }
+                            }
+                        }
+                        const nanPercent = (nanCount/totalCount*100).toFixed(1);
+                        console.log(`   📊 Result: ${nanCount}/${totalCount} non-finite (${nanPercent}%) - ${nanPercent > 0 ? '❌ FAIL' : '✅ PASS'}`);
+                        
+                        if (nanPercent > 0) {
+                            console.log(`   ⚠️ First failure at size: ${size.batch}×${size.seq}×${size.hidden} (${size.heads} heads)`);
+                            break; // Stop at first failure
+                        }
+                    } else {
+                        console.log('   ❌ WebGPU initialization failed');
+                        break;
+                    }
+                    
+                } catch (error) {
+                    console.log(`   ❌ Error at size ${size.batch}×${size.seq}×${size.hidden}: ${error.message}`);
+                    break;
+                }
+            }
+            
+            console.log('\n📏 Scale test completed');
+        }
+    </script>
+</body>
+</html>

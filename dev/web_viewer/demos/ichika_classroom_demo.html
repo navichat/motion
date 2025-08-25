@@ -1,0 +1,425 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+  <title>Ichika Classroom Demo</title>
+  <style>body{font-family:sans-serif;padding:16px} button{margin-right:8px}</style>
+</head>
+<body>
+  <h1>Ichika Classroom Demo</h1>
+  <p>Loads a clip manifest, starts idle on base, and lets you trigger a point action.</p>
+  <div>
+    <button id="start">Start Idle</button>
+    <button id="point">Point at Board</button>
+  <button id="wave">Wave</button>
+  <button id="speech">Speak (visemes + gestures)</button>
+  </div>
+  <hr/>
+  <div>
+    <h3>On-device TTS (transformers.js): SpeechT5 / Kokoro</h3>
+    <label>Engine
+      <select id="ttsEngine">
+        <option value="speecht5" selected>SpeechT5 (Xenova/speecht5_tts)</option>
+        <option value="kokoro">Kokoro (kokoro-tts/kokoro-82m)</option>
+      </select>
+    </label>
+    <label style="margin-left:8px">Model ID <input id="ttsModelId" size="32" placeholder="auto from engine" /></label>
+    <label style="margin-left:8px"><input id="ttsPlayAudio" type="checkbox" checked /> play audio</label>
+    <div style="margin-top:6px">
+      <input id="ttsText" size="64" value="Hello class, welcome to our session." />
+      <button id="ttsSay">Say (on-device)</button>
+      <button id="ttsPreload">Preload models</button>
+    </div>
+    <div style="margin-top:12px">
+      <h4>ASR (on-device Whisper) + Listen & Reply</h4>
+      <label>ASR engine
+        <select id="asrEngine">
+          <option value="speech" selected>Browser SpeechRecognition</option>
+          <option value="whisper">Whisper (on-device)</option>
+        </select>
+      </label>
+      <label style="margin-left:8px">ASR Model <input id="asrModelId" size="28" placeholder="Xenova/whisper-tiny.en" /></label>
+      <label style="margin-left:8px">Listen sec <input id="listenSec" type="number" min="1" max="10" step="1" value="3" style="width:56px" /></label>
+      <button id="listenReply" style="margin-left:8px">Listen & Reply</button>
+    </div>
+    <pre id="log"></pre>
+  </div>
+  <script>
+    // Minimal inline UMD loaders via script injection
+  </script>
+  <script>
+  (async function(){
+  const qs = new URLSearchParams(location.search);
+    // Fetch sources
+    const sources = [
+      'src/animation/ClipRegistry.js',
+      'src/components/animation/timeline/BVHClipLibrary.js',
+      'src/scene/StageController.js',
+      'src/orchestrator/SpeechGestureScheduler.js',
+      'src/orchestrator/IchikaOrchestrator.js',
+      'src/animation/clip_manifest.sample.json'
+    ];
+    const base = '../';
+    const text = await Promise.all(sources.map(p => fetch(base + p).then(r => r.text())));
+    // Eval modules (UMD)
+  const [clipCode, libCode, stageCode, speechCode, orchCode, manifestText] = text;
+  const append = (code) => { const s=document.createElement('script'); s.textContent=code; document.head.appendChild(s); };
+  append(clipCode); append(libCode); append(stageCode); append(speechCode); append(orchCode);
+    // Attempt to fetch the dedicated Ichika manifest; fall back to sample
+    let manifest;
+    try {
+      const mres = await fetch('../assets/manifests/ichika_demo_manifest.json');
+      if (mres.ok) {
+        manifest = await mres.json();
+      } else {
+        manifest = JSON.parse(manifestText);
+      }
+    } catch {
+      manifest = JSON.parse(manifestText);
+    }
+
+  const log = (m) => { const el=document.getElementById('log'); el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; };
+    const reg = new (window.ClipRegistry?.ClipRegistry || window.ClipRegistry)();
+    const stage = new (window.StageController?.StageController || window.StageController)(null, { registry: reg });
+    const Orch = window.IchikaOrchestrator; const orch = new Orch({ stageController: stage, clipRegistry: reg });
+
+    // Expose for tests
+    window.__ichikaDemo = { orch, stage, reg };
+
+  document.getElementById('start').onclick = async () => {
+      const count = orch.loadClipManifest(manifest);
+      log('Manifest entries: ' + count);
+      try { log('Loaded entries: ' + (reg.list()?.map(e => e.name).join(', ') || 'none')); } catch {}
+      // Instrument adapter for visibility in tests/demos
+      const origAppend = orch.adapter.appendChunk?.bind(orch.adapter);
+      const origClear = orch.adapter.clearFrom?.bind(orch.adapter);
+      orch.adapter.appendChunk = (track, chunk, opts) => {
+        log('appendChunk: track=' + track + ' dur=' + (chunk?.dt ?? 'n/a') + ' fade=' + (opts?.fadeInMs||0));
+        return origAppend ? origAppend(track, chunk, opts) : undefined;
+      };
+      orch.adapter.clearFrom = (track, t) => {
+        log('clearFrom: track=' + track + ' t=' + (t ?? 'now'));
+        return origClear ? origClear(track, t) : undefined;
+      };
+      // Register a real BVH idle clip and start it
+      try {
+        await reg.addBVH('idle_bvh', '../assets/bvh/minimal_idle.bvh', { track: 'base', priority: 0, fadeInMs: 150, duration: 2.0 });
+      } catch (e) {
+        // Non-fatal in tests if fetch is blocked; fall back to manifest idle
+      }
+      const e = orch.startBaseClip(reg.has('idle_bvh') ? 'idle_bvh' : 'idle');
+      log('Started base clip: ' + (e?.name || 'none'));
+    };
+    document.getElementById('point').onclick = () => {
+      const e = orch.handleIntent('pointAt', { target: 'board' });
+      log('Intent scheduled: ' + (e?.name || 'none'));
+    };
+    document.getElementById('wave').onclick = async () => {
+      // Try to ensure a wave BVH exists, else fallback to manifest 'wave'
+      if (!reg.has('wave_bvh')) {
+        try {
+          await reg.addBVH('wave_bvh', '../assets/animations/100STYLE/BouncyLeft/BouncyLeft_BR.bvh', { track: 'override', priority: 4, fadeInMs: 120, duration: 1.2 });
+        } catch (e) { /* ignore fetch errors in constrained env */ }
+      }
+      const entryName = reg.has('wave_bvh') ? 'wave_bvh' : 'wave';
+      const entry = reg.get(entryName);
+      if (entry) {
+        // Schedule directly rather than via intent map to prefer BVH if present
+        const isClip = entry.data && (entry.data.bvhData || entry.data.generator || entry.data.type);
+        const chunk = isClip ? { t0: 0, dt: entry.meta?.duration || 1.0, frames: [] } : (entry.data || { t0: 0, dt: entry.meta?.duration || 1.0, frames: [] });
+        orch.adapter.appendChunk(entry.meta.track || 'override', chunk, { clip: isClip ? entry.data : undefined, fadeInMs: entry.meta?.fadeInMs || 120, boneMask: entry.meta?.boneMask || [] });
+        log('Wave scheduled: ' + entryName);
+      } else {
+        const e = orch.handleIntent('wave', {});
+        log('Wave (manifest) scheduled: ' + (e?.name || 'none'));
+      }
+    };
+    document.getElementById('speech').onclick = async () => {
+      // Minimal fake TTS payload
+      const tts = {
+        rateHz: 30,
+        visemes: [ { t: 0, id: 'A' }, { t: 0.1, id: 'E' }, { t: 0.2, id: 'O' } ],
+        audioEnergy: [ { t: 0, v: 0.2 }, { t: 0.1, v: 0.6 }, { t: 0.2, v: 0.4 } ]
+      };
+      const ev = orch.scheduleSpeechFromTts(tts, { fadeInMs: 100 });
+      log('Speech scheduled: ' + (ev ? 'ok' : 'none'));
+    };
+
+    // --- On-device TTS (transformers.js) integration ---
+    // Add AudioEnvelope for energy computation
+    try {
+      const envSrc = '../src/audio/AudioEnvelope.js';
+      const code = await fetch(envSrc).then(r => r.text());
+      const s = document.createElement('script'); s.textContent = code; document.head.appendChild(s);
+    } catch {}
+
+  let pageAudioCtx = null;
+  // Cached pipelines/instances for faster reuse
+  window._ttsPipeline = null; // SpeechT5 pipeline (quantized)
+  window._kokoroTts = null;   // KokoroTTS instance
+  window._asrPipeline = null; // Whisper pipeline (quantized)
+    async function getAudioCtx(){
+      if (!pageAudioCtx) pageAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (pageAudioCtx.state !== 'running') { try { await pageAudioCtx.resume(); } catch {} }
+      return pageAudioCtx;
+    }
+    ['click','keydown','touchstart'].forEach(evt => window.addEventListener(evt, ()=>{ getAudioCtx().catch(()=>{}); }, { once: true, capture: true }));
+
+    async function ensureTransformers(){
+      if (window.transformers) return window.transformers;
+      const mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
+      const T = mod?.default || mod; window.transformers = T; return T;
+    }
+    async function ensureKokoro(){
+      // Prefer local fallback UMD if available, else local dist, else CDN
+      if (window.KokoroTTS) return window.KokoroTTS;
+      try {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script'); s.src = '../src/audio/kokoro.web.js'; s.async = true;
+          s.onload = res; s.onerror = (e)=>{ log('kokoro-js: local fallback load error'); rej(e); }; document.head.appendChild(s);
+        });
+        if (window.KokoroTTS) { log('kokoro-js: using local fallback'); return window.KokoroTTS; }
+      } catch {}
+      try {
+        const mod = await import('../src/utils/kokoro.js/dist/kokoro.web.js').catch(e=>{ log('kokoro-js: local dist import error'); throw e; });
+        const K = (mod?.KokoroTTS) || (mod?.default?.KokoroTTS);
+        if (K) { window.KokoroTTS = K; log('kokoro-js: using local dist'); return K; }
+      } catch {}
+      try {
+        const cdn = await import('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js').catch(e=>{ log('kokoro-js: CDN import error'); throw e; });
+        const K = (cdn?.KokoroTTS) || (cdn?.default?.KokoroTTS);
+        if (K) { window.KokoroTTS = K; log('kokoro-js: using CDN'); return K; }
+      } catch {}
+      try {
+        const InlineKokoro = { async from_pretrained(){ return { async generate(text){ const sr=22050; const dur=Math.min(10, Math.max(0.6, (text||'').length*0.06)); const len=Math.floor(sr*dur); const pcm=new Float32Array(len); for(let i=0;i<len;i++){ const t=i/sr; pcm[i]=0.08*Math.sin(2*Math.PI*220*t)*(0.6+0.4*Math.sin(2*Math.PI*3*t)); } return pcm; } }; } };
+        window.KokoroTTS = InlineKokoro; log('kokoro-js: using inline fallback'); return InlineKokoro;
+      } catch {}
+      throw new Error('kokoro-js not available');
+    }
+    const defaultModels = {
+      speecht5: 'Xenova/speecht5_tts',
+  // Use the official ONNX community Kokoro model id supported via transformers.js backends
+  kokoro: 'onnx-community/Kokoro-82M-v1.0-ONNX'
+    };
+    // Default SpeechT5 speaker embeddings (can be overridden via ?speaker= URL param)
+    const defaultSpeakerURL = 'https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/speaker_embeddings.bin';
+
+    function textToNaiveVisemes(text, dur){
+      const clean = (text||'').toLowerCase();
+      const vowelToVis = { a:'a', e:'e', i:'i', o:'o', u:'u' };
+      const fps = 30; const total = Math.max(0.6, dur || Math.max(0.6, clean.length * 0.08));
+      const step = Math.max(0.06, total / Math.max(6, clean.length || 1));
+      const v = []; let t = 0; for (const ch of clean) { v.push({ t, id: vowelToVis[ch] || 'rest' }); t += step; }
+      return { fps, total, vis: v };
+    }
+
+    function envelopeToEnergy(pcm, sr){
+      const Env = window.AudioEnvelope || {};
+      const env = (Env.computeRmsEnvelope ? Env.computeRmsEnvelope(pcm, sr, 50, 33) : []);
+      const hop = 0.033; // ~33ms
+      return env.map((v,i)=>({ t: i*hop, v: Math.min(1, v * 3) }));
+    }
+
+    async function playPCMFloat32(pcm, sr){
+      const ctx = await getAudioCtx();
+      const buf = ctx.createBuffer(1, pcm.length, sr);
+      buf.copyToChannel(pcm, 0);
+      const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination); src.start();
+      return new Promise(res => { src.onended = res; });
+    }
+
+    async function runOnDeviceTts(text, engine, modelOverride, playAudio){
+      const model = (modelOverride && modelOverride.trim()) || defaultModels[engine] || defaultModels.speecht5;
+      let pcm, sr;
+      if (engine === 'kokoro') {
+        const KokoroTTS = await ensureKokoro();
+        log('Loading Kokoro model: ' + model);
+        // Reuse cached instance if same model
+        const tts = (window._kokoroTts && window._kokoroTts.__modelId === model)
+          ? window._kokoroTts
+          : await KokoroTTS.from_pretrained(model);
+        if (!window._kokoroTts || window._kokoroTts.__modelId !== model) { tts.__modelId = model; window._kokoroTts = tts; }
+        const audio = await tts.generate(text);
+        // generate may return a Float32Array or an object with audio
+        if (audio instanceof Float32Array) {
+          pcm = audio; sr = 22050; // match inline/local fallback
+        } else {
+          pcm = audio?.audio || audio?.pcm || audio?.array;
+          sr = audio?.sample_rate || audio?.sampling_rate || 24000;
+        }
+      } else {
+        const T = await ensureTransformers();
+        const { pipeline } = T || {}; if (!pipeline) throw new Error('transformers pipeline unavailable');
+        log('Loading TTS pipeline: ' + engine + ' model=' + model);
+        const synth = (window._ttsPipeline && window._ttsPipeline.__modelId === model)
+          ? window._ttsPipeline
+          : await pipeline('text-to-speech', model, { quantized: true });
+        if (!window._ttsPipeline || window._ttsPipeline.__modelId !== model) { synth.__modelId = model; window._ttsPipeline = synth; }
+        // SpeechT5 requires speaker embeddings; allow override via ?speaker= and default to a known sample
+        const spk = (qs.get('speaker') || '').trim() || defaultSpeakerURL;
+        log('SpeechT5: using speaker embeddings: ' + (spk instanceof URL ? spk.toString() : spk));
+        const out = await synth(text, { speaker_embeddings: spk });
+        pcm = out?.audio || out?.audio_buffer || out?.pcm || out?.array || null;
+        sr = out?.sampling_rate || out?.sample_rate || 22050;
+      }
+      if (!pcm || !sr) throw new Error('TTS returned no audio');
+      // Schedule gestures/visemes
+      const energy = envelopeToEnergy(pcm, sr);
+      const guessDur = pcm.length / sr;
+      const vnaive = textToNaiveVisemes(text, guessDur);
+      const ttsPayload = { rateHz: 30, visemes: vnaive.vis.map(e=>({ t: e.t, id: e.id })), audioEnergy: energy };
+      orch.scheduleSpeechFromTts(ttsPayload, { fadeInMs: 120 });
+      log('Scheduled TTS animation: ' + energy.length + ' energy frames');
+      if (playAudio) { await playPCMFloat32(pcm, sr); }
+    }
+
+    // --- On-device ASR (Whisper via transformers.js) + Listen & Reply ---
+    async function ensureWhisper(){ return ensureTransformers(); }
+    function resampleLinear(pcm, srFrom, srTo){
+      if (srFrom === srTo) return pcm;
+      const ratio = srTo / srFrom; const outLen = Math.round(pcm.length * ratio);
+      const out = new Float32Array(outLen);
+      for (let i=0;i<outLen;i++){ const x = i/ratio; const x0 = Math.floor(x); const x1 = Math.min(pcm.length-1, x0+1); const a = x - x0; out[i] = (1-a)*pcm[x0] + a*pcm[x1]; }
+      return out;
+    }
+    async function recordMicSeconds(seconds){
+      const ms = Math.max(1, Math.min(10, seconds|0));
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const src = ctx.createMediaStreamSource(stream);
+      const proc = ctx.createScriptProcessor(4096, 1, 1);
+      const chunks = [];
+      proc.onaudioprocess = (ev) => { const ch = ev.inputBuffer.getChannelData(0); chunks.push(new Float32Array(ch)); };
+      src.connect(proc); proc.connect(ctx.destination);
+      await new Promise(r => setTimeout(r, ms*1000));
+      try { proc.disconnect(); src.disconnect(); } catch {}
+      try { stream.getTracks().forEach(t=>t.stop()); } catch {}
+      try { await ctx.close(); } catch {}
+      const total = chunks.reduce((a,c)=>a+c.length,0); const out = new Float32Array(total);
+      let off=0; for (const c of chunks){ out.set(c,off); off+=c.length; }
+      return { pcm: out, sr:  48000 };
+    }
+    async function runOnDeviceAsr(pcm, sr, modelId){
+      const T = await ensureWhisper(); const { pipeline } = T || {};
+      if (!pipeline) throw new Error('transformers pipeline unavailable');
+      const model = (modelId && modelId.trim()) || 'Xenova/whisper-tiny.en';
+      log('ASR: Whisper model ' + model);
+      const asr = (window._asrPipeline && window._asrPipeline.__modelId === model)
+        ? window._asrPipeline
+        : await pipeline('automatic-speech-recognition', model, { quantized: true });
+      if (!window._asrPipeline || window._asrPipeline.__modelId !== model) { asr.__modelId = model; window._asrPipeline = asr; }
+      let out;
+      try { out = await asr(pcm, { sampling_rate: sr }); }
+      catch { out = await asr({ array: pcm, sampling_rate: sr }); }
+      const text = (out?.text || out)?.toString?.() || '';
+      return text;
+    }
+    function getSpeechRecognitionCtor(){ return window.SpeechRecognition || window.webkitSpeechRecognition; }
+    async function listenAndReply(){
+      const eng = (document.getElementById('asrEngine')?.value || 'speech').toLowerCase();
+      if (eng === 'whisper') {
+        log('👂 Listening (on-device)…');
+        try {
+          const sec = parseInt(document.getElementById('listenSec')?.value || '3', 10) || 3;
+          const { pcm, sr } = await recordMicSeconds(sec);
+          const target = 16000; const pcm16 = resampleLinear(pcm, sr, target);
+          const model = document.getElementById('asrModelId')?.value || '';
+          const text = await runOnDeviceAsr(pcm16, target, model);
+          log('📝 Heard: ' + (text||''));
+          const reply = text ? `You said: ${text}` : 'I did not catch that.';
+          const ttsEngine = document.getElementById('ttsEngine').value || 'speecht5';
+          const ttsModel = document.getElementById('ttsModelId').value || '';
+          const play = !!document.getElementById('ttsPlayAudio').checked;
+          await runOnDeviceTts(reply, ttsEngine, ttsModel, play);
+        } catch (e) { log('ASR error: ' + (e?.message||e)); }
+        return;
+      }
+      const Rec = getSpeechRecognitionCtor();
+      if (!Rec) { log('SpeechRecognition not available in this browser.'); return; }
+      const rec = new Rec(); rec.lang = 'en-US'; rec.interimResults = false; rec.continuous = false;
+      return new Promise((resolve) => {
+        rec.onresult = async (ev) => {
+          try {
+            const t = ev.results?.[0]?.[0]?.transcript || '';
+            log('📝 Heard: ' + t);
+            const reply = t ? `You said: ${t}` : 'I did not catch that.';
+            const ttsEngine = document.getElementById('ttsEngine').value || 'speecht5';
+            const ttsModel = document.getElementById('ttsModelId').value || '';
+            const play = !!document.getElementById('ttsPlayAudio').checked;
+            await runOnDeviceTts(reply, ttsEngine, ttsModel, play);
+          } finally { resolve(); }
+        };
+        rec.onerror = (e) => { log('Recognition error: ' + (e?.error||e)); resolve(); };
+        try { rec.start(); log('👂 Listening...'); } catch (e) { log('Recognition start failed: '+(e?.message||e)); resolve(); }
+      });
+    }
+    document.getElementById('listenReply').onclick = () => { listenAndReply(); };
+
+    // Wire TTS controls
+  document.getElementById('ttsPreload').onclick = async () => {
+      const wants = (document.getElementById('ttsEngine').value || 'speecht5');
+      let msgs = [];
+      // Load libs
+      try { await ensureTransformers(); msgs.push('transformers'); } catch (e) { msgs.push('transformers:ERR'); }
+      try { await ensureKokoro(); msgs.push('kokoro-js'); } catch (e) { msgs.push('kokoro-js:ERR'); }
+      // Prewarm TTS for selected engine
+      try {
+        const engine = (document.getElementById('ttsEngine').value || 'speecht5');
+        const model = (document.getElementById('ttsModelId').value || '').trim();
+        if (engine === 'speecht5') {
+          const T = await ensureTransformers(); const { pipeline } = T || {};
+          if (pipeline) { const id = model || defaultModels.speecht5; const p = await pipeline('text-to-speech', id, { quantized: true }); p.__modelId = id; window._ttsPipeline = p; msgs.push('prewarm:tts:SpeechT5'); }
+        } else if (engine === 'kokoro') {
+          const K = await ensureKokoro(); const id = model || defaultModels.kokoro; const inst = await K.from_pretrained(id); inst.__modelId = id; window._kokoroTts = inst; msgs.push('prewarm:tts:Kokoro'); }
+      } catch (e) { msgs.push('prewarm:tts:ERR'); }
+      // Prewarm ASR if whisper selected
+      try {
+        const aeng = (document.getElementById('asrEngine')?.value || 'speech').toLowerCase();
+        if (aeng === 'whisper') {
+          const model = (document.getElementById('asrModelId')?.value || 'Xenova/whisper-tiny.en').trim();
+          const T = await ensureTransformers(); const { pipeline } = T || {}; if (pipeline) {
+            const p = await pipeline('automatic-speech-recognition', model, { quantized: true }); p.__modelId = model; window._asrPipeline = p; msgs.push('prewarm:asr:Whisper');
+          }
+        }
+      } catch (e) { msgs.push('prewarm:asr:ERR'); }
+      log('preload: ' + msgs.join(', '));
+      // Keep selection stable; users can still switch engines after preload
+    };
+    document.getElementById('ttsSay').onclick = async () => {
+      const text = document.getElementById('ttsText').value || 'Hello';
+      const engine = document.getElementById('ttsEngine').value || 'speecht5';
+      const model = document.getElementById('ttsModelId').value;
+      const play = !!document.getElementById('ttsPlayAudio').checked;
+      try { await runOnDeviceTts(text, engine, model, play); }
+      catch (e) { log('On-device TTS error: ' + (e?.message||e)); }
+    };
+
+    // Apply query params for deterministic runs
+    try {
+      const eng = (qs.get('engine') || '').toLowerCase();
+      const model = qs.get('model') || '';
+      const playAudioQ = qs.get('playAudio');
+      const autoPreloadQ = qs.get('autoPreload');
+      const asr = (qs.get('asr') || '').toLowerCase();
+      const asrModel = qs.get('asrModel') || '';
+      const listenSec = qs.get('listenSec');
+      if (eng) { const sel = document.getElementById('ttsEngine'); sel.value = eng; }
+      if (model) { document.getElementById('ttsModelId').value = model; }
+      if (playAudioQ != null) { document.getElementById('ttsPlayAudio').checked = (playAudioQ === '1' || playAudioQ === 'true'); }
+      if (autoPreloadQ === '1' || autoPreloadQ === 'true') { setTimeout(()=>{ try{ document.getElementById('ttsPreload').click(); } catch {} }, 0); }
+      if (asr) { const s = document.getElementById('asrEngine'); s.value = asr; }
+      if (asrModel) { document.getElementById('asrModelId').value = asrModel; }
+      if (listenSec != null) { document.getElementById('listenSec').value = String(Math.max(1, Math.min(10, +listenSec||3))); }
+      const autoSay = qs.get('autoSay');
+      if (autoSay === '1' || autoSay === 'true') { document.getElementById('ttsSay').click(); }
+      const autoListen = qs.get('autoListen');
+      if (autoListen === '1' || autoListen === 'true') { setTimeout(()=>{ try { document.getElementById('listenReply').click(); } catch {} }, 50); }
+    } catch {}
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Working BVH Motion Viewer</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; 
+            color: white;
+        }
+        #container { width: 100vw; height: 100vh; }
+        #controls { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 350px;
+            z-index: 100;
+        }
+        .info { margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 5px; }
+        button { 
+            width: 100%; margin: 5px 0; padding: 10px; 
+            background: #4CAF50; color: white; border: none; 
+            border-radius: 5px; cursor: pointer; font-weight: bold;
+        }
+        button:hover { background: #45a049; }
+        select { 
+            width: 100%; margin: 5px 0; padding: 8px; 
+            background: #333; color: white; border: 1px solid #555; border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="controls">
+        <h3>🎭 Working BVH Viewer</h3>
+        
+        <div class="info">
+            <strong>Status:</strong> <span id="status">Loading...</span>
+        </div>
+        
+        <div>
+            <label>Sequence:</label>
+            <select id="sequenceSelect" onchange="changeSequence()">
+                <option value="emotional_journey">🎭 Emotional Journey</option>
+                <option value="character_styles">🤖 Character Styles</option>
+                <option value="movement_energy">⚡ Movement Energy</option>
+            </select>
+        </div>
+        
+        <div class="info">
+            <strong>Animation:</strong> <span id="animInfo">Stopped</span><br>
+            <strong>Frame:</strong> <span id="frameInfo">0</span> / <span id="totalFrames">0</span><br>
+            <strong>Phase:</strong> <span id="phaseInfo">None</span>
+        </div>
+        
+        <button onclick="togglePlay()">▶️ <span id="playText">Play</span></button>
+        <button onclick="resetAnim()">🔄 Reset</button>
+        <button onclick="toggleRotate()">🌀 <span id="rotateText">Rotate: OFF</span></button>
+        
+        <div class="info" id="debugInfo">
+            <strong>Debug:</strong> Starting...
+        </div>
+    </div>
+
+    <script src="./three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let skeleton = null;
+        let frame = 0;
+        let totalF = 300;
+        let playing = false;
+        let rotating = false;
+        let currentSeq = 'emotional_journey';
+        
+        // Animation phases for each sequence
+        const sequences = {
+            emotional_journey: [
+                {name: 'Neutral', start: 0, end: 50, style: 'calm'},
+                {name: 'Transition', start: 50, end: 80, style: 'transition'},
+                {name: 'Elated', start: 80, end: 130, style: 'happy'},
+                {name: 'Transition', start: 130, end: 160, style: 'transition'},
+                {name: 'Angry', start: 160, end: 210, style: 'angry'},
+                {name: 'Transition', start: 210, end: 240, style: 'transition'},
+                {name: 'Depressed', start: 240, end: 290, style: 'sad'},
+                {name: 'Transition', start: 290, end: 300, style: 'transition'}
+            ],
+            character_styles: [
+                {name: 'Neutral', start: 0, end: 50, style: 'calm'},
+                {name: 'Robot', start: 50, end: 100, style: 'robotic'},
+                {name: 'Zombie', start: 100, end: 150, style: 'zombie'},
+                {name: 'Drunk', start: 150, end: 200, style: 'drunk'},
+                {name: 'Neutral', start: 200, end: 300, style: 'calm'}
+            ],
+            movement_energy: [
+                {name: 'Tiptoe', start: 0, end: 60, style: 'light'},
+                {name: 'Skip', start: 60, end: 120, style: 'bouncy'},
+                {name: 'March', start: 120, end: 180, style: 'strong'},
+                {name: 'Crouched', start: 180, end: 240, style: 'low'},
+                {name: 'Proud', start: 240, end: 300, style: 'tall'}
+            ]
+        };
+        
+        function updateStatus(msg) {
+            document.getElementById('status').textContent = msg;
+            document.getElementById('debugInfo').innerHTML = `<strong>Debug:</strong> ${msg}`;
+            console.log('Status:', msg);
+        }
+        
+        function init() {
+            try {
+                updateStatus('Checking Three.js...');
+                
+                if (typeof THREE === 'undefined') {
+                    updateStatus('❌ Three.js not found!');
+                    return;
+                }
+                
+                updateStatus('✅ Three.js loaded, creating scene...');
+                
+                // Create scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x1a1a2e);
+                
+                // Create camera
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(2, 1.5, 2.5);
+                camera.lookAt(0, 1, 0);
+                
+                // Create renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                document.getElementById('container').appendChild(renderer.domElement);
+                
+                updateStatus('✅ Scene created, adding lights...');
+                
+                // Add lights
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(5, 5, 5);
+                directionalLight.castShadow = true;
+                scene.add(directionalLight);
+                
+                // Add grid
+                const grid = new THREE.GridHelper(4, 4, 0x444444, 0x222222);
+                scene.add(grid);
+                
+                updateStatus('✅ Lights added, creating skeleton...');
+                
+                createSkeleton();
+                
+                updateStatus('✅ Skeleton created, starting animation...');
+                
+                document.getElementById('totalFrames').textContent = totalF;
+                
+                // Start animation loop
+                animate();
+                
+                updateStatus('✅ Animation started - should be moving!');
+                
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`);
+                console.error('Init error:', error);
+            }
+        }
+        
+        function createSkeleton() {
+            // Clear previous skeleton
+            if (skeleton) {
+                scene.remove(skeleton);
+            }
+            
+            skeleton = new THREE.Group();
+            
+            // Create simple skeleton with visible joints
+            const joints = [
+                {name: 'root', pos: [0, 1, 0], color: 0xff4444, size: 0.08},
+                {name: 'spine', pos: [0, 1.3, 0], color: 0x44ff44, size: 0.06},
+                {name: 'head', pos: [0, 1.6, 0], color: 0x4444ff, size: 0.07},
+                {name: 'leftShoulder', pos: [-0.3, 1.4, 0], color: 0xffff44, size: 0.05},
+                {name: 'leftElbow', pos: [-0.5, 1.2, 0], color: 0xff44ff, size: 0.04},
+                {name: 'leftHand', pos: [-0.7, 1.0, 0], color: 0x44ffff, size: 0.03},
+                {name: 'rightShoulder', pos: [0.3, 1.4, 0], color: 0xffff44, size: 0.05},
+                {name: 'rightElbow', pos: [0.5, 1.2, 0], color: 0xff44ff, size: 0.04},
+                {name: 'rightHand', pos: [0.7, 1.0, 0], color: 0x44ffff, size: 0.03},
+                {name: 'leftHip', pos: [-0.15, 0.9, 0], color: 0xff8844, size: 0.05},
+                {name: 'leftKnee', pos: [-0.15, 0.5, 0], color: 0x88ff44, size: 0.04},
+                {name: 'leftFoot', pos: [-0.15, 0.1, 0], color: 0x4488ff, size: 0.04},
+                {name: 'rightHip', pos: [0.15, 0.9, 0], color: 0xff8844, size: 0.05},
+                {name: 'rightKnee', pos: [0.15, 0.5, 0], color: 0x88ff44, size: 0.04},
+                {name: 'rightFoot', pos: [0.15, 0.1, 0], color: 0x4488ff, size: 0.04}
+            ];
+            
+            // Create joint spheres
+            joints.forEach((joint, i) => {
+                const geometry = new THREE.SphereGeometry(joint.size, 12, 12);
+                const material = new THREE.MeshLambertMaterial({ 
+                    color: joint.color,
+                    emissive: joint.color,
+                    emissiveIntensity: 0.2
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                
+                sphere.position.set(joint.pos[0], joint.pos[1], joint.pos[2]);
+                sphere.castShadow = true;
+                sphere.userData = { 
+                    jointIndex: i,
+                    name: joint.name,
+                    initialPos: [...joint.pos]
+                };
+                
+                skeleton.add(sphere);
+            });
+            
+            // Create bones (lines between joints)
+            const bones = [
+                [0, 1], [1, 2], // spine to head
+                [1, 3], [3, 4], [4, 5], // left arm
+                [1, 6], [6, 7], [7, 8], // right arm
+                [0, 9], [9, 10], [10, 11], // left leg
+                [0, 12], [12, 13], [13, 14] // right leg
+            ];
+            
+            bones.forEach(([from, to]) => {
+                const fromPos = joints[from].pos;
+                const toPos = joints[to].pos;
+                
+                const geometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(...fromPos),
+                    new THREE.Vector3(...toPos)
+                ]);
+                const material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 3 });
+                const line = new THREE.Line(geometry, material);
+                
+                line.userData = { from, to, isBone: true };
+                skeleton.add(line);
+            });
+            
+            scene.add(skeleton);
+            updateStatus(`✅ Skeleton created with ${joints.length} joints`);
+        }
+        
+        function getCurrentPhase() {
+            const seq = sequences[currentSeq];
+            for (let phase of seq) {
+                if (frame >= phase.start && frame < phase.end) {
+                    return phase;
+                }
+            }
+            return seq[seq.length - 1];
+        }
+        
+        function updateAnimation() {
+            if (!skeleton || !playing) return;
+            
+            const currentPhase = getCurrentPhase();
+            const time = Date.now() * 0.001;
+            
+            // Update UI
+            document.getElementById('frameInfo').textContent = Math.floor(frame);
+            document.getElementById('phaseInfo').textContent = currentPhase.name;
+            document.getElementById('animInfo').textContent = playing ? 'Playing' : 'Stopped';
+            
+            // Apply motion based on current phase
+            skeleton.children.forEach((child) => {
+                if (child.userData && child.userData.jointIndex !== undefined) {
+                    const initialPos = child.userData.initialPos;
+                    const jointIndex = child.userData.jointIndex;
+                    
+                    let motion = [0, 0, 0];
+                    const intensity = 0.1; // Visible but not extreme
+                    
+                    // Different motion for different styles
+                    switch (currentPhase.style) {
+                        case 'happy':
+                            motion[1] = Math.sin(time * 4 + jointIndex * 0.3) * intensity;
+                            motion[0] = Math.sin(time * 2) * intensity * 0.5;
+                            break;
+                        case 'angry':
+                            motion[0] = Math.sin(time * 6 + jointIndex * 0.5) * intensity * 0.8;
+                            motion[2] = Math.cos(time * 5) * intensity * 0.4;
+                            break;
+                        case 'sad':
+                            motion[1] = -intensity * 0.3 + Math.sin(time * 1.5) * intensity * 0.2;
+                            break;
+                        case 'robotic':
+                            const step = 0.1;
+                            motion[0] = Math.round(Math.sin(time * 2) / step) * step * intensity;
+                            motion[1] = Math.round(Math.cos(time * 3) / step) * step * intensity;
+                            break;
+                        case 'zombie':
+                            motion[0] = Math.sin(time * 1.2 + jointIndex) * intensity * 0.6;
+                            motion[1] = Math.sin(time * 0.8) * intensity * 0.3;
+                            break;
+                        case 'bouncy':
+                            motion[1] = Math.abs(Math.sin(time * 5)) * intensity;
+                            break;
+                        case 'light':
+                            motion[1] = Math.sin(time * 3) * intensity * 0.5;
+                            motion[0] = Math.sin(time * 2) * intensity * 0.3;
+                            break;
+                        default: // calm, transition
+                            motion[1] = Math.sin(time * 2 + jointIndex * 0.2) * intensity * 0.3;
+                            break;
+                    }
+                    
+                    // Apply the motion
+                    child.position.set(
+                        initialPos[0] + motion[0],
+                        initialPos[1] + motion[1],
+                        initialPos[2] + motion[2]
+                    );
+                }
+                
+                // Update bones
+                if (child.userData && child.userData.isBone) {
+                    const fromJoint = skeleton.children[child.userData.from];
+                    const toJoint = skeleton.children[child.userData.to];
+                    
+                    if (fromJoint && toJoint) {
+                        const positions = child.geometry.attributes.position.array;
+                        positions[0] = fromJoint.position.x;
+                        positions[1] = fromJoint.position.y;
+                        positions[2] = fromJoint.position.z;
+                        positions[3] = toJoint.position.x;
+                        positions[4] = toJoint.position.y;
+                        positions[5] = toJoint.position.z;
+                        child.geometry.attributes.position.needsUpdate = true;
+                    }
+                }
+            });
+            
+            // Auto-advance frame
+            frame = (frame + 1) % totalF;
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            updateAnimation();
+            
+            if (rotating && skeleton) {
+                skeleton.rotation.y += 0.01;
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function togglePlay() {
+            playing = !playing;
+            document.getElementById('playText').textContent = playing ? 'Pause' : 'Play';
+            updateStatus(playing ? 'Animation playing' : 'Animation paused');
+        }
+        
+        function resetAnim() {
+            frame = 0;
+            updateStatus('Animation reset');
+        }
+        
+        function toggleRotate() {
+            rotating = !rotating;
+            document.getElementById('rotateText').textContent = rotating ? 'Rotate: ON' : 'Rotate: OFF';
+        }
+        
+        function changeSequence() {
+            const select = document.getElementById('sequenceSelect');
+            currentSeq = select.value;
+            frame = 0;
+            updateStatus(`Switched to ${currentSeq}`);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Start the application
+        if (typeof THREE !== 'undefined') {
+            init();
+        } else {
+            window.addEventListener('load', init);
+        }
+    </script>
+</body>
+</html>

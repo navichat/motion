@@ -1,0 +1,51 @@
+TinyLlama Language Model Output
+================================
+Task ID: task_1753635896556_dl0tha14p
+Timestamp: 2025-07-27T17:05:00.565Z
+Execution Time: 151.89999997615814ms
+Worker Type: gpu
+
+Generated Text:
+Artificial Intelligence is a rapidly evolving field that focuses on creating intelligent machines.
+
+Model Confidence: 0.9810666959928636
+Tokens Generated: N/A
+Inference Time: 300ms
+
+Metadata:
+{
+  "type": "text_generation",
+  "generated_text": "Artificial Intelligence is a rapidly evolving field that focuses on creating intelligent machines.",
+  "tokens": [
+    {
+      "text": "Artificial",
+      "probability": 0.95
+    },
+    {
+      "text": " Intelligence",
+      "probability": 0.92
+    },
+    {
+      "text": " is",
+      "probability": 0.88
+    },
+    {
+      "text": " a",
+      "probability": 0.85
+    }
+  ],
+  "completion_reason": "length",
+  "model_confidence": 0.9810666959928636,
+  "processing_tokens": 20,
+  "inference_time_ms": 300,
+  "executionTime": 151.89999997615814,
+  "timestamp": "2025-07-27T17:05:00.565Z",
+  "taskId": "task_1753635896556_dl0tha14p",
+  "workerType": "gpu",
+  "success": true,
+  "inferenceTime": 151.30000007152557,
+  "executionProvider": [
+    "webgpu",
+    "cpu"
+  ]
+}

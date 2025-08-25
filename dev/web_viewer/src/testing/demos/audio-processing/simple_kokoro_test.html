@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Kokoro TTS Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #output {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status.info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        audio {
+            width: 100%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Simple Kokoro TTS Test</h1>
+        
+        <div class="test-section">
+            <h3>Worker Control</h3>
+            <button id="testWorker">Test Worker</button>
+            <button id="testModels" disabled>Test Models</button>
+            <div id="workerStatus" class="status info">Worker not initialized. Test worker first.</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>TTS Testing</h3>
+            <button id="testKokoro" disabled>Test Kokoro</button>
+            <button id="testPhonemizer" disabled>Test Phonemizer</button>
+            <div id="audioContainer"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Output Log</h3>
+            <div id="output"></div>
+        </div>
+    </div>
+
+    <script>
+        let worker = null;
+        let workerInitialized = false;
+
+        const output = document.getElementById('output');
+        const workerStatus = document.getElementById('workerStatus');
+        const testWorkerBtn = document.getElementById('testWorker');
+        const testModelsBtn = document.getElementById('testModels');
+        const testKokoroBtn = document.getElementById('testKokoro');
+        const testPhonemizerBtn = document.getElementById('testPhonemizer');
+        const audioContainer = document.getElementById('audioContainer');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(message, type = 'info') {
+            workerStatus.textContent = message;
+            workerStatus.className = `status ${type}`;
+        }
+
+        function enableButtons(enabled) {
+            testModelsBtn.disabled = !enabled;
+            testKokoroBtn.disabled = !enabled;
+            testPhonemizerBtn.disabled = !enabled;
+        }
+
+        function playAudio(audioData, sampleRate = 22050) {
+            try {
+                // Create audio context
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create buffer
+                const buffer = audioContext.createBuffer(1, audioData.length, sampleRate);
+                const channelData = buffer.getChannelData(0);
+                
+                // Copy audio data
+                for (let i = 0; i < audioData.length; i++) {
+                    channelData[i] = audioData[i];
+                }
+                
+                // Create source and play
+                const source = audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioContext.destination);
+                source.start();
+                
+                // Also create downloadable audio element
+                const audioElement = document.createElement('audio');
+                audioElement.controls = true;
+                audioElement.style.width = '100%';
+                audioElement.style.margin = '10px 0';
+                
+                // Convert Float32Array to WAV blob
+                const wavBlob = createWaveFileBlob(audioData, sampleRate);
+                const audioUrl = URL.createObjectURL(wavBlob);
+                audioElement.src = audioUrl;
+                
+                // Clear previous audio and add new one
+                audioContainer.innerHTML = '';
+                audioContainer.appendChild(audioElement);
+                
+                log(`Audio played: ${audioData.length} samples at ${sampleRate}Hz`);
+                
+            } catch (error) {
+                log(`Audio playback failed: ${error.message}`);
+            }
+        }
+
+        function createWaveFileBlob(audioData, sampleRate) {
+            const length = audioData.length;
+            const buffer = new ArrayBuffer(44 + length * 2);
+            const view = new DataView(buffer);
+            
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, length * 2, true);
+            
+            // Convert float samples to 16-bit PCM
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                const sample = Math.max(-1, Math.min(1, audioData[i]));
+                view.setInt16(offset, sample * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        function createWorker() {
+            if (worker) {
+                worker.terminate();
+            }
+
+            log('Creating worker...');
+            worker = new Worker('js/conversationWorkerWorking.js');
+            
+            worker.onmessage = function(event) {
+                const { type, message, result, error, text } = event.data;
+                
+                switch (type) {
+                    case 'info':
+                        log(`Worker message: ${type} - ${message}`);
+                        break;
+                    case 'debug_log':
+                        log(`Worker message: ${type} - ${event.data.message}`);
+                        break;
+                    case 'status':
+                        log(`Worker message: ${type} - ${message}`);
+                        updateStatus(message, 'success');
+                        enableButtons(true);
+                        workerInitialized = true;
+                        break;
+                    case 'output':
+                        log(`Worker message: ${type} - ${JSON.stringify(event.data)}`);
+                        
+                        // Handle audio output
+                        if (result && result.audio) {
+                            if (result.audio instanceof Float32Array) {
+                                playAudio(result.audio, result.sampleRate || 22050);
+                            } else if (Array.isArray(result.audio)) {
+                                const audioData = new Float32Array(result.audio);
+                                playAudio(audioData, result.sampleRate || 22050);
+                            }
+                        }
+                        break;
+                    case 'error':
+                        log(`Worker error: ${error}`);
+                        updateStatus(`Error: ${error}`, 'error');
+                        break;
+                    default:
+                        log(`Worker message: ${type} - ${message || JSON.stringify(event.data)}`);
+                }
+            };
+
+            worker.onerror = function(error) {
+                log(`Worker error: ${error.message}`);
+                updateStatus(`Worker error: ${error.message}`, 'error');
+            };
+
+            // Initialize worker
+            worker.postMessage({ type: 'init' });
+            updateStatus('Worker created and initialized', 'info');
+            log('Worker created and initialized');
+        }
+
+        // Event listeners
+        testWorkerBtn.addEventListener('click', () => {
+            if (!workerInitialized) {
+                updateStatus('Worker not initialized. Test worker first.', 'info');
+                log('Worker not initialized. Test worker first.');
+                createWorker();
+            } else {
+                log('Worker already initialized and ready');
+                updateStatus('Worker already running', 'success');
+            }
+        });
+
+        testModelsBtn.addEventListener('click', () => {
+            if (worker && workerInitialized) {
+                log('Testing model status...');
+                worker.postMessage({ type: 'test_models' });
+            }
+        });
+
+        testKokoroBtn.addEventListener('click', () => {
+            if (worker && workerInitialized) {
+                log('Testing Kokoro TTS...');
+                // Set voice first
+                worker.postMessage({ type: 'set_voice', voice: 'af_heart' });
+                // Then test TTS
+                worker.postMessage({ 
+                    type: 'test_tts', 
+                    text: 'Hello world! This is a test of Kokoro TTS with proper phonemization.' 
+                });
+            }
+        });
+
+        testPhonemizerBtn.addEventListener('click', () => {
+            if (worker && workerInitialized) {
+                log('Testing phonemizer...');
+                worker.postMessage({ type: 'test_phonemizer' });
+            }
+        });
+
+        // Initialize on load
+        log('Simple Kokoro TTS Test initialized');
+        updateStatus('Ready to test. Click "Test Worker" to start.', 'info');
+    </script>
+</body>
+</html>

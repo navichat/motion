@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRM Avatar AI Conversation - Fixed Version</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            max-width: 400px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .title {
+            color: #00d4ff;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-section h3 {
+            margin: 0 0 10px 0;
+            color: #64b5f6;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #00d4ff, #0084ff);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 212, 255, 0.3);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .success-button {
+            background: linear-gradient(45deg, #4caf50, #45a049) !important;
+        }
+        
+        .warning-button {
+            background: linear-gradient(45deg, #ff9800, #f57c00) !important;
+        }
+        
+        .danger-button {
+            background: linear-gradient(45deg, #f44336, #d32f2f) !important;
+        }
+        
+        .speaking {
+            background: linear-gradient(45deg, #ff6b35, #f7931e) !important;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        select, input[type="range"], input[type="text"], textarea {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            color: white;
+            padding: 5px 8px;
+            font-size: 12px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .status {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #81c784;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .error {
+            color: #f44336;
+        }
+        
+        .chat-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            width: 400px;
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .conversation-log {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 5px;
+        }
+        
+        .user-message {
+            background: rgba(0, 212, 255, 0.2);
+            text-align: right;
+        }
+        
+        .ai-message {
+            background: rgba(76, 175, 80, 0.2);
+            text-align: left;
+        }
+        
+        .system-message {
+            background: rgba(255, 193, 7, 0.2);
+            text-align: center;
+            font-style: italic;
+        }
+        
+        .voice-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .text-input {
+            display: flex;
+            gap: 10px;
+        }
+        
+        #message-input {
+            flex: 1;
+        }
+        
+        .model-status {
+            font-size: 10px;
+            color: #81c784;
+            margin-top: 5px;
+        }
+        
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .recording {
+            background: linear-gradient(45deg, #ff4444, #cc0000) !important;
+            animation: record-pulse 0.5s infinite;
+        }
+        
+        @keyframes record-pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Loading AI Avatar Conversation...</div>
+        <div id="loading-status">Initializing models...</div>
+    </div>
+    
+    <div id="container">
+        <div id="ui-panel">
+            <div class="title">🤖 AI Avatar Chat</div>
+            
+            <div class="control-section">
+                <h3>🎭 Character Controls</h3>
+                <div class="controls">
+                    <input type="file" id="vrm-file" accept=".vrm" style="display: none;">
+                    <button onclick="document.getElementById('vrm-file').click()">Load VRM</button>
+                    <button onclick="resetCharacterPosition()">Reset Position</button>
+                </div>
+                <div class="controls">
+                    <button onclick="toggleAnimation()">Play/Pause Anim</button>
+                    <button onclick="resetAnimation()">Reset Animation</button>
+                </div>
+                <div class="controls">
+                    <select id="animation-select">
+                        <option value="neutral_reference.bvh">Neutral</option>
+                        <option value="angry_reference.bvh">Angry</option>
+                        <option value="elated_reference.bvh">Happy</option>
+                        <option value="dramatic_walking.bvh">Walking</option>
+                    </select>
+                    <button onclick="loadSelectedAnimation()">Load</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>🏫 Environment</h3>
+                <div class="controls">
+                    <input type="file" id="glb-file" accept=".glb,.gltf" style="display: none;">
+                    <button onclick="document.getElementById('glb-file').click()">Load Classroom</button>
+                    <button onclick="toggleClassroom()">Toggle Scene</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>🎨 Avatar Mood</h3>
+                <div class="controls">
+                    <button onclick="setAvatarMood('happy')">😊 Happy</button>
+                    <button onclick="setAvatarMood('sad')">😢 Sad</button>
+                    <button onclick="setAvatarMood('angry')">😠 Angry</button>
+                    <button onclick="setAvatarMood('neutral')">😐 Neutral</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>📊 Debug Info</h3>
+                <div class="status" id="debug-info">
+                    Initializing AI conversation system...
+                </div>
+                <div class="model-status" id="model-status">
+                    Models loading...
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-panel">
+            <div class="title">💬 Conversation</div>
+            
+            <div class="conversation-log" id="conversation-log">
+                <div class="system-message">AI Avatar is initializing...</div>
+            </div>
+            
+            <div class="voice-input">
+                <button id="record-btn" onclick="toggleRecording()">🎤 Record</button>
+                <button id="stop-speaking-btn" onclick="stopSpeaking()" disabled>🔇 Stop</button>
+                <select id="voice-select">
+                    <option value="0">Loading voices...</option>
+                </select>
+            </div>
+            
+            <div class="text-input">
+                <input type="text" id="message-input" placeholder="Type your message here..." onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+            
+            <div class="controls">
+                <button onclick="clearConversation()">Clear Chat</button>
+                <button onclick="testTTS('Hello! I am your AI avatar assistant.')">Test Voice</button>
+                <button onclick="initializeModels()">Reload Models</button>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <div id="scene-info">
+                <div><strong>AI Conversation:</strong> Using simulated responses (Llama model optional)</div>
+                <div><strong>Voice Synthesis:</strong> Web Speech API with multiple voice options</div>
+                <div><strong>Speech Recognition:</strong> Web Speech API for voice input</div>
+                <div><strong>3D Avatar:</strong> VRM character with emotion-based animations</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import map for modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js",
+            "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        // Import required modules
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Make THREE.js globally available for external modules
+        window.THREE = THREE;
+        window.GLTFLoader = GLTFLoader;
+
+        // Global variables
+        let scene, camera, renderer, controls;
+        let classroom = null;
+        let vrmCharacter = null;
+        let vrmAdapter = null;
+        let lightingManager = null;
+        let animationMixer, currentAction;
+        let bvhData = null;
+        let isPlaying = false;
+        let animationFrame = 0;
+        let characterPosition = new THREE.Vector3(0, 0, 0);
+
+        // AI Models and Audio
+        let llamaModel = null;
+        let whisperModel = null;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let currentSpeech = null;
+        let speechSynthesis = window.speechSynthesis;
+        let currentVoice = null;
+        let audioContext = null;
+
+        // UI elements
+        const loadingDiv = document.getElementById('loading');
+        const loadingStatus = document.getElementById('loading-status');
+        const debugInfo = document.getElementById('debug-info');
+        const modelStatus = document.getElementById('model-status');
+        const conversationLog = document.getElementById('conversation-log');
+        const messageInput = document.getElementById('message-input');
+        const recordBtn = document.getElementById('record-btn');
+        const stopSpeakingBtn = document.getElementById('stop-speaking-btn');
+
+        // Animation clock
+        const clock = new THREE.Clock();
+
+        // Conversation context and avatar state
+        let conversationHistory = [
+            { role: "system", content: "You are a friendly AI avatar assistant. Keep responses concise and engaging, as they will be spoken aloud. Express emotions appropriately and include emotional cues in your responses like [happy], [sad], [excited], [thoughtful]." }
+        ];
+        let currentMood = 'neutral';
+        let isAvatarSpeaking = false;
+        let emotionAnimationQueue = [];
+
+        // Initialize available voices
+        function initializeVoices() {
+            if (speechSynthesis) {
+                const voices = speechSynthesis.getVoices();
+                if (voices.length > 0) {
+                    currentVoice = voices.find(voice => voice.lang.includes('en')) || voices[0];
+                    updateDebugInfo(`🎵 Voice initialized: ${currentVoice.name}`);
+                    
+                    // Update voice select dropdown
+                    const voiceSelect = document.getElementById('voice-select');
+                    voiceSelect.innerHTML = '';
+                    voices.filter(voice => voice.lang.includes('en')).forEach((voice, index) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = `${voice.name} (${voice.lang})`;
+                        voiceSelect.appendChild(option);
+                    });
+                }
+            }
+        }
+
+        // Initialize audio context for advanced audio processing
+        async function initializeAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                updateDebugInfo('🔊 Audio context initialized');
+            } catch (error) {
+                updateDebugInfo('⚠️ Audio context not available');
+            }
+        }
+
+        function updateLoadingStatus(message) {
+            console.log('📝', message);
+            if (loadingStatus) {
+                loadingStatus.textContent = message;
+            }
+        }
+
+        function updateDebugInfo(message) {
+            if (debugInfo) {
+                debugInfo.innerHTML += message + '<br>';
+                debugInfo.scrollTop = debugInfo.scrollHeight;
+            }
+        }
+
+        function updateModelStatus(message) {
+            if (modelStatus) {
+                modelStatus.textContent = message;
+            }
+        }
+
+        function addToConversation(type, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.textContent = message;
+            conversationLog.appendChild(messageDiv);
+            conversationLog.scrollTop = conversationLog.scrollHeight;
+        }
+
+        // Simple AI response generator (fallback when Llama model isn't available)
+        function generateSimpleResponse(userMessage) {
+            const responses = {
+                greeting: [
+                    "Hello! It's great to meet you! [happy]",
+                    "Hi there! How can I help you today? [cheerful]",
+                    "Welcome! I'm excited to chat with you! [excited]"
+                ],
+                how_are_you: [
+                    "I'm doing wonderfully, thank you for asking! [happy]",
+                    "I'm great! How are you doing? [cheerful]",
+                    "I'm fantastic! Thanks for checking in! [joyful]"
+                ],
+                goodbye: [
+                    "Goodbye! It was lovely talking with you! [happy]",
+                    "See you later! Take care! [warm]",
+                    "Farewell! Hope to chat again soon! [friendly]"
+                ],
+                help: [
+                    "I'm here to help! What do you need assistance with? [helpful]",
+                    "Of course! I'd be happy to help you! [eager]",
+                    "Let me help you with that! [supportive]"
+                ],
+                default: [
+                    "That's interesting! Tell me more about that. [curious]",
+                    "I see! That's quite fascinating. [thoughtful]",
+                    "Thanks for sharing that with me! [appreciative]",
+                    "That's a great point! What do you think about it? [engaged]"
+                ]
+            };
+
+            const message = userMessage.toLowerCase();
+            
+            if (message.includes('hello') || message.includes('hi') || message.includes('hey')) {
+                return responses.greeting[Math.floor(Math.random() * responses.greeting.length)];
+            } else if (message.includes('how are you') || message.includes('how do you feel')) {
+                return responses.how_are_you[Math.floor(Math.random() * responses.how_are_you.length)];
+            } else if (message.includes('bye') || message.includes('goodbye') || message.includes('see you')) {
+                return responses.goodbye[Math.floor(Math.random() * responses.goodbye.length)];
+            } else if (message.includes('help') || message.includes('assist')) {
+                return responses.help[Math.floor(Math.random() * responses.help.length)];
+            } else {
+                return responses.default[Math.floor(Math.random() * responses.default.length)];
+            }
+        }
+
+        // Try to initialize models (optional - system works without them)
+        async function initializeModels() {
+            try {
+                updateLoadingStatus('Initializing audio systems...');
+                await initializeAudio();
+                initializeVoices();
+                
+                updateLoadingStatus('AI models are optional...');
+                updateModelStatus('Using built-in conversation system');
+                
+                // Optionally try to load Llama model with correct path
+                try {
+                    updateDebugInfo('🔄 Attempting to load Llama model (optional)...');
+                    
+                    // Try different model names/paths
+                    const modelOptions = [
+                        'microsoft/DialoGPT-medium',
+                        'gpt2',
+                        'distilgpt2'
+                    ];
+                    
+                    for (const modelName of modelOptions) {
+                        try {
+                            const { pipeline } = await import('@huggingface/transformers');
+                            llamaModel = await pipeline('text-generation', modelName, {
+                                device: 'wasm',
+                                dtype: 'fp32'
+                            });
+                            updateDebugInfo(`✅ Loaded model: ${modelName}`);
+                            updateModelStatus(`AI Model: ${modelName} (Ready)`);
+                            break;
+                        } catch (modelError) {
+                            updateDebugInfo(`❌ Failed to load ${modelName}`);
+                        }
+                    }
+                } catch (importError) {
+                    updateDebugInfo('⚠️ Transformers.js not available, using fallback responses');
+                }
+
+                updateDebugInfo('🤖 AI conversation system ready (with or without advanced models)');
+                addToConversation('system', 'AI Avatar is ready! Try saying hello or typing a message.');
+
+                return true;
+            } catch (error) {
+                console.error('Model initialization error:', error);
+                updateDebugInfo(`❌ Model error: ${error.message}`);
+                updateModelStatus('Using fallback conversation system');
+                
+                // Ensure speech synthesis is available as fallback
+                if (speechSynthesis) {
+                    updateDebugInfo('✅ Using browser speech synthesis');
+                    return true;
+                } else {
+                    updateDebugInfo('❌ No speech capabilities available');
+                    return false;
+                }
+            }
+        }
+
+        // AI Response Generation
+        async function generateResponse(userMessage) {
+            try {
+                conversationHistory.push({ role: "user", content: userMessage });
+                
+                let aiResponse;
+                
+                if (llamaModel) {
+                    // Use advanced model if available
+                    const prompt = conversationHistory.map(msg => {
+                        if (msg.role === 'system') return `System: ${msg.content}`;
+                        if (msg.role === 'user') return `Human: ${msg.content}`;
+                        return `Assistant: ${msg.content}`;
+                    }).join('\n') + '\nAssistant:';
+
+                    const response = await llamaModel(prompt, {
+                        max_new_tokens: 50,
+                        temperature: 0.7,
+                        do_sample: true
+                    });
+
+                    aiResponse = response[0].generated_text.split('Assistant:').pop().trim();
+                } else {
+                    // Use simple response generator
+                    aiResponse = generateSimpleResponse(userMessage);
+                }
+                
+                // Clean up the response
+                if (aiResponse.length === 0) {
+                    aiResponse = "I'm here to help! What would you like to talk about? [friendly]";
+                }
+                
+                conversationHistory.push({ role: "assistant", content: aiResponse });
+                
+                // Keep conversation history manageable
+                if (conversationHistory.length > 12) {
+                    conversationHistory = [conversationHistory[0], ...conversationHistory.slice(-10)];
+                }
+
+                return aiResponse;
+            } catch (error) {
+                console.error('Response generation error:', error);
+                return "I'm having trouble thinking right now. Could you try again? [thoughtful]";
+            }
+        }
+
+        // Extract emotion from AI response
+        function extractEmotion(text) {
+            const emotionPatterns = {
+                'happy': /\[happy\]|\[joy\]|\[excited\]|\[cheerful\]|\[joyful\]/i,
+                'sad': /\[sad\]|\[sorry\]|\[disappointed\]|\[melancholy\]/i,
+                'angry': /\[angry\]|\[frustrated\]|\[annoyed\]|\[mad\]/i,
+                'surprised': /\[surprised\]|\[amazed\]|\[shocked\]|\[wow\]/i,
+                'thoughtful': /\[thoughtful\]|\[thinking\]|\[pondering\]|\[curious\]/i,
+                'neutral': /\[neutral\]|\[calm\]|\[normal\]|\[friendly\]/i
+            };
+
+            for (const [emotion, pattern] of Object.entries(emotionPatterns)) {
+                if (pattern.test(text)) {
+                    return emotion;
+                }
+            }
+
+            // Fallback emotion detection based on content
+            const lowerText = text.toLowerCase();
+            if (lowerText.includes('great') || lowerText.includes('wonderful') || lowerText.includes('amazing')) {
+                return 'happy';
+            } else if (lowerText.includes('sorry') || lowerText.includes('unfortunately')) {
+                return 'sad';
+            } else if (lowerText.includes('interesting') || lowerText.includes('think')) {
+                return 'thoughtful';
+            }
+            
+            return 'neutral';
+        }
+
+        // Enhanced speech synthesis
+        async function speakText(text, voiceOption = null) {
+            if (isAvatarSpeaking) {
+                stopSpeaking();
+            }
+
+            isAvatarSpeaking = true;
+            stopSpeakingBtn.disabled = false;
+            
+            // Clean emotion markers from speech text
+            const cleanText = text.replace(/\[[^\]]+\]/g, '').trim();
+            
+            updateDebugInfo(`🗣️ Speaking: "${cleanText.substring(0, 50)}..."`);
+            
+            try {
+                // Use Web Speech API as primary TTS
+                if (speechSynthesis && currentVoice) {
+                    const utterance = new SpeechSynthesisUtterance(cleanText);
+                    
+                    // Configure voice
+                    if (voiceOption && speechSynthesis.getVoices()[voiceOption]) {
+                        utterance.voice = speechSynthesis.getVoices()[voiceOption];
+                    } else {
+                        utterance.voice = currentVoice;
+                    }
+                    
+                    utterance.rate = 0.9;
+                    utterance.pitch = 1.0;
+                    utterance.volume = 0.8;
+                    
+                    utterance.onend = () => {
+                        isAvatarSpeaking = false;
+                        stopSpeakingBtn.disabled = true;
+                        updateDebugInfo('🔇 Speech completed');
+                    };
+                    
+                    utterance.onerror = (error) => {
+                        console.error('Speech synthesis error:', error);
+                        isAvatarSpeaking = false;
+                        stopSpeakingBtn.disabled = true;
+                        updateDebugInfo('❌ Speech error');
+                    };
+                    
+                    // Cancel any existing speech
+                    speechSynthesis.cancel();
+                    speechSynthesis.speak(utterance);
+                    
+                    currentSpeech = utterance;
+                    
+                } else {
+                    updateDebugInfo('❌ Speech synthesis not available');
+                    isAvatarSpeaking = false;
+                    stopSpeakingBtn.disabled = true;
+                }
+                
+            } catch (error) {
+                console.error('TTS error:', error);
+                updateDebugInfo(`❌ Speech error: ${error.message}`);
+                isAvatarSpeaking = false;
+                stopSpeakingBtn.disabled = true;
+            }
+        }
+
+        // Enhanced speech recognition with fallback to Web Speech API
+        async function processVoiceInput(audioBlob) {
+            try {
+                updateDebugInfo('🎧 Processing voice input...');
+                
+                // Use Web Speech API (more reliable than Whisper for now)
+                return new Promise((resolve) => {
+                    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                        updateDebugInfo('❌ Speech recognition not supported');
+                        resolve(null);
+                        return;
+                    }
+                    
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    const recognition = new SpeechRecognition();
+                    
+                    recognition.continuous = false;
+                    recognition.interimResults = false;
+                    recognition.lang = 'en-US';
+                    
+                    recognition.onresult = (event) => {
+                        const transcript = event.results[0][0].transcript;
+                        updateDebugInfo(`📝 Browser heard: "${transcript}"`);
+                        resolve(transcript);
+                    };
+                    
+                    recognition.onerror = (error) => {
+                        updateDebugInfo(`❌ Speech recognition error: ${error.error}`);
+                        resolve(null);
+                    };
+                    
+                    recognition.onend = () => {
+                        // Recognition ended
+                    };
+                    
+                    // Start recognition
+                    recognition.start();
+                });
+            } catch (error) {
+                console.error('Voice processing error:', error);
+                updateDebugInfo(`❌ Voice processing error: ${error.message}`);
+                return null;
+            }
+        }
+
+        // UI Control Functions
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            addToConversation('user', message);
+            messageInput.value = '';
+            
+            updateDebugInfo(`👤 User: ${message}`);
+            
+            // Generate AI response
+            const response = await generateResponse(message);
+            addToConversation('ai', response);
+            
+            updateDebugInfo(`🤖 AI: ${response}`);
+            
+            // Extract emotion and trigger avatar animation
+            const detectedEmotion = extractEmotion(response);
+            if (detectedEmotion !== currentMood) {
+                setAvatarMood(detectedEmotion);
+            }
+            
+            // Speak the response
+            const voiceSelect = document.getElementById('voice-select');
+            const selectedVoiceIndex = voiceSelect.value;
+            await speakText(response, selectedVoiceIndex);
+        }
+
+        // Fallback to Web Speech API for direct speech recognition
+        function tryWebSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                updateDebugInfo('❌ Speech recognition not supported');
+                return;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            
+            recognition.onstart = () => {
+                isRecording = true;
+                recordBtn.textContent = '⏹️ Stop';
+                recordBtn.classList.add('recording');
+                updateDebugInfo('🎤 Listening with Web Speech API...');
+            };
+            
+            recognition.onresult = async (event) => {
+                const transcript = event.results[0][0].transcript;
+                updateDebugInfo(`📝 Heard: "${transcript}"`);
+                
+                messageInput.value = transcript;
+                await sendMessage();
+            };
+            
+            recognition.onerror = (error) => {
+                updateDebugInfo(`❌ Speech recognition error: ${error.error}`);
+                isRecording = false;
+                recordBtn.textContent = '🎤 Record';
+                recordBtn.classList.remove('recording');
+            };
+            
+            recognition.onend = () => {
+                isRecording = false;
+                recordBtn.textContent = '🎤 Record';
+                recordBtn.classList.remove('recording');
+                updateDebugInfo('🔇 Speech recognition ended');
+            };
+            
+            recognition.start();
+        }
+
+        // Enhanced voice recording
+        async function toggleRecording() {
+            if (!isRecording) {
+                // Use Web Speech API directly (more reliable)
+                tryWebSpeechRecognition();
+            } else {
+                // Stop current recording
+                if (speechRecognition) {
+                    speechRecognition.stop();
+                }
+                isRecording = false;
+                recordBtn.textContent = '🎤 Record';
+                recordBtn.classList.remove('recording');
+                updateDebugInfo('⏹️ Recording stopped');
+            }
+        }
+
+        function stopSpeaking() {
+            if (currentSpeech) {
+                if (speechSynthesis) {
+                    speechSynthesis.cancel();
+                }
+                currentSpeech = null;
+                isAvatarSpeaking = false;
+                stopSpeakingBtn.disabled = true;
+                updateDebugInfo('🔇 Speech stopped');
+            }
+        }
+
+        function clearConversation() {
+            conversationLog.innerHTML = '<div class="system-message">Conversation cleared</div>';
+            conversationHistory = [conversationHistory[0]]; // Keep system message
+            updateDebugInfo('🗑️ Conversation cleared');
+        }
+
+        async function testTTS(text) {
+            const voiceSelect = document.getElementById('voice-select');
+            const selectedVoiceIndex = voiceSelect.value;
+            await speakText(text, selectedVoiceIndex);
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Simple lighting setup without external dependencies
+        function setupFallbackLighting() {
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(10, 10, 5);
+            scene.add(directionalLight);
+            
+            updateDebugInfo('✅ Basic lighting setup complete');
+        }
+
+        // Avatar mood and animation (simplified without BVH dependency)
+        function setAvatarMood(mood) {
+            if (currentMood === mood) return;
+            
+            currentMood = mood;
+            updateDebugInfo(`😊 Setting avatar mood: ${mood}`);
+            
+            // Simple procedural animations
+            if (vrmCharacter) {
+                createProceduralMoodAnimation(mood);
+            }
+        }
+
+        function createProceduralMoodAnimation(mood) {
+            if (!vrmCharacter) return;
+            
+            updateDebugInfo(`🎭 Creating simple ${mood} animation`);
+            
+            try {
+                const humanoid = vrmCharacter.humanoid;
+                if (humanoid) {
+                    const headNode = humanoid.getNormalizedBoneNode('head');
+                    if (headNode) {
+                        switch (mood) {
+                            case 'happy':
+                                animateNode(headNode, { x: 0.1, y: 0, z: 0 });
+                                break;
+                            case 'sad':
+                                animateNode(headNode, { x: -0.2, y: 0, z: 0 });
+                                break;
+                            case 'surprised':
+                                animateNode(headNode, { x: 0.15, y: 0, z: 0 });
+                                break;
+                            case 'thoughtful':
+                                animateNode(headNode, { x: 0, y: 0, z: 0.1 });
+                                break;
+                        }
+                    }
+                }
+            } catch (error) {
+                updateDebugInfo(`❌ Animation error: ${error.message}`);
+            }
+        }
+
+        function animateNode(node, rotation, duration = 1000) {
+            if (!node) return;
+            
+            const startRotation = { x: node.rotation.x, y: node.rotation.y, z: node.rotation.z };
+            const targetRotation = {
+                x: startRotation.x + rotation.x,
+                y: startRotation.y + rotation.y,
+                z: startRotation.z + rotation.z
+            };
+            
+            const startTime = performance.now();
+            
+            function animate() {
+                const elapsed = performance.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                
+                node.rotation.x = startRotation.x + (targetRotation.x - startRotation.x) * eased;
+                node.rotation.y = startRotation.y + (targetRotation.y - startRotation.y) * eased;
+                node.rotation.z = startRotation.z + (targetRotation.z - startRotation.z) * eased;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    setTimeout(() => {
+                        animateNode(node, {
+                            x: -rotation.x,
+                            y: -rotation.y,
+                            z: -rotation.z
+                        }, duration * 0.5);
+                    }, 500);
+                }
+            }
+            
+            animate();
+        }
+
+        // Main initialization
+        async function init() {
+            updateLoadingStatus('Creating 3D scene...');
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.8, 3);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0.9, 0);
+            
+            updateLoadingStatus('Setting up lighting...');
+            setupFallbackLighting();
+            
+            updateLoadingStatus('Loading VRM character...');
+            await loadDefaultVRM();
+            
+            updateLoadingStatus('Initializing AI models...');
+            await initializeModels();
+            
+            // Setup file loaders
+            setupFileLoader();
+            
+            updateLoadingStatus('Ready!');
+            
+            // Start animation loop
+            animate();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                loadingDiv.style.display = 'none';
+            }, 1000);
+            
+            updateDebugInfo('🎭 3D avatar conversation system initialized');
+        }
+
+        function setupFileLoader() {
+            const vrmFileInput = document.getElementById('vrm-file');
+            vrmFileInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    await loadVRMFile(file);
+                }
+            });
+        }
+
+        async function loadVRMFile(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                await loadVRMFromArrayBuffer(arrayBuffer, file.name);
+            } catch (error) {
+                updateDebugInfo(`❌ Failed to load VRM: ${error.message}`);
+            }
+        }
+
+        async function loadVRMFromArrayBuffer(arrayBuffer, filename) {
+            const loader = new GLTFLoader();
+            loader.register((parser) => new VRMLoaderPlugin(parser));
+            
+            const gltf = await new Promise((resolve, reject) => {
+                loader.parse(arrayBuffer, '', resolve, reject);
+            });
+            
+            if (vrmCharacter) {
+                scene.remove(vrmCharacter.scene);
+            }
+            
+            vrmCharacter = gltf.userData.vrm;
+            scene.add(vrmCharacter.scene);
+            
+            vrmCharacter.scene.position.set(0, 0, 0);
+            characterPosition.set(0, 0, 0);
+            
+            updateDebugInfo(`✅ VRM loaded: ${filename}`);
+            
+            controls.target.copy(vrmCharacter.scene.position);
+            controls.target.y += 1.0;
+        }
+
+        async function loadDefaultVRM() {
+            const defaultVRMs = [
+                './assets/characters/ichika.vrm',
+                './assets/characters/kaede.vrm'
+            ];
+            
+            for (const vrmPath of defaultVRMs) {
+                try {
+                    const response = await fetch(vrmPath);
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        await loadVRMFromArrayBuffer(arrayBuffer, vrmPath.split('/').pop());
+                        updateDebugInfo(`✅ Auto-loaded VRM: ${vrmPath.split('/').pop()}`);
+                        return;
+                    }
+                } catch (error) {
+                    console.log(`Failed to load ${vrmPath}`);
+                }
+            }
+            updateDebugInfo('ℹ️ No default VRM found - please load one manually');
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = clock.getDelta();
+            
+            controls.update();
+            
+            if (vrmCharacter) {
+                vrmCharacter.update(deltaTime);
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Window resize handler
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Global function assignments
+        window.resetCharacterPosition = function() {
+            if (vrmCharacter) {
+                vrmCharacter.scene.position.set(0, 0, 0);
+                characterPosition.set(0, 0, 0);
+                updateDebugInfo('🔄 Reset position');
+            }
+        };
+
+        window.toggleAnimation = function() {
+            isPlaying = !isPlaying;
+            updateDebugInfo(`🎬 Animation ${isPlaying ? 'playing' : 'paused'}`);
+        };
+
+        window.resetAnimation = function() {
+            animationFrame = 0;
+            updateDebugInfo('⏮️ Animation reset');
+        };
+
+        window.loadSelectedAnimation = function() {
+            updateDebugInfo('🎭 Animation loading not implemented yet');
+        };
+
+        window.toggleClassroom = function() {
+            updateDebugInfo('🏫 Classroom toggle not implemented yet');
+        };
+
+        window.setAvatarMood = setAvatarMood;
+        window.sendMessage = sendMessage;
+        window.toggleRecording = toggleRecording;
+        window.stopSpeaking = stopSpeaking;
+        window.clearConversation = clearConversation;
+        window.testTTS = testTTS;
+        window.handleKeyPress = handleKeyPress;
+        window.initializeModels = initializeModels;
+
+        // Event listeners
+        window.addEventListener('resize', onWindowResize);
+
+        // Initialize voices when they become available
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = initializeVoices;
+        }
+
+        // Initialize voices immediately if already available
+        if (speechSynthesis.getVoices().length > 0) {
+            initializeVoices();
+        }
+
+        // Initialize the application
+        init().catch(error => {
+            console.error('Failed to initialize:', error);
+            updateLoadingStatus('Failed to initialize');
+            updateDebugInfo(`❌ Initialization error: ${error.message}`);
+        });
+
+        // Add helpful startup messages
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDebugInfo('🚀 VRM AI Conversation Test started');
+            updateDebugInfo('💡 Load a VRM character and start chatting!');
+            updateDebugInfo('🎤 Use voice input or type messages');
+            updateDebugInfo('🎭 Avatar will express emotions based on conversation');
+        });
+
+    </script>
+</body>
+</html>

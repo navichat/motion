@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepMimic JavaScript Validation Suite</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #4a5568;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f7fafc;
+        }
+
+        .section h2 {
+            color: #2d3748;
+            margin-top: 0;
+            border-bottom: 2px solid #4299e1;
+            padding-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+
+        .status.info { background: #bee3f8; color: #2b6cb0; }
+        .status.success { background: #c6f6d5; color: #276749; }
+        .status.warning { background: #fefcbf; color: #975a16; }
+        .status.error { background: #fed7d7; color: #c53030; }
+
+        .provider-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .provider-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .provider-card.available {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .provider-card.unavailable {
+            border-color: #f56565;
+            background: #fffafa;
+            opacity: 0.7;
+        }
+
+        .log-output {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #48bb78, #38a169);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .model-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .model-card h4 {
+            margin: 0 0 10px 0;
+            color: #4a5568;
+        }
+
+        .test-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            background: #f7fafc;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .result-pass { background: #c6f6d5; }
+        .result-fail { background: #fed7d7; }
+
+        select, input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .file-input {
+            margin: 10px 0;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #4299e1;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4299e1;
+        }
+
+        .stat-label {
+            color: #718096;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 DeepMimic JavaScript Validation Suite</h1>
+        
+        <!-- Initialization Section -->
+        <div class="section">
+            <h2>🚀 Initialization</h2>
+            <div class="controls">
+                <button id="initBtn" onclick="initializeSystem()">Initialize System</button>
+                <button id="detectProvidersBtn" onclick="detectProviders()" disabled>Detect Providers</button>
+            </div>
+            <div id="initStatus"></div>
+            
+            <div id="providerSection" style="display: none;">
+                <h3>Available Execution Providers:</h3>
+                <div class="provider-grid" id="providerGrid"></div>
+            </div>
+        </div>
+
+        <!-- Model Testing Section -->
+        <div class="section">
+            <h2>🧪 Model Testing</h2>
+            <div class="controls">
+                <select id="modelSelect" disabled>
+                    <option value="">Select a model...</option>
+                </select>
+                <select id="providerSelect" disabled>
+                    <option value="">Select execution provider...</option>
+                </select>
+                <button id="loadModelBtn" onclick="loadSelectedModel()" disabled>Load Model</button>
+                <button id="runSingleTestBtn" onclick="runSingleTest()" disabled>Run Single Test</button>
+            </div>
+            
+            <div class="controls">
+                <label>Tolerance: 
+                    <input type="number" id="toleranceInput" value="0.0001" step="0.0001" min="0">
+                </label>
+                <button id="setToleranceBtn" onclick="setTolerance()">Set Tolerance</button>
+            </div>
+            
+            <div id="modelStatus"></div>
+            <div id="testProgress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div id="progressText"></div>
+            </div>
+        </div>
+
+        <!-- Comprehensive Testing Section -->
+        <div class="section">
+            <h2>🎯 Comprehensive Validation</h2>
+            <div class="controls">
+                <button id="runAllTestsBtn" onclick="runComprehensiveTests()" disabled>Run All Tests</button>
+                <button id="runBenchmarkBtn" onclick="runBenchmark()" disabled>Run Benchmark</button>
+                <button id="compareProvidersBtn" onclick="compareProviders()" disabled>Compare Providers</button>
+                <button id="exportResultsBtn" onclick="exportResults()" disabled>Export Results</button>
+            </div>
+            <div id="comprehensiveStatus"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="section">
+            <h2>📊 Results</h2>
+            <div class="summary-stats" id="summaryStats"></div>
+            <div class="model-grid" id="modelResults"></div>
+        </div>
+
+        <!-- Log Section -->
+        <div class="section">
+            <h2>📝 Console Log</h2>
+            <div class="controls">
+                <button onclick="clearLog()">Clear Log</button>
+                <button onclick="downloadLog()">Download Log</button>
+            </div>
+            <div class="log-output" id="logOutput"></div>
+        </div>
+    </div>
+
+    <!-- Include ONNX Runtime Web -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    
+    <!-- Include our DeepMimic classes -->
+    <script src="deepmimic-inference.js"></script>
+    <script src="deepmimic-validator.js"></script>
+
+    <script>
+        // Global variables
+        let validator = null;
+        let availableModels = [];
+        let testResults = {};
+        let logMessages = [];
+
+        // Available models (compatible ONNX models)
+        const AVAILABLE_MODELS = [
+            'compatible_humanoid3d_humanoid3d_backflip',
+            'compatible_humanoid3d_humanoid3d_cartwheel',
+            'compatible_humanoid3d_humanoid3d_crawl',
+            'compatible_humanoid3d_humanoid3d_dance_a',
+            'compatible_humanoid3d_humanoid3d_dance_b',
+            'compatible_humanoid3d_humanoid3d_getup_facedown',
+            'compatible_humanoid3d_humanoid3d_getup_faceup',
+            'compatible_humanoid3d_humanoid3d_jump',
+            'compatible_humanoid3d_humanoid3d_kick',
+            'compatible_humanoid3d_humanoid3d_punch',
+            'compatible_humanoid3d_humanoid3d_roll',
+            'compatible_humanoid3d_humanoid3d_run',
+            'compatible_humanoid3d_humanoid3d_spinkick',
+            'compatible_humanoid3d_humanoid3d_walk'
+        ];
+
+        // Override console.log to capture output
+        const originalConsoleLog = console.log;
+        console.log = function(...args) {
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            logMessages.push(`${new Date().toLocaleTimeString()}: ${message}`);
+            updateLogDisplay();
+            originalConsoleLog.apply(console, args);
+        };
+
+        const originalConsoleError = console.error;
+        console.error = function(...args) {
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            logMessages.push(`${new Date().toLocaleTimeString()} ERROR: ${message}`);
+            updateLogDisplay();
+            originalConsoleError.apply(console, args);
+        };
+
+        function updateLogDisplay() {
+            const logOutput = document.getElementById('logOutput');
+            logOutput.textContent = logMessages.slice(-100).join('\n'); // Keep last 100 messages
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        async function initializeSystem() {
+            try {
+                showStatus('initStatus', '🔄 Initializing DeepMimic Validation System...', 'info');
+                
+                validator = new DeepMimicValidator();
+                await validator.initialize();
+                
+                // Populate model select
+                const modelSelect = document.getElementById('modelSelect');
+                AVAILABLE_MODELS.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model.replace('compatible_humanoid3d_humanoid3d_', '').replace('_', ' ');
+                    modelSelect.appendChild(option);
+                });
+                
+                // Enable controls
+                document.getElementById('detectProvidersBtn').disabled = false;
+                document.getElementById('modelSelect').disabled = false;
+                document.getElementById('setToleranceBtn').disabled = false;
+                
+                showStatus('initStatus', '✅ System initialized successfully!', 'success');
+                console.log('System initialization complete');
+                
+            } catch (error) {
+                showStatus('initStatus', `❌ Initialization failed: ${error.message}`, 'error');
+                console.error('Initialization error:', error);
+            }
+        }
+
+        async function detectProviders() {
+            try {
+                showStatus('initStatus', '🔄 Detecting execution providers...', 'info');
+                
+                const providers = validator.inference.supportedProviders;
+                console.log('Available providers:', providers);
+                
+                // Update provider grid
+                const providerGrid = document.getElementById('providerGrid');
+                providerGrid.innerHTML = '';
+                
+                const providerSelect = document.getElementById('providerSelect');
+                providerSelect.innerHTML = '<option value="">Select execution provider...</option>';
+                
+                ['wasm', 'webgpu', 'webnn'].forEach(provider => {
+                    // Grid card
+                    const card = document.createElement('div');
+                    card.className = `provider-card ${providers.includes(provider) ? 'available' : 'unavailable'}`;
+                    card.innerHTML = `
+                        <h4>${provider.toUpperCase()}</h4>
+                        <div>${providers.includes(provider) ? '✅ Available' : '❌ Not Available'}</div>
+                    `;
+                    providerGrid.appendChild(card);
+                    
+                    // Select option
+                    if (providers.includes(provider)) {
+                        const option = document.createElement('option');
+                        option.value = provider;
+                        option.textContent = provider.toUpperCase();
+                        providerSelect.appendChild(option);
+                    }
+                });
+                
+                document.getElementById('providerSection').style.display = 'block';
+                document.getElementById('providerSelect').disabled = false;
+                document.getElementById('runAllTestsBtn').disabled = false;
+                
+                showStatus('initStatus', `✅ Found ${providers.length} execution providers`, 'success');
+                
+            } catch (error) {
+                showStatus('initStatus', `❌ Provider detection failed: ${error.message}`, 'error');
+                console.error('Provider detection error:', error);
+            }
+        }
+
+        async function loadSelectedModel() {
+            try {
+                const modelName = document.getElementById('modelSelect').value;
+                const provider = document.getElementById('providerSelect').value;
+                
+                if (!modelName || !provider) {
+                    showStatus('modelStatus', '⚠️ Please select both model and execution provider', 'warning');
+                    return;
+                }
+                
+                showStatus('modelStatus', `🔄 Loading ${modelName} with ${provider}...`, 'info');
+                
+                const modelPath = `${modelName}.onnx`;
+                await validator.inference.loadModel(modelPath, provider);
+                
+                document.getElementById('loadModelBtn').disabled = false;
+                document.getElementById('runSingleTestBtn').disabled = false;
+                document.getElementById('runBenchmarkBtn').disabled = false;
+                document.getElementById('compareProvidersBtn').disabled = false;
+                
+                showStatus('modelStatus', `✅ Model loaded successfully!`, 'success');
+                console.log(`Model ${modelName} loaded with ${provider}`);
+                
+            } catch (error) {
+                showStatus('modelStatus', `❌ Model loading failed: ${error.message}`, 'error');
+                console.error('Model loading error:', error);
+            }
+        }
+
+        async function runSingleTest() {
+            try {
+                const modelName = document.getElementById('modelSelect').value;
+                if (!modelName) return;
+                
+                showStatus('modelStatus', '🔄 Running single test...', 'info');
+                
+                // Load test data
+                const testDataPath = `/home/barberb/motion/DeepMimic/data/policies_onnx/validation_results/${modelName.replace('compatible_', '')}_test_data.json`;
+                const referenceData = await validator.loadTestData(testDataPath);
+                
+                // Run validation for current model
+                const provider = document.getElementById('providerSelect').value;
+                const result = await validator.validateModel(`${modelName}.onnx`, referenceData, provider);
+                
+                updateResultsDisplay([result]);
+                showStatus('modelStatus', '✅ Single test completed!', 'success');
+                
+            } catch (error) {
+                showStatus('modelStatus', `❌ Single test failed: ${error.message}`, 'error');
+                console.error('Single test error:', error);
+            }
+        }
+
+        async function runComprehensiveTests() {
+            try {
+                showStatus('comprehensiveStatus', '🔄 Starting comprehensive validation...', 'info');
+                document.getElementById('runAllTestsBtn').disabled = true;
+                
+                const testDataDir = '/home/barberb/motion/DeepMimic/data/policies_onnx/validation_results';
+                const results = await validator.runComprehensiveValidation(testDataDir, AVAILABLE_MODELS);
+                
+                testResults = results;
+                updateComprehensiveResults(results);
+                
+                document.getElementById('exportResultsBtn').disabled = false;
+                showStatus('comprehensiveStatus', '✅ Comprehensive validation completed!', 'success');
+                
+            } catch (error) {
+                showStatus('comprehensiveStatus', `❌ Comprehensive validation failed: ${error.message}`, 'error');
+                console.error('Comprehensive validation error:', error);
+            } finally {
+                document.getElementById('runAllTestsBtn').disabled = false;
+            }
+        }
+
+        async function runBenchmark() {
+            try {
+                const modelName = document.getElementById('modelSelect').value;
+                if (!validator.inference.isModelLoaded()) {
+                    showStatus('modelStatus', '⚠️ Please load a model first', 'warning');
+                    return;
+                }
+                
+                showStatus('modelStatus', '🔄 Running benchmark...', 'info');
+                
+                const results = await validator.inference.benchmark(100);
+                console.log('Benchmark results:', results);
+                
+                showStatus('modelStatus', 
+                    `✅ Benchmark complete! Avg: ${results.averageTime.toFixed(2)}ms (${results.fps.toFixed(1)} FPS)`, 
+                    'success'
+                );
+                
+            } catch (error) {
+                showStatus('modelStatus', `❌ Benchmark failed: ${error.message}`, 'error');
+                console.error('Benchmark error:', error);
+            }
+        }
+
+        async function compareProviders() {
+            try {
+                const modelName = document.getElementById('modelSelect').value;
+                if (!modelName) return;
+                
+                showStatus('modelStatus', '🔄 Comparing execution providers...', 'info');
+                
+                // Generate test input
+                const testInput = new Float32Array(197);
+                for (let i = 0; i < 197; i++) {
+                    testInput[i] = Math.random() * 2 - 1;
+                }
+                
+                const modelPath = `${modelName}.onnx`;
+                const results = await validator.inference.compareExecutionProviders(modelPath, testInput);
+                
+                console.log('Provider comparison results:', results);
+                showStatus('modelStatus', 
+                    `✅ Provider comparison complete! All within tolerance: ${results.summary.allWithinTolerance}`, 
+                    results.summary.allWithinTolerance ? 'success' : 'warning'
+                );
+                
+            } catch (error) {
+                showStatus('modelStatus', `❌ Provider comparison failed: ${error.message}`, 'error');
+                console.error('Provider comparison error:', error);
+            }
+        }
+
+        function setTolerance() {
+            const tolerance = parseFloat(document.getElementById('toleranceInput').value);
+            if (validator && tolerance > 0) {
+                validator.setTolerance(tolerance);
+                showStatus('modelStatus', `✅ Tolerance set to ${tolerance.toExponential(3)}`, 'success');
+            }
+        }
+
+        function updateResultsDisplay(results) {
+            const modelResults = document.getElementById('modelResults');
+            modelResults.innerHTML = '';
+            
+            results.forEach(result => {
+                const card = document.createElement('div');
+                card.className = 'model-card';
+                
+                const passRate = (result.summary.passed / result.summary.total * 100).toFixed(1);
+                
+                card.innerHTML = `
+                    <h4>${result.modelPath.replace('.onnx', '').replace('humanoid3d_humanoid3d_', '')}</h4>
+                    <div><strong>Provider:</strong> ${result.executionProvider}</div>
+                    <div><strong>Pass Rate:</strong> ${passRate}%</div>
+                    <div><strong>Test Cases:</strong> ${result.summary.passed}/${result.summary.total}</div>
+                    <div><strong>Avg Error:</strong> ${result.summary.averageError.toExponential(3)}</div>
+                    <div><strong>Max Error:</strong> ${result.summary.maxError.toExponential(3)}</div>
+                `;
+                
+                modelResults.appendChild(card);
+            });
+        }
+
+        function updateComprehensiveResults(results) {
+            // Update summary stats
+            const summaryStats = document.getElementById('summaryStats');
+            summaryStats.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${results.summary.successfulModels}</div>
+                    <div class="stat-label">Successful Models</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${results.summary.averagePassRate.toFixed(1)}%</div>
+                    <div class="stat-label">Overall Pass Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${results.summary.passedTestCases}</div>
+                    <div class="stat-label">Passed Test Cases</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${Object.keys(results.executionProviders).length}</div>
+                    <div class="stat-label">Execution Providers</div>
+                </div>
+            `;
+            
+            // Update model results
+            const allResults = [];
+            for (const [modelName, modelResults] of Object.entries(results.models)) {
+                for (const [provider, result] of Object.entries(modelResults)) {
+                    if (result.summary) {
+                        allResults.push(result);
+                    }
+                }
+            }
+            updateResultsDisplay(allResults);
+        }
+
+        function exportResults() {
+            if (validator) {
+                validator.exportResults('deepmimic_validation_results.json');
+            }
+        }
+
+        function clearLog() {
+            logMessages = [];
+            updateLogDisplay();
+        }
+
+        function downloadLog() {
+            const logContent = logMessages.join('\n');
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'deepmimic_validation_log.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', function() {
+            console.log('DeepMimic Validation Suite loaded');
+            showStatus('initStatus', '👋 Welcome! Click "Initialize System" to begin.', 'info');
+        });
+    </script>
+</body>
+</html>

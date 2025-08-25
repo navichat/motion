@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Import Test</title>
+</head>
+<body>
+    <h1>Testing Individual Module Imports</h1>
+    <div id="results"></div>
+    
+    <script type="module">
+        const results = document.getElementById('results');
+        
+        function addResult(message, isError = false) {
+            const p = document.createElement('p');
+            p.textContent = message;
+            p.style.color = isError ? 'red' : 'green';
+            results.appendChild(p);
+        }
+        
+        try {
+            addResult('1. Testing MockGPUJobs.js import...');
+            const { MockGPUJob } = await import('./MockGPUJobs.js');
+            addResult('✅ MockGPUJobs.js imported successfully');
+            
+            addResult('2. Testing TaskManager.js import...');
+            const { TaskManager } = await import('./TaskManager.js');
+            addResult('✅ TaskManager.js imported successfully');
+            
+            addResult('3. Testing MockGPUJob instantiation...');
+            const job = new MockGPUJob('test', 1000);
+            addResult(`✅ MockGPUJob created: ${job.id}`);
+            
+            addResult('4. Testing TaskManager instantiation...');
+            const taskManager = new TaskManager({ workers: { cpu: 1 } });
+            addResult('✅ TaskManager created successfully');
+            
+            addResult('🎉 All imports working correctly!');
+            
+        } catch (error) {
+            addResult(`❌ Import failed: ${error.message}`, true);
+            addResult(`Stack: ${error.stack}`, true);
+        }
+    </script>
+</body>
+</html>

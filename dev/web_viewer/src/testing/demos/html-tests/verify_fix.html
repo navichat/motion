@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebGPU Fix Verification</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .pass { color: #4caf50; }
+        .fail { color: #f44336; }
+        .test { margin: 10px 0; padding: 10px; background: #333; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 WebGPU NaN Fix Verification</h1>
+    <div id="results"></div>
+
+    <script src="audio2gesture/optimized_multihead_attention.js"></script>
+    <script>
+        async function verifyFix() {
+            const results = document.getElementById('results');
+            
+            function addResult(test, passed, message) {
+                const div = document.createElement('div');
+                div.className = 'test';
+                div.innerHTML = `<span class="${passed ? 'pass' : 'fail'}">${passed ? '✅' : '❌'} ${test}</span><br>${message}`;
+                results.appendChild(div);
+            }
+
+            try {
+                // Test 1: Large audio features (the failing case)
+                addResult('TEST 1', true, 'Testing large audio features (80x30 = 2400 elements)...');
+                
+                const attention = new OptimizedAudio2GestureAttention({
+                    numHeads: 8,
+                    hiddenDim: 1024
+                });
+                
+                await attention.initializeBackend('webgpu');
+                
+                // Generate test data matching the failing case
+                const hiddenState = [];
+                for (let b = 0; b < 4; b++) {
+                    const batch = [];
+                    for (let s = 0; s < 1; s++) {
+                        const sequence = [];
+                        for (let d = 0; d < 1024; d++) {
+                            sequence.push((Math.random() - 0.5) * 0.1);
+                        }
+                        batch.push(sequence);
+                    }
+                    hiddenState.push(batch);
+                }
+                
+                // Large audio features (2D array like test suite)
+                const audioFeatures = [];
+                for (let m = 0; m < 80; m++) {
+                    const row = [];
+                    for (let f = 0; f < 30; f++) {
+                        row.push((Math.random() - 0.5) * 0.2);
+                    }
+                    audioFeatures.push(row);
+                }
+                
+                const result = await attention.computeMultiHeadAttention(hiddenState, audioFeatures);
+                
+                // Check for NaN values
+                let nanCount = 0;
+                let totalCount = 0;
+                for (let b = 0; b < result.length; b++) {
+                    for (let s = 0; s < result[b].length; s++) {
+                        for (let d = 0; d < result[b][s].length; d++) {
+                            totalCount++;
+                            if (!isFinite(result[b][s][d])) {
+                                nanCount++;
+                            }
+                        }
+                    }
+                }
+                
+                const nanPercent = (nanCount/totalCount*100).toFixed(1);
+                const passed = nanPercent == 0;
+                
+                addResult('Large Audio Features Test', passed, 
+                    `Result: ${nanCount}/${totalCount} non-finite values (${nanPercent}%)<br>` +
+                    `Expected: 0% NaN values<br>` +
+                    `Status: ${passed ? 'FIXED! 🎉' : 'Still broken 😞'}`);
+                
+                // Test 2: Performance verification
+                if (passed) {
+                    const startTime = performance.now();
+                    await attention.computeMultiHeadAttention(hiddenState, audioFeatures);
+                    const endTime = performance.now();
+                    const duration = endTime - startTime;
+                    
+                    addResult('Performance Test', duration < 100, 
+                        `Computation time: ${duration.toFixed(1)}ms<br>` +
+                        `Expected: <100ms for reasonable performance<br>` +
+                        `Status: ${duration < 100 ? 'Good performance ⚡' : 'Slow performance 🐌'}`);
+                }
+                
+            } catch (error) {
+                addResult('Error', false, `Unexpected error: ${error.message}`);
+            }
+        }
+        
+        verifyFix();
+    </script>
+</body>
+</html>
