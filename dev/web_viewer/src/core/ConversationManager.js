@@ -94,18 +94,16 @@ class ConversationManager {
   }
 
   /**
-   * Initialize 3D Avatar in classroom scene
+   * Initialize 3D Avatar in classroom scene (handled externally)
    */
   async initializeAvatarScene() {
-    // Import classroom avatar integration
-    if (typeof ClassroomAvatarIntegration !== 'undefined') {
-      this.classroom = new ClassroomAvatarIntegration();
-      await this.classroom.initializeScene();
-      this.avatar = this.classroom.avatar;
-    } else {
-      console.warn('ConversationManager: 3D Avatar integration not available');
+    // Avatar integration is handled by the main application
+    // This method is kept for compatibility but avatar setup is external
+    if (!this.avatar) {
+      console.warn('ConversationManager: Avatar not provided, using fallback');
       this.avatar = this.createAvatarFallback();
     }
+    console.log('ConversationManager: Avatar system ready');
   }
 
   /**

@@ -104,10 +104,18 @@ class ClassroomAvatarIntegration {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     
-    // Add to container
+    // Add to container - safely remove existing canvas
     const existingCanvas = this.container.querySelector('canvas');
-    if (existingCanvas && existingCanvas.parentNode === this.container) {
-      this.container.removeChild(existingCanvas);
+    if (existingCanvas) {
+      try {
+        // Check if the canvas is actually a child of this container
+        if (existingCanvas.parentNode === this.container) {
+          this.container.removeChild(existingCanvas);
+        }
+      } catch (error) {
+        console.warn('ClassroomAvatarIntegration: Failed to remove existing canvas:', error);
+        // Continue anyway - might be already removed
+      }
     }
     this.container.appendChild(this.renderer.domElement);
     
@@ -370,42 +378,55 @@ class ClassroomAvatarIntegration {
    * Create simple avatar if VRM loading fails
    */
   createSimpleAvatar() {
-    const avatar = new THREE.Group();
-    
-    // Simple head
-    const headGeometry = new THREE.SphereGeometry(0.15);
-    const headMaterial = new THREE.MeshLambertMaterial({ color: 0xFFDBB3 });
-    const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.set(0, 1.65, 0);
-    head.castShadow = true;
-    avatar.add(head);
-    
-    // Simple body
-    const bodyGeometry = new THREE.CylinderGeometry(0.1, 0.15, 0.6);
-    const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x4169E1 });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.position.set(0, 1.2, 0);
-    body.castShadow = true;
-    avatar.add(body);
-    
-    // Simple arms
-    const armGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.4);
-    const armMaterial = new THREE.MeshLambertMaterial({ color: 0xFFDBB3 });
-    
-    const leftArm = new THREE.Mesh(armGeometry, armMaterial);
-    leftArm.position.set(-0.2, 1.3, 0);
-    leftArm.rotation.z = Math.PI / 6;
-    avatar.add(leftArm);
-    
-    const rightArm = new THREE.Mesh(armGeometry, armMaterial);
-    rightArm.position.set(0.2, 1.3, 0);
-    rightArm.rotation.z = -Math.PI / 6;
-    avatar.add(rightArm);
-    
-    this.avatar = avatar;
-    this.positionAvatarInClassroom();
-    
-    console.log('Simple avatar created');
+    try {
+      const avatar = new THREE.Group();
+      
+      // Simple head
+      const headGeometry = new THREE.SphereGeometry(0.15);
+      const headMaterial = new THREE.MeshLambertMaterial({ color: 0xFFDBB3 });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.set(0, 1.65, 0);
+      head.castShadow = true;
+      avatar.add(head);
+      
+      // Simple body
+      const bodyGeometry = new THREE.CylinderGeometry(0.1, 0.15, 0.6);
+      const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x4169E1 });
+      const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+      body.position.set(0, 1.2, 0);
+      body.castShadow = true;
+      avatar.add(body);
+      
+      // Simple arms
+      const armGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.4);
+      const armMaterial = new THREE.MeshLambertMaterial({ color: 0xFFDBB3 });
+      
+      const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+      leftArm.position.set(-0.2, 1.3, 0);
+      leftArm.rotation.z = Math.PI / 6;
+      avatar.add(leftArm);
+      
+      const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+      rightArm.position.set(0.2, 1.3, 0);
+      rightArm.rotation.z = -Math.PI / 6;
+      avatar.add(rightArm);
+      
+      // Mark as Ichika avatar for identification
+      avatar.name = 'IchikaAvatar';
+      avatar.userData = { type: 'simple_avatar', character: 'ichika' };
+      
+      this.avatar = avatar;
+      this.positionAvatarInClassroom();
+      
+      console.log('✅ Simple Ichika avatar created successfully');
+      
+    } catch (error) {
+      console.error('Failed to create simple avatar:', error);
+      // Create minimal fallback
+      this.avatar = new THREE.Group();
+      this.avatar.name = 'MinimalAvatar';
+      this.positionAvatarInClassroom();
+    }
   }
 
   /**
@@ -432,6 +453,8 @@ class ClassroomAvatarIntegration {
    * Setup speech-gesture synchronization
    */
   setupSpeechGestureSync() {
+    if (!this.avatar) return;
+    
     // Create avatar controller with speech capabilities
     this.avatar.speak = async (text) => {
       console.log('Avatar speaking:', text);
@@ -459,18 +482,25 @@ class ClassroomAvatarIntegration {
       }
     };
     
+    // Add simple speaking animation method for testing
+    this.avatar.animateSimpleSpeaking = () => {
+      this.animateSimpleSpeaking();
+    };
+    
     this.avatar.stop = () => {
       if (this.mixer) {
         this.mixer.stopAllActions();
       }
     };
+    
+    console.log('✅ Avatar speech capabilities initialized');
   }
 
   /**
    * Simple speaking animation for fallback avatar
    */
   animateSimpleSpeaking() {
-    if (!this.avatar) return;
+    if (!this.avatar || !this.avatar.children) return;
     
     let bobCount = 0;
     const bobDuration = 200; // ms
@@ -482,14 +512,22 @@ class ClassroomAvatarIntegration {
         return;
       }
       
-      // Simple head movement
-      const head = this.avatar.children.find(child => 
-        child.geometry && child.geometry.type === 'SphereGeometry'
-      );
-      
-      if (head) {
-        head.rotation.x = Math.sin(bobCount * Math.PI / 4) * 0.1;
-        head.position.y = 1.65 + Math.sin(bobCount * Math.PI / 2) * 0.02;
+      try {
+        // Simple head movement - find head by geometry type
+        const head = this.avatar.children.find(child => 
+          child.geometry && child.geometry.type === 'SphereGeometry'
+        );
+        
+        if (head) {
+          head.rotation.x = Math.sin(bobCount * Math.PI / 4) * 0.1;
+          head.position.y = 1.65 + Math.sin(bobCount * Math.PI / 2) * 0.02;
+        } else {
+          // Fallback: just rotate the whole avatar slightly
+          this.avatar.rotation.y = Math.sin(bobCount * Math.PI / 6) * 0.05;
+        }
+      } catch (error) {
+        console.warn('Simple animation error (non-critical):', error);
+        // Continue animation even if one frame fails
       }
       
       bobCount++;
