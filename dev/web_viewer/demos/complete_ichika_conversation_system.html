@@ -243,15 +243,104 @@
         </div>
     </div>
 
-    <!-- Three.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Three.js Library - Fallback to basic 3D when not available -->
+    <script>
+        // Basic 3D fallback when Three.js is not available
+        if (typeof THREE === 'undefined') {
+            console.log('Three.js not available, using basic 3D fallback');
+            window.THREE = {
+                Scene: function() { return { background: null, add: function() {}, remove: function() {} }; },
+                PerspectiveCamera: function() { return { position: { set: function() {} }, lookAt: function() {} }; },
+                WebGLRenderer: function(options) { 
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 800;
+                    canvas.height = 600;
+                    return { 
+                        setSize: function() {}, 
+                        shadowMap: { 
+                            enabled: true, 
+                            type: 1,
+                            mapSize: { width: 1024, height: 1024 }
+                        },
+                        outputColorSpace: null,
+                        domElement: canvas,
+                        render: function() {
+                            const ctx = canvas.getContext('2d');
+                            if (ctx) {
+                                // Draw a simple classroom-like scene
+                                ctx.fillStyle = '#f0f0f0';
+                                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                
+                                // Draw floor
+                                ctx.fillStyle = '#8B4513';
+                                ctx.fillRect(0, canvas.height * 0.7, canvas.width, canvas.height * 0.3);
+                                
+                                // Draw walls
+                                ctx.fillStyle = '#E6E6FA';
+                                ctx.fillRect(0, 0, canvas.width, canvas.height * 0.7);
+                                
+                                // Draw simple avatar representation
+                                ctx.fillStyle = '#FFB6C1';
+                                ctx.beginPath();
+                                ctx.arc(canvas.width/2, canvas.height * 0.4, 30, 0, 2 * Math.PI);
+                                ctx.fill();
+                                
+                                // Draw body
+                                ctx.fillStyle = '#87CEEB';
+                                ctx.fillRect(canvas.width/2 - 20, canvas.height * 0.4 + 10, 40, 80);
+                                
+                                // Add "3D Classroom Demo" text
+                                ctx.fillStyle = '#333';
+                                ctx.font = '20px Arial';
+                                ctx.textAlign = 'center';
+                                ctx.fillText('3D Classroom Demo (Fallback Mode)', canvas.width/2, 50);
+                                ctx.fillText('Ichika Avatar Ready', canvas.width/2, canvas.height - 30);
+                            }
+                        }
+                    }; 
+                },
+                Group: function() { return { 
+                    add: function() {}, 
+                    position: { set: function() {}, x: 0, y: 0, z: 0 }, 
+                    rotation: { x: 0, y: 0, z: 0 },
+                    scale: { setScalar: function() {} },
+                    traverse: function(callback) {}
+                }; },
+                PlaneGeometry: function() { return {}; },
+                BoxGeometry: function() { return {}; },
+                SphereGeometry: function() { return {}; },
+                CylinderGeometry: function() { return {}; },
+                MeshLambertMaterial: function() { return {}; },
+                Mesh: function() { return { 
+                    rotation: { x: 0, y: 0, z: 0 },
+                    position: { set: function() {}, x: 0, y: 0, z: 0 },
+                    castShadow: false,
+                    receiveShadow: false,
+                    traverse: function(callback) {}
+                }; },
+                Color: function(color) { return color; },
+                Clock: function() { return { getDelta: function() { return 0.016; } }; },
+                AnimationMixer: function() { return { 
+                    update: function() {}, 
+                    clipAction: function() { return { play: function() {} }; } 
+                }; },
+                DirectionalLight: function() { return { 
+                    position: { set: function() {} }, 
+                    castShadow: false,
+                    shadow: { mapSize: { width: 2048, height: 2048 } }
+                }; },
+                AmbientLight: function() { return {}; },
+                PointLight: function() { return { position: { set: function() {} } }; },
+                PCFSoftShadowMap: 1,
+                SRGBColorSpace: 'srgb'
+            };
+        }
+    </script>
 
     <!-- Integration Components -->
-    <script src="./src/core/ConversationManager.js"></script>
-    <script src="./src/scene/ClassroomAvatarIntegration.js"></script>
-    <script src="./src/audio/EnhancedSpeechSync.js"></script>
+    <script src="../src/core/ConversationManager.js"></script>
+    <script src="../src/scene/ClassroomAvatarIntegration.js"></script>
+    <script src="../src/audio/EnhancedSpeechSync.js"></script>
 
     <!-- Main Application -->
     <script>
