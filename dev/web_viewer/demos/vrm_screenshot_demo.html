@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRM Screenshot Demo - Working VRM with BVH</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: white;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .status-item {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background: #ff4444;
+        }
+
+        .status-active { background: #44ff44; }
+        .status-warning { background: #ffff44; }
+
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        #log-messages {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+            height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        #scene-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #performance-monitor {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="scene-container"></div>
+
+    <div id="performance-monitor">
+        <div>FPS: <span id="fps">0</span></div>
+        <div>Render: <span id="render-info">Loading</span></div>
+        <div>Avatar: <span id="avatar-status">Loading</span></div>
+        <div>Animation: <span id="animation-status">Idle</span></div>
+    </div>
+
+    <div id="ui-overlay">
+        <h3>🎭 VRM + BVH Demo</h3>
+        
+        <div class="control-group">
+            <h4>📊 System Status</h4>
+            <div class="status-item">
+                <span class="status-indicator" id="status-scene"></span>
+                3D Scene: <span id="status-scene-text">Loading</span>
+            </div>
+            <div class="status-item">
+                <span class="status-indicator" id="status-vrm"></span>
+                VRM Avatar: <span id="status-vrm-text">Loading</span>
+            </div>
+            <div class="status-item">
+                <span class="status-indicator" id="status-bvh"></span>
+                BVH Animation: <span id="status-bvh-text">Loading</span>
+            </div>
+            <div class="status-item">
+                <span class="status-indicator" id="status-speech"></span>
+                Speech System: <span id="status-speech-text">Loading</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h4>🎮 Controls</h4>
+            <button id="test-voice" onclick="testVoice()">Test Voice</button>
+            <button id="test-animation" onclick="testAnimation()">Test Animation</button>
+            <button id="reload-vrm" onclick="reloadVRM()">Reload VRM</button>
+        </div>
+
+        <div id="log-messages"></div>
+    </div>
+
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js"
+        }
+    }
+    </script>
+
+    <!-- Load existing VRM system components -->
+    <script src="../src/components/animation/vrm/VRMLoader.js"></script>
+    <script src="../src/components/animation/vrm/AvatarBinder.js"></script>
+    <script src="../src/components/animation/vrm/BVHTimelineVRMIntegration.js"></script>
+    <script src="../src/components/animation/timeline/BVHTimeline.js"></script>
+
+    <!-- Main Application -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Make modules available globally
+        window.THREE = THREE;
+        window.GLTFLoader = GLTFLoader;
+        window.VRMLoaderPlugin = VRMLoaderPlugin;
+        window.OrbitControls = OrbitControls;
+
+        let scene, camera, renderer, vrm, vrmModel, bvhAdapter, bvhTimeline;
+        let clock = new THREE.Clock();
+        let frameCount = 0;
+        let lastTime = performance.now();
+
+        function log(msg) {
+            console.log(msg);
+            const logEl = document.getElementById('log-messages');
+            logEl.innerHTML += msg + '<br>';
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateStatus(type, state, text) {
+            const indicator = document.getElementById(`status-${type}`);
+            const textEl = document.getElementById(`status-${type}-text`);
+            
+            if (indicator) {
+                indicator.className = 'status-indicator';
+                if (state === 'active') indicator.className += ' status-active';
+                if (state === 'warning') indicator.className += ' status-warning';
+            }
+            
+            if (textEl) textEl.textContent = text;
+        }
+
+        // Initialize Three.js scene
+        function initScene() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x2c3e50);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 3);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            document.getElementById('scene-container').appendChild(renderer.domElement);
+
+            // Controls
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            // Simple ground
+            const groundGeometry = new THREE.PlaneGeometry(20, 20);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x8B7355 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            updateStatus('scene', 'active', 'Loaded');
+            log('✅ 3D scene initialized');
+        }
+
+        // Load VRM avatar using the working pattern
+        async function loadVRMAvatar() {
+            try {
+                log('🎭 Loading VRM avatar...');
+                updateStatus('vrm', 'warning', 'Loading...');
+
+                // Use VRMLoaderLite pattern like the working demo
+                const VRMLoaderLite = window.VRMLoaderLite;
+                if (VRMLoaderLite) {
+                    log('Using VRMLoaderLite...');
+                    
+                    // Try loading ichika.vrm
+                    const res = await fetch('../assets/avatars/ichika.vrm');
+                    if (!res.ok) throw new Error('Failed to fetch VRM file');
+                    
+                    const buf = await res.arrayBuffer();
+                    const loader = new VRMLoaderLite();
+                    const result = await loader.loadFromArrayBuffer(buf, 'ichika.vrm');
+                    
+                    if (result && result.vrm) {
+                        vrm = result.vrm;
+                        vrmModel = result;
+                        
+                        // Position VRM in scene
+                        vrm.scene.position.set(0, 0, 0);
+                        scene.add(vrm.scene);
+                        
+                        updateStatus('vrm', 'active', 'Loaded');
+                        log('✅ VRM avatar loaded successfully with VRMLoaderLite');
+                        
+                        return true;
+                    }
+                }
+
+                // Fallback to manual loading
+                log('Trying manual VRM loading...');
+                const loader = new GLTFLoader();
+                loader.register((parser) => new VRMLoaderPlugin(parser));
+
+                const gltf = await new Promise((resolve, reject) => {
+                    loader.load('../assets/avatars/ichika.vrm', resolve, null, reject);
+                });
+
+                const loadedVrm = gltf.userData.vrm;
+                if (loadedVrm) {
+                    await loadedVrm.ready;
+                    vrm = loadedVrm;
+                    vrmModel = { vrm: loadedVrm, scene: loadedVrm.scene };
+                    
+                    // Position VRM in scene
+                    vrm.scene.position.set(0, 0, 0);
+                    scene.add(vrm.scene);
+                    
+                    updateStatus('vrm', 'active', 'Loaded');
+                    log('✅ VRM avatar loaded successfully with manual loading');
+                    
+                    return true;
+                }
+
+                throw new Error('No VRM data found');
+
+            } catch (error) {
+                log(`❌ VRM loading failed: ${error.message}`);
+                updateStatus('vrm', 'warning', 'Failed');
+                
+                // Create simple fallback
+                createSimpleAvatar();
+                return false;
+            }
+        }
+
+        // Create simple avatar fallback
+        function createSimpleAvatar() {
+            const avatar = new THREE.Group();
+            
+            // Head
+            const headGeometry = new THREE.SphereGeometry(0.15);
+            const headMaterial = new THREE.MeshLambertMaterial({ color: 0xFF69B4 });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.set(0, 1.65, 0);
+            head.castShadow = true;
+            avatar.add(head);
+            
+            // Body
+            const bodyGeometry = new THREE.CylinderGeometry(0.1, 0.15, 0.6);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x4169E1 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.set(0, 1.2, 0);
+            body.castShadow = true;
+            avatar.add(body);
+            
+            scene.add(avatar);
+            vrmModel = { avatar, isSimple: true };
+            
+            updateStatus('vrm', 'warning', 'Fallback');
+            log('⚠️ Using simple avatar fallback');
+        }
+
+        // Load BVH animations
+        async function loadBVHAnimations() {
+            try {
+                log('🎯 Loading BVH animations...');
+                updateStatus('bvh', 'warning', 'Loading...');
+
+                // Try loading minimal_idle.bvh
+                const response = await fetch('../assets/bvh/minimal_idle.bvh');
+                if (!response.ok) throw new Error('Failed to fetch BVH file');
+                
+                const bvhData = await response.text();
+                log(`✅ BVH animation loaded (${bvhData.length} chars)`);
+
+                // Initialize BVH timeline if available
+                if (window.BVHTimeline) {
+                    const BVHTLCtor = (window.BVHTimeline && window.BVHTimeline.BVHTimeline) || window.BVHTimeline;
+                    bvhTimeline = new BVHTLCtor({
+                        framerate: 30,
+                        lookaheadFrames: 30,
+                        onFrameUpdate: (frame, t) => {
+                            // Handle animation frame update
+                            if (vrm && frame) {
+                                // Apply simple head bobbing animation
+                                if (vrm.humanoid?.getNormalizedBoneNode?.('head')) {
+                                    const head = vrm.humanoid.getNormalizedBoneNode('head');
+                                    head.rotation.y = Math.sin(t * 0.5) * 0.1;
+                                    head.rotation.x = Math.sin(t * 0.3) * 0.05;
+                                }
+                            }
+                        }
+                    });
+
+                    updateStatus('bvh', 'active', 'Ready');
+                    log('✅ BVH timeline initialized');
+                } else {
+                    updateStatus('bvh', 'warning', 'No Timeline');
+                    log('⚠️ BVH Timeline not available');
+                }
+
+            } catch (error) {
+                log(`❌ BVH loading failed: ${error.message}`);
+                updateStatus('bvh', 'warning', 'Failed');
+            }
+        }
+
+        // Initialize speech system
+        function initializeSpeechSystem() {
+            updateStatus('speech', 'active', 'Ready');
+            log('✅ Speech system ready (stub)');
+        }
+
+        // Test functions
+        window.testVoice = function() {
+            log('🎤 Testing voice: "Hello, this is Ichika!"');
+            
+            // Simulate speech animation
+            if (vrm && vrm.humanoid?.getNormalizedBoneNode?.('head')) {
+                const head = vrm.humanoid.getNormalizedBoneNode('head');
+                let animFrame = 0;
+                
+                const speechAnimation = () => {
+                    if (animFrame < 60) { // 2 seconds at 30fps
+                        head.rotation.y = Math.sin(animFrame * 0.3) * 0.15;
+                        head.rotation.z = Math.sin(animFrame * 0.2) * 0.05;
+                        animFrame++;
+                        requestAnimationFrame(speechAnimation);
+                    } else {
+                        head.rotation.y = 0;
+                        head.rotation.z = 0;
+                    }
+                };
+                speechAnimation();
+            }
+
+            updateStatus('speech', 'active', 'Speaking');
+            setTimeout(() => {
+                updateStatus('speech', 'active', 'Ready');
+            }, 2000);
+        };
+
+        window.testAnimation = function() {
+            log('🎭 Testing animation: Head movement and gestures');
+            
+            // Test animation
+            if (vrm && vrm.humanoid?.getNormalizedBoneNode?.('head')) {
+                const head = vrm.humanoid.getNormalizedBoneNode('head');
+                const leftHand = vrm.humanoid.getNormalizedBoneNode('leftHand');
+                const rightHand = vrm.humanoid.getNormalizedBoneNode('rightHand');
+                
+                let animFrame = 0;
+                const gestureAnimation = () => {
+                    if (animFrame < 90) { // 3 seconds
+                        // Head nod
+                        head.rotation.x = Math.sin(animFrame * 0.2) * 0.2;
+                        
+                        // Hand waves
+                        if (leftHand) {
+                            leftHand.rotation.z = Math.sin(animFrame * 0.15) * 0.5;
+                        }
+                        if (rightHand) {
+                            rightHand.rotation.z = Math.sin(animFrame * 0.15 + Math.PI) * 0.5;
+                        }
+                        
+                        animFrame++;
+                        requestAnimationFrame(gestureAnimation);
+                    } else {
+                        // Reset positions
+                        head.rotation.x = 0;
+                        if (leftHand) leftHand.rotation.z = 0;
+                        if (rightHand) rightHand.rotation.z = 0;
+                    }
+                };
+                gestureAnimation();
+            }
+            
+            updateStatus('bvh', 'active', 'Animating');
+            setTimeout(() => {
+                updateStatus('bvh', 'active', 'Ready');
+            }, 3000);
+        };
+
+        window.reloadVRM = async function() {
+            log('🔄 Reloading VRM avatar...');
+            
+            // Remove existing VRM
+            if (vrmModel && vrmModel.scene) {
+                scene.remove(vrmModel.scene);
+            }
+            
+            // Reload
+            await loadVRMAvatar();
+            await loadBVHAnimations();
+        };
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const currentTime = performance.now();
+            const deltaTime = clock.getDelta();
+
+            // Update VRM
+            if (vrm) {
+                vrm.update(deltaTime);
+                
+                // Simple idle animation
+                const time = currentTime * 0.001;
+                if (vrm.humanoid?.getNormalizedBoneNode?.('head')) {
+                    const head = vrm.humanoid.getNormalizedBoneNode('head');
+                    head.rotation.y += Math.sin(time * 0.5) * 0.001;
+                    head.rotation.x += Math.sin(time * 0.3) * 0.0005;
+                }
+            }
+
+            // Update BVH timeline
+            if (bvhTimeline) {
+                bvhTimeline.update(deltaTime);
+            }
+
+            // Update performance monitor
+            frameCount++;
+            if (currentTime - lastTime > 1000) {
+                const fps = Math.round(frameCount * 1000 / (currentTime - lastTime));
+                document.getElementById('fps').textContent = fps;
+                document.getElementById('render-info').textContent = renderer.info.render.triangles + ' triangles';
+                
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Initialize everything
+        async function init() {
+            try {
+                log('🚀 Initializing VRM + BVH demonstration system...');
+
+                // Initialize scene
+                initScene();
+                
+                // Load VRM avatar
+                await loadVRMAvatar();
+                
+                // Load BVH animations
+                await loadBVHAnimations();
+                
+                // Initialize speech system
+                initializeSpeechSystem();
+                
+                // Start animation loop
+                animate();
+                
+                log('🎉 System initialization complete!');
+                log('📝 Use the controls to test voice and animation features.');
+                
+                // Update avatar status based on what loaded
+                const avatarStatus = document.getElementById('avatar-status');
+                if (vrm) {
+                    avatarStatus.textContent = 'VRM Loaded';
+                } else if (vrmModel) {
+                    avatarStatus.textContent = 'Simple Avatar';
+                } else {
+                    avatarStatus.textContent = 'No Avatar';
+                }
+
+            } catch (error) {
+                log(`❌ Initialization failed: ${error.message}`);
+            }
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start initialization when modules are loaded
+        window.addEventListener('load', init);
+        
+        // Also trigger init if modules are already loaded
+        if (document.readyState === 'complete') {
+            setTimeout(init, 100);
+        }
+
+    </script>
+</body>
+</html>

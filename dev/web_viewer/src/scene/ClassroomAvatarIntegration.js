@@ -262,20 +262,16 @@ class ClassroomAvatarIntegration {
   }
 
   /**
-   * Load and position Ichika VRM avatar using proper VRM system
+   * Load and position Ichika VRM avatar using working VRM system
    */
   async loadAndPositionAvatar() {
     try {
-      console.log('ClassroomAvatarIntegration: Loading VRM avatar with proper VRM system...');
+      console.log('ClassroomAvatarIntegration: Loading VRM avatar with working VRM system...');
       
-      // Initialize VRM loader if not already done
-      if (!this.vrmLoader && typeof AdvancedVRMLoader !== 'undefined') {
-        this.vrmLoader = new AdvancedVRMLoader();
-        console.log('✅ AdvancedVRMLoader initialized');
-      }
-      
-      // Try to load VRM with the advanced loader
-      if (this.vrmLoader) {
+      // Use the working VRMLoaderLite pattern from ichika_voice_conversation_demo.html
+      if (typeof window.VRMLoaderLite !== 'undefined') {
+        console.log('✅ VRMLoaderLite is available, attempting VRM load...');
+        
         const vrmPaths = [
           '../assets/avatars/ichika.vrm',
           '../assets/avatars/buny.vrm', 
@@ -284,31 +280,53 @@ class ClassroomAvatarIntegration {
         
         for (const vrmPath of vrmPaths) {
           try {
-            console.log(`Attempting to load VRM with AdvancedVRMLoader: ${vrmPath}`);
+            console.log(`Loading VRM with VRMLoaderLite: ${vrmPath}`);
             
-            this.vrmModel = await this.vrmLoader.loadVRMCharacter(vrmPath, this.scene);
+            // Fetch VRM file as array buffer (working pattern)
+            const response = await fetch(vrmPath);
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
             
-            if (this.vrmModel && this.vrmModel.vrm) {
-              this.avatar = this.vrmModel;
+            const buffer = await response.arrayBuffer();
+            console.log(`✅ VRM file fetched (${buffer.byteLength} bytes)`);
+            
+            // Load VRM using VRMLoaderLite
+            const loader = new window.VRMLoaderLite();
+            const result = await loader.loadFromArrayBuffer(buffer, 'ichika.vrm');
+            
+            if (result && result.vrm) {
+              console.log('✅ VRM loaded successfully!');
+              
+              this.vrm = result.vrm;
+              this.vrmModel = result;
+              this.avatar = result;
               this.vrmReady = true;
+              
+              // Add VRM scene to main scene
+              if (result.vrm.scene) {
+                this.scene.add(result.vrm.scene);
+                console.log('✅ VRM scene added to main scene');
+              }
               
               // Position avatar in classroom
               this.positionAvatarInClassroom();
               
-              // Setup VRM animation system
-              await this.setupVRMAnimationSystem();
+              // Setup VRM animation system with working pattern
+              await this.setupWorkingVRMAnimationSystem();
               
-              console.log('✅ VRM avatar loaded successfully with AdvancedVRMLoader');
+              console.log('🎉 VRM avatar loaded successfully with VRMLoaderLite!');
               return;
             }
           } catch (error) {
-            console.warn(`Failed to load VRM ${vrmPath} with AdvancedVRMLoader:`, error);
+            console.warn(`Failed to load VRM ${vrmPath} with VRMLoaderLite:`, error.message);
             continue;
           }
         }
       }
       
-      // Fallback to manual VRM loading if AdvancedVRMLoader fails
+      // Fallback to manual VRM loading only if VRMLoaderLite is not available
+      console.warn('VRMLoaderLite not available, trying manual loading...');
       await this.loadVRMManually();
       
     } catch (error) {
@@ -400,53 +418,158 @@ class ClassroomAvatarIntegration {
   }
 
   /**
-   * Setup VRM animation system with BVH integration
+   * Setup VRM animation system using working pattern
    */
-  async setupVRMAnimationSystem() {
-    if (!this.vrmModel || !this.vrmModel.vrm) {
-      console.warn('VRM model not available for animation setup');
+  async setupWorkingVRMAnimationSystem() {
+    if (!this.vrm) {
+      console.warn('VRM not available for animation setup');
       return;
     }
     
     try {
-      // Load BVH animations
-      await this.loadBVHAnimations();
+      console.log('Setting up working VRM animation system...');
       
-      // Setup VRM-BVH adapter if available
-      if (typeof VRMBVHAdapter !== 'undefined' && this.currentBVHData) {
-        this.bvhAdapter = new VRMBVHAdapter(this.vrmModel, this.currentBVHData);
-        
-        // Enable idle animations
-        this.bvhAdapter.setIdleAnimations({
-          breathing: { enabled: true, amplitude: 0.01, frequency: 0.3 },
-          blinking: { enabled: true, interval: 3000 },
-          headMovement: { enabled: true, amplitude: 0.05, frequency: 0.1 }
-        });
-        
-        // Set up camera looking
-        if (this.camera) {
-          this.bvhAdapter.lookAtCameraAsIfHuman(this.camera);
-        }
-        
-        this.animationsReady = true;
-        console.log('✅ VRM-BVH adapter initialized with idle animations');
+      // Initialize avatar binder (working pattern)
+      if (typeof window.AvatarBinder !== 'undefined') {
+        this.binder = new window.AvatarBinder(this.vrm);
+        console.log('✅ AvatarBinder initialized with VRM');
+      } else {
+        console.warn('AvatarBinder not available, using stub');
+        this.binder = new (class { 
+          constructor() { this.stub = true; this.records = []; this.blendshapeRecords = []; } 
+          updateBone() {} 
+          update() {} 
+          updateBlendshape(n, w) { this.blendshapeRecords.push({ name: n, weight: w }); } 
+          getStats() { return { applied: this.records.length, expressions: this.blendshapeRecords.length, stub: true }; } 
+        })();
       }
       
-      // Setup BVH timeline if available
-      if (typeof BVHTimeline !== 'undefined') {
-        this.bvhTimeline = new BVHTimeline({
-          framerate: 30,
-          maxBufferSize: 300,
-          lookaheadFrames: 60
+      // Load BVH animations
+      await this.loadWorkingBVHAnimations();
+      
+      // Setup BVH timeline (working pattern)
+      if (typeof window.BVHTimeline !== 'undefined') {
+        const BVHTLCtor = (window.BVHTimeline && window.BVHTimeline.BVHTimeline) || window.BVHTimeline;
+        this.bvhTimeline = new BVHTLCtor({ 
+          framerate: 30, 
+          lookaheadFrames: 30, 
+          onFrameUpdate: (frame, t) => {
+            // Apply frame updates to VRM
+            if (this.binder && frame) {
+              this.binder.update();
+            }
+          }
         });
-        
         console.log('✅ BVH Timeline initialized');
       }
       
+      // Setup VRM-BVH integration (working pattern)
+      if (typeof window.BVHTimelineVRMIntegration !== 'undefined' && this.binder) {
+        this.vrmIntegration = new window.BVHTimelineVRMIntegration(this.binder);
+        if (this.bvhTimeline) {
+          this.vrmIntegration.connectTimeline(this.bvhTimeline);
+        }
+        console.log('✅ VRM-BVH integration connected');
+      }
+      
+      // Start simple idle animations
+      this.startIdleAnimations();
+      
+      this.animationsReady = true;
+      console.log('🎉 Working VRM animation system setup complete!');
+      
     } catch (error) {
-      console.warn('VRM animation system setup failed:', error);
+      console.warn('Working VRM animation system setup failed:', error);
       // Continue without animations
     }
+  }
+
+  /**
+   * Load BVH animations using working approach
+   */
+  async loadWorkingBVHAnimations() {
+    const bvhPaths = [
+      '../assets/bvh/minimal_idle.bvh',
+      '../assets/animations/neutral_reference.bvh'
+    ];
+    
+    for (const bvhPath of bvhPaths) {
+      try {
+        console.log(`Loading BVH animation: ${bvhPath}`);
+        
+        const response = await fetch(bvhPath);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const bvhData = await response.text();
+        console.log(`✅ BVH animation loaded: ${bvhPath} (${bvhData.length} chars)`);
+        
+        this.currentBVHData = bvhData;
+        return; // Use first successful load
+        
+      } catch (error) {
+        console.warn(`Failed to load BVH ${bvhPath}:`, error.message);
+        continue;
+      }
+    }
+    
+    console.log('⚠️ No BVH files loaded, continuing without BVH data');
+  }
+
+  /**
+   * Start simple idle animations for the VRM
+   */
+  startIdleAnimations() {
+    if (!this.vrm || !this.vrm.humanoid) {
+      console.warn('VRM humanoid not available for idle animations');
+      return;
+    }
+
+    console.log('🎭 Starting VRM idle animations...');
+    
+    let animationFrame = 0;
+    const startTime = performance.now();
+    
+    const idleAnimation = () => {
+      if (!this.vrm || !this.vrm.humanoid) return;
+      
+      const time = (performance.now() - startTime) * 0.001;
+      
+      try {
+        // Breathing animation
+        const chest = this.vrm.humanoid.getNormalizedBoneNode('chest');
+        if (chest) {
+          chest.scale.y = 1 + Math.sin(time * 0.5) * 0.02;
+        }
+        
+        // Head movement
+        const head = this.vrm.humanoid.getNormalizedBoneNode('head');
+        if (head) {
+          head.rotation.y = Math.sin(time * 0.3) * 0.05;
+          head.rotation.x = Math.sin(time * 0.2) * 0.02;
+        }
+        
+        // Subtle blinking (blend shapes)
+        if (this.vrm.expressionManager) {
+          const blinkValue = Math.max(0, Math.sin(time * 2) * 0.1);
+          this.vrm.expressionManager.setValue('blink', blinkValue);
+        }
+        
+      } catch (error) {
+        // Silently handle animation errors
+      }
+      
+      animationFrame++;
+      if (animationFrame % 60 === 0) {
+        console.log('🎭 VRM idle animation running...');
+      }
+      
+      requestAnimationFrame(idleAnimation);
+    };
+    
+    idleAnimation();
+    console.log('✅ VRM idle animations started');
   }
 
   /**
@@ -547,40 +670,58 @@ class ClassroomAvatarIntegration {
   positionAvatarInClassroom() {
     if (!this.avatar) return;
     
-    // Get the VRM scene (if VRM model) or the avatar directly
-    const avatarScene = this.avatar.vrm ? this.avatar.vrm.scene : 
-                      this.avatar.scene ? this.avatar.scene : this.avatar;
-    
-    if (avatarScene) {
-      // Position avatar at teacher position in classroom
-      avatarScene.position.set(0, 0, -1.5); // Teacher position
-      avatarScene.rotation.y = 0; // Face forward towards students
-      avatarScene.scale.setScalar(1); // Normal scale
+    // Handle VRM positioning (working pattern)
+    if (this.vrm && this.vrm.scene) {
+      console.log('Positioning VRM avatar in classroom...');
       
-      // Enable shadows for VRM (safe fallback)
-      avatarScene.traverse((child) => {
+      // Position VRM scene at teacher position
+      this.vrm.scene.position.set(0, 0, -1.5);
+      this.vrm.scene.rotation.y = 0; // Face forward
+      this.vrm.scene.scale.setScalar(1);
+      
+      // Enable shadows for VRM
+      this.vrm.scene.traverse((child) => {
         if (child.isMesh) {
-          // Only enable shadows if the renderer supports them
           try {
             child.castShadow = true;
             child.receiveShadow = true;
           } catch (error) {
-            // Ignore shadow errors for compatibility
             console.warn('Shadow setup failed for VRM mesh, continuing without shadows');
           }
         }
       });
       
-      console.log('✅ Avatar positioned in classroom at teacher position');
+      console.log('✅ VRM avatar positioned in classroom');
+      
+    } else {
+      // Handle simple avatar or other avatar types
+      const avatarScene = this.avatar.vrm ? this.avatar.vrm.scene : 
+                        this.avatar.scene ? this.avatar.scene : this.avatar;
+      
+      if (avatarScene) {
+        // Position avatar at teacher position in classroom
+        avatarScene.position.set(0, 0, -1.5); // Teacher position
+        avatarScene.rotation.y = 0; // Face forward towards students
+        avatarScene.scale.setScalar(1); // Normal scale
+        
+        // Enable shadows for avatar (safe fallback)
+        avatarScene.traverse((child) => {
+          if (child.isMesh) {
+            try {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            } catch (error) {
+              console.warn('Shadow setup failed for avatar mesh, continuing without shadows');
+            }
+          }
+        });
+        
+        console.log('✅ Avatar positioned in classroom at teacher position');
+      }
     }
     
     // Set avatar ready state
     this.avatarReady = true;
-    
-    // Add to scene if not already added
-    if (avatarScene && !this.scene.children.includes(avatarScene)) {
-      this.scene.add(avatarScene);
-    }
   }
 
   /**
@@ -773,13 +914,22 @@ class ClassroomAvatarIntegration {
         this.controls.update();
       }
       
-      // Update VRM animations
-      if (this.vrmModel && this.vrmModel.vrm) {
+      // Update VRM animations (working pattern)
+      if (this.vrm) {
         try {
           // Update VRM internal systems
-          this.vrmModel.vrm.update(deltaTime);
+          this.vrm.update(deltaTime);
         } catch (error) {
           // Ignore VRM update errors for compatibility
+        }
+      }
+      
+      // Update avatar binder
+      if (this.binder && this.binder.update) {
+        try {
+          this.binder.update();
+        } catch (error) {
+          // Ignore binder update errors for compatibility
         }
       }
       
