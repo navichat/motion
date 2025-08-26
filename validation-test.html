@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Validation Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .warning { background: #fff3cd; color: #856404; }
+        .error { background: #f8d7da; color: #721c24; }
+        #demo-frame { width: 100%; height: 600px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>Ichika 3D System Validation</h1>
+    
+    <div class="test-result success">
+        <h3>✅ Loading Demo</h3>
+        <p>Demo is loading in the iframe below...</p>
+    </div>
+    
+    <iframe id="demo-frame" src="./dev/web_viewer/demos/complete_ichika_conversation_system.html"></iframe>
+    
+    <div id="validation-results">
+        <h3>Waiting for demo to initialize...</h3>
+    </div>
+    
+    <script>
+        const frame = document.getElementById('demo-frame');
+        const results = document.getElementById('validation-results');
+        
+        let validationInterval = setInterval(() => {
+            try {
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                // Check if demo is loaded
+                const title = frameDoc.querySelector('h2');
+                if (title && title.textContent.includes('3D Ichika Conversation System')) {
+                    
+                    // Check if Initialize button exists
+                    const initButton = frameDoc.getElementById('init-button');
+                    if (initButton) {
+                        results.innerHTML = `
+                            <div class="test-result success">
+                                <h3>✅ Demo Loaded Successfully</h3>
+                                <p>Click the "Initialize System" button in the demo to test functionality</p>
+                            </div>
+                            <div class="test-result warning">
+                                <h3>⚠️ Manual Testing Required</h3>
+                                <p>Use the demo interface to validate:</p>
+                                <ul>
+                                    <li>3D Scene loads with classroom environment</li>
+                                    <li>Avatar loads (VRM or simple fallback)</li>
+                                    <li>System status indicators show correct state</li>
+                                    <li>No removeChild errors in console</li>
+                                    <li>Test controls function properly</li>
+                                </ul>
+                            </div>
+                        `;
+                        clearInterval(validationInterval);
+                        
+                        // Try to auto-click initialization for demonstration
+                        setTimeout(() => {
+                            try {
+                                initButton.click();
+                                results.innerHTML += `
+                                    <div class="test-result success">
+                                        <h3>🚀 Auto-initialized System</h3>
+                                        <p>System initialization triggered automatically</p>
+                                    </div>
+                                `;
+                            } catch (e) {
+                                console.warn('Could not auto-initialize:', e);
+                            }
+                        }, 2000);
+                    }
+                }
+            } catch (e) {
+                // Cross-origin or loading issues
+                console.log('Frame not ready yet...');
+            }
+        }, 1000);
+        
+        // Stop validation after 30 seconds
+        setTimeout(() => {
+            clearInterval(validationInterval);
+            if (results.innerHTML.includes('Waiting for demo')) {
+                results.innerHTML = `
+                    <div class="test-result error">
+                        <h3>❌ Demo Loading Failed</h3>
+                        <p>Could not access demo content. This might be due to file:// protocol restrictions.</p>
+                        <p>Please open <code>dev/web_viewer/demos/complete_ichika_conversation_system.html</code> directly in a browser.</p>
+                    </div>
+                `;
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
