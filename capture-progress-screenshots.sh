@@ -1,3 +1,120 @@
+#!/bin/bash
+
+echo "🚀 Starting Comprehensive 3D Animated Ichika VRM System Progress Demonstration"
+echo "================================================================================"
+
+# Create screenshot directory
+mkdir -p test-results/progress-demo-screenshots
+
+# Start a simple HTTP server for local file access
+cd /home/runner/work/motion/motion
+python3 -m http.server 8080 &
+SERVER_PID=$!
+
+# Wait for server to start
+sleep 3
+
+echo ""
+echo "📋 DEMO 1: Enhanced Classroom Demo - Advanced 3D Interface"
+echo "-----------------------------------------------------------"
+
+google-chrome \
+    --headless \
+    --disable-gpu \
+    --window-size=1920,1080 \
+    --screenshot=test-results/progress-demo-screenshots/demo1-enhanced-classroom.png \
+    --incognito \
+    --noerrdialogs \
+    --no-first-run \
+    --use-angle=swiftshader-webgl \
+    http://localhost:8080/dev/web_viewer/demos/ichika_enhanced_classroom_demo.html
+
+echo "✅ Enhanced Classroom Demo screenshot captured"
+
+echo ""
+echo "📋 DEMO 2: Voice Conversation Demo - TTS & Animation Pipeline"
+echo "-------------------------------------------------------------"
+
+google-chrome \
+    --headless \
+    --disable-gpu \
+    --window-size=1920,1080 \
+    --screenshot=test-results/progress-demo-screenshots/demo2-voice-conversation.png \
+    --incognito \
+    --noerrdialogs \
+    --no-first-run \
+    --use-angle=swiftshader-webgl \
+    http://localhost:8080/dev/web_viewer/demos/ichika_voice_conversation_demo.html
+
+echo "✅ Voice Conversation Demo screenshot captured"
+
+echo ""
+echo "📋 DEMO 3: VRM Orchestrator Demo - 3D Avatar Loading System"
+echo "-----------------------------------------------------------"
+
+google-chrome \
+    --headless \
+    --disable-gpu \
+    --window-size=1920,1080 \
+    --screenshot=test-results/progress-demo-screenshots/demo3-vrm-orchestrator.png \
+    --incognito \
+    --noerrdialogs \
+    --no-first-run \
+    --use-angle=swiftshader-webgl \
+    http://localhost:8080/dev/web_viewer/demos/ichika_vrm_orchestrator_demo.html
+
+echo "✅ VRM Orchestrator Demo screenshot captured"
+
+echo ""
+echo "📋 DEMO 4: Full Classroom Experience - Complete System Integration"
+echo "-------------------------------------------------------------------"
+
+google-chrome \
+    --headless \
+    --disable-gpu \
+    --window-size=1920,1080 \
+    --screenshot=test-results/progress-demo-screenshots/demo4-full-classroom-experience.png \
+    --incognito \
+    --noerrdialogs \
+    --no-first-run \
+    --use-angle=swiftshader-webgl \
+    http://localhost:8080/dev/web_viewer/demos/ichika_full_classroom_experience.html
+
+echo "✅ Full Classroom Experience screenshot captured"
+
+echo ""
+echo "📋 DEMO 5: Original Classroom Demo - Baseline Reference"
+echo "-------------------------------------------------------"
+
+google-chrome \
+    --headless \
+    --disable-gpu \
+    --window-size=1920,1080 \
+    --screenshot=test-results/progress-demo-screenshots/demo5-original-classroom.png \
+    --incognito \
+    --noerrdialogs \
+    --no-first-run \
+    --use-angle=swiftshader-webgl \
+    http://localhost:8080/dev/web_viewer/demos/ichika_classroom_demo.html
+
+echo "✅ Original Classroom Demo screenshot captured"
+
+# Stop the HTTP server
+kill $SERVER_PID
+
+echo ""
+echo "🖼️  SCREENSHOT FILES GENERATED:"
+echo "================================"
+
+for file in test-results/progress-demo-screenshots/*.png; do
+    if [ -f "$file" ]; then
+        size=$(du -h "$file" | cut -f1)
+        echo "   $(basename "$file") - $size"
+    fi
+done
+
+# Create a simple HTML report
+cat > test-results/progress-demonstration-report.html << 'EOF'
 <!DOCTYPE html>
 <html>
 <head>
@@ -100,3 +217,17 @@
     </div>
 </body>
 </html>
+EOF
+
+echo ""
+echo "📋 HTML Progress Report generated: test-results/progress-demonstration-report.html"
+echo ""
+echo "🚀 COMPREHENSIVE PROGRESS DEMONSTRATION COMPLETED SUCCESSFULLY!"
+echo "================================================================================"
+
+# List all generated files
+echo ""
+echo "Generated Files:"
+ls -la test-results/progress-demo-screenshots/
+echo ""
+ls -la test-results/progress-demonstration-report.html
