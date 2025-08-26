@@ -255,15 +255,16 @@
     </script>
 
     <!-- Load VRM and BVH Animation Components (Working Pattern) -->
-    <script src="./src/components/animation/vrm/VRMLoader.js"></script>
-    <script src="./src/components/animation/vrm/AvatarBinder.js"></script>
-    <script src="./src/components/animation/vrm/BVHTimelineVRMIntegration.js"></script>
-    <script src="./src/components/animation/timeline/BVHTimeline.js"></script>
+    <script src="../src/components/animation/vrm/AdvancedVRMLoader.js"></script>
+    <script src="../src/components/animation/vrm/VRMBVHAdapter.js"></script>
+    <script src="../src/components/animation/vrm/AvatarBinder.js"></script>
+    <script src="../src/components/animation/vrm/BVHTimelineVRMIntegration.js"></script>
+    <script src="../src/components/animation/timeline/BVHTimeline.js"></script>
 
     <!-- Integration Components -->
-    <script src="./src/core/ConversationManager.js"></script>
-    <script src="./src/scene/ClassroomAvatarIntegration.js"></script>
-    <script src="./src/audio/EnhancedSpeechSync.js"></script>
+    <script src="../src/core/ConversationManager.js"></script>
+    <script src="../src/scene/ClassroomAvatarIntegration.js"></script>
+    <script src="../src/audio/EnhancedSpeechSync.js"></script>
 
     <!-- Main Application -->
     <script type="module">
@@ -279,6 +280,31 @@
         if (!window.THREE.GLTFLoader) window.THREE.GLTFLoader = GLTFLoader;
         if (!window.THREE.VRMLoaderPlugin) window.THREE.VRMLoaderPlugin = VRMLoaderPlugin;
         if (!window.THREE.OrbitControls) window.THREE.OrbitControls = OrbitControls;
+        
+        // Wait for all VRM infrastructure to be available
+        function waitForVRMInfrastructure() {
+            return new Promise((resolve) => {
+                const checkInterval = setInterval(() => {
+                    const components = {
+                        AdvancedVRMLoader: !!window.AdvancedVRMLoader,
+                        VRMBVHAdapter: !!window.VRMBVHAdapter,
+                        AvatarBinder: !!window.AvatarBinder,
+                        BVHTimeline: !!window.BVHTimeline,
+                        BVHTimelineVRMIntegration: !!window.BVHTimelineVRMIntegration
+                    };
+                    
+                    const allLoaded = Object.values(components).every(loaded => loaded);
+                    
+                    if (allLoaded) {
+                        clearInterval(checkInterval);
+                        console.log('✅ All VRM infrastructure components loaded and available:', components);
+                        resolve();
+                    } else {
+                        console.log('⏳ Waiting for VRM infrastructure...', components);
+                    }
+                }, 100);
+            });
+        }
         class IchikaConversationApp {
             constructor() {
                 this.conversationManager = null;
@@ -333,6 +359,11 @@
                     this.ui.initButton.disabled = true;
                     
                     this.log('Starting system initialization...');
+                    
+                    // Wait for VRM infrastructure to be available
+                    this.updateLoadingProgress('Loading VRM infrastructure...');
+                    await waitForVRMInfrastructure();
+                    this.log('✅ VRM infrastructure loaded');
                     
                     // Initialize classroom 3D integration
                     this.updateLoadingProgress('Loading 3D classroom scene...');

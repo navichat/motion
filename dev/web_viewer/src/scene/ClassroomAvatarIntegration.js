@@ -176,7 +176,7 @@ class ClassroomAvatarIntegration {
       }
       
       const loader = new THREE.GLTFLoader();
-      const classroomPath = './assets/classroom.glb';
+      const classroomPath = '../assets/classroom.glb';
       
       loader.load(
         classroomPath,
@@ -276,10 +276,10 @@ class ClassroomAvatarIntegration {
         console.log('✅ AdvancedVRMLoader initialized');
         
         const vrmPaths = [
-          './assets/avatars/ichika.vrm',
-          './assets/characters/ichika.vrm', 
-          './assets/avatars/buny.vrm',
-          './assets/characters/buny.vrm'
+          '../assets/avatars/ichika.vrm',
+          '../assets/characters/ichika.vrm', 
+          '../assets/avatars/buny.vrm',
+          '../assets/characters/buny.vrm'
         ];
         
         for (const vrmPath of vrmPaths) {
@@ -338,9 +338,9 @@ class ClassroomAvatarIntegration {
     loader.register((parser) => new window.THREE.VRMLoaderPlugin(parser));
     
     const vrmPaths = [
-      './assets/avatars/ichika.vrm',
-      './assets/avatars/buny.vrm', 
-      './assets/avatars/kaede.vrm'
+      '../assets/avatars/ichika.vrm',
+      '../assets/avatars/buny.vrm', 
+      '../assets/avatars/kaede.vrm'
     ];
     
     for (const vrmPath of vrmPaths) {
@@ -438,6 +438,17 @@ class ClassroomAvatarIntegration {
         throw new Error('BVHTimeline not available');
       }
       
+      // Setup VRM-BVH adapter for skeletal animation mapping
+      if (typeof window.VRMBVHAdapter !== 'undefined' && this.vrmModel) {
+        // Create dummy BVH skeleton for initial setup - will be replaced with real BVH data
+        const dummyBVHSkeleton = { bones: [], frameData: [] };
+        this.vrmBVHAdapter = new window.VRMBVHAdapter(this.vrmModel, dummyBVHSkeleton);
+        console.log('✅ VRMBVHAdapter initialized for skeletal animation');
+      } else {
+        console.error('❌ VRMBVHAdapter not available - required for BVH skeletal animation');
+        throw new Error('VRMBVHAdapter not available');
+      }
+      
       // Setup VRM-BVH integration using existing system
       if (typeof window.BVHTimelineVRMIntegration !== 'undefined' && this.binder && this.bvhTimeline) {
         this.vrmIntegration = new window.BVHTimelineVRMIntegration(this.binder);
@@ -468,9 +479,9 @@ class ClassroomAvatarIntegration {
    */
   async loadRealBVHAnimations() {
     const bvhPaths = [
-      './assets/bvh/minimal_idle.bvh',
-      './assets/animations/neutral_reference.bvh',
-      './assets/animations/test_neutral.bvh'
+      '../assets/bvh/minimal_idle.bvh',
+      '../assets/animations/neutral_reference.bvh',
+      '../assets/animations/test_neutral.bvh'
     ];
     
     for (const bvhPath of bvhPaths) {
