@@ -1,0 +1,19 @@
+{
+  "name": "web_viewer",
+  "version": "1.0.0",
+  "description": "This is the reorganized WebNN/WebGPU/WASM avatar workspace. For a complete guide, see:",
+  "main": "capture-vrm-final.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}
