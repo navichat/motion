@@ -39,24 +39,30 @@ class EnhancedSpeechSync {
     try {
       console.log('EnhancedSpeechSync: Initializing...');
       
-      // Setup audio analysis
-      await this.setupAudioAnalysis();
+      // Setup audio analysis - don't fail if not available
+      try {
+        await this.setupAudioAnalysis();
+      } catch (error) {
+        console.warn('EnhancedSpeechSync: Audio analysis setup failed, using basic mode:', error);
+      }
       
-      // Initialize viseme tracking
+      // Initialize viseme tracking - always available
       this.initializeVisemeTracking();
       
-      // Initialize gesture generation
+      // Initialize gesture generation - always available
       this.initializeGestureGeneration();
       
-      // Setup animation scheduler
+      // Setup animation scheduler - always available
       this.setupAnimationScheduler();
       
       this.initialized = true;
       console.log('EnhancedSpeechSync: Initialization complete');
       
     } catch (error) {
-      console.error('EnhancedSpeechSync: Initialization failed:', error);
-      throw error;
+      console.warn('EnhancedSpeechSync: Initialization failed, using fallback mode:', error);
+      // Still mark as initialized for fallback mode
+      this.initialized = true;
+      console.log('EnhancedSpeechSync: Running in fallback mode');
     }
   }
 
@@ -64,19 +70,24 @@ class EnhancedSpeechSync {
    * Setup real-time audio analysis
    */
   async setupAudioAnalysis() {
-    // Create or reuse audio context
-    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Create analyzer node
-    this.analyzer = this.audioContext.createAnalyser();
-    this.analyzer.fftSize = this.fftSize;
-    this.analyzer.smoothingTimeConstant = 0.3;
-    
-    // Initialize frequency data arrays
-    this.frequencyBins = new Uint8Array(this.analyzer.frequencyBinCount);
-    this.audioData = new Float32Array(this.analyzer.frequencyBinCount);
-    
-    console.log('Audio analysis setup complete');
+    try {
+      // Create or reuse audio context
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Create analyzer node
+      this.analyzer = this.audioContext.createAnalyser();
+      this.analyzer.fftSize = this.fftSize;
+      this.analyzer.smoothingTimeConstant = 0.3;
+      
+      // Initialize frequency data arrays
+      this.frequencyBins = new Uint8Array(this.analyzer.frequencyBinCount);
+      this.audioData = new Float32Array(this.analyzer.frequencyBinCount);
+      
+      console.log('Audio analysis setup complete');
+    } catch (error) {
+      console.warn('Audio analysis setup failed:', error);
+      // Continue without audio analysis - viseme sync will use text analysis instead
+    }
   }
 
   /**

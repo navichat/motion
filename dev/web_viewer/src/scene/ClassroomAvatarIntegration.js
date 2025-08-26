@@ -106,7 +106,7 @@ class ClassroomAvatarIntegration {
     
     // Add to container
     const existingCanvas = this.container.querySelector('canvas');
-    if (existingCanvas) {
+    if (existingCanvas && existingCanvas.parentNode === this.container) {
       this.container.removeChild(existingCanvas);
     }
     this.container.appendChild(this.renderer.domElement);
@@ -258,9 +258,9 @@ class ClassroomAvatarIntegration {
    */
   async loadAndPositionAvatar() {
     return new Promise((resolve, reject) => {
-      // Check for VRM loader availability
-      if (typeof THREE.VRMLoaderPlugin === 'undefined' && typeof GLTFLoader === 'undefined') {
-        console.warn('VRM loader not available, creating simple avatar');
+      // Check for VRM/GLTF loader availability  
+      if (typeof THREE.VRMLoaderPlugin === 'undefined' || typeof THREE.GLTFLoader === 'undefined') {
+        console.warn('VRM/GLTF loader not available, creating simple avatar');
         this.createSimpleAvatar();
         resolve();
         return;

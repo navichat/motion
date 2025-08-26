@@ -31,23 +31,37 @@ class ConversationManager {
       console.log('ConversationManager: Initializing components...');
       
       // Initialize audio context
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      try {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (error) {
+        console.warn('ConversationManager: Audio context initialization failed:', error);
+        // Continue without audio context - fallback will handle this
+      }
       
-      // Initialize STT system
-      await this.initializeSTT();
+      // Initialize STT system - don't fail if unavailable
+      try {
+        await this.initializeSTT();
+      } catch (error) {
+        console.warn('ConversationManager: STT initialization failed, using fallback:', error);
+      }
       
-      // Initialize TTS system  
-      await this.initializeTTS();
+      // Initialize TTS system - don't fail if unavailable 
+      try {
+        await this.initializeTTS();
+      } catch (error) {
+        console.warn('ConversationManager: TTS initialization failed, using fallback:', error);
+      }
       
-      // Initialize 3D Avatar in classroom
-      await this.initializeAvatarScene();
+      // Skip avatar scene initialization - handled separately by ClassroomAvatarIntegration
       
       this.initialized = true;
-      console.log('ConversationManager: All components initialized successfully');
+      console.log('ConversationManager: Components initialized with available features');
       
     } catch (error) {
-      console.error('ConversationManager: Initialization failed:', error);
-      throw error;
+      console.error('ConversationManager: Critical initialization failure:', error);
+      // Still mark as initialized with limited functionality
+      this.initialized = true;
+      console.log('ConversationManager: Initialized in fallback mode');
     }
   }
 

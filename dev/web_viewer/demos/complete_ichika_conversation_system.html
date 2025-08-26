@@ -401,48 +401,88 @@
                     
                     // Initialize classroom 3D integration
                     this.updateLoadingProgress('Loading 3D classroom scene...');
-                    this.classroomIntegration = new ClassroomAvatarIntegration(
-                        document.getElementById('scene-container')
-                    );
-                    await this.classroomIntegration.initializeScene();
-                    this.updateStatus('3d', 'active', 'Loaded');
-                    this.log('✅ 3D classroom scene initialized');
+                    try {
+                        this.classroomIntegration = new ClassroomAvatarIntegration(
+                            document.getElementById('scene-container')
+                        );
+                        await this.classroomIntegration.initializeScene();
+                        this.updateStatus('3d', 'active', 'Loaded');
+                        this.log('✅ 3D classroom scene initialized');
+                        
+                        // Check if avatar was created (either VRM or simple)
+                        if (this.classroomIntegration.avatar) {
+                            this.updateStatus('avatar', 'active', 'Ready');
+                            this.log('✅ Avatar loaded and positioned');
+                        } else {
+                            this.updateStatus('avatar', 'inactive', 'Not Loaded');
+                            this.log('❌ Avatar failed to load');
+                        }
+                    } catch (error) {
+                        this.updateStatus('3d', 'inactive', 'Failed');
+                        this.updateStatus('avatar', 'inactive', 'Failed');
+                        this.log('❌ 3D scene initialization failed: ' + error.message);
+                        throw error;
+                    }
 
                     // Initialize conversation manager
                     this.updateLoadingProgress('Setting up conversation system...');
-                    this.conversationManager = new ConversationManager();
-                    await this.conversationManager.initialize();
-                    this.updateStatus('conversation', 'active', 'Ready');
-                    this.log('✅ Conversation manager initialized');
+                    try {
+                        this.conversationManager = new ConversationManager();
+                        await this.conversationManager.initialize();
+                        this.updateStatus('conversation', 'active', 'Ready');
+                        this.log('✅ Conversation manager initialized');
+                    } catch (error) {
+                        this.updateStatus('conversation', 'inactive', 'Failed');
+                        this.log('❌ Conversation manager failed: ' + error.message);
+                        // Continue initialization - other components might work
+                    }
 
                     // Initialize enhanced speech sync
                     this.updateLoadingProgress('Preparing speech synchronization...');
-                    this.speechSync = new EnhancedSpeechSync();
-                    await this.speechSync.initialize();
-                    this.updateStatus('speech', 'active', 'Ready');
-                    this.log('✅ Enhanced speech synchronization ready');
+                    try {
+                        this.speechSync = new EnhancedSpeechSync();
+                        await this.speechSync.initialize();
+                        this.updateStatus('speech', 'active', 'Ready');
+                        this.log('✅ Enhanced speech synchronization ready');
+                    } catch (error) {
+                        this.updateStatus('speech', 'inactive', 'Failed');
+                        this.log('❌ Speech synchronization failed: ' + error.message);
+                        // Continue initialization - other components might work
+                    }
 
                     // Connect components
                     this.updateLoadingProgress('Connecting system components...');
-                    await this.connectComponents();
+                    try {
+                        await this.connectComponents();
+                        this.log('✅ System components connected');
+                    } catch (error) {
+                        this.log('⚠️  Component connection partially failed: ' + error.message);
+                        // Continue - partial functionality is acceptable
+                    }
                     
-                    this.updateStatus('avatar', 'active', 'Ready');
                     this.updatePerformanceStatus();
                     
                     this.initialized = true;
                     this.hideLoading();
                     
-                    this.ui.startButton.disabled = false;
-                    this.ui.testTTSButton.disabled = false;
-                    this.ui.testAnimButton.disabled = false;
+                    // Enable buttons based on what actually initialized
+                    this.ui.startButton.disabled = !this.conversationManager;
+                    this.ui.testTTSButton.disabled = false; // Always enable - has fallback
+                    this.ui.testAnimButton.disabled = !this.classroomIntegration;
                     
-                    this.log('🎉 System initialization complete! Ready for conversation.');
+                    this.log('🎉 System initialization complete! Available features enabled.');
                     
                 } catch (error) {
                     console.error('System initialization failed:', error);
-                    this.log('❌ Initialization failed: ' + error.message);
+                    this.log('❌ Critical initialization failure: ' + error.message);
                     this.hideLoading();
                     this.ui.initButton.disabled = false;
+                    
+                    // Update all status indicators to show failure
+                    this.updateStatus('3d', 'inactive', 'Failed');
+                    this.updateStatus('avatar', 'inactive', 'Failed');
+                    this.updateStatus('conversation', 'inactive', 'Failed');
+                    this.updateStatus('speech', 'inactive', 'Failed');
                 }
             }
 
