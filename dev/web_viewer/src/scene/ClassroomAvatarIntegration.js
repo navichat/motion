@@ -262,88 +262,59 @@ class ClassroomAvatarIntegration {
   }
 
   /**
-   * Load and position Ichika VRM avatar using working VRM system
+   * Load and position VRM avatar using existing AdvancedVRMLoader infrastructure
    */
   async loadAndPositionAvatar() {
     try {
-      console.log('ClassroomAvatarIntegration: Loading VRM avatar with existing infrastructure...');
+      console.log('ClassroomAvatarIntegration: Loading VRM avatar using existing infrastructure...');
       
-      // First priority: Use the working VRMLoaderLite pattern
-      if (typeof window.VRMLoaderLite !== 'undefined') {
-        console.log('✅ VRMLoaderLite is available, attempting VRM load...');
+      // Use existing AdvancedVRMLoader instead of VRMLoaderLite fallback
+      if (typeof window.AdvancedVRMLoader !== 'undefined') {
+        console.log('✅ AdvancedVRMLoader is available, using existing infrastructure...');
+        
+        this.vrmLoader = new window.AdvancedVRMLoader();
+        console.log('✅ AdvancedVRMLoader initialized');
         
         const vrmPaths = [
           './assets/avatars/ichika.vrm',
-          './assets/avatars/buny.vrm', 
-          './assets/avatars/kaede.vrm'
+          './assets/characters/ichika.vrm', 
+          './assets/avatars/buny.vrm',
+          './assets/characters/buny.vrm'
         ];
         
         for (const vrmPath of vrmPaths) {
           try {
-            console.log(`Loading VRM with VRMLoaderLite: ${vrmPath}`);
+            console.log(`Loading VRM with AdvancedVRMLoader: ${vrmPath}`);
             
-            // Fetch VRM file as array buffer (working pattern)
-            const response = await fetch(vrmPath);
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}`);
-            }
-            
-            const buffer = await response.arrayBuffer();
-            console.log(`✅ VRM file fetched (${buffer.byteLength} bytes)`);
-            
-            // Load VRM using VRMLoaderLite
-            const loader = new window.VRMLoaderLite();
-            const result = await loader.loadFromArrayBuffer(buffer, 'ichika.vrm');
+            // Use AdvancedVRMLoader to load VRM character with proper animation setup
+            const result = await this.vrmLoader.loadVRMCharacter(vrmPath, this.scene);
             
             if (result && result.vrm) {
-              console.log('✅ VRM loaded successfully!');
-              
-              // Wait for VRM to be fully ready
-              if (result.vrm.ready) {
-                await result.vrm.ready;
-                console.log('✅ VRM ready promise resolved');
-              }
+              console.log('✅ VRM loaded successfully with AdvancedVRMLoader!');
               
               this.vrm = result.vrm;
               this.vrmModel = result;
-              this.avatar = result.vrm.scene; // Use VRM scene as avatar
+              this.avatar = result.vrm.scene;
               this.vrmReady = true;
               
-              // Add VRM scene to main scene
-              if (result.vrm.scene) {
-                this.scene.add(result.vrm.scene);
-                console.log('✅ VRM scene added to main scene');
-                
-                // Log VRM scene details for debugging
-                result.vrm.scene.traverse((child) => {
-                  if (child.isMesh) {
-                    console.log(`VRM mesh found: ${child.name}, geometry: ${child.geometry.constructor.name}`);
-                  }
-                });
-                
-                // Make sure VRM is visible and properly scaled
-                result.vrm.scene.visible = true;
-                result.vrm.scene.scale.setScalar(1.0);
-              }
-              
-              // Position avatar in classroom
+              // Position avatar in classroom using existing method
               this.positionAvatarInClassroom();
               
-              // Setup VRM animation system with existing infrastructure
+              // Setup VRM animation system with existing BVH infrastructure
               await this.setupRealVRMAnimationSystem();
               
-              console.log('🎉 Real VRM avatar loaded successfully - no geometric fallbacks!');
+              console.log('🎉 Real VRM avatar loaded with AdvancedVRMLoader - using existing infrastructure!');
               return;
             }
           } catch (error) {
-            console.warn(`Failed to load VRM ${vrmPath} with VRMLoaderLite:`, error.message);
+            console.warn(`Failed to load VRM ${vrmPath} with AdvancedVRMLoader:`, error.message);
             continue;
           }
         }
       }
       
-      // Second priority: Use Three.js VRM loading directly 
-      console.log('Attempting Three.js VRM loading with proper infrastructure...');
+      // Second priority: Use Three.js VRM loading as fallback
+      console.log('AdvancedVRMLoader not available, attempting Three.js VRM loading...');
       await this.loadVRMWithThreeJS();
       
     } catch (error) {

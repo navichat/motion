@@ -1,0 +1,36 @@
+{
+    "timestamp": "2025-08-26T17:41:09+00:00",
+    "test_type": "Real VRM System Validation",
+    "shell_timeout_compliance": true,
+    "repository": "/home/runner/work/motion/motion",
+    "vrm_assets": {
+        "ichika_avatars": "available",
+        "buny_avatars": "available",
+        "ichika_characters": "available",
+        "total_vrm_files": 6
+    },
+    "vrm_infrastructure": {
+        "vrm_loader": "available",
+        "advanced_vrm_loader": "available",
+        "avatar_binder": "available",
+        "vrm_bvh_adapter": "available",
+        "bvh_timeline": "available",
+        "bvh_vrm_integration": "available"
+    },
+    "bvh_animations": {
+        "minimal_idle": "available",
+        "test_pipeline": "available",
+        "total_bvh_files": 831
+    },
+    "demo_html_files": {
+        "real_vrm_system_demo": "available",
+        "ichika_classroom_demo": "available",
+        "complete_conversation_system": "available"
+    },
+    "validation_summary": {
+        "vrm_infrastructure_ready": "true",
+        "vrm_assets_ready": "true",
+        "bvh_system_ready": "true",
+        "demo_system_ready": "true"
+    }
+}
