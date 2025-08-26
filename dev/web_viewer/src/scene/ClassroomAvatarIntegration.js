@@ -273,9 +273,9 @@ class ClassroomAvatarIntegration {
         console.log('✅ VRMLoaderLite is available, attempting VRM load...');
         
         const vrmPaths = [
-          '../assets/avatars/ichika.vrm',
-          '../assets/avatars/buny.vrm', 
-          '../assets/avatars/kaede.vrm'
+          './assets/avatars/ichika.vrm',
+          './assets/avatars/buny.vrm', 
+          './assets/avatars/kaede.vrm'
         ];
         
         for (const vrmPath of vrmPaths) {
@@ -298,15 +298,26 @@ class ClassroomAvatarIntegration {
             if (result && result.vrm) {
               console.log('✅ VRM loaded successfully!');
               
+              // Wait for VRM to be fully ready
+              if (result.vrm.ready) {
+                await result.vrm.ready;
+                console.log('✅ VRM ready promise resolved');
+              }
+              
               this.vrm = result.vrm;
               this.vrmModel = result;
-              this.avatar = result;
+              this.avatar = result.vrm.scene; // Use VRM scene as avatar
               this.vrmReady = true;
               
               // Add VRM scene to main scene
               if (result.vrm.scene) {
                 this.scene.add(result.vrm.scene);
                 console.log('✅ VRM scene added to main scene');
+                
+                // Log VRM scene details
+                console.log(`VRM scene children: ${result.vrm.scene.children.length}`);
+                console.log(`VRM scene position: ${result.vrm.scene.position.x}, ${result.vrm.scene.position.y}, ${result.vrm.scene.position.z}`);
+                console.log(`VRM scene scale: ${result.vrm.scene.scale.x}, ${result.vrm.scene.scale.y}, ${result.vrm.scene.scale.z}`);
               }
               
               // Position avatar in classroom
@@ -374,9 +385,9 @@ class ClassroomAvatarIntegration {
     loader.register((parser) => new VRMLoaderPlugin(parser));
     
     const vrmPaths = [
-      '../assets/avatars/ichika.vrm',
-      '../assets/avatars/buny.vrm', 
-      '../assets/avatars/kaede.vrm'
+      './assets/avatars/ichika.vrm',
+      './assets/avatars/buny.vrm', 
+      './assets/avatars/kaede.vrm'
     ];
     
     for (const vrmPath of vrmPaths) {
@@ -489,8 +500,8 @@ class ClassroomAvatarIntegration {
    */
   async loadWorkingBVHAnimations() {
     const bvhPaths = [
-      '../assets/bvh/minimal_idle.bvh',
-      '../assets/animations/neutral_reference.bvh'
+      './assets/bvh/minimal_idle.bvh',
+      './assets/animations/neutral_reference.bvh'
     ];
     
     for (const bvhPath of bvhPaths) {
