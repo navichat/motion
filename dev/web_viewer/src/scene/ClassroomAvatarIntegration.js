@@ -266,9 +266,9 @@ class ClassroomAvatarIntegration {
    */
   async loadAndPositionAvatar() {
     try {
-      console.log('ClassroomAvatarIntegration: Loading VRM avatar with working VRM system...');
+      console.log('ClassroomAvatarIntegration: Loading VRM avatar with existing infrastructure...');
       
-      // Use the working VRMLoaderLite pattern from ichika_voice_conversation_demo.html
+      // First priority: Use the working VRMLoaderLite pattern
       if (typeof window.VRMLoaderLite !== 'undefined') {
         console.log('✅ VRMLoaderLite is available, attempting VRM load...');
         
@@ -314,19 +314,25 @@ class ClassroomAvatarIntegration {
                 this.scene.add(result.vrm.scene);
                 console.log('✅ VRM scene added to main scene');
                 
-                // Log VRM scene details
-                console.log(`VRM scene children: ${result.vrm.scene.children.length}`);
-                console.log(`VRM scene position: ${result.vrm.scene.position.x}, ${result.vrm.scene.position.y}, ${result.vrm.scene.position.z}`);
-                console.log(`VRM scene scale: ${result.vrm.scene.scale.x}, ${result.vrm.scene.scale.y}, ${result.vrm.scene.scale.z}`);
+                // Log VRM scene details for debugging
+                result.vrm.scene.traverse((child) => {
+                  if (child.isMesh) {
+                    console.log(`VRM mesh found: ${child.name}, geometry: ${child.geometry.constructor.name}`);
+                  }
+                });
+                
+                // Make sure VRM is visible and properly scaled
+                result.vrm.scene.visible = true;
+                result.vrm.scene.scale.setScalar(1.0);
               }
               
               // Position avatar in classroom
               this.positionAvatarInClassroom();
               
-              // Setup VRM animation system with working pattern
-              await this.setupWorkingVRMAnimationSystem();
+              // Setup VRM animation system with existing infrastructure
+              await this.setupRealVRMAnimationSystem();
               
-              console.log('🎉 VRM avatar loaded successfully with VRMLoaderLite!');
+              console.log('🎉 Real VRM avatar loaded successfully - no geometric fallbacks!');
               return;
             }
           } catch (error) {
@@ -336,53 +342,29 @@ class ClassroomAvatarIntegration {
         }
       }
       
-      // Fallback to manual VRM loading only if VRMLoaderLite is not available
-      console.warn('VRMLoaderLite not available, trying manual loading...');
-      await this.loadVRMManually();
+      // Second priority: Use Three.js VRM loading directly 
+      console.log('Attempting Three.js VRM loading with proper infrastructure...');
+      await this.loadVRMWithThreeJS();
       
     } catch (error) {
-      console.warn('VRM loading failed completely, creating simple avatar:', error);
-      this.createSimpleAvatar();
+      console.error('❌ VRM loading failed completely - this should not happen:', error);
+      // Instead of geometric fallback, throw error to show the problem
+      throw new Error(`VRM loading system failure: ${error.message}`);
     }
   }
 
   /**
-   * Manual VRM loading fallback
+   * Load VRM using Three.js modules with proper infrastructure
    */
-  async loadVRMManually() {
-    // Check if dynamic import of Three.js modules is available
-    let GLTFLoader, VRMLoaderPlugin;
-    
-    try {
-      // Try to import Three.js modules dynamically
-      if (typeof window !== 'undefined' && window.THREE) {
-        GLTFLoader = window.THREE.GLTFLoader;
-        VRMLoaderPlugin = window.THREE.VRMLoaderPlugin;
-      }
-      
-      // If not available globally, try dynamic import
-      if (!GLTFLoader) {
-        const threeModule = await import('three/addons/loaders/GLTFLoader.js');
-        GLTFLoader = threeModule.GLTFLoader;
-      }
-      
-      if (!VRMLoaderPlugin) {
-        const vrmModule = await import('@pixiv/three-vrm');
-        VRMLoaderPlugin = vrmModule.VRMLoaderPlugin;
-      }
-      
-    } catch (error) {
-      console.warn('Failed to load VRM modules dynamically:', error);
-      throw error;
+  async loadVRMWithThreeJS() {
+    // Check if Three.js VRM modules are available
+    if (!window.THREE || !window.THREE.GLTFLoader || !window.THREE.VRMLoaderPlugin) {
+      throw new Error('Required Three.js VRM modules are not available');
     }
     
-    if (!GLTFLoader || !VRMLoaderPlugin) {
-      throw new Error('VRM loading modules not available');
-    }
-    
-    // Setup loader
-    const loader = new GLTFLoader();
-    loader.register((parser) => new VRMLoaderPlugin(parser));
+    // Setup Three.js VRM loader
+    const loader = new window.THREE.GLTFLoader();
+    loader.register((parser) => new window.THREE.VRMLoaderPlugin(parser));
     
     const vrmPaths = [
       './assets/avatars/ichika.vrm',
@@ -392,121 +374,137 @@ class ClassroomAvatarIntegration {
     
     for (const vrmPath of vrmPaths) {
       try {
-        console.log(`Manually loading VRM: ${vrmPath}`);
+        console.log(`Loading VRM with Three.js: ${vrmPath}`);
         
         const gltf = await new Promise((resolve, reject) => {
           loader.load(vrmPath, resolve, 
-            (progress) => console.log(`VRM loading progress: ${(progress.loaded / progress.total * 100).toFixed(1)}%`),
+            (progress) => {
+              const percent = (progress.loaded / progress.total * 100).toFixed(1);
+              console.log(`VRM loading progress: ${percent}%`);
+            },
             reject);
         });
         
         const vrm = gltf.userData.vrm;
         if (vrm) {
-          await vrm.ready;
+          // Wait for VRM ready state
+          if (vrm.ready) {
+            await vrm.ready;
+          }
           
+          this.vrm = vrm;
           this.vrmModel = { vrm, scene: vrm.scene, gltf };
-          this.avatar = this.vrmModel;
+          this.avatar = vrm.scene;
           this.vrmReady = true;
           
+          // Add to scene
           this.scene.add(vrm.scene);
+          
+          // Log VRM details for debugging  
+          console.log(`✅ Three.js VRM loaded: ${vrm.scene.children.length} children`);
+          vrm.scene.traverse((child) => {
+            if (child.isMesh) {
+              console.log(`VRM mesh: ${child.name}, visible: ${child.visible}`);
+            }
+          });
           
           // Position avatar in classroom
           this.positionAvatarInClassroom();
           
-          // Setup VRM animation system
-          await this.setupVRMAnimationSystem();
+          // Setup animation system with existing infrastructure
+          await this.setupRealVRMAnimationSystem();
           
-          console.log('✅ VRM loaded manually and positioned in classroom');
+          console.log('🎉 Three.js VRM loaded successfully!');
           return;
         }
       } catch (error) {
-        console.warn(`Failed to manually load VRM ${vrmPath}:`, error);
+        console.warn(`Failed to load VRM ${vrmPath} with Three.js:`, error);
         continue;
       }
     }
     
-    throw new Error('All VRM loading attempts failed');
+    throw new Error('All Three.js VRM loading attempts failed');
   }
 
   /**
-   * Setup VRM animation system using working pattern
+   * Setup VRM animation system using existing infrastructure 
    */
-  async setupWorkingVRMAnimationSystem() {
+  async setupRealVRMAnimationSystem() {
     if (!this.vrm) {
       console.warn('VRM not available for animation setup');
       return;
     }
     
     try {
-      console.log('Setting up working VRM animation system...');
+      console.log('Setting up real VRM animation system with existing infrastructure...');
       
-      // Initialize avatar binder (working pattern)
+      // Initialize AvatarBinder with the loaded VRM
       if (typeof window.AvatarBinder !== 'undefined') {
         this.binder = new window.AvatarBinder(this.vrm);
-        console.log('✅ AvatarBinder initialized with VRM');
+        console.log('✅ AvatarBinder initialized with real VRM');
       } else {
-        console.warn('AvatarBinder not available, using stub');
-        this.binder = new (class { 
-          constructor() { this.stub = true; this.records = []; this.blendshapeRecords = []; } 
-          updateBone() {} 
-          update() {} 
-          updateBlendshape(n, w) { this.blendshapeRecords.push({ name: n, weight: w }); } 
-          getStats() { return { applied: this.records.length, expressions: this.blendshapeRecords.length, stub: true }; } 
-        })();
+        console.error('❌ AvatarBinder not available - required for VRM animation');
+        throw new Error('AvatarBinder not available');
       }
       
-      // Load BVH animations
-      await this.loadWorkingBVHAnimations();
-      
-      // Setup BVH timeline (working pattern)
+      // Setup BVH Timeline for animation composition
       if (typeof window.BVHTimeline !== 'undefined') {
+        // Use the BVHTimeline constructor properly
         const BVHTLCtor = (window.BVHTimeline && window.BVHTimeline.BVHTimeline) || window.BVHTimeline;
         this.bvhTimeline = new BVHTLCtor({ 
           framerate: 30, 
           lookaheadFrames: 30, 
-          onFrameUpdate: (frame, t) => {
-            // Apply frame updates to VRM
+          onFrameUpdate: (frame, time) => {
+            // Apply BVH frame updates to VRM through binder
             if (this.binder && frame) {
-              this.binder.update();
+              this.binder.update(time);
             }
           }
         });
-        console.log('✅ BVH Timeline initialized');
+        console.log('✅ BVH Timeline initialized for animation composition');
+      } else {
+        console.error('❌ BVHTimeline not available - required for animation system');
+        throw new Error('BVHTimeline not available');
       }
       
-      // Setup VRM-BVH integration (working pattern)
-      if (typeof window.BVHTimelineVRMIntegration !== 'undefined' && this.binder) {
+      // Setup VRM-BVH integration using existing system
+      if (typeof window.BVHTimelineVRMIntegration !== 'undefined' && this.binder && this.bvhTimeline) {
         this.vrmIntegration = new window.BVHTimelineVRMIntegration(this.binder);
-        if (this.bvhTimeline) {
-          this.vrmIntegration.connectTimeline(this.bvhTimeline);
-        }
-        console.log('✅ VRM-BVH integration connected');
+        this.vrmIntegration.connectTimeline(this.bvhTimeline);
+        console.log('✅ VRM-BVH integration connected with existing infrastructure');
+      } else {
+        console.error('❌ BVHTimelineVRMIntegration not available - required for VRM animation');
+        throw new Error('BVHTimelineVRMIntegration not available');
       }
       
-      // Start simple idle animations
-      this.startIdleAnimations();
+      // Load real BVH animation data
+      await this.loadRealBVHAnimations();
+      
+      // Start VRM humanoid animations using Three-VRM capabilities
+      this.startVRMHumanoidAnimations();
       
       this.animationsReady = true;
-      console.log('🎉 Working VRM animation system setup complete!');
+      console.log('🎉 Real VRM animation system setup complete with existing infrastructure!');
       
     } catch (error) {
-      console.warn('Working VRM animation system setup failed:', error);
-      // Continue without animations
+      console.error('❌ Real VRM animation system setup failed:', error);
+      throw error; // Don't continue with broken animation system
     }
   }
 
   /**
-   * Load BVH animations using working approach
+   * Load real BVH animations using existing infrastructure
    */
-  async loadWorkingBVHAnimations() {
+  async loadRealBVHAnimations() {
     const bvhPaths = [
       './assets/bvh/minimal_idle.bvh',
-      './assets/animations/neutral_reference.bvh'
+      './assets/animations/neutral_reference.bvh',
+      './assets/animations/test_neutral.bvh'
     ];
     
     for (const bvhPath of bvhPaths) {
       try {
-        console.log(`Loading BVH animation: ${bvhPath}`);
+        console.log(`Loading real BVH animation: ${bvhPath}`);
         
         const response = await fetch(bvhPath);
         if (!response.ok) {
@@ -514,73 +512,163 @@ class ClassroomAvatarIntegration {
         }
         
         const bvhData = await response.text();
-        console.log(`✅ BVH animation loaded: ${bvhPath} (${bvhData.length} chars)`);
+        console.log(`✅ Real BVH animation loaded: ${bvhPath} (${bvhData.length} chars)`);
         
-        this.currentBVHData = bvhData;
+        // Parse BVH data using existing infrastructure
+        if (typeof window.BVHFileLoader !== 'undefined') {
+          const loader = new window.BVHFileLoader();
+          this.currentBVHData = await loader.loadBvhFile(bvhData);
+          console.log('✅ BVH data parsed with existing BVHFileLoader');
+        } else {
+          // Fallback to basic parsing
+          this.currentBVHData = this.parseRealBVHData(bvhData);
+          console.log('✅ BVH data parsed with fallback parser');
+        }
+        
+        // Add to BVH timeline if available
+        if (this.bvhTimeline && this.currentBVHData) {
+          // Try to add BVH clip to timeline
+          try {
+            this.bvhTimeline.tracks.base.addClip({
+              name: `bvh_${path.basename(bvhPath, '.bvh')}`,
+              data: this.currentBVHData,
+              startTime: 0,
+              loop: true
+            });
+            console.log('✅ BVH clip added to timeline');
+          } catch (clipError) {
+            console.warn('Could not add BVH clip to timeline:', clipError);
+          }
+        }
+        
         return; // Use first successful load
         
       } catch (error) {
-        console.warn(`Failed to load BVH ${bvhPath}:`, error.message);
+        console.warn(`Failed to load real BVH ${bvhPath}:`, error.message);
         continue;
       }
     }
     
-    console.log('⚠️ No BVH files loaded, continuing without BVH data');
+    console.warn('⚠️ No real BVH files loaded, VRM will use minimal animations only');
   }
 
   /**
-   * Start simple idle animations for the VRM
+   * Start VRM humanoid animations using Three-VRM capabilities
    */
-  startIdleAnimations() {
+  startVRMHumanoidAnimations() {
     if (!this.vrm || !this.vrm.humanoid) {
-      console.warn('VRM humanoid not available for idle animations');
+      console.warn('VRM humanoid not available for animations');
       return;
     }
 
-    console.log('🎭 Starting VRM idle animations...');
+    console.log('🎭 Starting VRM humanoid animations...');
     
     let animationFrame = 0;
     const startTime = performance.now();
     
-    const idleAnimation = () => {
+    const vrmAnimation = () => {
       if (!this.vrm || !this.vrm.humanoid) return;
       
       const time = (performance.now() - startTime) * 0.001;
       
       try {
-        // Breathing animation
-        const chest = this.vrm.humanoid.getNormalizedBoneNode('chest');
-        if (chest) {
-          chest.scale.y = 1 + Math.sin(time * 0.5) * 0.02;
+        // Use VRM humanoid bone nodes for proper animation
+        const humanoid = this.vrm.humanoid;
+        
+        // Natural breathing animation
+        const spine = humanoid.getNormalizedBoneNode('spine');
+        const chest = humanoid.getNormalizedBoneNode('chest');
+        if (spine || chest) {
+          const breathingTarget = chest || spine;
+          const breathingIntensity = 0.015 + Math.sin(time * 0.8) * 0.005;
+          breathingTarget.scale.y = 1 + Math.sin(time * 0.6) * breathingIntensity;
+          breathingTarget.scale.z = 1 + Math.sin(time * 0.6) * breathingIntensity * 0.5;
         }
         
-        // Head movement
-        const head = this.vrm.humanoid.getNormalizedBoneNode('head');
+        // Natural head movement with personality
+        const head = humanoid.getNormalizedBoneNode('head');
+        const neck = humanoid.getNormalizedBoneNode('neck');
         if (head) {
-          head.rotation.y = Math.sin(time * 0.3) * 0.05;
-          head.rotation.x = Math.sin(time * 0.2) * 0.02;
+          // Subtle head rotation for natural look
+          head.rotation.y = Math.sin(time * 0.3) * 0.08 + Math.sin(time * 0.13) * 0.02;
+          head.rotation.x = Math.sin(time * 0.25) * 0.03 + Math.sin(time * 0.17) * 0.01;
+          head.rotation.z = Math.sin(time * 0.2) * 0.02;
+        }
+        if (neck) {
+          // Neck supports head movement
+          neck.rotation.y = Math.sin(time * 0.28) * 0.02;
+          neck.rotation.x = Math.sin(time * 0.22) * 0.015;
         }
         
-        // Subtle blinking (blend shapes)
+        // Subtle shoulder animation
+        const leftShoulder = humanoid.getNormalizedBoneNode('leftShoulder');
+        const rightShoulder = humanoid.getNormalizedBoneNode('rightShoulder');
+        if (leftShoulder) {
+          leftShoulder.rotation.z = Math.sin(time * 0.4 + Math.PI) * 0.02;
+        }
+        if (rightShoulder) {
+          rightShoulder.rotation.z = Math.sin(time * 0.4) * 0.02;
+        }
+        
+        // Natural arm sway
+        const leftUpperArm = humanoid.getNormalizedBoneNode('leftUpperArm');
+        const rightUpperArm = humanoid.getNormalizedBoneNode('rightUpperArm');
+        if (leftUpperArm) {
+          leftUpperArm.rotation.x = Math.sin(time * 0.35) * 0.05;
+          leftUpperArm.rotation.z = Math.sin(time * 0.3) * 0.03;
+        }
+        if (rightUpperArm) {
+          rightUpperArm.rotation.x = Math.sin(time * 0.35 + Math.PI * 0.7) * 0.05;
+          rightUpperArm.rotation.z = Math.sin(time * 0.3 + Math.PI * 0.7) * 0.03;
+        }
+        
+        // Hip sway for natural posture
+        const hips = humanoid.getNormalizedBoneNode('hips');
+        if (hips) {
+          hips.rotation.y = Math.sin(time * 0.2) * 0.01;
+          hips.rotation.z = Math.sin(time * 0.18) * 0.005;
+        }
+        
+        // Facial expressions using VRM expression system
         if (this.vrm.expressionManager) {
-          const blinkValue = Math.max(0, Math.sin(time * 2) * 0.1);
-          this.vrm.expressionManager.setValue('blink', blinkValue);
+          // Natural blinking
+          const blinkCycle = time * 3.2;
+          const blinkValue = Math.max(0, Math.sin(blinkCycle) * 0.1 + Math.sin(blinkCycle * 4.7) * 0.05);
+          this.vrm.expressionManager.setValue('blink', Math.max(0, Math.min(1, blinkValue)));
+          
+          // Subtle smile expression
+          const smileValue = 0.1 + Math.sin(time * 0.1) * 0.05;
+          this.vrm.expressionManager.setValue('happy', Math.max(0, Math.min(1, smileValue)));
+        }
+        
+        // Use binder to apply additional BVH-driven animations if available
+        if (this.binder && this.binder.update) {
+          this.binder.update(time);
         }
         
       } catch (error) {
-        // Silently handle animation errors
+        // Log animation errors but don't break the loop
+        if (animationFrame % 300 === 0) { // Log every 10 seconds at 30fps
+          console.warn('VRM animation warning (non-critical):', error.message);
+        }
       }
       
       animationFrame++;
-      if (animationFrame % 60 === 0) {
-        console.log('🎭 VRM idle animation running...');
+      if (animationFrame % 90 === 0) { // Log every 3 seconds at 30fps
+        console.log('🎭 VRM humanoid animation running...');
+        
+        // Log VRM state for debugging
+        if (this.binder && this.binder.getStats) {
+          const stats = this.binder.getStats();
+          console.log(`VRM Binder Stats:`, stats);
+        }
       }
       
-      requestAnimationFrame(idleAnimation);
+      requestAnimationFrame(vrmAnimation);
     };
     
-    idleAnimation();
-    console.log('✅ VRM idle animations started');
+    vrmAnimation();
+    console.log('✅ VRM humanoid animations started with natural movement patterns');
   }
 
   /**
@@ -622,35 +710,108 @@ class ClassroomAvatarIntegration {
   }
 
   /**
-   * Simple BVH data parser
+   * Parse BVH data with real structure understanding
    */
-  parseBVHData(bvhText) {
-    // Very basic BVH parsing - in a real implementation this would be more robust
+  parseRealBVHData(bvhText) {
     const lines = bvhText.split('\n');
     const bones = [];
+    const hierarchy = {};
+    const channels = [];
+    let frameTime = 1/30; // Default 30 FPS
+    let numFrames = 0;
     
-    // Extract basic bone structure
+    // Parse hierarchy section
     let inHierarchy = false;
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed === 'HIERARCHY') {
+    let inMotion = false;
+    let currentBone = null;
+    let boneStack = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      if (line === 'HIERARCHY') {
         inHierarchy = true;
         continue;
       }
-      if (trimmed === 'MOTION') {
-        break;
+      
+      if (line === 'MOTION') {
+        inHierarchy = false;
+        inMotion = true;
+        continue;
       }
-      if (inHierarchy && (trimmed.startsWith('ROOT') || trimmed.startsWith('JOINT'))) {
-        const boneName = trimmed.split(' ')[1];
-        bones.push(boneName);
+      
+      if (inHierarchy) {
+        // Parse bone hierarchy
+        if (line.startsWith('ROOT') || line.startsWith('JOINT')) {
+          const boneName = line.split(/\s+/)[1];
+          bones.push(boneName);
+          currentBone = boneName;
+          
+          hierarchy[boneName] = {
+            name: boneName,
+            parent: boneStack.length > 0 ? boneStack[boneStack.length - 1] : null,
+            children: [],
+            offset: [0, 0, 0],
+            channels: []
+          };
+          
+          if (boneStack.length > 0) {
+            hierarchy[boneStack[boneStack.length - 1]].children.push(boneName);
+          }
+        } else if (line.startsWith('OFFSET')) {
+          const values = line.split(/\s+/).slice(1).map(parseFloat);
+          if (currentBone && values.length >= 3) {
+            hierarchy[currentBone].offset = values;
+          }
+        } else if (line.startsWith('CHANNELS')) {
+          const parts = line.split(/\s+/);
+          const numChannels = parseInt(parts[1]);
+          const channelNames = parts.slice(2, 2 + numChannels);
+          
+          if (currentBone) {
+            hierarchy[currentBone].channels = channelNames;
+            channels.push(...channelNames.map(name => ({ bone: currentBone, channel: name })));
+          }
+        } else if (line === '{') {
+          if (currentBone) {
+            boneStack.push(currentBone);
+          }
+        } else if (line === '}') {
+          if (boneStack.length > 0) {
+            boneStack.pop();
+          }
+          if (line.startsWith('End Site')) {
+            // Handle end sites if needed
+          }
+        }
+      } else if (inMotion) {
+        // Parse motion data
+        if (line.startsWith('Frames:')) {
+          numFrames = parseInt(line.split(':')[1].trim());
+        } else if (line.startsWith('Frame Time:')) {
+          frameTime = parseFloat(line.split(':')[1].trim());
+        }
+        // Frame data parsing would go here for full implementation
       }
     }
     
     return {
       bones: bones,
-      frameRate: 30,
-      frames: [], // Would contain actual frame data in full implementation
-      skeleton: { bones: bones.map(name => ({ name, parent: null, position: [0,0,0], rotation: [0,0,0] })) }
+      hierarchy: hierarchy,
+      channels: channels,
+      frameRate: 1.0 / frameTime,
+      numFrames: numFrames,
+      frameTime: frameTime,
+      // This would contain actual frame data in full implementation
+      frames: [], 
+      skeleton: { 
+        bones: bones.map(name => ({
+          name: name,
+          parent: hierarchy[name]?.parent,
+          offset: hierarchy[name]?.offset || [0, 0, 0],
+          channels: hierarchy[name]?.channels || []
+        }))
+      }
     };
   }
 
@@ -752,58 +913,13 @@ class ClassroomAvatarIntegration {
   }
 
   /**
-   * Create simple avatar if VRM loading fails
+   * This method has been removed - we only use real VRM avatars now
+   * No more geometric fallbacks (pink sphere + blue rectangle)
    */
   createSimpleAvatar() {
-    try {
-      const avatar = new THREE.Group();
-      
-      // Simple head
-      const headGeometry = new THREE.SphereGeometry(0.15);
-      const headMaterial = new THREE.MeshLambertMaterial({ color: 0xFFDBB3 });
-      const head = new THREE.Mesh(headGeometry, headMaterial);
-      head.position.set(0, 1.65, 0);
-      head.castShadow = true;
-      avatar.add(head);
-      
-      // Simple body
-      const bodyGeometry = new THREE.CylinderGeometry(0.1, 0.15, 0.6);
-      const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x4169E1 });
-      const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-      body.position.set(0, 1.2, 0);
-      body.castShadow = true;
-      avatar.add(body);
-      
-      // Simple arms
-      const armGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.4);
-      const armMaterial = new THREE.MeshLambertMaterial({ color: 0xFFDBB3 });
-      
-      const leftArm = new THREE.Mesh(armGeometry, armMaterial);
-      leftArm.position.set(-0.2, 1.3, 0);
-      leftArm.rotation.z = Math.PI / 6;
-      avatar.add(leftArm);
-      
-      const rightArm = new THREE.Mesh(armGeometry, armMaterial);
-      rightArm.position.set(0.2, 1.3, 0);
-      rightArm.rotation.z = -Math.PI / 6;
-      avatar.add(rightArm);
-      
-      // Mark as Ichika avatar for identification
-      avatar.name = 'IchikaAvatar';
-      avatar.userData = { type: 'simple_avatar', character: 'ichika' };
-      
-      this.avatar = avatar;
-      this.positionAvatarInClassroom();
-      
-      console.log('✅ Simple Ichika avatar created successfully');
-      
-    } catch (error) {
-      console.error('Failed to create simple avatar:', error);
-      // Create minimal fallback
-      this.avatar = new THREE.Group();
-      this.avatar.name = 'MinimalAvatar';
-      this.positionAvatarInClassroom();
-    }
+    console.error('❌ createSimpleAvatar() called - this should not happen!');
+    console.error('The system should load real VRM models, not geometric fallbacks');
+    throw new Error('VRM loading system failed - geometric fallbacks disabled');
   }
 
   /**
