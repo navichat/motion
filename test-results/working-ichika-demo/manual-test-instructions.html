@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manual Testing Instructions</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .step { margin: 15px 0; padding: 10px; background: #f0f0f0; }
+        .important { background: #fff3cd; border-left: 5px solid #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>🎭 Manual Testing Instructions</h1>
+    <h2>Working Ichika Classroom with Walking Demo</h2>
+    
+    <div class="step important">
+        <strong>Demo URL:</strong> 
+        <a href="http://localhost:8080/demos/working_ichika_classroom_with_walking.html" target="_blank">
+            Open Demo
+        </a>
+    </div>
+    
+    <h3>Test Steps:</h3>
+    
+    <div class="step">
+        <strong>Step 1:</strong> Click "Initialize System" button
+        <br><em>Expected: Three.js scene should initialize, status should show "Ready"</em>
+    </div>
+    
+    <div class="step">
+        <strong>Step 2:</strong> Click "Load Assets" button
+        <br><em>Expected: Ichika VRM and Classroom GLB should load, 3D scene should appear</em>
+    </div>
+    
+    <div class="step">
+        <strong>Step 3:</strong> Click "Start Walking Demo" button
+        <br><em>Expected: Ichika should appear in classroom and begin idle animations</em>
+    </div>
+    
+    <div class="step">
+        <strong>Step 4:</strong> Test walking controls
+        <br><em>Try: "Walk to Board", "Walk to Center", "Walk Random"</em>
+        <br><em>Expected: Avatar should walk to different positions smoothly</em>
+    </div>
+    
+    <div class="step">
+        <strong>Step 5:</strong> Test animations
+        <br><em>Try: "Wave", "Point", "Teaching Pose"</em>
+        <br><em>Expected: Avatar should perform different animations</em>
+    </div>
+    
+    <div class="step">
+        <strong>Step 6:</strong> Test camera views
+        <br><em>Try: "Front View", "Side View", "Top View", "Follow Avatar"</em>
+        <br><em>Expected: Camera should change perspectives smoothly</em>
+    </div>
+    
+    <h3>Success Criteria:</h3>
+    <ul>
+        <li>✅ Ichika VRM model loads and is visible</li>
+        <li>✅ Classroom environment is present</li>
+        <li>✅ Avatar walks smoothly between positions</li>
+        <li>✅ Animations play correctly</li>
+        <li>✅ Camera controls work</li>
+        <li>✅ System maintains 30+ FPS</li>
+    </ul>
+</body>
+</html>
