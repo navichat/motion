@@ -319,6 +319,14 @@
         <div class="log-area" id="logArea"></div>
     </div>
 
+    <!-- Load existing VRM infrastructure scripts first -->
+    <script src="../src/components/animation/vrm/AdvancedVRMLoader.js"></script>
+    <script src="../src/components/animation/vrm/AvatarBinder.js"></script>
+    <script src="../src/components/animation/vrm/VRMBVHAdapter.js"></script>
+    <script src="../src/components/animation/timeline/BVHTimeline.js"></script>
+    <script src="../src/components/animation/vrm/BVHTimelineVRMIntegration.js"></script>
+    <script src="../src/scene/ClassroomAvatarIntegration.js"></script>
+    
     <!-- Core Three.js Dependencies -->
     <script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
     <script src="https://unpkg.com/three@0.159.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -500,39 +508,117 @@
         }
         
         async function loadIchikaVRM() {
-            return new Promise((resolve, reject) => {
-                updateStatus('statusVRM', 'loading', 'Loading');
+            updateStatus('statusVRM', 'loading', 'Loading');
+            
+            try {
+                log('🎭 Loading Ichika VRM with existing infrastructure...', 'info');
                 
+                // Use existing AdvancedVRMLoader if available
+                if (typeof AdvancedVRMLoader !== 'undefined') {
+                    log('✅ Using AdvancedVRMLoader from existing infrastructure', 'success');
+                    
+                    const vrmLoader = new AdvancedVRMLoader();
+                    const vrmPaths = [
+                        '../assets/avatars/ichika.vrm',
+                        '../assets/characters/ichika.vrm'
+                    ];
+                    
+                    for (const vrmPath of vrmPaths) {
+                        try {
+                            log(`🔄 Loading VRM with AdvancedVRMLoader: ${vrmPath}`);
+                            
+                            const result = await vrmLoader.loadVRMCharacter(vrmPath, scene);
+                            
+                            if (result && result.vrm) {
+                                log('✅ VRM loaded successfully with AdvancedVRMLoader!', 'success');
+                                
+                                ichikaVRM = result.vrm.scene;
+                                
+                                // Position Ichika in classroom
+                                ichikaVRM.position.set(0, 0, 0);
+                                ichikaVRM.rotation.y = 0;
+                                ichikaVRM.scale.setScalar(1);
+                                
+                                // Enable shadows
+                                ichikaVRM.traverse((child) => {
+                                    if (child.isMesh) {
+                                        child.castShadow = true;
+                                        child.receiveShadow = true;
+                                    }
+                                });
+                                
+                                scene.add(ichikaVRM);
+                                
+                                updateStatus('statusVRM', 'ready', 'Loaded');
+                                document.getElementById('avatarStatus').textContent = 'Loaded';
+                                
+                                // Setup VRM animation binder
+                                if (typeof AvatarBinder !== 'undefined') {
+                                    window.avatarBinder = new AvatarBinder(result.vrm);
+                                    log('✅ AvatarBinder initialized with VRM', 'success');
+                                }
+                                
+                                return;
+                            }
+                        } catch (error) {
+                            log(`⚠️ AdvancedVRMLoader failed for ${vrmPath}: ${error.message}`, 'warning');
+                            continue;
+                        }
+                    }
+                }
+                
+                // Fallback to Three.js loader
+                log('🔄 Falling back to Three.js VRM loader...', 'warning');
+                await loadVRMWithThreeJS();
+                
+            } catch (error) {
+                log('❌ VRM loading failed: ' + error.message, 'error');
+                updateStatus('statusVRM', 'error', 'Failed');
+                throw error;
+            }
+        }
+        
+        async function loadVRMWithThreeJS() {
+            return new Promise((resolve, reject) => {
                 const loader = new THREE.GLTFLoader();
                 
-                // Try multiple paths for the VRM file
+                // Add VRM loader plugin if available
+                if (window.THREE.VRMLoaderPlugin) {
+                    loader.register((parser) => new THREE.VRMLoaderPlugin(parser));
+                }
+                
                 const vrmPaths = [
-                    '../assets/characters/ichika.vrm',
                     '../assets/avatars/ichika.vrm',
-                    './assets/characters/ichika.vrm',
-                    './assets/avatars/ichika.vrm'
+                    '../assets/characters/ichika.vrm'
                 ];
                 
-                let attemptCount = 0;
+                let pathIndex = 0;
                 
-                function tryLoadVRM(pathIndex) {
+                function tryLoadVRM() {
                     if (pathIndex >= vrmPaths.length) {
                         reject(new Error('Could not load Ichika VRM from any path'));
                         return;
                     }
                     
                     const path = vrmPaths[pathIndex];
-                    log(`🔄 Attempting to load VRM from: ${path}`);
+                    log(`🔄 Attempting Three.js VRM load: ${path}`);
                     
                     loader.load(
                         path,
                         (gltf) => {
-                            log('✅ Ichika VRM loaded successfully', 'success');
+                            log('✅ Ichika VRM loaded with Three.js', 'success');
                             
-                            // Extract VRM from GLTF
-                            ichikaVRM = gltf.scene;
+                            // Handle VRM data
+                            const vrm = gltf.userData.vrm;
+                            if (vrm) {
+                                ichikaVRM = vrm.scene;
+                                scene.add(vrm.scene);
+                            } else {
+                                ichikaVRM = gltf.scene;
+                                scene.add(gltf.scene);
+                            }
                             
-                            // Position Ichika in the classroom
+                            // Position Ichika in classroom
                             ichikaVRM.position.set(0, 0, 0);
                             ichikaVRM.rotation.y = 0;
                             ichikaVRM.scale.setScalar(1);
@@ -545,19 +631,6 @@
                                 }
                             });
                             
-                            // Add to scene
-                            scene.add(ichikaVRM);
-                            
-                            // Setup animation mixer if animations are available
-                            if (gltf.animations && gltf.animations.length > 0) {
-                                mixer = new THREE.AnimationMixer(ichikaVRM);
-                                gltf.animations.forEach((clip, index) => {
-                                    const action = mixer.clipAction(clip);
-                                    animationActions.set(clip.name || `animation_${index}`, action);
-                                    log(`📽️ Animation found: ${clip.name || `animation_${index}`}`);
-                                });
-                            }
-                            
                             updateStatus('statusVRM', 'ready', 'Loaded');
                             document.getElementById('avatarStatus').textContent = 'Loaded';
                             resolve(gltf);
@@ -568,13 +641,13 @@
                         },
                         (error) => {
                             log(`⚠️ Failed to load VRM from ${path}: ${error.message}`, 'warning');
-                            attemptCount++;
-                            tryLoadVRM(pathIndex + 1);
+                            pathIndex++;
+                            tryLoadVRM();
                         }
                     );
                 }
                 
-                tryLoadVRM(0);
+                tryLoadVRM();
             });
         }
         
