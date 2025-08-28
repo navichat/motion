@@ -484,16 +484,25 @@
                 const statusDiv = document.getElementById('neural-status');
                 
                 if (this.neuralPipeline) {
-                    const status = this.neuralPipeline.getStatus();
+                    const status = this.neuralPipeline.getSimpleStatus();
                     const models = status.models;
                     
                     let html = '';
                     for (const [name, loadStatus] of Object.entries(models)) {
                         const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+                        let statusDisplay = loadStatus.toUpperCase();
+                        let statusClass = loadStatus;
+                        
+                        // Handle demo mode specially
+                        if (loadStatus === 'demo') {
+                            statusDisplay = 'DEMO';
+                            statusClass = 'ready'; // Use ready styling for demo mode
+                        }
+                        
                         html += `
                             <div class="status-item">
                                 <span>${displayName}:</span>
-                                <span class="status-indicator status-${loadStatus}">${loadStatus.toUpperCase()}</span>
+                                <span class="status-indicator status-${statusClass}">${statusDisplay}</span>
                             </div>
                         `;
                     }

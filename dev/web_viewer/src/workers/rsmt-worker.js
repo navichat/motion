@@ -46,12 +46,36 @@ async function loadRSMTModel() {
     console.log('📦 Loading RSMT model in worker...');
     
     try {
-        // Simulate model loading (in real implementation, load actual RSMT ONNX model)
-        await simulateModelLoading();
+        // Load actual RSMT ONNX models from migration workspace
+        const styleVAEEncoderPath = '../../../migration_workspace/models/onnx/stylevae_encoder.onnx';
+        const styleVAEDecoderPath = '../../../migration_workspace/models/onnx/stylevae_decoder.onnx';
+        const transitionNetPath = '../../../migration_workspace/models/onnx/transition_net.onnx';
+        const deepPhasePath = '../../../migration_workspace/models/onnx/deephase.onnx';
+        
+        // Load ONNX Runtime Web
+        if (typeof ort === 'undefined') {
+            importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.15.1/dist/ort.min.js');
+        }
+        
+        console.log('🎨 Loading StyleVAE Encoder from:', styleVAEEncoderPath);
+        const encoderSession = await ort.InferenceSession.create(styleVAEEncoderPath);
+        
+        console.log('🎨 Loading StyleVAE Decoder from:', styleVAEDecoderPath);
+        const decoderSession = await ort.InferenceSession.create(styleVAEDecoderPath);
+        
+        console.log('🔄 Loading Transition Net from:', transitionNetPath);
+        const transitionSession = await ort.InferenceSession.create(transitionNetPath);
+        
+        console.log('⏱️ Loading DeepPhase from:', deepPhasePath);
+        const deepPhaseSession = await ort.InferenceSession.create(deepPhasePath);
         
         rsmtModel = {
             name: 'RSMT',
             version: '1.0',
+            encoderSession: encoderSession,
+            decoderSession: decoderSession,
+            transitionSession: transitionSession,
+            deepPhaseSession: deepPhaseSession,
             inputShape: [1, 120, 66], // [batch, sequence_length, joint_features]
             outputShape: [1, 120, 66], // [batch, sequence_length, stylized_joint_features]
             styles: ['casual', 'confident', 'energetic', 'relaxed', 'dramatic'],
@@ -65,15 +89,41 @@ async function loadRSMTModel() {
             model: {
                 name: rsmtModel.name,
                 version: rsmtModel.version,
-                availableStyles: rsmtModel.styles
+                availableStyles: rsmtModel.styles,
+                inputShape: rsmtModel.inputShape,
+                outputShape: rsmtModel.outputShape
             }
         });
         
-        console.log('✅ RSMT model loaded successfully');
+        console.log('✅ RSMT models loaded successfully');
         
     } catch (error) {
-        console.error('❌ Failed to load RSMT model:', error);
-        throw error;
+        console.error('❌ Failed to load RSMT models:', error);
+        
+        // Fallback to demo mode
+        rsmtModel = {
+            name: 'RSMT (Demo Mode)',
+            version: '1.0-demo',
+            inputShape: [1, 120, 66],
+            outputShape: [1, 120, 66], 
+            styles: ['casual', 'confident', 'energetic'],
+            demoMode: true,
+            loaded: true
+        };
+        
+        isModelLoaded = true;
+        
+        self.postMessage({
+            type: 'model-loaded',
+            model: {
+                name: rsmtModel.name,
+                version: rsmtModel.version,
+                availableStyles: rsmtModel.styles,
+                demoMode: true
+            }
+        });
+        
+        console.log('⚠️ RSMT running in demo mode');
     }
 }
 
@@ -102,7 +152,7 @@ async function runInference(input) {
         // Process motion data for stylization
         const motionFeatures = processMotionData(input.motion);
         
-        // Apply style transfer (simulated)
+        // Apply style transfer using ONNX models or demo
         const stylizedMotion = await applyMotionStyleTransfer(motionFeatures, input.targetStyle);
         
         const inferenceTime = performance.now() - startTime;
@@ -130,6 +180,68 @@ async function runInference(input) {
         console.error('❌ RSMT inference failed:', error);
         throw error;
     }
+}
+
+/**
+ * Apply motion style transfer using ONNX models
+ */
+async function applyMotionStyleTransfer(motionFeatures, targetStyle) {
+    if (rsmtModel.encoderSession && rsmtModel.decoderSession && rsmtModel.transitionSession) {
+        // Use actual ONNX models for style transfer
+        try {
+            // 1. Encode motion to latent space
+            const motionTensor = new ort.Tensor('float32', motionFeatures.joints.flat(), rsmtModel.inputShape);
+            const encoderFeeds = { 'input': motionTensor };
+            const encoderResults = await rsmtModel.encoderSession.run(encoderFeeds);
+            const latentCode = encoderResults[Object.keys(encoderResults)[0]].data;
+            
+            // 2. Apply style transfer in latent space
+            const styleVector = encodeStyle(targetStyle);
+            const styledLatent = blendLatentWithStyle(Array.from(latentCode), styleVector);
+            
+            // 3. Decode back to motion
+            const decoderTensor = new ort.Tensor('float32', styledLatent, [1, styledLatent.length]);
+            const decoderFeeds = { 'latent': decoderTensor };
+            const decoderResults = await rsmtModel.decoderSession.run(decoderFeeds);
+            const stylizedMotionData = decoderResults[Object.keys(decoderResults)[0]].data;
+            
+            return {
+                joints: reshapeMotionData(Array.from(stylizedMotionData)),
+                style: targetStyle,
+                quality: 0.9,
+                method: 'onnx'
+            };
+            
+        } catch (error) {
+            console.warn('⚠️ ONNX style transfer failed, using demo mode:', error);
+            return applyDemoStyleTransfer(motionFeatures, targetStyle);
+        }
+        
+    } else {
+        // Demo mode
+        return applyDemoStyleTransfer(motionFeatures, targetStyle);
+    }
+}
+
+/**
+ * Demo style transfer when ONNX models are not available
+ */
+function applyDemoStyleTransfer(motionFeatures, targetStyle) {
+    const styleModifications = getStyleModifications(targetStyle);
+    
+    // Apply style-specific modifications to motion
+    const stylizedJoints = motionFeatures.joints.map(frameData => {
+        return frameData.map((joint, idx) => {
+            return joint * styleModifications.amplification[idx % styleModifications.amplification.length];
+        });
+    });
+    
+    return {
+        joints: stylizedJoints,
+        style: targetStyle,
+        quality: 0.7, // Demo quality
+        method: 'demo'
+    };
 }
 
 /**

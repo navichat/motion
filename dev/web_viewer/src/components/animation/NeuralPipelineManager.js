@@ -149,6 +149,68 @@ export class NeuralPipelineManager {
         
         const worker = this.workers.get(modelName);
         if (!worker) {
+            throw new Error(`Worker for ${modelName} not found`);
+        }
+
+        return new Promise((resolve, reject) => {
+            // Set up message handler for this specific loading attempt
+            const originalMessageHandler = worker.onmessage;
+            
+            const loadingTimeout = setTimeout(() => {
+                console.warn(`⚠️ Model ${modelName} loading timeout, switching to demo mode`);
+                worker.onmessage = originalMessageHandler;
+                
+                // Switch to demo mode for this model
+                this.models[modelName] = {
+                    name: `${modelName} (Demo Mode)`,
+                    version: '1.0-demo',
+                    demoMode: true,
+                    loaded: true
+                };
+                
+                this.loadingStatus[modelName] = 'demo';
+                resolve();
+            }, 10000); // 10 second timeout
+            
+            worker.onmessage = (event) => {
+                const { type, model, error } = event.data;
+                
+                if (type === 'model-loaded') {
+                    clearTimeout(loadingTimeout);
+                    worker.onmessage = originalMessageHandler;
+                    
+                    this.models[modelName] = model;
+                    this.loadingStatus[modelName] = 'loaded';
+                    console.log(`✅ Model ${modelName} loaded:`, model.name);
+                    resolve();
+                    
+                } else if (type === 'error') {
+                    clearTimeout(loadingTimeout);
+                    worker.onmessage = originalMessageHandler;
+                    
+                    console.warn(`⚠️ Model ${modelName} loading failed:`, error);
+                    
+                    // Fallback to demo mode
+                    this.models[modelName] = {
+                        name: `${modelName} (Demo Mode)`,
+                        version: '1.0-demo',
+                        demoMode: true,
+                        loaded: true
+                    };
+                    
+                    this.loadingStatus[modelName] = 'demo';
+                    resolve(); // Resolve with demo mode instead of rejecting
+                }
+            };
+            
+            // Send load-model message
+            worker.postMessage({
+                type: 'load-model',
+                id: `load_${modelName}_${Date.now()}`
+            });
+        });
+    }
+        if (!worker) {
             throw new Error(`Worker for ${modelName} not available`);
         }
 
@@ -439,6 +501,55 @@ export class NeuralPipelineManager {
         });
         
         this.isProcessingQueue = false;
+    }
+
+    /**
+     * Get current status of all neural networks
+     * @returns {Object} Status information
+     */
+    getStatus() {
+        return {
+            models: { ...this.loadingStatus },
+            metrics: {
+                totalInferences: this.metrics.totalInferences,
+                averageLatency: this.metrics.averageLatency,
+                successRate: this.metrics.successRate,
+                modelPerformance: { ...this.metrics.modelPerformance }
+            },
+            workersActive: this.workers.size,
+            queueLength: this.inferenceQueue.length,
+            isProcessingQueue: this.isProcessingQueue
+        };
+    }
+
+    /**
+     * Get simplified status for UI display
+     * @returns {Object} Simplified status
+     */
+    getSimpleStatus() {
+        const status = {};
+        
+        // Map internal status to UI-friendly status
+        for (const [modelName, loadStatus] of Object.entries(this.loadingStatus)) {
+            switch(loadStatus) {
+                case 'loaded':
+                    status[modelName] = 'ready';
+                    break;
+                case 'demo':
+                    status[modelName] = 'demo';
+                    break;
+                case 'loading':
+                    status[modelName] = 'loading';
+                    break;
+                case 'error':
+                case 'unloaded':
+                default:
+                    status[modelName] = 'error';
+                    break;
+            }
+        }
+        
+        return { models: status };
     }
 
     /**
