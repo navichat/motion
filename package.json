@@ -7,12 +7,13 @@
     "doc": "docs"
   },
   "scripts": {
-    "dev": "echo 'Starting Ichika VRM Classroom System on http://localhost:8080' && echo 'Main Demo: http://localhost:8080/dev/web_viewer/demos/complete_ichika_vrm_classroom_system.html' && echo 'Landing Page: http://localhost:8080/index.html' && echo '----------------------------------------' && PORT=8080 python3 dev/web_viewer/serve_with_headers.py",
+    "dev": "echo 'Starting Ichika VRM Classroom System on http://localhost:8080' && echo 'Landing Page: http://localhost:8080/index.html' && echo 'Voice Demo (RECOMMENDED): http://localhost:8080/demos/ichika_voice_conversation_demo.html' && echo 'VRM Classroom: http://localhost:8080/demos/complete_ichika_vrm_classroom_system.html' && echo 'All Demos: http://localhost:8080/demos/' && echo '----------------------------------------' && PORT=8080 python3 dev/web_viewer/serve_with_headers.py",
     "build": "echo 'No build step required - serving static files directly'",
     "serve": "echo 'Starting server on http://localhost:8080' && python3 -m http.server 8080",
-    "demo:classroom": "echo 'Opening main VRM classroom demo...' && python3 -c \"import webbrowser; webbrowser.open('http://localhost:8080/dev/web_viewer/demos/real_working_ichika_vrm_classroom_system.html')\"",
-    "demo:classroom:real": "echo 'Opening real asset loading classroom demo...' && python3 -c \"import webbrowser; webbrowser.open('http://localhost:8080/dev/web_viewer/demos/working_ichika_vrm_classroom_complete.html')\"", 
-    "demo:voice": "echo 'Opening voice conversation demo...' && python3 -c \"import webbrowser; webbrowser.open('http://localhost:8080/dev/web_viewer/demos/ichika_voice_conversation_demo.html')\"",
+    "demo:voice": "echo 'Opening voice conversation demo (RECOMMENDED - WORKING)...' && python3 -c \"import webbrowser; webbrowser.open('http://localhost:8080/demos/ichika_voice_conversation_demo.html')\"",
+    "demo:classroom": "echo 'Opening VRM classroom demo...' && python3 -c \"import webbrowser; webbrowser.open('http://localhost:8080/demos/complete_ichika_vrm_classroom_system.html')\"",
+    "demo:classroom:real": "echo 'Opening self-contained VRM classroom demo...' && python3 -c \"import webbrowser; webbrowser.open('http://localhost:8080/demos/working_self_contained_ichika_vrm.html')\"",
+    "demo:all": "echo 'Opening all demos directory...' && python3 -c \"import webbrowser; webbrowser.open('http://localhost:8080/demos/')\"",
     "test:vrm": "timeout 900s playwright test --project=unit-web dev/web_viewer/tests/unit/animation/vrm-integration-smoke-web.spec.js --reporter=line",
     "test:animation": "timeout 900s playwright test --project=unit-web dev/web_viewer/tests/unit/animation --reporter=line",
     "test:conversation": "timeout 900s playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-smoke-ultimate-conv-loop.spec.js --reporter=line",

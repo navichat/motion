@@ -20,7 +20,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
         }
@@ -46,7 +46,7 @@
             margin-bottom: 2rem;
         }
 
-        .demos {
+        .featured-demos {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 2rem;
@@ -122,6 +122,66 @@
             background: linear-gradient(45deg, #FF9800, #F57C00);
         }
 
+        .demo-button.working {
+            background: linear-gradient(45deg, #9C27B0, #673AB7);
+        }
+
+        .all-demos {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .all-demos h2 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .demo-link {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            text-decoration: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            transition: background 0.3s ease;
+        }
+
+        .demo-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .demo-link .emoji {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+        }
+
+        .demo-link .info {
+            flex: 1;
+        }
+
+        .demo-link .name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .demo-link .desc {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 0.2rem;
+        }
+
         .getting-started {
             background: rgba(255, 255, 255, 0.15);
             border-radius: 15px;
@@ -174,8 +234,32 @@
             font-size: 0.9rem;
         }
 
+        .browse-all {
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .browse-all a {
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: background 0.3s ease;
+        }
+
+        .browse-all a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
         @media (max-width: 768px) {
-            .demos {
+            .featured-demos {
+                grid-template-columns: 1fr;
+            }
+            
+            .demo-grid {
                 grid-template-columns: 1fr;
             }
             
@@ -193,21 +277,38 @@
     <div class="container">
         <header>
             <div class="logo">🎮 Motion</div>
-            <div class="tagline">Interactive 3D VRM Classroom System with AI-Powered Characters</div>
+            <div class="tagline">Interactive 3D VRM Classroom System with AI-Powered Ichika Avatar</div>
             
             <div class="status-badges">
                 <div class="badge">✅ VRM Ready</div>
                 <div class="badge">🎤 Voice Enabled</div>
                 <div class="badge">🤖 AI Powered</div>
-                <div class="badge">🎯 60 FPS</div>
+                <div class="badge">🎯 3D Graphics</div>
             </div>
         </header>
 
-        <div class="demos">
+        <div class="featured-demos">
             <div class="demo-card">
-                <h3 class="demo-title">🏫 VRM Classroom System</h3>
+                <h3 class="demo-title">🎤 Voice Conversation (WORKING)</h3>
                 <p class="demo-description">
-                    Complete Ichika VRM classroom with integrated infrastructure, walking system, and real-time 3D graphics.
+                    Talk to Ichika using your microphone! This demo actually works with real-time speech recognition and AI responses.
+                </p>
+                <ul class="demo-features">
+                    <li>Microphone speech input ✅</li>
+                    <li>Whisper ASR speech recognition ✅</li>
+                    <li>Multiple TTS backends ✅</li>
+                    <li>Audio-driven animations ✅</li>
+                    <li>Real-time interaction ✅</li>
+                </ul>
+                <a href="/demos/ichika_voice_conversation_demo.html" class="demo-button voice">
+                    🚀 Start Voice Chat (RECOMMENDED)
+                </a>
+            </div>
+
+            <div class="demo-card">
+                <h3 class="demo-title">🏫 Complete VRM Classroom System</h3>
+                <p class="demo-description">
+                    Full Ichika VRM classroom with integrated infrastructure, walking system, and 3D graphics system.
                 </p>
                 <ul class="demo-features">
                     <li>5 VRM infrastructure components</li>
@@ -215,47 +316,100 @@
                     <li>Walking animation system</li>
                     <li>BVH skeletal animation</li>
                     <li>Interactive classroom environment</li>
-                    <li>Performance monitoring</li>
                 </ul>
-                <a href="/dev/web_viewer/demos/complete_ichika_vrm_classroom_system.html" class="demo-button">
+                <a href="/demos/complete_ichika_vrm_classroom_system.html" class="demo-button">
                     Launch VRM Classroom
                 </a>
             </div>
 
             <div class="demo-card">
-                <h3 class="demo-title">🎤 Voice Conversation</h3>
+                <h3 class="demo-title">🎭 Self-Contained VRM System</h3>
                 <p class="demo-description">
-                    Talk to Ichika using your microphone! Real-time speech recognition and AI-powered responses with audio-driven animations.
+                    Self-contained Ichika VRM demo with working 3D graphics, character walking, and interactive controls.
                 </p>
                 <ul class="demo-features">
-                    <li>Microphone speech input</li>
-                    <li>Whisper ASR speech recognition</li>
-                    <li>Multiple TTS backends</li>
-                    <li>Audio-driven gestures</li>
-                    <li>Multi-turn conversations</li>
-                    <li>Real-time voice interaction</li>
+                    <li>Self-contained 3D system</li>
+                    <li>Character walking demos</li>
+                    <li>Interactive gesture controls</li>
+                    <li>Real-time animation</li>
+                    <li>Classroom pathfinding</li>
                 </ul>
-                <a href="/dev/web_viewer/demos/ichika_voice_conversation_demo.html" class="demo-button voice">
-                    Start Voice Chat
+                <a href="/demos/working_self_contained_ichika_vrm.html" class="demo-button working">
+                    Launch 3D Demo
                 </a>
             </div>
+        </div>
 
-            <div class="demo-card">
-                <h3 class="demo-title">🚀 Enhanced VRM Demo</h3>
-                <p class="demo-description">
-                    Advanced VRM classroom demo with working 3D graphics, character walking, and interactive controls.
-                </p>
-                <ul class="demo-features">
-                    <li>Working 3D character rendering</li>
-                    <li>Classroom walking demonstrations</li>
-                    <li>Interactive gesture controls</li>
-                    <li>Real-time animation system</li>
-                    <li>Camera controls and zoom</li>
-                    <li>60 FPS real-time graphics</li>
-                </ul>
-                <a href="/dev/web_viewer/demos/working_ichika_vrm_classroom_complete.html" class="demo-button complete">
-                    Launch Enhanced Demo
+        <div class="all-demos">
+            <h2>🗂️ All Available Demos</h2>
+            <div class="demo-grid">
+                <a href="/demos/complete_ichika_conversation_system.html" class="demo-link">
+                    <span class="emoji">💬</span>
+                    <div class="info">
+                        <div class="name">Complete Conversation System</div>
+                        <div class="desc">Advanced conversation interface with 3D scene</div>
+                    </div>
                 </a>
+                
+                <a href="/demos/authentic_ichika_vrm_classroom_demo.html" class="demo-link">
+                    <span class="emoji">🏛️</span>
+                    <div class="info">
+                        <div class="name">Authentic VRM Classroom</div>
+                        <div class="desc">Real asset loading VRM classroom demo</div>
+                    </div>
+                </a>
+
+                <a href="/demos/final_working_ichika_vrm_classroom_system.html" class="demo-link">
+                    <span class="emoji">🎬</span>
+                    <div class="info">
+                        <div class="name">Final Working System</div>
+                        <div class="desc">Complete integrated VRM classroom system</div>
+                    </div>
+                </a>
+
+                <a href="/demos/ichika_vrm_orchestrator_demo.html" class="demo-link">
+                    <span class="emoji">🎼</span>
+                    <div class="info">
+                        <div class="name">VRM Orchestrator</div>
+                        <div class="desc">VRM binding and integration demo</div>
+                    </div>
+                </a>
+
+                <a href="/demos/working_ichika_vrm_classroom_complete.html" class="demo-link">
+                    <span class="emoji">🎯</span>
+                    <div class="info">
+                        <div class="name">Enhanced VRM Demo</div>
+                        <div class="desc">Advanced classroom with walking system</div>
+                    </div>
+                </a>
+
+                <a href="/demos/real_working_ichika_vrm_classroom_system.html" class="demo-link">
+                    <span class="emoji">🔧</span>
+                    <div class="info">
+                        <div class="name">Real Working System</div>
+                        <div class="desc">Real VRM system with asset loading</div>
+                    </div>
+                </a>
+
+                <a href="/demos/working_ichika_classroom_with_walking.html" class="demo-link">
+                    <span class="emoji">🚶‍♀️</span>
+                    <div class="info">
+                        <div class="name">Walking Classroom</div>
+                        <div class="desc">Classroom demo with walking animations</div>
+                    </div>
+                </a>
+
+                <a href="/demos/vrm_loading_test.html" class="demo-link">
+                    <span class="emoji">⚡</span>
+                    <div class="info">
+                        <div class="name">VRM Loading Test</div>
+                        <div class="desc">Basic VRM loading and testing</div>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="browse-all">
+                <a href="/demos/">📁 Browse All Demos Directory</a>
             </div>
         </div>
 
@@ -271,11 +425,12 @@
                 <code># Start development server</code>
                 <code>npm run dev</code>
                 <code></code>
-                <code># Or serve manually</code>
-                <code>npm run serve</code>
+                <code># Quick shortcuts</code>
+                <code>npm run demo:voice        # Voice conversation demo</code>
+                <code>npm run demo:classroom    # VRM classroom system</code>
             </div>
 
-            <p>The <code>npm run dev</code> command will start the server and automatically open the main VRM classroom demo.</p>
+            <p><strong>Recommended:</strong> Start with the <strong>Voice Conversation Demo</strong> - it's the most stable and shows the working Ichika avatar that you can talk to!</p>
             
             <div style="margin-top: 2rem;">
                 <a href="/GETTING_STARTED.md" style="color: #4CAF50; text-decoration: none; font-weight: 600;">
@@ -285,7 +440,7 @@
         </div>
 
         <div class="footer">
-            <p>Built with Three.js, VRM, WebGL, and modern web technologies</p>
+            <p>Built with Three.js, VRM, WebGL, and modern AI technologies</p>
             <p>© 2025 Motion - Interactive VRM Classroom System</p>
         </div>
     </div>
@@ -293,22 +448,31 @@
     <script>
         // Add some interactive effects
         document.addEventListener('DOMContentLoaded', function() {
-            const cards = document.querySelectorAll('.demo-card');
+            const cards = document.querySelectorAll('.demo-card, .demo-link');
             
             cards.forEach(card => {
                 card.addEventListener('mouseenter', function() {
-                    this.style.transform = 'translateY(-5px) scale(1.02)';
+                    if (this.classList.contains('demo-card')) {
+                        this.style.transform = 'translateY(-5px) scale(1.02)';
+                    }
                 });
                 
                 card.addEventListener('mouseleave', function() {
-                    this.style.transform = 'translateY(0) scale(1)';
+                    if (this.classList.contains('demo-card')) {
+                        this.style.transform = 'translateY(0) scale(1)';
+                    }
                 });
             });
 
-            // Check if server is running and update status
-            fetch('/dev/web_viewer/demos/')
+            // Check if demos are accessible
+            fetch('/demos/')
                 .then(() => {
                     console.log('✅ VRM demos are available');
+                    const statusBadges = document.querySelector('.status-badges');
+                    const activeBadge = document.createElement('div');
+                    activeBadge.className = 'badge';
+                    activeBadge.textContent = '🟢 Server Active';
+                    statusBadges.appendChild(activeBadge);
                 })
                 .catch(() => {
                     console.log('ℹ️ Start server with: npm run dev');
