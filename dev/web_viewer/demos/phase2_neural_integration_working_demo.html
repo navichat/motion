@@ -573,14 +573,28 @@
             }
 
             updateNeuralStatus(networkName, status) {
-                const displayName = networkName.charAt(0).toUpperCase() + networkName.slice(1);
+                // Map network names to their display names used in HTML
+                const displayNames = {
+                    deepmimic: 'DeepMimic',
+                    rsmt: 'RSMT', 
+                    faceformer: 'FaceFormer',
+                    audio2gesture: 'Audio2Gesture'
+                };
+                
+                const displayName = displayNames[networkName] || networkName;
                 let statusDisplay = status.toUpperCase();
                 let statusClass = status;
                 
-                // Handle demo mode specially
+                // Handle different statuses with proper styling
                 if (status === 'demo') {
                     statusDisplay = 'DEMO MODE';
-                    statusClass = 'demo';
+                    statusClass = 'ready'; // Use ready styling for demo mode
+                } else if (status === 'error') {
+                    statusDisplay = 'ERROR';
+                    statusClass = 'error';
+                } else if (status === 'loading') {
+                    statusDisplay = 'Loading...';
+                    statusClass = 'loading';
                 }
 
                 // Find the specific status item for this network
@@ -588,11 +602,13 @@
                 const statusItems = neuralStatusDiv.getElementsByClassName('status-item');
                 
                 for (let item of statusItems) {
-                    if (item.textContent.includes(displayName + ':')) {
+                    const firstSpan = item.querySelector('span:first-child');
+                    if (firstSpan && firstSpan.textContent.includes(displayName + ':')) {
                         item.innerHTML = `
                             <span>${displayName}:</span>
                             <span class="status-indicator status-${statusClass}">${statusDisplay}</span>
                         `;
+                        console.log(`✅ Updated ${networkName} status to: ${statusDisplay}`);
                         break;
                     }
                 }
