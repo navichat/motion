@@ -125,7 +125,7 @@ function simulateModelLoading() {
 /**
  * Run Audio2Gesture inference on audio input
  * @param {Object} input - Audio input data
- * @returns {Object} Body gesture animation data
+ * @returns {Object} Body gesture animation data with BVH frames
  */
 async function runInference(input) {
     if (!isModelLoaded) {
@@ -141,6 +141,9 @@ async function runInference(input) {
         // Run model inference (simulated)
         const gestureAnimation = await processAudioToGestureAnimation(audioFeatures);
         
+        // Convert gesture animation to BVH frame data
+        const bvhFrames = convertGestureAnimationToBVH(gestureAnimation, input.audio);
+        
         const inferenceTime = performance.now() - startTime;
         
         // Send performance metrics
@@ -155,6 +158,7 @@ async function runInference(input) {
         return {
             type: 'gesture_animation',
             data: gestureAnimation,
+            bvhFrames: bvhFrames, // ✅ Add BVH frame output for VRM adapters
             timestamp: Date.now(),
             processingTime: inferenceTime
         };
@@ -396,6 +400,162 @@ function generatePosturalAdjustments(features) {
             z: Math.cos(Date.now() * 0.0004) * intensity * 0.03
         }
     };
+}
+
+/**
+ * Convert gesture animation to BVH frames for VRM adapters
+ * @param {Object} gestureAnimation - Gesture animation data
+ * @param {Object} audioData - Original audio data
+ * @returns {Array} Array of BVH frame data
+ */
+function convertGestureAnimationToBVH(gestureAnimation, audioData) {
+    const frames = [];
+    const duration = audioData.duration || 2.0; // Default 2 seconds
+    const frameRate = 30;
+    const totalFrames = Math.ceil(duration * frameRate);
+    
+    // Focus on arm and hand bones for gesture animation
+    const gestureBones = [
+        'leftShoulder', 'leftUpperArm', 'leftLowerArm', 'leftHand',
+        'rightShoulder', 'rightUpperArm', 'rightLowerArm', 'rightHand',
+        'spine', 'chest', 'upperChest' // Include torso for posture adjustments
+    ];
+    
+    for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
+        const time = frameIndex / frameRate;
+        const progress = frameIndex / totalFrames;
+        
+        const bvhFrame = {
+            time: time,
+            frameIndex: frameIndex,
+            bones: {},
+            metadata: {
+                source: 'audio2gesture',
+                gestureType: gestureAnimation.gestureType || 'illustrative',
+                intensity: gestureAnimation.intensity || 0.5,
+                audioSync: true
+            }
+        };
+        
+        // Apply gesture animation to each relevant bone
+        gestureBones.forEach((boneName, index) => {
+            const gestureMotion = getGestureMotionForBone(boneName, gestureAnimation, time, progress);
+            
+            bvhFrame.bones[boneName] = {
+                rotation: [
+                    gestureMotion.rotationX,
+                    gestureMotion.rotationY, 
+                    gestureMotion.rotationZ
+                ]
+            };
+        });
+        
+        frames.push(bvhFrame);
+    }
+    
+    return frames;
+}
+
+/**
+ * Get gesture motion data for a specific bone
+ */
+function getGestureMotionForBone(boneName, gestureAnimation, time, progress) {
+    const intensity = gestureAnimation.intensity || 0.5;
+    const gestureType = gestureAnimation.gestureType || 'illustrative';
+    
+    // Base gesture motion parameters
+    const baseAmplitude = intensity * 20; // degrees
+    const frequency = 2 + intensity; // Hz
+    
+    switch (boneName) {
+        case 'leftShoulder':
+        case 'rightShoulder':
+            return {
+                rotationX: Math.sin(time * frequency) * baseAmplitude * 0.3,
+                rotationY: Math.cos(time * frequency * 0.7) * baseAmplitude * 0.2,
+                rotationZ: getShoulderElevation(boneName, time, intensity)
+            };
+            
+        case 'leftUpperArm':
+        case 'rightUpperArm':
+            const isLeft = boneName.includes('left');
+            const armPhase = isLeft ? 0 : Math.PI * 0.6; // Slight offset between arms
+            
+            return {
+                rotationX: getArmSwingX(time, frequency, baseAmplitude, armPhase, gestureType),
+                rotationY: getArmSwingY(time, frequency, baseAmplitude, armPhase, isLeft),
+                rotationZ: Math.sin(time * frequency * 1.3 + armPhase) * baseAmplitude * 0.4
+            };
+            
+        case 'leftLowerArm':
+        case 'rightLowerArm':
+            return {
+                rotationX: Math.sin(time * frequency * 1.5) * baseAmplitude * 0.6,
+                rotationY: Math.cos(time * frequency * 1.2) * baseAmplitude * 0.3,
+                rotationZ: Math.sin(time * frequency * 2) * baseAmplitude * 0.5
+            };
+            
+        case 'leftHand':
+        case 'rightHand':
+            return {
+                rotationX: Math.sin(time * frequency * 2.5) * baseAmplitude * 0.8,
+                rotationY: Math.cos(time * frequency * 2.2) * baseAmplitude * 0.6,
+                rotationZ: Math.sin(time * frequency * 3) * baseAmplitude * 0.7
+            };
+            
+        case 'spine':
+        case 'chest':
+        case 'upperChest':
+            // Subtle torso movement for natural posture during gestures
+            return {
+                rotationX: Math.sin(time * frequency * 0.5) * baseAmplitude * 0.1,
+                rotationY: Math.cos(time * frequency * 0.3) * baseAmplitude * 0.15,
+                rotationZ: Math.sin(time * frequency * 0.4) * baseAmplitude * 0.08
+            };
+            
+        default:
+            return { rotationX: 0, rotationY: 0, rotationZ: 0 };
+    }
+}
+
+/**
+ * Calculate shoulder elevation based on gesture intensity
+ */
+function getShoulderElevation(boneName, time, intensity) {
+    const baseElevation = intensity * 5; // degrees
+    const rhythmicMovement = Math.sin(time * 1.5) * baseElevation * 0.5;
+    return baseElevation + rhythmicMovement;
+}
+
+/**
+ * Calculate arm swing in X axis (forward/backward)
+ */
+function getArmSwingX(time, frequency, amplitude, phase, gestureType) {
+    let motion = Math.sin(time * frequency + phase) * amplitude;
+    
+    // Modify based on gesture type
+    switch (gestureType) {
+        case 'emphatic':
+            motion *= 1.5; // More dramatic movement
+            break;
+        case 'descriptive':
+            motion *= 0.8; // More controlled movement
+            break;
+    }
+    
+    return motion;
+}
+
+/**
+ * Calculate arm swing in Y axis (up/down)
+ */
+function getArmSwingY(time, frequency, amplitude, phase, isLeft) {
+    const verticalMotion = Math.cos(time * frequency * 0.8 + phase) * amplitude * 0.6;
+    
+    // Add asymmetry between left and right arms
+    const asymmetryOffset = isLeft ? 5 : -5; // degrees
+    
+    return verticalMotion + asymmetryOffset;
 }
 
 console.log('🤲 Audio2Gesture Worker initialized');

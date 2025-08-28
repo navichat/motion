@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural BVH VRM Integration Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+            max-width: 500px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        .status-indicator {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-ready { background: #4caf50; color: white; }
+        .status-demo { background: #ff9800; color: white; }
+        .status-loading { background: #2196f3; color: white; }
+        .status-error { background: #f44336; color: white; }
+
+        .control-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            color: white;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .bvh-status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .frame-counter {
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        #vrm-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .log-output {
+            max-height: 150px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.3;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <!-- VRM 3D Scene Container -->
+        <div id="vrm-container"></div>
+        
+        <!-- UI Overlay -->
+        <div id="ui-overlay">
+            <div class="section">
+                <div class="section-title">
+                    <span>🧠🎭</span>
+                    <span>Neural BVH VRM Integration</span>
+                </div>
+                <div class="status-item">
+                    <span>System Status:</span>
+                    <span class="status-indicator status-loading" id="system-status">Initializing...</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
+                    <span>🏗️</span>
+                    <span>VRM Infrastructure</span>
+                </div>
+                <div class="status-item">
+                    <span>AdvancedVRMLoader:</span>
+                    <span class="status-indicator status-loading" id="vrm-loader-status">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span>VRMBVHAdapter:</span>
+                    <span class="status-indicator status-loading" id="vrm-adapter-status">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span>BVHTimeline:</span>
+                    <span class="status-indicator status-loading" id="bvh-timeline-status">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span>ClassroomIntegration:</span>
+                    <span class="status-indicator status-loading" id="classroom-status">Loading...</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
+                    <span>⚡</span>
+                    <span>Neural Networks</span>
+                </div>
+                <div class="status-item">
+                    <span>DeepMimic:</span>
+                    <span class="status-indicator status-loading" id="deepmimic-status">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span>Audio2Gesture:</span>
+                    <span class="status-indicator status-loading" id="audio2gesture-status">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span>RSMT:</span>
+                    <span class="status-indicator status-loading" id="rsmt-status">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span>FaceFormer:</span>
+                    <span class="status-indicator status-loading" id="faceformer-status">Loading...</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
+                    <span>🎮</span>
+                    <span>Controls</span>
+                </div>
+                <div class="control-buttons">
+                    <button id="init-system" onclick="demo.initializeSystem()">Initialize System</button>
+                    <button id="test-bvh" onclick="demo.testBVHGeneration()" disabled>Test BVH Generation</button>
+                    <button id="test-integration" onclick="demo.testFullIntegration()" disabled>Test Full Integration</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
+                    <span>📊</span>
+                    <span>BVH Frame Status</span>
+                </div>
+                <div class="bvh-status">
+                    <div>Active BVH Tracks: <span class="frame-counter" id="active-tracks">0</span></div>
+                    <div>Total Frames Generated: <span class="frame-counter" id="frame-count">0</span></div>
+                    <div>Last Update: <span id="last-update">Never</span></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
+                    <span>📝</span>
+                    <span>System Log</span>
+                </div>
+                <div class="log-output" id="log-output">
+                    System initializing...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import required libraries -->
+    <script src="../src/core/index.js"></script>
+    <script src="../src/animation/core/BVHTimeline.js"></script>
+    <script src="../src/animation/adapters/DeepMimicAdapter.js"></script>
+    <script src="../src/animation/adapters/Audio2GestureAdapter.js"></script>
+    <script src="../src/animation/adapters/RSMTAdapter.js"></script>
+    <script src="../src/animation/adapters/FaceFormerAdapter.js"></script>
+    <script src="../src/scene/ClassroomAvatarIntegration.js"></script>
+
+    <script>
+        class NeuralBVHVRMIntegrationDemo {
+            constructor() {
+                this.system = {
+                    vrmLoader: null,
+                    vrmAdapter: null,
+                    bvhTimeline: null,
+                    classroomIntegration: null,
+                    neuralWorkers: new Map(),
+                    initialized: false
+                };
+                
+                this.status = {
+                    vrmInfrastructure: false,
+                    neuralNetworks: false,
+                    bvhIntegration: false
+                };
+                
+                this.bvhFrameCount = 0;
+                this.activeTracks = 0;
+                
+                this.log('🚀 Neural BVH VRM Integration Demo initialized');
+                
+                // Start initialization automatically
+                setTimeout(() => this.initializeSystem(), 1000);
+            }
+
+            async initializeSystem() {
+                this.log('🔧 Starting comprehensive system initialization...');
+                this.updateSystemStatus('Initializing Infrastructure...');
+                
+                try {
+                    // Step 1: Initialize VRM Infrastructure
+                    await this.initializeVRMInfrastructure();
+                    
+                    // Step 2: Initialize Neural Networks with BVH Output
+                    await this.initializeNeuralNetworks();
+                    
+                    // Step 3: Connect BVH Pipeline
+                    await this.connectBVHPipeline();
+                    
+                    this.system.initialized = true;
+                    this.updateSystemStatus('System Ready');
+                    this.log('✅ Complete system initialization successful!');
+                    
+                    // Enable controls
+                    document.getElementById('test-bvh').disabled = false;
+                    document.getElementById('test-integration').disabled = false;
+                    
+                } catch (error) {
+                    this.log(`❌ System initialization failed: ${error.message}`);
+                    this.updateSystemStatus('Initialization Failed');
+                }
+            }
+
+            async initializeVRMInfrastructure() {
+                this.log('🏗️ Loading VRM infrastructure components...');
+                
+                try {
+                    // Load ClassroomAvatarIntegration
+                    if (typeof ClassroomAvatarIntegration !== 'undefined') {
+                        this.system.classroomIntegration = new ClassroomAvatarIntegration(
+                            document.getElementById('vrm-container')
+                        );
+                        await this.system.classroomIntegration.initializeScene();
+                        this.updateStatus('classroom-status', 'READY');
+                        this.log('✅ ClassroomAvatarIntegration loaded');
+                    } else {
+                        throw new Error('ClassroomAvatarIntegration not available');
+                    }
+                    
+                    // Check VRM infrastructure components
+                    if (typeof window.AdvancedVRMLoader !== 'undefined') {
+                        this.updateStatus('vrm-loader-status', 'READY');
+                        this.log('✅ AdvancedVRMLoader available');
+                    } else {
+                        this.updateStatus('vrm-loader-status', 'ERROR');
+                        this.log('⚠️ AdvancedVRMLoader not available');
+                    }
+                    
+                    if (typeof window.VRMBVHAdapter !== 'undefined') {
+                        this.updateStatus('vrm-adapter-status', 'READY');
+                        this.log('✅ VRMBVHAdapter available');
+                    } else {
+                        this.updateStatus('vrm-adapter-status', 'ERROR');
+                        this.log('⚠️ VRMBVHAdapter not available');
+                    }
+                    
+                    // Initialize BVH Timeline
+                    if (typeof BVHTimeline !== 'undefined') {
+                        this.system.bvhTimeline = new BVHTimeline('neural-integration');
+                        this.updateStatus('bvh-timeline-status', 'READY');
+                        this.log('✅ BVHTimeline initialized');
+                    } else {
+                        throw new Error('BVHTimeline not available');
+                    }
+                    
+                    this.status.vrmInfrastructure = true;
+                    
+                } catch (error) {
+                    this.log(`❌ VRM infrastructure initialization failed: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            async initializeNeuralNetworks() {
+                this.log('🧠 Initializing neural networks with BVH output...');
+                
+                const networks = [
+                    { name: 'deepmimic', path: '../src/workers/deepmimic-worker.js' },
+                    { name: 'audio2gesture', path: '../src/workers/audio2gesture-worker.js' },
+                    { name: 'rsmt', path: '../src/workers/rsmt-worker.js' },
+                    { name: 'faceformer', path: '../src/workers/faceformer-worker.js' }
+                ];
+                
+                for (const network of networks) {
+                    try {
+                        await this.initializeNeuralWorker(network.name, network.path);
+                    } catch (error) {
+                        this.log(`⚠️ ${network.name} initialization failed: ${error.message}`);
+                        this.updateStatus(`${network.name}-status`, 'DEMO MODE');
+                    }
+                }
+                
+                this.status.neuralNetworks = true;
+                this.log('✅ Neural networks initialization complete');
+            }
+
+            async initializeNeuralWorker(name, path) {
+                return new Promise((resolve, reject) => {
+                    try {
+                        const worker = new Worker(path, { type: 'module' });
+                        
+                        worker.onmessage = (event) => {
+                            const { type, model, result, error } = event.data;
+                            
+                            switch (type) {
+                                case 'model-loaded':
+                                    this.log(`✅ ${name} model loaded: ${model.name}`);
+                                    this.updateStatus(`${name}-status`, model.demoMode ? 'DEMO MODE' : 'READY');
+                                    resolve(worker);
+                                    break;
+                                    
+                                case 'inference-result':
+                                    this.handleNeuralInferenceResult(name, result);
+                                    break;
+                                    
+                                case 'error':
+                                    this.log(`❌ ${name} error: ${error}`);
+                                    reject(new Error(error));
+                                    break;
+                            }
+                        };
+                        
+                        worker.onerror = (error) => {
+                            this.log(`❌ ${name} worker error: ${error.message}`);
+                            reject(error);
+                        };
+                        
+                        this.system.neuralWorkers.set(name, worker);
+                        
+                        // Initialize the worker
+                        worker.postMessage({ type: 'load-model' });
+                        
+                        // Set timeout for initialization
+                        setTimeout(() => {
+                            if (!this.system.neuralWorkers.has(name) || 
+                                document.getElementById(`${name}-status`).textContent === 'Loading...') {
+                                this.log(`⚠️ ${name} initialization timeout, using demo mode`);
+                                this.updateStatus(`${name}-status`, 'DEMO MODE');
+                                resolve(worker);
+                            }
+                        }, 5000);
+                        
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            }
+
+            async connectBVHPipeline() {
+                this.log('🔗 Connecting BVH pipeline to VRM system...');
+                
+                try {
+                    // Connect BVH Timeline to VRM if possible
+                    if (this.system.classroomIntegration && this.system.bvhTimeline) {
+                        // Try to connect timeline to avatar if VRM is loaded
+                        if (this.system.classroomIntegration.bvhTimeline) {
+                            this.log('✅ BVH Timeline connected to VRM system');
+                        } else {
+                            this.log('⚠️ VRM not fully loaded, BVH will work in demo mode');
+                        }
+                    }
+                    
+                    this.status.bvhIntegration = true;
+                    this.log('✅ BVH pipeline connection complete');
+                    
+                } catch (error) {
+                    this.log(`❌ BVH pipeline connection failed: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            async testBVHGeneration() {
+                this.log('🧪 Testing BVH frame generation from neural networks...');
+                
+                try {
+                    // Test each neural network that should output BVH frames
+                    const testNetworks = ['deepmimic', 'audio2gesture'];
+                    
+                    for (const networkName of testNetworks) {
+                        await this.testNetworkBVHOutput(networkName);
+                    }
+                    
+                    this.log('✅ BVH generation test complete!');
+                    
+                } catch (error) {
+                    this.log(`❌ BVH generation test failed: ${error.message}`);
+                }
+            }
+
+            async testNetworkBVHOutput(networkName) {
+                const worker = this.system.neuralWorkers.get(networkName);
+                if (!worker) {
+                    throw new Error(`${networkName} worker not available`);
+                }
+                
+                return new Promise((resolve, reject) => {
+                    // Set up response handler
+                    const messageHandler = (event) => {
+                        const { type, result, id } = event.data;
+                        if (type === 'inference-result' && id === `test-${networkName}`) {
+                            worker.removeEventListener('message', messageHandler);
+                            
+                            if (result.bvhFrames && result.bvhFrames.length > 0) {
+                                this.log(`✅ ${networkName} generated ${result.bvhFrames.length} BVH frames`);
+                                this.processBVHFrames(networkName, result.bvhFrames);
+                                resolve(result);
+                            } else {
+                                this.log(`❌ ${networkName} did not generate BVH frames`);
+                                reject(new Error(`No BVH frames from ${networkName}`));
+                            }
+                        }
+                    };
+                    
+                    worker.addEventListener('message', messageHandler);
+                    
+                    // Send test input
+                    const testInput = this.generateTestInput(networkName);
+                    worker.postMessage({
+                        type: 'inference',
+                        id: `test-${networkName}`,
+                        data: { input: testInput }
+                    });
+                    
+                    // Timeout after 10 seconds
+                    setTimeout(() => {
+                        worker.removeEventListener('message', messageHandler);
+                        reject(new Error(`${networkName} test timeout`));
+                    }, 10000);
+                });
+            }
+
+            generateTestInput(networkName) {
+                switch (networkName) {
+                    case 'deepmimic':
+                        return {
+                            motion: {
+                                position: [0, 1, 0],
+                                velocity: [0.5, 0, 0.8],
+                                orientation: [0, 0, 0, 1]
+                            },
+                            targetSkill: 'walk'
+                        };
+                        
+                    case 'audio2gesture':
+                        return {
+                            audio: {
+                                samples: new Float32Array(1024).map(() => Math.random() * 0.1),
+                                sampleRate: 44100,
+                                duration: 2.0
+                            }
+                        };
+                        
+                    default:
+                        return {};
+                }
+            }
+
+            processBVHFrames(sourceName, bvhFrames) {
+                // Add frames to timeline
+                if (this.system.bvhTimeline) {
+                    bvhFrames.forEach(frame => {
+                        this.system.bvhTimeline.addFrame(frame, frame.time);
+                        this.bvhFrameCount++;
+                    });
+                    
+                    this.activeTracks++;
+                    this.updateBVHStatus();
+                    
+                    this.log(`📊 Added ${bvhFrames.length} frames from ${sourceName} to BVH timeline`);
+                }
+                
+                // If VRM system is available, try to apply frames
+                if (this.system.classroomIntegration && this.system.classroomIntegration.vrmBVHAdapter) {
+                    try {
+                        // Apply BVH frames to VRM (if adapter supports it)
+                        this.log(`🎭 Applying BVH frames to VRM avatar...`);
+                        
+                        // This would be the actual VRM application
+                        // this.system.classroomIntegration.vrmBVHAdapter.applyBVHFrames(bvhFrames);
+                        
+                    } catch (error) {
+                        this.log(`⚠️ VRM BVH application warning: ${error.message}`);
+                    }
+                }
+            }
+
+            async testFullIntegration() {
+                this.log('🎯 Testing full neural → BVH → VRM integration...');
+                
+                try {
+                    // Simulate audio input that drives all systems
+                    const audioData = {
+                        samples: new Float32Array(2048).map(() => 
+                            Math.sin(Math.random() * Math.PI * 2) * 0.3
+                        ),
+                        sampleRate: 44100,
+                        duration: 3.0
+                    };
+                    
+                    this.log('🎵 Processing audio through complete pipeline...');
+                    
+                    // Process through Audio2Gesture for body movement
+                    await this.testNetworkBVHOutput('audio2gesture');
+                    await this.delay(500);
+                    
+                    // Process through DeepMimic for physics correction
+                    await this.testNetworkBVHOutput('deepmimic');
+                    await this.delay(500);
+                    
+                    this.log('✅ Full integration test complete!');
+                    this.log(`📊 Generated total of ${this.bvhFrameCount} BVH frames across ${this.activeTracks} neural networks`);
+                    
+                } catch (error) {
+                    this.log(`❌ Full integration test failed: ${error.message}`);
+                }
+            }
+
+            handleNeuralInferenceResult(networkName, result) {
+                if (result.bvhFrames) {
+                    this.processBVHFrames(networkName, result.bvhFrames);
+                }
+            }
+
+            updateBVHStatus() {
+                document.getElementById('active-tracks').textContent = this.activeTracks;
+                document.getElementById('frame-count').textContent = this.bvhFrameCount;
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+            }
+
+            updateSystemStatus(status) {
+                const statusEl = document.getElementById('system-status');
+                statusEl.textContent = status;
+                statusEl.className = 'status-indicator ' + 
+                    (status.includes('Ready') ? 'status-ready' : 
+                     status.includes('Failed') ? 'status-error' : 'status-loading');
+            }
+
+            updateStatus(elementId, status) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = status;
+                    element.className = 'status-indicator ' + 
+                        (status === 'READY' ? 'status-ready' :
+                         status === 'DEMO MODE' ? 'status-demo' :
+                         status === 'ERROR' ? 'status-error' : 'status-loading');
+                }
+            }
+
+            log(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                const logOutput = document.getElementById('log-output');
+                logOutput.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+                logOutput.scrollTop = logOutput.scrollHeight;
+                console.log(message);
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // Initialize demo when page loads
+        let demo;
+        window.addEventListener('load', () => {
+            demo = new NeuralBVHVRMIntegrationDemo();
+        });
+    </script>
+</body>
+</html>

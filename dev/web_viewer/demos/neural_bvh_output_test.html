@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Networks BVH Frame Output Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        .status-indicator {
+            padding: 6px 14px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-ready { background: #4caf50; color: white; }
+        .status-demo { background: #ff9800; color: white; }
+        .status-loading { background: #2196f3; color: white; }
+        .status-error { background: #f44336; color: white; }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            color: white;
+            font-size: 14px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .bvh-output {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .bvh-frame {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            border-left: 3px solid #4caf50;
+        }
+
+        .frame-meta {
+            color: #4caf50;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .bone-data {
+            margin-left: 10px;
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        .network-output {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .network-panel {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .metrics {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .metric {
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4caf50;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <div class="section-title">
+                <span>🧠⚡</span>
+                <span>Neural Networks BVH Frame Output Test</span>
+            </div>
+            <p>Testing neural network workers to ensure they generate proper BVH frames for VRM adapters.</p>
+        </div>
+
+        <div class="section">
+            <div class="section-title">
+                <span>📊</span>
+                <span>Neural Network Status</span>
+            </div>
+            <div class="status-grid">
+                <div class="status-item">
+                    <span>DeepMimic:</span>
+                    <span class="status-indicator status-loading" id="deepmimic-status">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span>Audio2Gesture:</span>
+                    <span class="status-indicator status-loading" id="audio2gesture-status">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span>RSMT:</span>
+                    <span class="status-indicator status-loading" id="rsmt-status">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span>FaceFormer:</span>
+                    <span class="status-indicator status-loading" id="faceformer-status">Loading...</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="init-workers" onclick="testDemo.initializeWorkers()">Initialize Workers</button>
+                <button id="test-deepmimic" onclick="testDemo.testDeepMimicBVH()" disabled>Test DeepMimic BVH</button>
+                <button id="test-audio2gesture" onclick="testDemo.testAudio2GestureBVH()" disabled>Test Audio2Gesture BVH</button>
+                <button id="test-all" onclick="testDemo.testAllNetworks()" disabled>Test All Networks</button>
+            </div>
+
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value" id="total-frames">0</div>
+                    <div class="metric-label">Total BVH Frames</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="active-networks">0</div>
+                    <div class="metric-label">Active Networks</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="avg-latency">0ms</div>
+                    <div class="metric-label">Average Latency</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">
+                <span>📋</span>
+                <span>BVH Frame Output</span>
+            </div>
+            <div class="network-output">
+                <div class="network-panel">
+                    <h4>🏃 DeepMimic (Physics)</h4>
+                    <div class="bvh-output" id="deepmimic-output">
+                        Waiting for initialization...
+                    </div>
+                </div>
+                <div class="network-panel">
+                    <h4>🤲 Audio2Gesture (Body)</h4>
+                    <div class="bvh-output" id="audio2gesture-output">
+                        Waiting for initialization...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">
+                <span>📝</span>
+                <span>System Log</span>
+            </div>
+            <div class="bvh-output" id="system-log">
+                Neural BVH test initialized...<br>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class NeuralBVHTest {
+            constructor() {
+                this.workers = new Map();
+                this.totalFrames = 0;
+                this.activeNetworks = 0;
+                this.latencies = [];
+                
+                this.log('🚀 Neural BVH Test initialized');
+                
+                // Auto-initialize after a short delay
+                setTimeout(() => this.initializeWorkers(), 1000);
+            }
+
+            async initializeWorkers() {
+                this.log('🔧 Initializing neural network workers...');
+                
+                const networks = [
+                    { name: 'deepmimic', path: '../src/workers/deepmimic-worker-fixed.js' },
+                    { name: 'audio2gesture', path: '../src/workers/audio2gesture-worker.js' }
+                ];
+                
+                for (const network of networks) {
+                    try {
+                        await this.initializeWorker(network.name, network.path);
+                    } catch (error) {
+                        this.log(`❌ Failed to initialize ${network.name}: ${error.message}`);
+                        this.updateStatus(network.name, 'ERROR');
+                    }
+                }
+                
+                // Enable test buttons
+                document.getElementById('test-deepmimic').disabled = false;
+                document.getElementById('test-audio2gesture').disabled = false;
+                document.getElementById('test-all').disabled = false;
+                
+                this.log('✅ Worker initialization complete');
+            }
+
+            async initializeWorker(name, path) {
+                return new Promise((resolve, reject) => {
+                    try {
+                        const worker = new Worker(path, { type: 'module' });
+                        
+                        worker.onmessage = (event) => {
+                            this.handleWorkerMessage(name, event.data);
+                        };
+                        
+                        worker.onerror = (error) => {
+                            this.log(`❌ ${name} worker error: ${error.message}`);
+                            reject(error);
+                        };
+                        
+                        this.workers.set(name, worker);
+                        
+                        // Load model
+                        worker.postMessage({ type: 'load-model' });
+                        
+                        // Set timeout
+                        setTimeout(() => {
+                            if (document.getElementById(`${name}-status`).textContent === 'Loading...') {
+                                this.log(`⚠️ ${name} timeout, assuming demo mode`);
+                                this.updateStatus(name, 'DEMO MODE');
+                                this.activeNetworks++;
+                                this.updateMetrics();
+                            }
+                            resolve();
+                        }, 3000);
+                        
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            }
+
+            handleWorkerMessage(name, data) {
+                const { type, model, result, id } = data;
+                
+                switch (type) {
+                    case 'model-loaded':
+                        this.log(`✅ ${name} model loaded: ${model.name}`);
+                        this.updateStatus(name, model.demoMode ? 'DEMO MODE' : 'READY');
+                        this.activeNetworks++;
+                        this.updateMetrics();
+                        break;
+                        
+                    case 'inference-result':
+                        this.handleInferenceResult(name, result, id);
+                        break;
+                        
+                    case 'error':
+                        this.log(`❌ ${name} error: ${data.error}`);
+                        break;
+                }
+            }
+
+            handleInferenceResult(name, result, id) {
+                const startTime = parseInt(id.split('-')[2]) || Date.now();
+                const latency = Date.now() - startTime;
+                this.latencies.push(latency);
+                
+                this.log(`⚡ ${name} inference complete (${latency}ms)`);
+                
+                if (result.bvhFrames && result.bvhFrames.length > 0) {
+                    this.displayBVHFrames(name, result.bvhFrames);
+                    this.totalFrames += result.bvhFrames.length;
+                    this.updateMetrics();
+                    
+                    this.log(`📊 ${name} generated ${result.bvhFrames.length} BVH frames`);
+                } else {
+                    this.log(`⚠️ ${name} did not generate BVH frames`);
+                    this.displayError(name, 'No BVH frames generated');
+                }
+            }
+
+            displayBVHFrames(networkName, bvhFrames) {
+                const outputDiv = document.getElementById(`${networkName}-output`);
+                outputDiv.innerHTML = '';
+                
+                // Show summary
+                const summary = document.createElement('div');
+                summary.className = 'frame-meta';
+                summary.textContent = `Generated ${bvhFrames.length} BVH frames`;
+                outputDiv.appendChild(summary);
+                
+                // Show first few frames as examples
+                const framesToShow = Math.min(3, bvhFrames.length);
+                for (let i = 0; i < framesToShow; i++) {
+                    const frame = bvhFrames[i];
+                    const frameDiv = document.createElement('div');
+                    frameDiv.className = 'bvh-frame';
+                    
+                    frameDiv.innerHTML = `
+                        <div class="frame-meta">Frame ${frame.frameIndex} (time: ${frame.time?.toFixed(3)}s)</div>
+                        <div class="bone-data">Bones: ${Object.keys(frame.bones || {}).length}</div>
+                        <div class="bone-data">Source: ${frame.metadata?.source || 'unknown'}</div>
+                        <div class="bone-data">Sample bones: ${Object.keys(frame.bones || {}).slice(0, 3).join(', ')}</div>
+                    `;
+                    
+                    outputDiv.appendChild(frameDiv);
+                }
+                
+                if (bvhFrames.length > framesToShow) {
+                    const moreDiv = document.createElement('div');
+                    moreDiv.className = 'bone-data';
+                    moreDiv.textContent = `... and ${bvhFrames.length - framesToShow} more frames`;
+                    outputDiv.appendChild(moreDiv);
+                }
+            }
+
+            displayError(networkName, error) {
+                const outputDiv = document.getElementById(`${networkName}-output`);
+                outputDiv.innerHTML = `<div style="color: #f44336;">❌ ${error}</div>`;
+            }
+
+            async testDeepMimicBVH() {
+                this.log('🧪 Testing DeepMimic BVH generation...');
+                await this.testNetworkBVH('deepmimic', {
+                    motion: {
+                        position: [0, 1, 0],
+                        velocity: [0.5, 0, 0.8],
+                        orientation: [0, 0, 0, 1]
+                    },
+                    targetSkill: 'walk'
+                });
+            }
+
+            async testAudio2GestureBVH() {
+                this.log('🧪 Testing Audio2Gesture BVH generation...');
+                await this.testNetworkBVH('audio2gesture', {
+                    audio: {
+                        samples: new Float32Array(2048).map(() => Math.sin(Math.random() * Math.PI * 2) * 0.3),
+                        sampleRate: 44100,
+                        duration: 2.0
+                    }
+                });
+            }
+
+            async testNetworkBVH(networkName, inputData) {
+                const worker = this.workers.get(networkName);
+                if (!worker) {
+                    this.log(`❌ ${networkName} worker not available`);
+                    return;
+                }
+                
+                const testId = `test-${networkName}-${Date.now()}`;
+                worker.postMessage({
+                    type: 'inference',
+                    id: testId,
+                    data: { input: inputData }
+                });
+            }
+
+            async testAllNetworks() {
+                this.log('🎯 Testing all neural networks for BVH output...');
+                
+                await this.testDeepMimicBVH();
+                await this.delay(1000);
+                
+                await this.testAudio2GestureBVH();
+                
+                this.log('✅ All network tests initiated');
+            }
+
+            updateStatus(networkName, status) {
+                const element = document.getElementById(`${networkName}-status`);
+                if (element) {
+                    element.textContent = status;
+                    element.className = 'status-indicator ' + 
+                        (status === 'READY' ? 'status-ready' :
+                         status === 'DEMO MODE' ? 'status-demo' :
+                         status === 'ERROR' ? 'status-error' : 'status-loading');
+                }
+            }
+
+            updateMetrics() {
+                document.getElementById('total-frames').textContent = this.totalFrames;
+                document.getElementById('active-networks').textContent = this.activeNetworks;
+                
+                if (this.latencies.length > 0) {
+                    const avgLatency = this.latencies.reduce((a, b) => a + b, 0) / this.latencies.length;
+                    document.getElementById('avg-latency').textContent = Math.round(avgLatency) + 'ms';
+                }
+            }
+
+            log(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                const logDiv = document.getElementById('system-log');
+                logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+                console.log(message);
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // Initialize test when page loads
+        let testDemo;
+        window.addEventListener('load', () => {
+            testDemo = new NeuralBVHTest();
+        });
+    </script>
+</body>
+</html>
