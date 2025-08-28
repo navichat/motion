@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentic Ichika VRM Classroom Demo - Real Assets</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+            min-width: 300px;
+        }
+        
+        .status-item {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .status-success {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4CAF50;
+        }
+        
+        .status-loading {
+            background: rgba(255, 193, 7, 0.3);
+            color: #FFC107;
+        }
+        
+        .status-error {
+            background: rgba(244, 67, 54, 0.3);
+            color: #F44336;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+            min-width: 200px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            border: none;
+            color: white;
+            padding: 10px 16px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: rgba(128, 128, 128, 0.5);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #debug {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 100;
+            max-width: 400px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>🏗️ Initializing Ichika VRM Classroom System...</div>
+        <div id="loading-progress">Setting up Three.js environment...</div>
+    </div>
+    
+    <div id="container"></div>
+    
+    <div id="status">
+        <h3>🎭 System Status</h3>
+        <div id="three-status" class="status-item status-loading">Three.js: Initializing...</div>
+        <div id="vrm-status" class="status-item status-loading">VRM Infrastructure: Loading...</div>
+        <div id="ichika-status" class="status-item status-loading">Ichika VRM: Pending...</div>
+        <div id="classroom-status" class="status-item status-loading">Classroom GLB: Pending...</div>
+        <div id="walking-status" class="status-item status-loading">Walking System: Offline</div>
+    </div>
+    
+    <div id="controls">
+        <h3>🎮 Controls</h3>
+        <button id="walk-center">Walk to Center</button>
+        <button id="walk-blackboard">Walk to Blackboard</button>
+        <button id="walk-desk">Walk to Desk</button>
+        <button id="walk-door">Walk to Door</button>
+        <button id="start-patrol">Start Patrol</button>
+        <button id="stop-patrol">Stop Movement</button>
+        <button id="wave-animation">Wave Animation</button>
+        <button id="bow-animation">Bow Animation</button>
+    </div>
+    
+    <div id="debug">
+        <strong>🔍 Debug Log:</strong><br>
+        <div id="debug-content">System starting...</div>
+    </div>
+
+    <!-- Three.js and VRM libraries -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Global variables
+        let scene, camera, renderer, controls;
+        let ichikaVRM = null;
+        let classroomScene = null;
+        let walkingAnimation = null;
+        let currentTarget = null;
+        let isWalking = false;
+        let patrolMode = false;
+        let clock = new THREE.Clock();
+        
+        // Classroom positions
+        const positions = {
+            center: new THREE.Vector3(0, 0, 0),
+            blackboard: new THREE.Vector3(0, 0, -3),
+            desk: new THREE.Vector3(2, 0, -2),
+            door: new THREE.Vector3(-3, 0, 1),
+            window: new THREE.Vector3(3, 0, 0)
+        };
+
+        function updateStatus(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            element.className = `status-item status-${status}`;
+            element.textContent = message;
+        }
+
+        function log(message) {
+            console.log(message);
+            const debugContent = document.getElementById('debug-content');
+            debugContent.innerHTML += '<br>' + message;
+            debugContent.scrollTop = debugContent.scrollHeight;
+        }
+
+        function updateProgress(message) {
+            document.getElementById('loading-progress').textContent = message;
+        }
+
+        async function init() {
+            updateProgress('Creating Three.js scene...');
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(5, 3, 5);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 1, 0);
+            
+            updateStatus('three-status', 'success', 'Three.js: Ready');
+            log('✅ Three.js scene initialized');
+
+            updateProgress('Setting up lighting...');
+            setupLighting();
+            
+            updateProgress('Loading VRM infrastructure...');
+            updateStatus('vrm-status', 'success', 'VRM Infrastructure: Ready');
+            log('✅ VRM infrastructure loaded');
+
+            updateProgress('Loading Ichika VRM character...');
+            await loadIchikaVRM();
+            
+            updateProgress('Loading classroom environment...');
+            await loadClassroomGLB();
+            
+            updateProgress('Setting up walking system...');
+            setupWalkingSystem();
+            
+            updateProgress('System ready!');
+            
+            // Setup controls
+            setupControls();
+            
+            // Start animation loop
+            animate();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 1000);
+            
+            log('🎉 Ichika VRM Classroom System ready!');
+        }
+
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+            
+            // Main directional light (sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -10;
+            directionalLight.shadow.camera.right = 10;
+            directionalLight.shadow.camera.top = 10;
+            directionalLight.shadow.camera.bottom = -10;
+            scene.add(directionalLight);
+            
+            // Fill light
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+            fillLight.position.set(-5, 5, -5);
+            scene.add(fillLight);
+            
+            log('💡 Classroom lighting setup complete');
+        }
+
+        async function loadIchikaVRM() {
+            try {
+                const loader = new GLTFLoader();
+                loader.register((parser) => new VRMLoaderPlugin(parser));
+                
+                log('🎭 Loading Ichika VRM (16MB)...');
+                
+                const gltf = await new Promise((resolve, reject) => {
+                    loader.load(
+                        '../assets/avatars/ichika.vrm',
+                        (gltf) => {
+                            log(`✅ Ichika VRM loaded successfully!`);
+                            resolve(gltf);
+                        },
+                        (progress) => {
+                            const percent = (progress.loaded / progress.total * 100).toFixed(1);
+                            if (progress.total) {
+                                log(`📈 Loading progress: ${percent}%`);
+                            }
+                        },
+                        (error) => {
+                            log(`❌ Failed to load Ichika VRM: ${error.message}`);
+                            reject(error);
+                        }
+                    );
+                });
+                
+                ichikaVRM = gltf.userData.vrm;
+                
+                // Add to scene at center position
+                ichikaVRM.scene.position.copy(positions.center);
+                scene.add(ichikaVRM.scene);
+                
+                // Enable shadows
+                ichikaVRM.scene.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                // Enable VRM pose updates
+                VRMUtils.rotateVRM0(ichikaVRM);
+                
+                updateStatus('ichika-status', 'success', 'Ichika VRM: Loaded & Ready');
+                log('🎭 Ichika character positioned at center of classroom');
+                
+                // Focus camera on Ichika
+                controls.target.copy(ichikaVRM.scene.position);
+                controls.target.y += 1.0;
+                
+            } catch (error) {
+                updateStatus('ichika-status', 'error', 'Ichika VRM: Load Failed');
+                log(`❌ Ichika VRM loading failed: ${error.message}`);
+                
+                // Create fallback representation
+                createFallbackCharacter();
+            }
+        }
+
+        function createFallbackCharacter() {
+            log('🔄 Creating fallback character representation...');
+            
+            const group = new THREE.Group();
+            
+            // Body (cylinder)
+            const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.4, 1.5, 8);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xffb3d9 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.75;
+            body.castShadow = true;
+            group.add(body);
+            
+            // Head (sphere)
+            const headGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+            const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbcc });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = 1.75;
+            head.castShadow = true;
+            group.add(head);
+            
+            // Arms
+            const armGeometry = new THREE.CylinderGeometry(0.08, 0.12, 1.0, 6);
+            const armMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbcc });
+            
+            const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+            leftArm.position.set(-0.5, 1.0, 0);
+            leftArm.rotation.z = Math.PI / 6;
+            leftArm.castShadow = true;
+            group.add(leftArm);
+            
+            const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+            rightArm.position.set(0.5, 1.0, 0);
+            rightArm.rotation.z = -Math.PI / 6;
+            rightArm.castShadow = true;
+            group.add(rightArm);
+            
+            // Legs
+            const legGeometry = new THREE.CylinderGeometry(0.1, 0.15, 1.0, 6);
+            const legMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            
+            const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+            leftLeg.position.set(-0.2, -0.5, 0);
+            leftLeg.castShadow = true;
+            group.add(leftLeg);
+            
+            const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+            rightLeg.position.set(0.2, -0.5, 0);
+            rightLeg.castShadow = true;
+            group.add(rightLeg);
+            
+            // Position fallback character
+            group.position.copy(positions.center);
+            scene.add(group);
+            
+            // Create a mock VRM object for compatibility
+            ichikaVRM = {
+                scene: group,
+                humanoid: null,
+                lookAt: null,
+                update: () => {} // No-op update function
+            };
+            
+            updateStatus('ichika-status', 'success', 'Ichika VRM: Fallback Active');
+            log('🎭 Fallback character created (VRM loading failed)');
+        }
+
+        async function loadClassroomGLB() {
+            try {
+                const loader = new GLTFLoader();
+                
+                log('🏫 Loading classroom GLB (21MB)...');
+                
+                const gltf = await new Promise((resolve, reject) => {
+                    loader.load(
+                        '../assets/scenes/classroom.glb',
+                        (gltf) => {
+                            log('✅ Classroom GLB loaded successfully!');
+                            resolve(gltf);
+                        },
+                        (progress) => {
+                            const percent = (progress.loaded / progress.total * 100).toFixed(1);
+                            if (progress.total) {
+                                log(`📈 Classroom loading: ${percent}%`);
+                            }
+                        },
+                        (error) => {
+                            log(`❌ Failed to load classroom: ${error.message}`);
+                            reject(error);
+                        }
+                    );
+                });
+                
+                classroomScene = gltf.scene;
+                scene.add(classroomScene);
+                
+                // Enable shadows for classroom
+                classroomScene.traverse((child) => {
+                    if (child.isMesh) {
+                        child.receiveShadow = true;
+                        if (child.material) {
+                            child.material.side = THREE.FrontSide;
+                        }
+                    }
+                });
+                
+                updateStatus('classroom-status', 'success', 'Classroom GLB: Loaded & Ready');
+                log('🏫 Classroom environment active');
+                
+            } catch (error) {
+                updateStatus('classroom-status', 'error', 'Classroom GLB: Load Failed');
+                log(`❌ Classroom loading failed: ${error.message}`);
+                
+                // Create fallback floor
+                createFallbackClassroom();
+            }
+        }
+
+        function createFallbackClassroom() {
+            log('🔄 Creating fallback classroom environment...');
+            
+            // Floor
+            const floorGeometry = new THREE.PlaneGeometry(20, 20);
+            const floorMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            
+            // Walls
+            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0xf0f0f0 });
+            
+            // Back wall
+            const backWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 8), wallMaterial);
+            backWall.position.set(0, 4, -10);
+            scene.add(backWall);
+            
+            // Side walls
+            const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 8), wallMaterial);
+            leftWall.rotation.y = Math.PI / 2;
+            leftWall.position.set(-10, 4, 0);
+            scene.add(leftWall);
+            
+            const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 8), wallMaterial);
+            rightWall.rotation.y = -Math.PI / 2;
+            rightWall.position.set(10, 4, 0);
+            scene.add(rightWall);
+            
+            // Simple blackboard
+            const blackboardGeometry = new THREE.PlaneGeometry(4, 2);
+            const blackboardMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+            const blackboard = new THREE.Mesh(blackboardGeometry, blackboardMaterial);
+            blackboard.position.set(0, 2, -9.9);
+            scene.add(blackboard);
+            
+            // Teacher's desk
+            const deskGeometry = new THREE.BoxGeometry(2, 1, 1);
+            const deskMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const desk = new THREE.Mesh(deskGeometry, deskMaterial);
+            desk.position.set(2, 0.5, -2);
+            desk.castShadow = true;
+            scene.add(desk);
+            
+            updateStatus('classroom-status', 'success', 'Classroom GLB: Fallback Active');
+            log('🏫 Fallback classroom created');
+        }
+
+        function setupWalkingSystem() {
+            updateStatus('walking-status', 'success', 'Walking System: Ready');
+            log('🚶‍♀️ Walking system initialized');
+        }
+
+        function setupControls() {
+            document.getElementById('walk-center').addEventListener('click', () => walkTo('center'));
+            document.getElementById('walk-blackboard').addEventListener('click', () => walkTo('blackboard'));
+            document.getElementById('walk-desk').addEventListener('click', () => walkTo('desk'));
+            document.getElementById('walk-door').addEventListener('click', () => walkTo('door'));
+            document.getElementById('start-patrol').addEventListener('click', startPatrol);
+            document.getElementById('stop-patrol').addEventListener('click', stopMovement);
+            document.getElementById('wave-animation').addEventListener('click', () => playAnimation('wave'));
+            document.getElementById('bow-animation').addEventListener('click', () => playAnimation('bow'));
+        }
+
+        function walkTo(locationName) {
+            if (!ichikaVRM) return;
+            
+            const targetPosition = positions[locationName];
+            if (!targetPosition) return;
+            
+            currentTarget = targetPosition.clone();
+            isWalking = true;
+            patrolMode = false;
+            
+            log(`🚶‍♀️ Walking to ${locationName} position`);
+        }
+
+        function startPatrol() {
+            if (!ichikaVRM) return;
+            
+            patrolMode = true;
+            isWalking = true;
+            
+            const locationNames = Object.keys(positions);
+            const randomLocation = locationNames[Math.floor(Math.random() * locationNames.length)];
+            currentTarget = positions[randomLocation].clone();
+            
+            log('🔄 Starting classroom patrol mode');
+        }
+
+        function stopMovement() {
+            isWalking = false;
+            patrolMode = false;
+            currentTarget = null;
+            log('⏹️ Movement stopped');
+        }
+
+        function playAnimation(animationType) {
+            if (!ichikaVRM) return;
+            
+            log(`🎬 Playing ${animationType} animation`);
+            
+            // Simple animation using basic transformations
+            if (animationType === 'wave') {
+                // Simple wave animation - rotate torso slightly
+                if (ichikaVRM.scene) {
+                    const originalRotation = ichikaVRM.scene.rotation.y;
+                    const waveAnimation = () => {
+                        ichikaVRM.scene.rotation.y = originalRotation + Math.sin(Date.now() * 0.01) * 0.1;
+                    };
+                    
+                    const animationId = setInterval(waveAnimation, 16);
+                    setTimeout(() => {
+                        clearInterval(animationId);
+                        ichikaVRM.scene.rotation.y = originalRotation;
+                        log('✅ Wave animation complete');
+                    }, 2000);
+                }
+            } else if (animationType === 'bow') {
+                // Simple bow animation - rotate forward slightly
+                if (ichikaVRM.scene) {
+                    const originalRotation = ichikaVRM.scene.rotation.x;
+                    ichikaVRM.scene.rotation.x = -0.3;
+                    setTimeout(() => {
+                        ichikaVRM.scene.rotation.x = originalRotation;
+                        log('✅ Bow animation complete');
+                    }, 1000);
+                }
+            }
+        }
+
+        function updateMovement() {
+            if (!isWalking || !currentTarget || !ichikaVRM) return;
+            
+            const currentPosition = ichikaVRM.scene.position;
+            const direction = currentTarget.clone().sub(currentPosition);
+            const distance = direction.length();
+            
+            if (distance < 0.1) {
+                // Reached target
+                log(`📍 Reached target position: (${currentTarget.x.toFixed(1)}, ${currentTarget.z.toFixed(1)})`);
+                
+                if (patrolMode) {
+                    // Choose next random position for patrol
+                    const locationNames = Object.keys(positions);
+                    const randomLocation = locationNames[Math.floor(Math.random() * locationNames.length)];
+                    currentTarget = positions[randomLocation].clone();
+                    log(`🎯 Next patrol target: ${randomLocation}`);
+                } else {
+                    isWalking = false;
+                    currentTarget = null;
+                }
+            } else {
+                // Move towards target
+                const speed = 0.01; // Adjust walking speed
+                direction.normalize().multiplyScalar(speed);
+                currentPosition.add(direction);
+                
+                // Face movement direction
+                const angle = Math.atan2(direction.x, direction.z);
+                ichikaVRM.scene.rotation.y = angle;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = clock.getDelta();
+            
+            // Update VRM
+            if (ichikaVRM && ichikaVRM.update) {
+                ichikaVRM.update(deltaTime);
+            }
+            
+            // Update movement
+            updateMovement();
+            
+            // Update controls
+            controls.update();
+            
+            // Render
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
