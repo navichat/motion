@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ichika Neural Animation Integration Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #renderer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            color: white;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-section {
+            margin-bottom: 15px;
+        }
+
+        .status-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #4ecdc4;
+            display: flex;
+            align-items: center;
+        }
+
+        .status-icon {
+            font-size: 20px;
+            margin-right: 8px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-ready { background: #4caf50; color: white; }
+        .status-loading { background: #ff9800; color: white; }
+        .status-error { background: #f44336; color: white; }
+        .status-unloaded { background: #757575; color: white; }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        .control-button {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .control-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .performance-metrics {
+            margin-top: 15px;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .metric-item {
+            margin-bottom: 3px;
+        }
+
+        #audio-visualizer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ecdc4, #44a08d);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <!-- 3D Renderer -->
+        <div id="renderer"></div>
+        
+        <!-- UI Overlay -->
+        <div id="ui-overlay">
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="status-icon">🎭</span>
+                    Ichika Neural Animation System
+                </div>
+                <div id="system-status">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="status-icon">🧠</span>
+                    Neural Networks
+                </div>
+                <div id="neural-status">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">
+                    <span class="status-icon">🎯</span>
+                    VRM Infrastructure
+                </div>
+                <div id="vrm-status">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="control-button" id="initialize-btn">Initialize System</button>
+                <button class="control-button" id="load-vrm-btn" disabled>Load Ichika VRM</button>
+                <button class="control-button" id="start-animation-btn" disabled>Start Animation</button>
+                <button class="control-button" id="test-audio-btn" disabled>Test Audio Processing</button>
+            </div>
+
+            <div class="performance-metrics">
+                <div class="status-title">📊 Performance</div>
+                <div id="performance-display">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio Visualizer -->
+        <div id="audio-visualizer" style="display: none;">
+            <div style="color: white; font-size: 12px; margin-bottom: 5px;">Audio Input</div>
+            <canvas id="audio-canvas" width="200" height="40"></canvas>
+        </div>
+    </div>
+
+    <script type="module">
+        import { IchikaAnimationController } from '/dev/web_viewer/src/components/animation/IchikaAnimationController.js';
+        import { NeuralPipelineManager } from '/dev/web_viewer/src/components/animation/NeuralPipelineManager.js';
+
+        class IchikaNeuralAnimationDemo {
+            constructor() {
+                this.animationController = null;
+                this.neuralPipeline = null;
+                this.vrm = null;
+                this.scene = null;
+                this.renderer = null;
+                this.camera = null;
+                
+                this.setupUI();
+                this.startStatusUpdates();
+            }
+
+            setupUI() {
+                // Initialize button handlers
+                document.getElementById('initialize-btn').addEventListener('click', () => {
+                    this.initializeSystem();
+                });
+
+                document.getElementById('load-vrm-btn').addEventListener('click', () => {
+                    this.loadVRMAvatar();
+                });
+
+                document.getElementById('start-animation-btn').addEventListener('click', () => {
+                    this.startAnimationSystem();
+                });
+
+                document.getElementById('test-audio-btn').addEventListener('click', () => {
+                    this.testAudioProcessing();
+                });
+            }
+
+            async initializeSystem() {
+                console.log('🚀 Starting Neural Animation Integration Demo...');
+                
+                this.updateSystemStatus('Initializing...', 'loading');
+                
+                try {
+                    // Initialize Animation Controller
+                    this.animationController = new IchikaAnimationController({
+                        frameRate: 30,
+                        maxTracks: 10,
+                        performanceMonitoring: true,
+                        realTimeOptimization: true
+                    });
+
+                    const initSuccess = await this.animationController.initialize();
+                    
+                    if (initSuccess) {
+                        this.updateSystemStatus('Animation Controller Ready', 'ready');
+                        
+                        // Initialize Neural Pipeline Manager
+                        this.neuralPipeline = new NeuralPipelineManager({
+                            batchProcessing: true,
+                            maxConcurrency: 2,
+                            performanceOptimization: true
+                        });
+                        
+                        const neuralSuccess = await this.neuralPipeline.initialize();
+                        
+                        if (neuralSuccess) {
+                            this.updateSystemStatus('Fully Initialized', 'ready');
+                            document.getElementById('initialize-btn').disabled = true;
+                            document.getElementById('load-vrm-btn').disabled = false;
+                        } else {
+                            this.updateSystemStatus('Neural Pipeline Failed', 'error');
+                        }
+                    } else {
+                        this.updateSystemStatus('Animation Controller Failed', 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Initialization failed:', error);
+                    this.updateSystemStatus('Initialization Failed', 'error');
+                }
+            }
+
+            async loadVRMAvatar() {
+                console.log('👤 Loading Ichika VRM Avatar...');
+                
+                this.updateVRMStatus('Loading VRM...', 'loading');
+                
+                try {
+                    // Initialize 3D scene
+                    await this.setup3DScene();
+                    
+                    // Load VRM avatar (simulated for demo)
+                    await this.simulateVRMLoading();
+                    
+                    this.updateVRMStatus('VRM Loaded Successfully', 'ready');
+                    document.getElementById('load-vrm-btn').disabled = true;
+                    document.getElementById('start-animation-btn').disabled = false;
+                    
+                } catch (error) {
+                    console.error('❌ VRM loading failed:', error);
+                    this.updateVRMStatus('VRM Loading Failed', 'error');
+                }
+            }
+
+            async setup3DScene() {
+                // Create a placeholder 3D scene (would use actual Three.js in real implementation)
+                console.log('🎬 Setting up 3D scene...');
+                
+                const rendererDiv = document.getElementById('renderer');
+                rendererDiv.innerHTML = '<div style="display: flex; justify-content: center; align-items: center; height: 100%; color: white; font-size: 24px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">3D Scene Ready<br><small>VRM Avatar will appear here</small></div>';
+                
+                // Simulate scene setup delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+
+            async simulateVRMLoading() {
+                // Simulate VRM loading process
+                const loadingSteps = [
+                    { step: 'Loading ichika.vrm (16MB)...', delay: 2000 },
+                    { step: 'Loading classroom.glb (21MB)...', delay: 1500 },
+                    { step: 'Processing VRM bones...', delay: 1000 },
+                    { step: 'Setting up materials...', delay: 800 },
+                    { step: 'Initializing animations...', delay: 600 }
+                ];
+
+                for (const { step, delay } of loadingSteps) {
+                    this.updateVRMStatus(step, 'loading');
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+
+                // Mark VRM as loaded
+                this.vrm = { 
+                    loaded: true, 
+                    bones: ['hips', 'spine', 'head', 'leftArm', 'rightArm'], 
+                    materials: ['face', 'hair', 'body', 'clothes'] 
+                };
+            }
+
+            async startAnimationSystem() {
+                console.log('▶️ Starting Animation System...');
+                
+                try {
+                    if (this.animationController && this.vrm) {
+                        // Start the animation system
+                        await this.animationController.startRealTimeAnimation(this.vrm, null);
+                        
+                        this.updateSystemStatus('Animation System Active', 'ready');
+                        document.getElementById('start-animation-btn').disabled = true;
+                        document.getElementById('test-audio-btn').disabled = false;
+                        
+                        // Show audio visualizer
+                        document.getElementById('audio-visualizer').style.display = 'block';
+                        this.setupAudioVisualizer();
+                        
+                    } else {
+                        throw new Error('Animation controller or VRM not ready');
+                    }
+                } catch (error) {
+                    console.error('❌ Animation start failed:', error);
+                    this.updateSystemStatus('Animation Start Failed', 'error');
+                }
+            }
+
+            async testAudioProcessing() {
+                console.log('🎤 Testing Audio Processing...');
+                
+                if (!this.neuralPipeline) {
+                    console.error('Neural pipeline not initialized');
+                    return;
+                }
+
+                try {
+                    // Simulate audio input for testing
+                    const mockAudioBuffer = this.createMockAudioBuffer();
+                    
+                    // Process through neural networks
+                    const results = await this.neuralPipeline.processAudioInput(mockAudioBuffer);
+                    
+                    console.log('🎯 Neural processing results:', results);
+                    
+                    // Apply animation to VRM (simulated)
+                    if (this.animationController && this.vrm) {
+                        await this.animationController.applyAnimation(results, this.vrm);
+                    }
+                    
+                    // Show visual feedback
+                    this.showAudioProcessingFeedback();
+                    
+                } catch (error) {
+                    console.error('❌ Audio processing failed:', error);
+                }
+            }
+
+            createMockAudioBuffer() {
+                // Create a mock audio buffer for testing
+                const duration = 1.0; // 1 second
+                const sampleRate = 44100;
+                const samples = new Float32Array(sampleRate * duration);
+                
+                // Generate simple sine wave for testing
+                for (let i = 0; i < samples.length; i++) {
+                    samples[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate) * 0.1; // 440Hz tone
+                }
+                
+                return {
+                    getChannelData: (channel) => samples,
+                    duration: duration,
+                    sampleRate: sampleRate
+                };
+            }
+
+            setupAudioVisualizer() {
+                const canvas = document.getElementById('audio-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Simple audio visualization (placeholder)
+                let animationId;
+                const visualize = () => {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    ctx.fillStyle = '#4ecdc4';
+                    const barCount = 20;
+                    const barWidth = canvas.width / barCount;
+                    
+                    for (let i = 0; i < barCount; i++) {
+                        const barHeight = Math.random() * canvas.height * 0.8;
+                        ctx.fillRect(i * barWidth, canvas.height - barHeight, barWidth - 2, barHeight);
+                    }
+                    
+                    animationId = requestAnimationFrame(visualize);
+                };
+                
+                visualize();
+            }
+
+            showAudioProcessingFeedback() {
+                const rendererDiv = document.getElementById('renderer');
+                const originalContent = rendererDiv.innerHTML;
+                
+                rendererDiv.innerHTML = '<div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #4ecdc4; font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); animation: pulse 1s ease-in-out;">🎤 Audio Processed!<br><small>Neural networks analyzed speech</small></div>';
+                
+                // Restore original content after 2 seconds
+                setTimeout(() => {
+                    rendererDiv.innerHTML = originalContent;
+                }, 2000);
+            }
+
+            updateSystemStatus(message, status) {
+                const statusDiv = document.getElementById('system-status');
+                statusDiv.innerHTML = `
+                    <div class="status-item">
+                        <span>System Status:</span>
+                        <span class="status-indicator status-${status}">${message}</span>
+                    </div>
+                `;
+            }
+
+            updateVRMStatus(message, status) {
+                const statusDiv = document.getElementById('vrm-status');
+                statusDiv.innerHTML = `
+                    <div class="status-item">
+                        <span>VRM Status:</span>
+                        <span class="status-indicator status-${status}">${message}</span>
+                    </div>
+                `;
+            }
+
+            startStatusUpdates() {
+                setInterval(() => {
+                    this.updateNeuralStatus();
+                    this.updatePerformanceMetrics();
+                }, 1000);
+            }
+
+            updateNeuralStatus() {
+                const statusDiv = document.getElementById('neural-status');
+                
+                if (this.neuralPipeline) {
+                    const status = this.neuralPipeline.getStatus();
+                    const models = status.models;
+                    
+                    let html = '';
+                    for (const [name, loadStatus] of Object.entries(models)) {
+                        const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+                        html += `
+                            <div class="status-item">
+                                <span>${displayName}:</span>
+                                <span class="status-indicator status-${loadStatus}">${loadStatus.toUpperCase()}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    statusDiv.innerHTML = html;
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="status-item">
+                            <span>Neural Pipeline:</span>
+                            <span class="status-indicator status-unloaded">NOT INITIALIZED</span>
+                        </div>
+                    `;
+                }
+            }
+
+            updatePerformanceMetrics() {
+                const performanceDiv = document.getElementById('performance-display');
+                
+                if (this.animationController) {
+                    const status = this.animationController.getStatus();
+                    const perf = status.performance;
+                    
+                    performanceDiv.innerHTML = `
+                        <div class="metric-item">FPS: ${perf.fps || 0}</div>
+                        <div class="metric-item">Frame Time: ${(perf.frameTime || 0).toFixed(2)}ms</div>
+                        <div class="metric-item">Neural Time: ${(perf.neuralInferenceTime || 0).toFixed(2)}ms</div>
+                        <div class="metric-item">Render Time: ${(perf.renderTime || 0).toFixed(2)}ms</div>
+                    `;
+                } else {
+                    performanceDiv.innerHTML = '<div class="metric-item">System not initialized</div>';
+                }
+            }
+        }
+
+        // Initialize the demo
+        window.addEventListener('DOMContentLoaded', () => {
+            new IchikaNeuralAnimationDemo();
+        });
+    </script>
+
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</body>
+</html>
