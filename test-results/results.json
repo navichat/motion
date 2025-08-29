@@ -1,0 +1,209 @@
+{
+  "config": {
+    "configFile": "/home/runner/work/motion/motion/playwright.config.js",
+    "rootDir": "/home/runner/work/motion/motion/dev/web_viewer/tests",
+    "forbidOnly": true,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 600000,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "ci": {
+        "commitHref": "https://github.com/navichat/motion/commit/8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+        "commitHash": "8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+        "buildHref": "https://github.com/navichat/motion/actions/runs/17310887567"
+      },
+      "gitCommit": {
+        "shortHash": "8c4fe8b",
+        "hash": "8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+        "subject": "Fix neural networks to generate proper BVH frames for VRM adapters",
+        "body": "Fix neural networks to generate proper BVH frames for VRM adapters\n\nCo-authored-by: endomorphosis <3405202+endomorphosis@users.noreply.github.com>\n",
+        "author": {
+          "name": "copilot-swe-agent[bot]",
+          "email": "198982749+Copilot@users.noreply.github.com",
+          "time": 1756424098000
+        },
+        "committer": {
+          "name": "copilot-swe-agent[bot]",
+          "email": "198982749+Copilot@users.noreply.github.com",
+          "time": 1756424098000
+        },
+        "branch": "copilot/fix-3e5ee93e-b96d-4cf7-8eda-0705bdd55374"
+      }
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "playwright-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ],
+      [
+        "line",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/home/runner/work/motion/motion/test-results/artifacts",
+        "repeatEach": 1,
+        "retries": 2,
+        "metadata": {
+          "ci": {
+            "commitHref": "https://github.com/navichat/motion/commit/8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+            "commitHash": "8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+            "buildHref": "https://github.com/navichat/motion/actions/runs/17310887567"
+          },
+          "gitCommit": {
+            "shortHash": "8c4fe8b",
+            "hash": "8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+            "subject": "Fix neural networks to generate proper BVH frames for VRM adapters",
+            "body": "Fix neural networks to generate proper BVH frames for VRM adapters\n\nCo-authored-by: endomorphosis <3405202+endomorphosis@users.noreply.github.com>\n",
+            "author": {
+              "name": "copilot-swe-agent[bot]",
+              "email": "198982749+Copilot@users.noreply.github.com",
+              "time": 1756424098000
+            },
+            "committer": {
+              "name": "copilot-swe-agent[bot]",
+              "email": "198982749+Copilot@users.noreply.github.com",
+              "time": 1756424098000
+            },
+            "branch": "copilot/fix-3e5ee93e-b96d-4cf7-8eda-0705bdd55374"
+          }
+        },
+        "id": "component-tests",
+        "name": "component-tests",
+        "testDir": "/home/runner/work/motion/motion/dev/web_viewer/tests/unit",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.serverless.spec.js"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/home/runner/work/motion/motion/test-results/artifacts",
+        "repeatEach": 1,
+        "retries": 2,
+        "metadata": {
+          "ci": {
+            "commitHref": "https://github.com/navichat/motion/commit/8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+            "commitHash": "8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+            "buildHref": "https://github.com/navichat/motion/actions/runs/17310887567"
+          },
+          "gitCommit": {
+            "shortHash": "8c4fe8b",
+            "hash": "8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+            "subject": "Fix neural networks to generate proper BVH frames for VRM adapters",
+            "body": "Fix neural networks to generate proper BVH frames for VRM adapters\n\nCo-authored-by: endomorphosis <3405202+endomorphosis@users.noreply.github.com>\n",
+            "author": {
+              "name": "copilot-swe-agent[bot]",
+              "email": "198982749+Copilot@users.noreply.github.com",
+              "time": 1756424098000
+            },
+            "committer": {
+              "name": "copilot-swe-agent[bot]",
+              "email": "198982749+Copilot@users.noreply.github.com",
+              "time": 1756424098000
+            },
+            "branch": "copilot/fix-3e5ee93e-b96d-4cf7-8eda-0705bdd55374"
+          }
+        },
+        "id": "web_viewer-root-e2e",
+        "name": "web_viewer-root-e2e",
+        "testDir": "/home/runner/work/motion/motion/dev/web_viewer",
+        "testIgnore": [
+          "**/src/**",
+          "**/tests/**",
+          "**/testing/**",
+          "**/legacy-root-tests/**"
+        ],
+        "testMatch": [
+          "e2e-smoke*.spec.js",
+          "e2e-ultimate-*.spec.js"
+        ],
+        "timeout": 120000
+      },
+      {
+        "outputDir": "/home/runner/work/motion/motion/test-results/artifacts",
+        "repeatEach": 1,
+        "retries": 2,
+        "metadata": {
+          "ci": {
+            "commitHref": "https://github.com/navichat/motion/commit/8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+            "commitHash": "8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+            "buildHref": "https://github.com/navichat/motion/actions/runs/17310887567"
+          },
+          "gitCommit": {
+            "shortHash": "8c4fe8b",
+            "hash": "8c4fe8b6af16856aaac65b14eb289a30e46a84c4",
+            "subject": "Fix neural networks to generate proper BVH frames for VRM adapters",
+            "body": "Fix neural networks to generate proper BVH frames for VRM adapters\n\nCo-authored-by: endomorphosis <3405202+endomorphosis@users.noreply.github.com>\n",
+            "author": {
+              "name": "copilot-swe-agent[bot]",
+              "email": "198982749+Copilot@users.noreply.github.com",
+              "time": 1756424098000
+            },
+            "committer": {
+              "name": "copilot-swe-agent[bot]",
+              "email": "198982749+Copilot@users.noreply.github.com",
+              "time": 1756424098000
+            },
+            "branch": "copilot/fix-3e5ee93e-b96d-4cf7-8eda-0705bdd55374"
+          }
+        },
+        "id": "unit-web",
+        "name": "unit-web",
+        "testDir": "/home/runner/work/motion/motion/dev/web_viewer/tests/unit",
+        "testIgnore": [
+          "**/*.serverless.spec.js"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.0",
+    "workers": 1,
+    "webServer": {
+      "command": "python3 dev/web_viewer/serve_with_headers.py",
+      "port": 8080,
+      "reuseExistingServer": false,
+      "timeout": 120000
+    }
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments.",
+      "stack": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments."
+    }
+  ],
+  "stats": {
+    "startTime": "2025-08-29T00:16:57.870Z",
+    "duration": 234.78499999999997,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
