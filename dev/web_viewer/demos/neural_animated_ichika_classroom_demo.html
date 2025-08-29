@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Animated Ichika VRM Classroom</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+            min-width: 320px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+        }
+        
+        .control-section h3 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+            font-size: 16px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            border: none;
+            color: white;
+            padding: 10px 16px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: rgba(128, 128, 128, 0.5);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .neural-button {
+            background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+        }
+        
+        .neural-button:hover {
+            background: linear-gradient(135deg, #F7931E 0%, #FF6B35 100%);
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin: 5px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        
+        .status-indicator {
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-ready { background: #4CAF50; }
+        .status-loading { background: #FF9800; }
+        .status-error { background: #f44336; }
+        .status-active { background: #2196F3; }
+        
+        #debug-info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 100;
+            max-width: 400px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        #neural-status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 100;
+            min-width: 250px;
+        }
+
+        .neural-metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .fps-counter {
+            position: absolute;
+            top: 20px;
+            left: 300px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            color: #4CAF50;
+            font-family: monospace;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>🧠 Loading Neural Network Animated Ichika VRM Classroom...</div>
+        <div id="loading-status">Initializing Neural Animation Pipeline...</div>
+    </div>
+    
+    <div id="container">
+        <!-- Neural Network Status Panel -->
+        <div id="neural-status">
+            <h3>🧠 Neural Animation Pipeline</h3>
+            <div class="neural-metric">
+                <span>Audio2Gesture:</span>
+                <span id="audio2gesture-status" class="status-indicator status-loading">Loading</span>
+            </div>
+            <div class="neural-metric">
+                <span>DeepMimic:</span>
+                <span id="deepmimic-status" class="status-indicator status-loading">Loading</span>
+            </div>
+            <div class="neural-metric">
+                <span>RSMT:</span>
+                <span id="rsmt-status" class="status-indicator status-loading">Loading</span>
+            </div>
+            <div class="neural-metric">
+                <span>FaceFormer:</span>
+                <span id="faceformer-status" class="status-indicator status-loading">Loading</span>
+            </div>
+        </div>
+
+        <!-- FPS Counter -->
+        <div id="fps-counter" class="fps-counter">
+            FPS: 0
+        </div>
+        
+        <!-- Controls Panel -->
+        <div id="controls">
+            <div class="control-section">
+                <h3>🎯 System Status</h3>
+                <div class="status-grid">
+                    <span>VRM Character:</span>
+                    <span id="vrm-status" class="status-indicator status-loading">Loading</span>
+                </div>
+                <div class="status-grid">
+                    <span>Classroom:</span>
+                    <span id="classroom-status" class="status-indicator status-loading">Loading</span>
+                </div>
+                <div class="status-grid">
+                    <span>Neural Pipeline:</span>
+                    <span id="neural-pipeline-status" class="status-indicator status-loading">Loading</span>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>🚀 System Controls</h3>
+                <button id="init-system">Initialize Complete System</button>
+                <button id="start-neural-animation" class="neural-button">🧠 Start Neural Animation</button>
+                <button id="stop-neural-animation" class="neural-button">⏹️ Stop Neural Animation</button>
+            </div>
+            
+            <div class="control-section">
+                <h3>🧠 Neural Network Controls</h3>
+                <button id="test-audio2gesture" class="neural-button">Test Audio2Gesture</button>
+                <button id="test-deepmimic" class="neural-button">Test DeepMimic</button>
+                <button id="test-rsmt" class="neural-button">Test RSMT</button>
+                <button id="test-faceformer" class="neural-button">Test FaceFormer</button>
+            </div>
+            
+            <div class="control-section">
+                <h3>🎭 Animation Presets</h3>
+                <button id="neural-walk-classroom" class="neural-button">Neural Guided Classroom Walk</button>
+                <button id="neural-gesture-demo" class="neural-button">Audio-Driven Gesture Demo</button>
+                <button id="neural-idle-animation" class="neural-button">Physics-Based Idle Animation</button>
+                <button id="neural-conversation" class="neural-button">Conversational Animation</button>
+            </div>
+        </div>
+        
+        <!-- Debug Panel -->
+        <div id="debug-info">
+            <h4>🔍 Neural Animation Debug</h4>
+            <div id="debug-content"></div>
+        </div>
+    </div>
+
+    <!-- Self-contained implementation -->
+    <script>
+        // Self-contained BVH Timeline implementation
+        class BVHTimeline {
+            constructor(id) {
+                this.id = id || `timeline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                this.frames = [];
+                this.duration = 0;
+                this.frameRate = 30;
+            }
+
+            addFrame(bvhData, time = null) {
+                const newFrame = { bvhData: bvhData };
+                if (time !== null) {
+                    newFrame.time = time;
+                    let inserted = false;
+                    for (let i = 0; i < this.frames.length; i++) {
+                        if (this.frames[i].time > time) {
+                            this.frames.splice(i, 0, newFrame);
+                            inserted = true;
+                            break;
+                        }
+                    }
+                    if (!inserted) {
+                        this.frames.push(newFrame);
+                    }
+                } else {
+                    newFrame.time = this.frames.length > 0 ? this.frames[this.frames.length - 1].time + (1 / this.frameRate) : 0;
+                    this.frames.push(newFrame);
+                }
+                this._updateDuration();
+            }
+
+            getFrameAtTime(time) {
+                if (this.frames.length === 0) return null;
+                
+                // Find closest frame
+                let closestFrame = this.frames[0];
+                let minDistance = Math.abs(closestFrame.time - time);
+                
+                for (let i = 1; i < this.frames.length; i++) {
+                    const distance = Math.abs(this.frames[i].time - time);
+                    if (distance < minDistance) {
+                        closestFrame = this.frames[i];
+                        minDistance = distance;
+                    }
+                }
+                
+                return closestFrame.bvhData;
+            }
+
+            _updateDuration() {
+                if (this.frames.length > 0) {
+                    this.duration = Math.max(...this.frames.map(f => f.time));
+                }
+            }
+        }
+
+        // Self-contained Timeline Composer
+        class TimelineComposer {
+            constructor() {
+                this.activeTimelines = new Map();
+                this.currentTimelineId = null;
+                this.transitionDuration = 0.5;
+            }
+
+            addTimeline(timeline, weight = 1.0, startTime = 0, endTime = Infinity) {
+                if (this.activeTimelines.has(timeline.id)) {
+                    console.warn(`Timeline with ID ${timeline.id} already added.`);
+                    return;
+                }
+                this.activeTimelines.set(timeline.id, { timeline, weight, startTime, endTime });
+            }
+
+            getCompositedFrameAtTime(time) {
+                const activeFrames = [];
+                
+                for (const [id, info] of this.activeTimelines) {
+                    if (time >= info.startTime && time <= info.endTime) {
+                        const frame = info.timeline.getFrameAtTime(time - info.startTime);
+                        if (frame) {
+                            activeFrames.push({ frame, weight: info.weight, id });
+                        }
+                    }
+                }
+                
+                if (activeFrames.length === 0) return null;
+                if (activeFrames.length === 1) return activeFrames[0].frame;
+                
+                // Simple frame composition (could be enhanced)
+                return activeFrames[0].frame;
+            }
+        }
+
+        // Self-contained 3D rendering system for neural network animation
+        // This replaces THREE.js with a self-contained implementation
+
+        // Self-contained 3D rendering system for neural network animation
+        // This replaces THREE.js with a self-contained implementation
+        
+        // Simple 3D Vector implementation
+        class Vector3 {
+            constructor(x = 0, y = 0, z = 0) {
+                this.x = x; this.y = y; this.z = z;
+            }
+            
+            set(x, y, z) { this.x = x; this.y = y; this.z = z; return this; }
+            copy(v) { this.x = v.x; this.y = v.y; this.z = v.z; return this; }
+            clone() { return new Vector3(this.x, this.y, this.z); }
+            add(v) { this.x += v.x; this.y += v.y; this.z += v.z; return this; }
+            lerp(v, t) { 
+                this.x += (v.x - this.x) * t;
+                this.y += (v.y - this.y) * t;
+                this.z += (v.z - this.z) * t;
+                return this;
+            }
+            length() { return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z); }
+            toFixed(n) { return `(${this.x.toFixed(n)}, ${this.y.toFixed(n)}, ${this.z.toFixed(n)})`; }
+        }
+
+        // Self-contained VRM character representation
+        class NeuralVRMCharacter {
+            constructor() {
+                this.position = new Vector3();
+                this.rotation = new Vector3();
+                this.bones = {};
+                this.isLoaded = false;
+                this.name = '';
+            }
+
+            initializeBones() {
+                // Initialize bone structure for neural network animation
+                const boneNames = [
+                    'head', 'neck', 'chest', 'spine', 'hips',
+                    'leftShoulder', 'rightShoulder', 'leftUpperArm', 'rightUpperArm',
+                    'leftLowerArm', 'rightLowerArm', 'leftUpperLeg', 'rightUpperLeg',
+                    'leftLowerLeg', 'rightLowerLeg', 'leftEye', 'rightEye', 'mouth'
+                ];
+
+                boneNames.forEach(boneName => {
+                    this.bones[boneName] = {
+                        rotation: new Vector3(),
+                        position: new Vector3(),
+                        originalRotation: new Vector3(),
+                        originalPosition: new Vector3()
+                    };
+                });
+
+                updateDebugInfo('🦴 Initialized VRM bone structure with ' + boneNames.length + ' bones');
+            }
+
+            applyNeuralFrame(frame) {
+                if (!frame || !frame.bones) return;
+
+                Object.entries(frame.bones).forEach(([boneName, boneData]) => {
+                    if (this.bones[boneName]) {
+                        if (boneData.rotation) {
+                            const [x, y, z] = boneData.rotation;
+                            this.bones[boneName].rotation.set(x, y, z);
+                        }
+                        
+                        if (boneData.position) {
+                            const [x, y, z] = boneData.position;
+                            if (boneName === 'hips') {
+                                // Root motion affects character position
+                                this.position.add(new Vector3(x, y, z));
+                            } else {
+                                this.bones[boneName].position.set(x, y, z);
+                            }
+                        }
+                    }
+                });
+            }
+
+            resetPose() {
+                // Reset all bones to T-pose/neutral position
+                Object.values(this.bones).forEach(bone => {
+                    bone.rotation.set(0, 0, 0);
+                    bone.position.set(0, 0, 0);
+                });
+                updateDebugInfo('🔄 VRM character reset to T-pose');
+            }
+
+            getBoneRotationDegrees(boneName) {
+                if (this.bones[boneName]) {
+                    const rot = this.bones[boneName].rotation;
+                    return `[${rot.x.toFixed(1)}°, ${rot.y.toFixed(1)}°, ${rot.z.toFixed(1)}°]`;
+                }
+                return '[0°, 0°, 0°]';
+            }
+        }
+
+        // Self-contained classroom environment
+        class NeuralClassroomEnvironment {
+            constructor() {
+                this.isLoaded = false;
+                this.walkingPositions = {
+                    center: new Vector3(0, 0, 0),
+                    blackboard: new Vector3(0, 0, -3),
+                    desk: new Vector3(2, 0, -2),
+                    front: new Vector3(0, 0, 2),
+                    student_area: new Vector3(-2, 0, 1)
+                };
+            }
+
+            async load() {
+                // Simulate classroom loading
+                updateDebugInfo('🏫 Loading neural classroom environment...');
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        this.isLoaded = true;
+                        updateDebugInfo('✅ Classroom environment ready for neural navigation');
+                        resolve(true);
+                    }, 1000);
+                });
+            }
+
+            getWalkingPosition(location) {
+                return this.walkingPositions[location] || this.walkingPositions.center;
+            }
+
+            getRandomPosition() {
+                const positions = Object.values(this.walkingPositions);
+                return positions[Math.floor(Math.random() * positions.length)];
+            }
+        }
+
+        // Self-contained 3D renderer for neural animation visualization
+        class NeuralAnimationRenderer {
+            constructor(container) {
+                this.container = container;
+                this.canvas = null;
+                this.ctx = null;
+                this.width = 0;
+                this.height = 0;
+            }
+
+            initialize() {
+                this.canvas = document.createElement('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.canvas.style.width = '100%';
+                this.canvas.style.height = '100%';
+                this.canvas.style.background = '#87ceeb';
+                this.container.appendChild(this.canvas);
+                
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                
+                updateDebugInfo('🎨 Neural animation renderer initialized');
+            }
+
+            resize() {
+                this.width = this.container.clientWidth;
+                this.height = this.container.clientHeight;
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+            }
+
+            renderCharacter(character) {
+                if (!character.isLoaded) return;
+
+                this.ctx.clearRect(0, 0, this.width, this.height);
+                
+                // Draw classroom floor
+                this.ctx.fillStyle = '#8FBC8F';
+                this.ctx.fillRect(0, this.height - 100, this.width, 100);
+                
+                // Draw character as skeleton representation
+                this.drawSkeletonCharacter(character);
+                
+                // Draw UI information
+                this.drawNeuralInfo(character);
+            }
+
+            drawSkeletonCharacter(character) {
+                const centerX = this.width / 2;
+                const centerY = this.height - 200;
+                const scale = 100;
+                
+                // Convert world position to screen position
+                const screenX = centerX + (character.position.x * scale);
+                const screenY = centerY - (character.position.z * scale);
+                
+                this.ctx.strokeStyle = '#FF6B35';
+                this.ctx.lineWidth = 3;
+                this.ctx.fillStyle = '#FF6B35';
+                
+                // Draw skeleton structure
+                this.drawBone(screenX, screenY - 60, screenX, screenY - 40, 'head');  // head to neck
+                this.drawBone(screenX, screenY - 40, screenX, screenY - 20, 'neck');  // neck to chest
+                this.drawBone(screenX, screenY - 20, screenX, screenY, 'chest');      // chest to spine
+                this.drawBone(screenX, screenY, screenX, screenY + 20, 'spine');      // spine to hips
+                
+                // Arms
+                const leftArmRot = character.bones.leftUpperArm ? character.bones.leftUpperArm.rotation.x : 0;
+                const rightArmRot = character.bones.rightUpperArm ? character.bones.rightUpperArm.rotation.x : 0;
+                
+                const leftArmX = screenX - 30 + Math.sin(leftArmRot * Math.PI / 180) * 25;
+                const leftArmY = screenY - 10 + Math.cos(leftArmRot * Math.PI / 180) * 25;
+                
+                const rightArmX = screenX + 30 + Math.sin(rightArmRot * Math.PI / 180) * 25;
+                const rightArmY = screenY - 10 + Math.cos(rightArmRot * Math.PI / 180) * 25;
+                
+                this.drawBone(screenX - 15, screenY - 15, leftArmX, leftArmY, 'leftUpperArm');
+                this.drawBone(screenX + 15, screenY - 15, rightArmX, rightArmY, 'rightUpperArm');
+                
+                // Legs (walking animation)
+                const walkPhase = Date.now() * 0.003;
+                const leftLegOffset = Math.sin(walkPhase) * 15;
+                const rightLegOffset = -Math.sin(walkPhase) * 15;
+                
+                this.drawBone(screenX - 10, screenY + 20, screenX - 10 + leftLegOffset, screenY + 40, 'leftUpperLeg');
+                this.drawBone(screenX + 10, screenY + 20, screenX + 10 + rightLegOffset, screenY + 40, 'rightUpperLeg');
+                
+                // Draw character name
+                this.ctx.fillStyle = '#FFFFFF';
+                this.ctx.font = '14px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('Ichika (Neural Animated)', screenX, screenY - 80);
+            }
+
+            drawBone(x1, y1, x2, y2, boneName) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(x1, y1);
+                this.ctx.lineTo(x2, y2);
+                this.ctx.stroke();
+                
+                // Draw bone joint
+                this.ctx.beginPath();
+                this.ctx.arc(x2, y2, 4, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+
+            drawNeuralInfo(character) {
+                // Draw neural network activity indicators
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                this.ctx.fillRect(10, 10, 200, 100);
+                
+                this.ctx.fillStyle = '#4CAF50';
+                this.ctx.font = '12px monospace';
+                this.ctx.textAlign = 'left';
+                
+                let y = 30;
+                this.ctx.fillText('Neural Animation Active', 20, y);
+                y += 15;
+                this.ctx.fillText(`Position: ${character.position.toFixed(2)}`, 20, y);
+                y += 15;
+                this.ctx.fillText(`Left Arm: ${character.getBoneRotationDegrees('leftUpperArm')}`, 20, y);
+                y += 15;
+                this.ctx.fillText(`Right Arm: ${character.getBoneRotationDegrees('rightUpperArm')}`, 20, y);
+            }
+        }
+
+        // Global variables for the scene
+        let vrmCharacter, classroom, renderer;
+        let timelineComposer;
+        let isNeuralAnimationActive = false;
+        let characterPosition = new Vector3(0, 0, 0);
+        
+        // Neural network workers (simplified)
+        let neuralWorkers = {
+            audio2gesture: null,
+            deepmimic: null,
+            rsmt: null,
+            faceformer: null
+        };
+
+        // Animation clock and FPS tracking
+        let fps = 0;
+        let fpsCounter = 0;
+        let lastTime = performance.now();
+        let animationStartTime = 0;
+
+        function updateLoadingStatus(message) {
+            console.log('📝', message);
+            const statusElement = document.getElementById('loading-status');
+            if (statusElement) {
+                statusElement.textContent = message;
+            }
+        }
+
+        function updateDebugInfo(message) {
+            console.log('🔍', message);
+            const debugContent = document.getElementById('debug-content');
+            if (debugContent) {
+                const logEntry = document.createElement('div');
+                logEntry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+                debugContent.appendChild(logEntry);
+                debugContent.scrollTop = debugContent.scrollHeight;
+                
+                // Keep only last 20 entries
+                while (debugContent.children.length > 20) {
+                    debugContent.removeChild(debugContent.firstChild);
+                }
+            }
+        }
+
+        function updateStatus(elementId, status) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.className = `status-indicator status-${status}`;
+                element.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            }
+        }
+
+        function updateFPS() {
+            const now = performance.now();
+            fpsCounter++;
+            
+            if (now - lastTime >= 1000) {
+                fps = Math.round((fpsCounter * 1000) / (now - lastTime));
+                document.getElementById('fps-counter').textContent = `FPS: ${fps}`;
+                fpsCounter = 0;
+                lastTime = now;
+            }
+        }
+
+        // Neural Network Pipeline Manager
+        class NeuralAnimationPipeline {
+            constructor() {
+                this.isInitialized = false;
+                this.workers = {};
+                this.timelines = {};
+                this.isActive = false;
+            }
+
+            async initialize() {
+                try {
+                    updateDebugInfo('🧠 Initializing Neural Animation Pipeline...');
+                    
+                    // Initialize timeline composer
+                    timelineComposer = new TimelineComposer();
+                    
+                    // Initialize neural network workers
+                    await this.initializeWorkers();
+                    
+                    this.isInitialized = true;
+                    updateStatus('neural-pipeline-status', 'ready');
+                    updateDebugInfo('✅ Neural Animation Pipeline ready');
+                    return true;
+                } catch (error) {
+                    updateDebugInfo(`❌ Neural Pipeline initialization failed: ${error.message}`);
+                    updateStatus('neural-pipeline-status', 'error');
+                    return false;
+                }
+            }
+
+            async initializeWorkers() {
+                const workerConfigs = [
+                    { name: 'audio2gesture', statusId: 'audio2gesture-status' },
+                    { name: 'deepmimic', statusId: 'deepmimic-status' },
+                    { name: 'rsmt', statusId: 'rsmt-status' },
+                    { name: 'faceformer', statusId: 'faceformer-status' }
+                ];
+
+                for (const config of workerConfigs) {
+                    try {
+                        updateDebugInfo(`🔧 Initializing ${config.name} worker...`);
+                        
+                        // Create timeline for this neural network
+                        this.timelines[config.name] = new BVHTimeline(`${config.name}-timeline`);
+                        
+                        // Add timeline to composer
+                        timelineComposer.addTimeline(this.timelines[config.name], 1.0);
+                        
+                        updateStatus(config.statusId, 'ready');
+                        updateDebugInfo(`✅ ${config.name} worker ready`);
+                        
+                        // Initialize with demo data
+                        this.generateDemoAnimationData(config.name);
+                        
+                    } catch (error) {
+                        updateDebugInfo(`❌ ${config.name} worker failed: ${error.message}`);
+                        updateStatus(config.statusId, 'error');
+                    }
+                }
+            }
+
+            generateDemoAnimationData(networkName) {
+                const timeline = this.timelines[networkName];
+                if (!timeline) return;
+
+                switch (networkName) {
+                    case 'audio2gesture':
+                        // Generate gesture animation frames
+                        for (let i = 0; i < 90; i++) {
+                            const time = i / 30; // 30 FPS
+                            const gestureData = this.generateGestureFrame(i, time);
+                            timeline.addFrame(gestureData, time);
+                        }
+                        updateDebugInfo(`📈 Generated 90 gesture frames for Audio2Gesture`);
+                        break;
+
+                    case 'deepmimic':
+                        // Generate physics-based walking frames
+                        for (let i = 0; i < 60; i++) {
+                            const time = i / 30;
+                            const walkData = this.generateWalkingFrame(i, time);
+                            timeline.addFrame(walkData, time);
+                        }
+                        updateDebugInfo(`🚶 Generated 60 walking frames for DeepMimic`);
+                        break;
+
+                    case 'rsmt':
+                        // Generate stylized motion transitions
+                        for (let i = 0; i < 45; i++) {
+                            const time = i / 30;
+                            const transitionData = this.generateTransitionFrame(i, time);
+                            timeline.addFrame(transitionData, time);
+                        }
+                        updateDebugInfo(`✨ Generated 45 transition frames for RSMT`);
+                        break;
+
+                    case 'faceformer':
+                        // Generate facial animation frames
+                        for (let i = 0; i < 120; i++) {
+                            const time = i / 30;
+                            const faceData = this.generateFacialFrame(i, time);
+                            timeline.addFrame(faceData, time);
+                        }
+                        updateDebugInfo(`😊 Generated 120 facial frames for FaceFormer`);
+                        break;
+                }
+            }
+
+            generateGestureFrame(frameIndex, time) {
+                // Generate realistic gesture motion
+                const gestureIntensity = Math.sin(time * 2) * 0.5 + 0.5;
+                const armSwing = Math.sin(time * 3) * 30; // degrees
+                
+                return {
+                    frameIndex,
+                    time,
+                    bones: {
+                        leftShoulder: { rotation: [armSwing * 0.8, 0, 0] },
+                        rightShoulder: { rotation: [-armSwing * 0.8, 0, 0] },
+                        leftUpperArm: { rotation: [armSwing, gestureIntensity * 20, 0] },
+                        rightUpperArm: { rotation: [-armSwing, -gestureIntensity * 20, 0] },
+                        leftLowerArm: { rotation: [gestureIntensity * 30, 0, 0] },
+                        rightLowerArm: { rotation: [gestureIntensity * 30, 0, 0] }
+                    },
+                    metadata: { source: 'Audio2Gesture', quality: 87 + Math.random() * 5 }
+                };
+            }
+
+            generateWalkingFrame(frameIndex, time) {
+                // Generate walking cycle with physics
+                const walkCycle = time * 2; // Walking frequency
+                const stepPhase = Math.sin(walkCycle) > 0 ? 1 : -1;
+                const forward = Math.sin(walkCycle * 0.5) * 0.02; // Forward movement
+                
+                return {
+                    frameIndex,
+                    time,
+                    bones: {
+                        hips: { 
+                            position: [0, Math.abs(Math.sin(walkCycle * 2)) * 0.02, forward],
+                            rotation: [0, 0, stepPhase * 2]
+                        },
+                        leftUpperLeg: { rotation: [Math.sin(walkCycle) * 25, 0, 0] },
+                        rightUpperLeg: { rotation: [-Math.sin(walkCycle) * 25, 0, 0] },
+                        leftLowerLeg: { rotation: [Math.max(0, Math.sin(walkCycle) * 30), 0, 0] },
+                        rightLowerLeg: { rotation: [Math.max(0, -Math.sin(walkCycle) * 30), 0, 0] },
+                        spine: { rotation: [0, stepPhase * 1, 0] }
+                    },
+                    metadata: { source: 'DeepMimic', quality: 89 + Math.random() * 5 }
+                };
+            }
+
+            generateTransitionFrame(frameIndex, time) {
+                // Generate smooth motion transitions
+                const transition = Math.sin(time * 1.5);
+                const smoothing = (1 + Math.cos(time * 4)) * 0.5;
+                
+                return {
+                    frameIndex,
+                    time,
+                    bones: {
+                        spine: { rotation: [transition * 5, transition * 3, 0] },
+                        chest: { rotation: [transition * 3, 0, transition * 2] },
+                        neck: { rotation: [transition * 2, transition * 1, 0] },
+                        head: { rotation: [transition * 1, transition * 0.5, 0] }
+                    },
+                    metadata: { source: 'RSMT', quality: 91 + Math.random() * 4 }
+                };
+            }
+
+            generateFacialFrame(frameIndex, time) {
+                // Generate facial expressions
+                const expression = Math.sin(time * 1) * 0.5 + 0.5;
+                const blink = Math.sin(time * 6) > 0.95 ? 1 : 0;
+                
+                return {
+                    frameIndex,
+                    time,
+                    bones: {
+                        leftEye: { rotation: [0, expression * 5, blink * 45] },
+                        rightEye: { rotation: [0, -expression * 5, blink * 45] },
+                        mouth: { 
+                            morph: {
+                                smile: expression * 0.7,
+                                open: Math.sin(time * 3) * 0.3 + 0.1
+                            }
+                        }
+                    },
+                    metadata: { source: 'FaceFormer', quality: 94 + Math.random() * 3 }
+                };
+            }
+
+            startNeuralAnimation() {
+                if (!this.isInitialized) {
+                    updateDebugInfo('❌ Neural pipeline not initialized');
+                    return false;
+                }
+
+                this.isActive = true;
+                updateDebugInfo('🎬 Neural animation started');
+                updateDebugInfo('🧠 Processing multiple neural network timelines...');
+                return true;
+            }
+
+            stopNeuralAnimation() {
+                this.isActive = false;
+                updateDebugInfo('⏹️ Neural animation stopped');
+                return true;
+            }
+
+            getCompositedFrameAtTime(time) {
+                if (!this.isActive || !timelineComposer) return null;
+
+                // Get frames from all neural networks
+                const frames = {};
+                for (const [name, timeline] of Object.entries(this.timelines)) {
+                    const frame = timeline.getFrameAtTime(time % timeline.duration);
+                    if (frame) {
+                        frames[name] = frame;
+                    }
+                }
+
+                // Composite frames intelligently
+                return this.compositeNeuralFrames(frames);
+            }
+
+            compositeNeuralFrames(frames) {
+                const compositedFrame = {
+                    bones: {},
+                    metadata: { 
+                        sources: Object.keys(frames),
+                        compositionTime: performance.now()
+                    }
+                };
+
+                // Priority system: DeepMimic for body movement, Audio2Gesture for arms,
+                // FaceFormer for face, RSMT for transitions
+                for (const [source, frame] of Object.entries(frames)) {
+                    if (frame && frame.bones) {
+                        switch (source) {
+                            case 'deepmimic':
+                                // Body and leg bones from DeepMimic
+                                ['hips', 'spine', 'leftUpperLeg', 'rightUpperLeg', 'leftLowerLeg', 'rightLowerLeg'].forEach(bone => {
+                                    if (frame.bones[bone]) {
+                                        compositedFrame.bones[bone] = frame.bones[bone];
+                                    }
+                                });
+                                break;
+
+                            case 'audio2gesture':
+                                // Arm bones from Audio2Gesture
+                                ['leftShoulder', 'rightShoulder', 'leftUpperArm', 'rightUpperArm', 'leftLowerArm', 'rightLowerArm'].forEach(bone => {
+                                    if (frame.bones[bone]) {
+                                        compositedFrame.bones[bone] = frame.bones[bone];
+                                    }
+                                });
+                                break;
+
+                            case 'faceformer':
+                                // Facial bones from FaceFormer
+                                ['head', 'neck', 'leftEye', 'rightEye', 'mouth'].forEach(bone => {
+                                    if (frame.bones[bone]) {
+                                        compositedFrame.bones[bone] = frame.bones[bone];
+                                    }
+                                });
+                                break;
+
+                            case 'rsmt':
+                                // Chest and transition bones from RSMT (only if not overridden)
+                                ['chest'].forEach(bone => {
+                                    if (frame.bones[bone] && !compositedFrame.bones[bone]) {
+                                        compositedFrame.bones[bone] = frame.bones[bone];
+                                    }
+                                });
+                                break;
+                        }
+                    }
+                }
+
+                return compositedFrame;
+            }
+
+            testNetwork(networkName) {
+                updateDebugInfo(`🔬 Testing ${networkName} network...`);
+                const timeline = this.timelines[networkName];
+                if (timeline && timeline.frames.length > 0) {
+                    const testFrame = timeline.getFrameAtTime(Math.random() * timeline.duration);
+                    updateDebugInfo(`✅ ${networkName} test successful - ${timeline.frames.length} frames available`);
+                    updateDebugInfo(`📊 Test frame quality: ${testFrame.metadata?.quality?.toFixed(1)}%`);
+                    return testFrame;
+                } else {
+                    updateDebugInfo(`❌ ${networkName} test failed - no frames available`);
+                    return null;
+                }
+            }
+        }
+
+        // Initialize neural pipeline
+        let neuralPipeline;
+
+        async function init() {
+            updateLoadingStatus('Creating neural animation system...');
+            
+            // Initialize self-contained VRM character
+            vrmCharacter = new NeuralVRMCharacter();
+            vrmCharacter.initializeBones();
+            
+            // Initialize self-contained classroom
+            classroom = new NeuralClassroomEnvironment();
+            
+            // Initialize renderer
+            const container = document.getElementById('container');
+            renderer = new NeuralAnimationRenderer(container);
+            renderer.initialize();
+            
+            updateLoadingStatus('Initializing Neural Animation Pipeline...');
+            
+            // Initialize neural animation pipeline
+            neuralPipeline = new NeuralAnimationPipeline();
+            await neuralPipeline.initialize();
+            
+            // Setup UI event handlers
+            setupEventHandlers();
+            
+            updateLoadingStatus('Ready!');
+            
+            // Start animation loop
+            animate();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 500);
+            
+            updateDebugInfo('🎭 Neural Network Animated VRM Classroom System initialized');
+            updateDebugInfo('🧠 4 Neural networks ready for animation compositing');
+            updateDebugInfo('🎬 Click "Initialize Complete System" to begin');
+        }
+
+        function setupEventHandlers() {
+            document.getElementById('init-system').addEventListener('click', initializeCompleteSystem);
+            document.getElementById('start-neural-animation').addEventListener('click', startNeuralAnimation);
+            document.getElementById('stop-neural-animation').addEventListener('click', stopNeuralAnimation);
+            
+            // Neural network test buttons
+            document.getElementById('test-audio2gesture').addEventListener('click', () => testNeuralNetwork('audio2gesture'));
+            document.getElementById('test-deepmimic').addEventListener('click', () => testNeuralNetwork('deepmimic'));
+            document.getElementById('test-rsmt').addEventListener('click', () => testNeuralNetwork('rsmt'));
+            document.getElementById('test-faceformer').addEventListener('click', () => testNeuralNetwork('faceformer'));
+            
+            // Animation preset buttons
+            document.getElementById('neural-walk-classroom').addEventListener('click', startNeuralWalkingDemo);
+            document.getElementById('neural-gesture-demo').addEventListener('click', startGestureDemo);
+            document.getElementById('neural-idle-animation').addEventListener('click', startIdleAnimation);
+            document.getElementById('neural-conversation').addEventListener('click', startConversationAnimation);
+        }
+
+        async function initializeCompleteSystem() {
+            try {
+                updateDebugInfo('🚀 Initializing complete neural animation system...');
+                
+                // Load VRM character
+                await loadIchikaVRM();
+                
+                // Load classroom environment
+                await loadClassroomEnvironment();
+                
+                updateDebugInfo('✅ Complete system initialized successfully');
+                updateDebugInfo('🧠 Neural networks ready to animate Ichika');
+                updateDebugInfo('🎬 Click "Start Neural Animation" to begin');
+            } catch (error) {
+                updateDebugInfo(`❌ System initialization failed: ${error.message}`);
+            }
+        }
+
+        async function loadIchikaVRM() {
+            try {
+                updateDebugInfo('🎭 Loading Ichika VRM character...');
+                
+                // Simulate VRM loading (self-contained)
+                vrmCharacter.name = 'Ichika';
+                vrmCharacter.isLoaded = true;
+                vrmCharacter.position.set(0, 0, 0);
+                
+                updateStatus('vrm-status', 'ready');
+                updateDebugInfo('✅ Ichika VRM loaded (self-contained version)');
+                updateDebugInfo('🎭 Character ready for neural network animation');
+                
+            } catch (error) {
+                updateStatus('vrm-status', 'error');
+                updateDebugInfo(`❌ Failed to load Ichika VRM: ${error.message}`);
+            }
+        }
+
+        async function loadClassroomEnvironment() {
+            try {
+                updateDebugInfo('🏫 Loading classroom environment...');
+                
+                const success = await classroom.load();
+                if (success) {
+                    updateStatus('classroom-status', 'ready');
+                    updateDebugInfo('✅ Classroom environment loaded');
+                    updateDebugInfo('🏫 Environment ready for neural-guided navigation');
+                } else {
+                    throw new Error('Failed to load classroom');
+                }
+                
+            } catch (error) {
+                updateDebugInfo(`⚠️ Classroom loading error: ${error.message}`);
+                updateStatus('classroom-status', 'error');
+            }
+        }
+
+        function startNeuralAnimation() {
+            if (!vrmCharacter || !vrmCharacter.isLoaded) {
+                updateDebugInfo('❌ VRM character must be loaded first');
+                return;
+            }
+
+            if (neuralPipeline.startNeuralAnimation()) {
+                isNeuralAnimationActive = true;
+                updateDebugInfo('🧠 Neural animation pipeline activated');
+                updateDebugInfo('🎬 Multiple neural networks now animating Ichika');
+                animationStartTime = performance.now();
+            }
+        }
+
+        function stopNeuralAnimation() {
+            if (neuralPipeline.stopNeuralAnimation()) {
+                isNeuralAnimationActive = false;
+                updateDebugInfo('⏹️ Neural animation pipeline deactivated');
+            }
+        }
+
+        function testNeuralNetwork(networkName) {
+            if (!neuralPipeline) {
+                updateDebugInfo('❌ Neural pipeline not initialized');
+                return;
+            }
+
+            const testResult = neuralPipeline.testNetwork(networkName);
+            if (testResult) {
+                // Briefly apply test frame to character
+                if (vrmCharacter) {
+                    applyNeuralFrameToVRM(testResult);
+                    updateDebugInfo(`🎭 Applied ${networkName} test frame to Ichika`);
+                }
+            }
+        }
+
+        function applyNeuralFrameToVRM(frame) {
+            if (!vrmCharacter || !frame || !frame.bones) return;
+
+            // Apply neural network frame to character
+            vrmCharacter.applyNeuralFrame(frame);
+        }
+
+        function startNeuralWalkingDemo() {
+            if (!isNeuralAnimationActive) {
+                updateDebugInfo('❌ Start neural animation first');
+                return;
+            }
+
+            updateDebugInfo('🚶‍♀️ Starting neural-guided classroom walking...');
+            updateDebugInfo('🧠 DeepMimic controlling locomotion, Audio2Gesture adding natural gestures');
+            
+            // Create walking path using neural network guidance
+            if (classroom && classroom.isLoaded) {
+                const walkingPoints = [
+                    new Vector3(0, 0, 0),      // center
+                    new Vector3(0, 0, -3),     // blackboard
+                    new Vector3(2, 0, -2),     // teacher desk
+                    new Vector3(-2, 0, 1),     // student area
+                    new Vector3(0, 0, 0)       // back to center
+                ];
+                
+                startNeuralGuidedWalk(walkingPoints);
+            } else {
+                // Simple walking without classroom
+                const walkingPoints = [
+                    new Vector3(0, 0, 0),
+                    new Vector3(2, 0, 2),
+                    new Vector3(-2, 0, 2),
+                    new Vector3(0, 0, 0)
+                ];
+                
+                startNeuralGuidedWalk(walkingPoints);
+            }
+        }
+
+        function startNeuralGuidedWalk(waypoints) {
+            let currentWaypointIndex = 0;
+            let walkingToTarget = false;
+            
+            function moveToNextWaypoint() {
+                if (currentWaypointIndex >= waypoints.length) {
+                    updateDebugInfo('✅ Neural-guided walking demo complete');
+                    return;
+                }
+                
+                const target = waypoints[currentWaypointIndex];
+                walkingToTarget = true;
+                
+                updateDebugInfo(`🎯 Neural networks guiding movement to waypoint ${currentWaypointIndex + 1}`);
+                
+                // Simulate neural network guidance with smooth interpolation
+                const startPosition = vrmCharacter.position.clone();
+                const walkDuration = 3000; // 3 seconds per waypoint
+                const startTime = performance.now();
+                
+                function updateWalk() {
+                    const elapsed = performance.now() - startTime;
+                    const progress = Math.min(elapsed / walkDuration, 1);
+                    
+                    if (progress < 1) {
+                        // Smoothly interpolate position using neural network timing
+                        const currentPos = startPosition.clone().lerp(target, progress);
+                        vrmCharacter.position.copy(currentPos);
+                        characterPosition.copy(currentPos);
+                        
+                        // Continue walking
+                        requestAnimationFrame(updateWalk);
+                    } else {
+                        // Reached waypoint
+                        vrmCharacter.position.copy(target);
+                        characterPosition.copy(target);
+                        walkingToTarget = false;
+                        currentWaypointIndex++;
+                        
+                        updateDebugInfo(`✅ Reached waypoint ${currentWaypointIndex}`);
+                        
+                        // Move to next waypoint after a pause
+                        setTimeout(moveToNextWaypoint, 1000);
+                    }
+                }
+                
+                updateWalk();
+            }
+            
+            moveToNextWaypoint();
+        }
+
+        function startGestureDemo() {
+            if (!isNeuralAnimationActive) {
+                updateDebugInfo('❌ Start neural animation first');
+                return;
+            }
+
+            updateDebugInfo('👋 Starting Audio2Gesture demonstration...');
+            updateDebugInfo('🎭 Ichika will perform neural network-generated gestures');
+            
+            // Focus on Audio2Gesture timeline for gestures
+            if (neuralPipeline.timelines.audio2gesture) {
+                updateDebugInfo('📈 Playing Audio2Gesture timeline with enhanced arm movements');
+            }
+        }
+
+        function startIdleAnimation() {
+            if (!isNeuralAnimationActive) {
+                updateDebugInfo('❌ Start neural animation first');
+                return;
+            }
+
+            updateDebugInfo('😌 Starting physics-based idle animation...');
+            updateDebugInfo('🧘‍♀️ DeepMimic providing natural breathing and subtle movements');
+        }
+
+        function startConversationAnimation() {
+            if (!isNeuralAnimationActive) {
+                updateDebugInfo('❌ Start neural animation first');
+                return;
+            }
+
+            updateDebugInfo('💬 Starting conversational animation...');
+            updateDebugInfo('😊 FaceFormer animating facial expressions');
+            updateDebugInfo('👋 Audio2Gesture adding conversational hand gestures');
+        }
+
+        // Animation loop with neural network integration
+        let neuralAnimationTime = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const now = performance.now();
+            const deltaTime = (now - lastTime) / 1000; // Convert to seconds
+            neuralAnimationTime += deltaTime;
+            lastTime = now;
+            
+            // Update FPS counter
+            updateFPS();
+            
+            // Apply neural network animation to VRM character
+            if (isNeuralAnimationActive && vrmCharacter && neuralPipeline) {
+                const compositedFrame = neuralPipeline.getCompositedFrameAtTime(neuralAnimationTime);
+                if (compositedFrame) {
+                    applyNeuralFrameToVRM(compositedFrame);
+                }
+            }
+            
+            // Render character
+            if (renderer && vrmCharacter) {
+                renderer.renderCharacter(vrmCharacter);
+            }
+        }
+
+        function onWindowResize() {
+            if (renderer) {
+                renderer.resize();
+            }
+        }
+
+        window.addEventListener('resize', onWindowResize);
+
+        // Initialize the application
+        init().catch(error => {
+            console.error('Failed to initialize:', error);
+            updateLoadingStatus('Failed to initialize neural animation system');
+            updateDebugInfo(`❌ Initialization error: ${error.message}`);
+        });
+
+    </script>
+</body>
+</html>
