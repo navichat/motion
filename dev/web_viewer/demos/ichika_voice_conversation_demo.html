@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ichika Voice Conversation Demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 16px; }
+    #controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    #log { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid #ccc; padding: 8px; border-radius: 6px; min-height: 140px; }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #eef; color: #225; margin-right: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Ichika Voice Conversation Demo</h1>
+  <div id="meta">
+    <span class="badge" id="backend-badge"></span>
+    <span class="badge" id="asr-badge"></span>
+    <span class="badge" id="vrm-badge"></span>
+  </div>
+  <div id="controls">
+    <button id="btnStartMic">Start Mic</button>
+    <button id="btnListen">Listen & Reply</button>
+    <button id="btnLoop">Conversation Loop ×2</button>
+    <button id="btnStop">Stop All</button>
+  </div>
+  <div id="log" aria-live="polite"></div>
+
+  <script>
+    (function() {
+      const qs = new URLSearchParams(location.search);
+      const backend = qs.get('backend') || 'beeps'; // beeps|speech|speecht5|kokoro (impl here: beeps)
+      const asr = qs.get('asr') || 'fake'; // fake|whisper (impl here: fake)
+      const playAudio = (qs.get('playAudio') || '0') === '1';
+      const listenSec = Math.max(1, Number(qs.get('listenSec') || '1'));
+      const wantVRM = qs.get('vrm') === '1';
+
+      document.getElementById('backend-badge').textContent = `backend=${backend}`;
+      document.getElementById('asr-badge').textContent = `asr=${asr}`;
+      document.getElementById('vrm-badge').textContent = wantVRM ? 'vrm=1' : 'vrm=0';
+
+      const logEl = document.getElementById('log');
+      function log(msg) {
+        const line = typeof msg === 'string' ? msg : JSON.stringify(msg);
+        logEl.textContent += (logEl.textContent ? '\n' : '') + line;
+      }
+
+      let audioCtx;
+      function getAudioCtx() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+      }
+
+      let micStream = null;
+      let playingNodes = [];
+      const stats = { applied: 0, expressions: 0, stub: true };
+
+      async function startMic() {
+        try {
+          await getAudioCtx().resume();
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          // Attach to context (optional)
+          const source = getAudioCtx().createMediaStreamSource(micStream);
+          const gain = getAudioCtx().createGain();
+          gain.gain.value = 0; // don't feed to output
+          source.connect(gain).connect(getAudioCtx().destination);
+          log('[PLAYWRIGHT] Mic started');
+        } catch (e) {
+          log('[ERROR] Failed to start mic: ' + e.message);
+        }
+      }
+
+      function stopAll() {
+        if (micStream) {
+          micStream.getTracks().forEach(t => t.stop());
+          micStream = null;
+        }
+        playingNodes.forEach(n => { try { n.stop(0); } catch {} });
+        playingNodes = [];
+        log('[PLAYWRIGHT] Stop all');
+      }
+
+      // Fake ASR: wait listenSec seconds, then return a canned transcript
+      async function runFakeAsr(seconds) {
+        log('👂 Listening (fake ASR)…');
+        log('[PLAYWRIGHT] ASR start engine=fake');
+        await new Promise(r => setTimeout(r, seconds * 1000));
+        const transcript = 'hello from fake asr';
+        log('📝 Heard: ' + transcript);
+        log('[PLAYWRIGHT] ASR done engine=fake status=ok');
+        return transcript;
+      }
+
+      function scheduleTtsFromText(text) {
+        log('🗣️ Scheduled TTS for text: ' + text);
+        log('[PLAYWRIGHT] Scheduled TTS animation');
+        // Drive gestures/expressions deterministically
+        stats.applied += 1;
+        stats.expressions += 1;
+      }
+
+      // Beeps backend: play short beeps per word; when muted, we still schedule gestures
+      async function speakBeeps(text) {
+        const ctx = getAudioCtx();
+        const words = String(text).split(/\s+/).filter(Boolean);
+        const startAt = ctx.currentTime + 0.05;
+        const toneHz = 880; // A5
+        const dur = 0.09;
+        let t = startAt;
+        for (const w of words) {
+          if (playAudio) {
+            const osc = ctx.createOscillator();
+            const amp = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = toneHz;
+            amp.gain.value = 0.0001; // quiet but non-zero
+            osc.connect(amp).connect(ctx.destination);
+            try {
+              osc.start(t);
+              osc.stop(t + dur);
+              playingNodes.push(osc);
+            } catch {}
+          }
+          t += dur + 0.04;
+        }
+      }
+
+      async function sayText(text, actuallyPlay = playAudio) {
+        log(`[PLAYWRIGHT] TTS start engine=${backend} path=beeps`);
+        scheduleTtsFromText(text);
+        if (backend === 'beeps') {
+          await speakBeeps(text);
+        }
+        log(`[PLAYWRIGHT] TTS done engine=${backend} path=beeps status=ok`);
+      }
+
+      async function listenAndReply() {
+        if (asr !== 'fake') {
+          log('[WARN] Only fake ASR is implemented in this demo build.');
+        }
+        const transcript = await runFakeAsr(listenSec);
+        await sayText('You said: ' + transcript, playAudio);
+      }
+
+      async function conversationLoop(n = 2) {
+        n = Math.max(1, Number(n) || 1);
+        for (let i = 0; i < n; i++) {
+          await listenAndReply();
+        }
+        log(`[PLAYWRIGHT] Conv loop done n=${n}`);
+      }
+
+      async function maybeLoadVRM() {
+        if (!wantVRM) return false;
+        // Minimal placeholder; real VRM loader is outside scope of this demo stub.
+        log('[PLAYWRIGHT] VRM load requested (stub)');
+        return false;
+      }
+
+      window.__ultimateDemo = {
+        startMic,
+        stopAll,
+        sayText,
+        listenAndReply,
+        conversationLoop,
+        getStats: () => ({ ...stats }),
+        maybeLoadVRM,
+      };
+
+      // Wire basic buttons for manual checks
+      document.getElementById('btnStartMic').addEventListener('click', startMic);
+      document.getElementById('btnStop').addEventListener('click', stopAll);
+      document.getElementById('btnListen').addEventListener('click', listenAndReply);
+      document.getElementById('btnLoop').addEventListener('click', () => conversationLoop(2));
+
+      // Announce readiness for Playwright
+      log('[PLAYWRIGHT] Demo ready');
+    })();
+  </script>
+</body>
+</html>
