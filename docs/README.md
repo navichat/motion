@@ -66,8 +66,8 @@
 cd /home/barberb/motion/dev/web_viewer
 python3 serve_with_headers.py 8081
 
-# Terminal 2: Run comprehensive capture test
-npx playwright test capture-ai-results.spec.js --project=chromium-webgpu
+# Terminal 2: Run comprehensive capture test (with shell timeout)
+timeout 1200s npx playwright test capture-ai-results.spec.js --project=chromium-webgpu
 
 # Check captured results
 ls -la ai-inference-results/
@@ -76,7 +76,7 @@ cat ai-inference-results/job-summary-*.json | jq '.jobTypeCounts'
 
 **Run Full E2E Workload Test (20 minutes):**
 ```bash
-npx playwright test dev/web_viewer/e2e-workload-test.spec.js --project=chromium-webgpu --timeout=1200000
+timeout 1200s npx playwright test dev/web_viewer/e2e-workload-test.spec.js --project=chromium-webgpu --timeout=1200000
 ```
 
 **Interactive Web Interface:**
@@ -115,8 +115,8 @@ Playwright is configured with enforced shell timeouts and IPv4-only baseURL.
   npm run test:unit:animation
 
   # VRM smokes and viseme driver
-  npx playwright test --project=unit-web dev/web_viewer/tests/unit/animation/vrm-integration-smoke-web.spec.js --reporter=line
-  npx playwright test --project=unit-web dev/web_viewer/tests/unit/animation/vrm-viseme-driver-web.spec.js --reporter=line
+  timeout 900s npx playwright test --project=unit-web dev/web_viewer/tests/unit/animation/vrm-integration-smoke-web.spec.js --reporter=line
+  timeout 900s npx playwright test --project=unit-web dev/web_viewer/tests/unit/animation/vrm-viseme-driver-web.spec.js --reporter=line
 
   # Lightweight e2e smokes (HTTP-only; fast)
   npm run test:smoke
@@ -165,8 +165,10 @@ Playwright E2E for conversation (with shell timeouts)
     npm run test:e2e:ultimate:conversation
     # or start/stop web server automatically
     npm run test:e2e:ultimate:conversation:local
-  # or Vite self-serve (Playwright reuses external server)
-  npm run test:e2e:ultimate:conversation:vite
+    # or internal Vite (managed by Playwright)
+  USE_VITE=1 USE_VITE_PORT=5180 timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-conversation.spec.js --reporter=line
+    # or Vite self-serve (Playwright reuses external server)
+    npm run test:e2e:ultimate:conversation:vite
     ```
 
 - Real inference (opt-in): Whisper ASR + on-device SpeechT5 TTS; gated to avoid heavy downloads by default
@@ -199,10 +201,15 @@ CI workflows
 - Deterministic CI gate: .github/workflows/e2e-ultimate-conversation.yml (runs Python server and Vite self-serve)
 - Optional manual real-inference: .github/workflows/e2e-ultimate-conversation-real.yml
 
+Required checks (recommended)
+
+- See `docs/CI_REQUIRED_CHECKS.md` for marking the deterministic and Vite jobs as required status checks.
+
 Notes
 
 - All scripts and tasks use shell timeouts (per repo policy).
 - For visuals, add a small VRM at `dev/web_viewer/assets/avatars/ichika.vrm` and pass `?vrm=1`.
+ - Vite is always invoked via `npx -y vite@^6` (config and tasks) to avoid conflicts with any system `vite` binary.
 
 ### 📁 Generated Result Files:
 - **Complete Results**: `ai-inference-results/complete-ai-results-TIMESTAMP.json`

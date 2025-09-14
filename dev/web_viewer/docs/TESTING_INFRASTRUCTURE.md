@@ -4,6 +4,8 @@ Note: For current test locations and run instructions, prefer:
 - docs/STRUCTURE.md (authoritative layout)
 - docs/readmes/testing-guide.md (run commands and patterns)
 
+Policy: All Playwright commands should include shell timeouts (e.g., `timeout 900s ...`) to prevent hangs in CI and local runs.
+
 ## Overview
 
 The testing infrastructure provides comprehensive validation for the WebNN/WebGPU/WASM powered avatar system. This multi-layered testing approach ensures component reliability, system integration, and performance validation across different compute backends and use cases.
@@ -281,33 +283,33 @@ test('should validate all test files exist and are accessible', async ({ page })
 #### Unit Tests
 ```bash
 # Run all unit tests
-npx playwright test dev/web_viewer/src/testing/unit/
+timeout 900s npx playwright test dev/web_viewer/src/testing/unit/
 
 # Run specific component tests
-npx playwright test dev/web_viewer/src/testing/unit/ai/
-npx playwright test dev/web_viewer/src/testing/unit/avatar/
-npx playwright test dev/web_viewer/src/testing/unit/audio/
-npx playwright test dev/web_viewer/src/testing/unit/compute/
-npx playwright test dev/web_viewer/src/testing/unit/motion/
-npx playwright test dev/web_viewer/src/testing/unit/system/
+timeout 900s npx playwright test dev/web_viewer/src/testing/unit/ai/
+timeout 900s npx playwright test dev/web_viewer/src/testing/unit/avatar/
+timeout 900s npx playwright test dev/web_viewer/src/testing/unit/audio/
+timeout 900s npx playwright test dev/web_viewer/src/testing/unit/compute/
+timeout 900s npx playwright test dev/web_viewer/src/testing/unit/motion/
+timeout 900s npx playwright test dev/web_viewer/src/testing/unit/system/
 
 # Run with verbose output
-npx playwright test dev/web_viewer/src/testing/unit/ --reporter=list
+timeout 900s npx playwright test dev/web_viewer/src/testing/unit/ --reporter=list
 ```
 
 #### Integration Tests
 ```bash
 # Run all integration tests
-npx playwright test dev/web_viewer/src/testing/integration/
+timeout 900s npx playwright test dev/web_viewer/src/testing/integration/
 
 # Run E2E tests
-npx playwright test dev/web_viewer/src/testing/integration/e2e/
+timeout 900s npx playwright test dev/web_viewer/src/testing/integration/e2e/
 
 # Run master test suite
-npx playwright test dev/web_viewer/src/testing/integration/master-test-suite.spec.js
+timeout 900s npx playwright test dev/web_viewer/src/testing/integration/master-test-suite.spec.js
 
 # Run with debugging
-npx playwright test dev/web_viewer/src/testing/integration/ --debug
+timeout 900s npx playwright test dev/web_viewer/src/testing/integration/ --debug
 ```
 
 #### Manual Tests
@@ -338,7 +340,7 @@ jobs:
       - uses: actions/setup-node@v3
       - run: npm install
       - run: npx playwright install
-      - run: npx playwright test tests/unit/
+  - run: timeout 900s npx playwright test tests/unit/
       
   integration-tests:
     runs-on: ubuntu-latest
@@ -348,7 +350,7 @@ jobs:
       - uses: actions/setup-node@v3
       - run: npm install
       - run: npx playwright install
-      - run: npx playwright test tests/integration/
+  - run: timeout 900s npx playwright test tests/integration/
       
   performance-tests:
     runs-on: ubuntu-latest
@@ -358,7 +360,7 @@ jobs:
       - uses: actions/setup-node@v3
       - run: npm install
       - run: npx playwright install
-      - run: npx playwright test tests/performance/
+  - run: timeout 900s npx playwright test tests/performance/
 ```
 
 ## Performance Testing
@@ -589,7 +591,7 @@ window.addEventListener('error', (event) => {
 ### Coverage Reports
 ```bash
 # Generate coverage report
-npx playwright test --reporter=html
+timeout 900s npx playwright test --reporter=html
 
 # View coverage
 open playwright-report/index.html

@@ -129,7 +129,7 @@ python3 serve_with_headers.py 8081
 
 # Terminal 2: Run comprehensive capture test
 cd /home/barberb/motion
-npx playwright test capture-ai-results.spec.js --project=chromium-webgpu
+timeout 1200s npx playwright test capture-ai-results.spec.js --project=chromium-webgpu
 
 # View results
 ls -la ai-inference-results/
@@ -139,7 +139,7 @@ cat ai-inference-results/job-summary-*.json
 **Method 2: Full E2E Workload Test (Extended)**
 ```bash
 # Run comprehensive 20-minute test with detailed validation
-npx playwright test dev/web_viewer/e2e-workload-test.spec.js --project=chromium-webgpu --timeout=1200000
+timeout 1200s npx playwright test dev/web_viewer/e2e-workload-test.spec.js --project=chromium-webgpu --timeout=1200000
 ```
 
 **Method 3: Interactive Web Interface**

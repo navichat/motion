@@ -5,7 +5,7 @@
 ```bash
 # Complete AI model capture (recommended)
 cd /home/barberb/motion/dev/web_viewer && python3 serve_with_headers.py 8081 &
-cd /home/barberb/motion && npx playwright test capture-ai-results.spec.js --project=chromium-webgpu
+cd /home/barberb/motion && timeout 1200s npx playwright test capture-ai-results.spec.js --project=chromium-webgpu
 ```
 
 ## 📊 Expected Results Summary
@@ -54,7 +54,7 @@ open http://localhost:8081/task-manager-demo.html
 
 ### Extended E2E Test (20 minutes)
 ```bash
-npx playwright test dev/web_viewer/e2e-workload-test.spec.js --project=chromium-webgpu --timeout=1200000
+timeout 1200s npx playwright test dev/web_viewer/e2e-workload-test.spec.js --project=chromium-webgpu --timeout=1200000
 ```
 
 ## 🛠️ Troubleshooting
