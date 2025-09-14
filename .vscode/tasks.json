@@ -1,0 +1,71 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run ASR markers Playwright test",
+			"type": "shell",
+			"command": "timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-markers-asr.spec.js --reporter=line",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run ASR markers Playwright test (web server)",
+			"type": "shell",
+			"command": "PORT=8080 python3 dev/web_viewer/serve_with_headers.py & echo $! > /tmp/dev_web_viewer_server.pid && timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-markers-asr.spec.js --reporter=line; kill $(cat /tmp/dev_web_viewer_server.pid) 2>/dev/null || true",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run ASR markers Playwright test (Vite dev)",
+			"type": "shell",
+			"command": "USE_VITE=1 USE_VITE_PORT=${USE_VITE_PORT:-5180} timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-markers-asr.spec.js --reporter=line",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run ASR markers Playwright test (Vite self-serve)",
+			"type": "shell",
+			"command": "bash -lc 'USE_VITE_PORT=${USE_VITE_PORT:-5199}; npx -y vite@^6 --host 127.0.0.1 --port \"$USE_VITE_PORT\" --strictPort & echo $! > /tmp/vite_dev_server.pid; for i in $(seq 1 60); do curl -sSf http://127.0.0.1:$USE_VITE_PORT/demos/ichika_voice_conversation_demo.html >/dev/null && break || sleep 1; done; EXTERNAL_WEBSERVER=1 NO_WEBSERVER=1 USE_VITE=1 USE_VITE_PORT=$USE_VITE_PORT timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-markers-asr.spec.js --reporter=line; kill $(cat /tmp/vite_dev_server.pid) 2>/dev/null || true'",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run Mic-first Playwright test (Vite self-serve)",
+			"type": "shell",
+			"command": "bash -lc 'USE_VITE_PORT=${USE_VITE_PORT:-5197}; npx -y vite@^6 --host 127.0.0.1 --port \"$USE_VITE_PORT\" --strictPort & echo $! > /tmp/vite_dev_server.pid; for i in $(seq 1 60); do curl -sSf http://127.0.0.1:$USE_VITE_PORT/demos/ichika_voice_conversation_demo.html >/dev/null && break || sleep 1; done; EXTERNAL_WEBSERVER=1 NO_WEBSERVER=1 USE_VITE=1 USE_VITE_PORT=$USE_VITE_PORT timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-mic-first.spec.js --reporter=line; kill $(cat /tmp/vite_dev_server.pid) 2>/dev/null || true'",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run Ultimate Conversation E2E (web server)",
+			"type": "shell",
+			"command": "PORT=8080 python3 dev/web_viewer/serve_with_headers.py & echo $! > /tmp/dev_web_viewer_server.pid && timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-conversation.spec.js --reporter=line; kill $(cat /tmp/dev_web_viewer_server.pid) 2>/dev/null || true",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Ultimate Conversation E2E (Vite self-serve)",
+			"type": "shell",
+			"command": "bash -lc 'USE_VITE_PORT=${USE_VITE_PORT:-5198}; npx -y vite@^6 --host 127.0.0.1 --port \"$USE_VITE_PORT\" --strictPort & echo $! > /tmp/vite_dev_server.pid; for i in $(seq 1 60); do curl -sSf http://127.0.0.1:$USE_VITE_PORT/demos/ichika_voice_conversation_demo.html >/dev/null && break || sleep 1; done; EXTERNAL_WEBSERVER=1 NO_WEBSERVER=1 USE_VITE=1 USE_VITE_PORT=$USE_VITE_PORT timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-conversation.spec.js --reporter=line; kill $(cat /tmp/vite_dev_server.pid) 2>/dev/null || true'",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Ultimate Conversation E2E (real, web server)",
+			"type": "shell",
+			"command": "PORT=8080 python3 dev/web_viewer/serve_with_headers.py & echo $! > /tmp/dev_web_viewer_server.pid && timeout 900s bash -lc 'RUN_REAL_INFERENCE=1 npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-conversation-real.spec.js --reporter=line'; kill $(cat /tmp/dev_web_viewer_server.pid) 2>/dev/null || true",
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}
