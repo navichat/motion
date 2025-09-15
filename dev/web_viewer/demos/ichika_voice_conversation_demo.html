@@ -95,9 +95,11 @@
       function scheduleTtsFromText(text) {
         log('🗣️ Scheduled TTS for text: ' + text);
         log('[PLAYWRIGHT] Scheduled TTS animation');
-        // Drive gestures/expressions deterministically
-        stats.applied += 1;
-        stats.expressions += 1;
+        // For deterministic CI (muted), increment once; when audio plays we use energy-based updates
+        if (!playAudio) {
+          stats.applied += 1;
+          stats.expressions += 1;
+        }
       }
 
       // Beeps backend: play short beeps per word; when muted, we still schedule gestures
@@ -108,14 +110,26 @@
         const toneHz = 880; // A5
         const dur = 0.09;
         let t = startAt;
+        let analyser = null;
+        let dataBuf = null;
+        let energyMonitorStopAt = startAt;
+        if (playAudio) {
+          analyser = ctx.createAnalyser();
+          analyser.fftSize = 1024;
+          dataBuf = new Float32Array(analyser.fftSize);
+        }
         for (const w of words) {
           if (playAudio) {
             const osc = ctx.createOscillator();
             const amp = ctx.createGain();
             osc.type = 'sine';
             osc.frequency.value = toneHz;
-            amp.gain.value = 0.0001; // quiet but non-zero
-            osc.connect(amp).connect(ctx.destination);
+            amp.gain.value = 0.003; // quiet but non-zero; high enough for analyser
+            if (analyser) {
+              osc.connect(amp).connect(analyser).connect(ctx.destination);
+            } else {
+              osc.connect(amp).connect(ctx.destination);
+            }
             try {
               osc.start(t);
               osc.stop(t + dur);
@@ -123,6 +137,32 @@
             } catch {}
           }
           t += dur + 0.04;
+        }
+        energyMonitorStopAt = t + 0.02;
+
+        if (playAudio && analyser) {
+          log('[PLAYWRIGHT] Audio energy monitoring start');
+          const tick = () => {
+            // Stop when past end
+            if (ctx.currentTime >= energyMonitorStopAt) {
+              log('[PLAYWRIGHT] Audio energy monitoring end');
+              return;
+            }
+            analyser.getFloatTimeDomainData(dataBuf);
+            // Compute RMS energy
+            let sum = 0;
+            for (let i = 0; i < dataBuf.length; i++) {
+              const v = dataBuf[i];
+              sum += v * v;
+            }
+            const rms = Math.sqrt(sum / dataBuf.length);
+            if (rms > 0.00005) {
+              stats.applied += 1;
+              stats.expressions += 1;
+            }
+            requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
         }
       }
 
