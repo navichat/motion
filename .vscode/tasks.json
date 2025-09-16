@@ -31,7 +31,7 @@
 		{
 			"label": "Run ASR markers Playwright test (Vite self-serve)",
 			"type": "shell",
-			"command": "bash -lc 'USE_VITE_PORT=${USE_VITE_PORT:-5199}; npx -y vite@^6 --host 127.0.0.1 --port \"$USE_VITE_PORT\" --strictPort & echo $! > /tmp/vite_dev_server.pid; for i in $(seq 1 60); do curl -sSf http://127.0.0.1:$USE_VITE_PORT/demos/ichika_voice_conversation_demo.html >/dev/null && break || sleep 1; done; EXTERNAL_WEBSERVER=1 NO_WEBSERVER=1 USE_VITE=1 USE_VITE_PORT=$USE_VITE_PORT timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-markers-asr.spec.js --reporter=line; kill $(cat /tmp/vite_dev_server.pid) 2>/dev/null || true'",
+			"command": "bash dev/web_viewer/scripts/run-asr-markers-vite.sh",
 			"args": [],
 			"isBackground": false,
 			"problemMatcher": [],
@@ -40,7 +40,7 @@
 		{
 			"label": "Run Ultimate Conversation (audio) E2E (Vite self-serve)",
 			"type": "shell",
-			"command": "bash -lc 'USE_VITE_PORT=${USE_VITE_PORT:-5196}; npx -y vite@^6 --host 127.0.0.1 --port \"$USE_VITE_PORT\" --strictPort & echo $! > /tmp/vite_dev_server.pid; for i in $(seq 1 60); do curl -sSf http://127.0.0.1:$USE_VITE_PORT/demos/ichika_voice_conversation_demo.html >/dev/null && break || sleep 1; done; EXTERNAL_WEBSERVER=1 NO_WEBSERVER=1 USE_VITE=1 USE_VITE_PORT=$USE_VITE_PORT timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-conversation-audio.spec.js --reporter=line; kill $(cat /tmp/vite_dev_server.pid) 2>/dev/null || true'",
+			"command": "bash dev/web_viewer/scripts/run-ultimate-audio-vite.sh",
 			"args": [],
 			"isBackground": false,
 			"problemMatcher": [],
@@ -49,7 +49,7 @@
 		{
 			"label": "Run Mic-first Playwright test (Vite self-serve)",
 			"type": "shell",
-			"command": "bash -lc 'USE_VITE_PORT=${USE_VITE_PORT:-5197}; npx -y vite@^6 --host 127.0.0.1 --port \"$USE_VITE_PORT\" --strictPort & echo $! > /tmp/vite_dev_server.pid; for i in $(seq 1 60); do curl -sSf http://127.0.0.1:$USE_VITE_PORT/demos/ichika_voice_conversation_demo.html >/dev/null && break || sleep 1; done; EXTERNAL_WEBSERVER=1 NO_WEBSERVER=1 USE_VITE=1 USE_VITE_PORT=$USE_VITE_PORT timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-mic-first.spec.js --reporter=line; kill $(cat /tmp/vite_dev_server.pid) 2>/dev/null || true'",
+			"command": "bash dev/web_viewer/scripts/run-ultimate-mic-first-vite.sh",
 			"args": [],
 			"isBackground": false,
 			"problemMatcher": [],
@@ -65,7 +65,7 @@
 		{
 			"label": "Run Ultimate Conversation E2E (Vite self-serve)",
 			"type": "shell",
-			"command": "bash -lc 'USE_VITE_PORT=${USE_VITE_PORT:-5198}; npx -y vite@^6 --host 127.0.0.1 --port \"$USE_VITE_PORT\" --strictPort & echo $! > /tmp/vite_dev_server.pid; for i in $(seq 1 60); do curl -sSf http://127.0.0.1:$USE_VITE_PORT/demos/ichika_voice_conversation_demo.html >/dev/null && break || sleep 1; done; EXTERNAL_WEBSERVER=1 NO_WEBSERVER=1 USE_VITE=1 USE_VITE_PORT=$USE_VITE_PORT timeout 900s npx playwright test --project=web_viewer-root-e2e dev/web_viewer/e2e-ultimate-conversation.spec.js --reporter=line; kill $(cat /tmp/vite_dev_server.pid) 2>/dev/null || true'",
+			"command": "bash dev/web_viewer/scripts/run-ultimate-conversation-vite.sh",
 			"isBackground": false,
 			"group": "build"
 		},
