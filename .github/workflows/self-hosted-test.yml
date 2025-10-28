@@ -1,0 +1,180 @@
+name: Self-Hosted Runner Test
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '.github/workflows/self-hosted-test.yml'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      runner_type:
+        description: 'Runner type to use'
+        required: false
+        default: 'self-hosted'
+        type: choice
+        options:
+        - 'self-hosted'
+        - 'ubuntu-latest'
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  test-self-hosted:
+    name: Test on Self-Hosted Runner
+    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: System Information
+      run: |
+        echo "🖥️  System Information:"
+        echo "OS: $(uname -s)"
+        echo "Architecture: $(uname -m)"
+        echo "Hostname: $(hostname)"
+        echo "CPU Info:"
+        lscpu | head -20
+        echo ""
+        echo "Memory Info:"
+        free -h
+        echo ""
+        echo "Disk Space:"
+        df -h
+        echo ""
+        echo "Environment Variables:"
+        env | grep -E "(GITHUB|RUNNER)" | sort
+        
+    - name: Check Node.js and npm
+      run: |
+        echo "Node.js version: $(node --version)"
+        echo "npm version: $(npm --version)"
+        which node
+        which npm
+        
+    - name: Check Python
+      run: |
+        echo "Python version: $(python3 --version)"
+        echo "pip version: $(pip3 --version)"
+        which python3
+        which pip3
+        
+    - name: Check Docker
+      run: |
+        if command -v docker &> /dev/null; then
+          echo "Docker version: $(docker --version)"
+          echo "Docker Compose version: $(docker-compose --version)"
+          docker info | head -20
+        else
+          echo "Docker not available"
+        fi
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        
+    - name: Run simple test
+      run: |
+        echo "Running a simple test..."
+        npm --version
+        node --version
+        echo "✅ Basic functionality working!"
+        
+    - name: Test Playwright installation
+      run: |
+        echo "Testing Playwright installation..."
+        npx playwright --version || echo "Playwright not installed"
+        
+    - name: Test timeout command (per instructions)
+      run: |
+        echo "Testing timeout command as required by playwright.instructions.md..."
+        timeout 5s echo "Timeout command working!" || echo "timeout command test completed"
+        
+    - name: Create test artifacts
+      run: |
+        mkdir -p test-results
+        echo "Test run on $(date)" > test-results/self-hosted-test.txt
+        echo "Runner: ${{ runner.name }}" >> test-results/self-hosted-test.txt
+        echo "OS: $(uname -a)" >> test-results/self-hosted-test.txt
+        
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: self-hosted-test-results-${{ github.run_id }}
+        path: test-results/
+        retention-days: 7
+
+  test-github-hosted:
+    name: Test on GitHub-Hosted Runner
+    runs-on: ubuntu-latest
+    if: github.event.inputs.runner_type == 'ubuntu-latest' || github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: System Information
+      run: |
+        echo "🖥️  System Information:"
+        echo "OS: $(uname -s)"
+        echo "Architecture: $(uname -m)"
+        echo "Hostname: $(hostname)"
+        echo "CPU Info:"
+        lscpu | head -10
+        echo ""
+        echo "Memory Info:"
+        free -h
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        
+    - name: Run simple test
+      run: |
+        echo "Running a simple test on GitHub-hosted runner..."
+        npm --version
+        node --version
+        echo "✅ GitHub-hosted runner working!"
+
+  compare-performance:
+    name: Performance Comparison
+    runs-on: self-hosted
+    needs: [test-self-hosted]
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Performance benchmark
+      run: |
+        echo "🚀 Performance Benchmark"
+        echo "========================"
+        
+        # CPU benchmark
+        echo "CPU Benchmark:"
+        time bash -c 'for i in {1..100000}; do echo $i > /dev/null; done'
+        
+        # Node.js performance
+        echo ""
+        echo "Node.js Benchmark:"
+        time node -e 'for(let i=0; i<1000000; i++) Math.random()'
+        
+        # npm install performance
+        echo ""
+        echo "npm install performance:"
+        rm -rf node_modules package-lock.json
+        time npm install
+        
+        echo ""
+        echo "✅ Performance benchmark completed"

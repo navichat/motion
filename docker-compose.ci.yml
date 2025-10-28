@@ -1,0 +1,90 @@
+version: '3.8'
+
+# CI/CD optimized docker-compose configuration
+services:
+  # CI testing environment
+  motion-ci:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ci
+      cache_from:
+        - ghcr.io/navichat/motion:latest
+    container_name: motion-ci
+    environment:
+      - NODE_ENV=test
+      - CI=true
+      - DISPLAY=:99
+      - PYTHONPATH=/app
+      - GITHUB_ACTIONS=${GITHUB_ACTIONS}
+      - GITHUB_SHA=${GITHUB_SHA}
+      - GITHUB_REF=${GITHUB_REF}
+    volumes:
+      - ./test-results:/app/test-results
+      - ./playwright-report:/app/playwright-report
+      - ./ai-inference-results:/app/ai-inference-results
+      - ./coverage:/app/coverage
+    networks:
+      - motion-ci-network
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:unit && npm run test:ml:serverless"]
+
+  # Parallel test runners for CI
+  test-unit:
+    extends: motion-ci
+    container_name: motion-ci-unit
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:unit"]
+
+  test-animation:
+    extends: motion-ci
+    container_name: motion-ci-animation
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:unit:animation"]
+
+  test-web:
+    extends: motion-ci
+    container_name: motion-ci-web
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:unit:web:local"]
+
+  test-ml-serverless:
+    extends: motion-ci
+    container_name: motion-ci-ml
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:ml:serverless"]
+
+  test-e2e-smokes:
+    extends: motion-ci
+    container_name: motion-ci-e2e
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:e2e:root-smokes"]
+
+  test-taskmanager:
+    extends: motion-ci
+    container_name: motion-ci-taskmanager
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:taskmanager"]
+
+  # Security and quality checks
+  security-audit:
+    extends: motion-ci
+    container_name: motion-security
+    command: ["npm", "audit", "--audit-level", "moderate"]
+
+  # Production build test
+  production-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: motion-prod-test
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - motion-ci-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+networks:
+  motion-ci-network:
+    driver: bridge

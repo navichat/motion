@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # Development environment
+  motion-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: motion-dev
+    ports:
+      - "8080:8080"  # Main server
+      - "3000:3000"  # Alternative port
+      - "3001:3001"  # Test server
+      - "3002:3002"  # Additional services
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - /app/node_modules/.cache  # Preserve cache
+    environment:
+      - NODE_ENV=development
+      - DISPLAY=:99
+      - PYTHONPATH=/app
+    networks:
+      - motion-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Testing environment
+  motion-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: testing
+    container_name: motion-test
+    environment:
+      - NODE_ENV=test
+      - CI=true
+      - DISPLAY=:99
+      - PYTHONPATH=/app
+    volumes:
+      - ./test-results:/app/test-results
+      - ./playwright-report:/app/playwright-report
+      - ./ai-inference-results:/app/ai-inference-results
+    networks:
+      - motion-network
+    profiles:
+      - testing
+
+  # Unit testing service
+  motion-test-unit:
+    extends: motion-test
+    container_name: motion-test-unit
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:unit"]
+    profiles:
+      - unit-testing
+
+  # ML testing service
+  motion-test-ml:
+    extends: motion-test
+    container_name: motion-test-ml
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:ml:serverless"]
+    profiles:
+      - ml-testing
+
+  # E2E testing service
+  motion-test-e2e:
+    extends: motion-test
+    container_name: motion-test-e2e
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:e2e:root-smokes"]
+    profiles:
+      - e2e-testing
+
+  # Performance testing service
+  motion-test-perf:
+    extends: motion-test
+    container_name: motion-test-perf
+    command: ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && npm run test:perf"]
+    profiles:
+      - perf-testing
+
+  # Python development server for web viewer
+  python-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: motion-python-server
+    working_dir: /app/dev/web_viewer
+    command: ["python3", "serve_with_headers.py"]
+    ports:
+      - "8081:8080"
+    environment:
+      - PORT=8080
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+    networks:
+      - motion-network
+    profiles:
+      - web-viewer
+
+volumes:
+  node_modules:
+
+networks:
+  motion-network:
+    driver: bridge

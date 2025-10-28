@@ -1,25 +1,120 @@
-name: Motion Viewer CI/CD
+name: Motion Package CI/CD
 
 on:
   push:
     branches: [ main, develop ]
     paths:
-      - 'dev/viewer/**'
-      - 'dev/server/**'
-      - 'dev/tests/**'
-      - '.github/workflows/**'
+      - '**'
+      - '!docs/**'
+      - '!README.md'
   pull_request:
     branches: [ main ]
     paths:
-      - 'dev/viewer/**'
-      - 'dev/server/**'
-      - 'dev/tests/**'
+      - '**'
+      - '!docs/**'
+      - '!README.md'
 
 env:
   NODE_VERSION: '18'
   PYTHON_VERSION: '3.11'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  docker-build:
+    name: Build Docker Image
+    runs-on: ${{ contains(github.event.head_commit.message, '[use-self-hosted]') && 'self-hosted' || 'ubuntu-latest' }}
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-metadata: ${{ steps.meta.outputs.metadata }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=commit-
+          type=raw,value=latest,enable={{is_default_branch}}
+        labels: |
+          org.opencontainers.image.title=Motion Package
+          org.opencontainers.image.description=Motion viewer and testing environment
+          
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        target: testing
+
+  test-in-docker:
+    name: Test in Docker Container
+    runs-on: ${{ contains(github.event.head_commit.message, '[use-self-hosted]') && 'self-hosted' || 'ubuntu-latest' }}
+    needs: docker-build
+    strategy:
+      matrix:
+        test-suite:
+          - unit
+          - unit:animation
+          - unit:web
+          - ml:serverless
+          - e2e:root-smokes
+          - taskmanager
+      fail-fast: false
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Run tests in Docker
+      run: |
+        docker run --rm \
+          -e CI=true \
+          -e NODE_ENV=test \
+          -v ${{ github.workspace }}/test-results:/app/test-results \
+          -v ${{ github.workspace }}/playwright-report:/app/playwright-report \
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:commit-${{ github.sha }} \
+          npm run test:${{ matrix.test-suite }}
+          
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.test-suite }}
+        path: |
+          test-results/
+          playwright-report/
+        retention-days: 30
+
   test:
     name: Run Tests
     runs-on: ubuntu-latest
