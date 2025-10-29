@@ -5,7 +5,8 @@
 	"main": "server.js",
 	"scripts": {
 		"start": "node server.js",
-		"start:test": "NODE_ENV=test node server.js"
+		"start:test": "NODE_ENV=test node server.js",
+		"build": "echo 'No build step required for server'"
 	},
 	"dependencies": {
 		"@mwni/events": "^3.0.0",

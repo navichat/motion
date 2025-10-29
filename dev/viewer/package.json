@@ -6,6 +6,8 @@
 	"main": "src/app.js",
 	"scripts": {
 		"build": "esbuild src/app.js --bundle --outfile=dist/app.bundle.js --target=es2020 --format=esm",
+		"build:staging": "esbuild src/app.js --bundle --outfile=dist/app.bundle.js --target=es2020 --format=esm --minify",
+		"build:production": "esbuild src/app.js --bundle --outfile=dist/app.bundle.js --target=es2020 --format=esm --minify",
 		"dev": "esbuild src/app.js --bundle --outfile=dist/app.bundle.js --watch --servedir=. --serve=3000",
 		"start": "node server/enhanced_rsmt_server.py",
 		"test": "vitest"
