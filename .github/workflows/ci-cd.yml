@@ -141,6 +141,10 @@ jobs:
         npm ci
         npx playwright install --with-deps
         
+    - name: Install psyche dependencies
+      working-directory: dev/psyche
+      run: npm install
+        
     - name: Start test server
       working-directory: dev/server
       run: |

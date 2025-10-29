@@ -42,8 +42,8 @@ COPY package*.json ./
 # Install Node.js dependencies
 RUN npm ci --include=dev
 
-# Install Playwright browsers with all dependencies
-RUN npx playwright install --with-deps
+# Install Playwright browsers - only Chromium to save disk space
+RUN npx playwright install chromium
 
 # Development stage
 FROM base as development
