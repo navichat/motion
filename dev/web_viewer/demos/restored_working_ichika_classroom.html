@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restored Working Ichika VRM Classroom Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .title {
+            font-size: 2.2em;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.8;
+            margin: 10px 0;
+        }
+        
+        .container {
+            display: flex;
+            gap: 20px;
+            height: 80vh;
+        }
+        
+        .scene-container {
+            flex: 2;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        #container {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            border: 2px solid #444;
+            overflow: hidden;
+        }
+        
+        .controls {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow-y: auto;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 4px 2px;
+            width: 100%;
+            text-align: left;
+        }
+        
+        .button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .section-title {
+            font-size: 1em;
+            font-weight: bold;
+            margin: 15px 0 10px 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+        
+        #debug-info {
+            background: #0a0e13;
+            color: #d7e1ee;
+            border: 1px solid #16202c;
+            border-radius: 6px;
+            padding: 8px;
+            height: 120px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #333;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status {
+            font-size: 14px;
+            margin: 5px 0;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Loading Restored Ichika VRM Classroom...</div>
+        <div id="loading-status">Initializing...</div>
+    </div>
+    
+    <div class="header">
+        <h1 class="title">🎭 Restored Working Ichika VRM Classroom</h1>
+        <p class="subtitle">Based on Original Working Implementation</p>
+    </div>
+    
+    <div class="container">
+        <div class="scene-container">
+            <div id="container"></div>
+        </div>
+        
+        <div class="controls">
+            <div class="section-title">📊 System Status</div>
+            <div class="status" id="vrm-status">VRM: Loading...</div>
+            <div class="status" id="classroom-status">Classroom: Loading...</div>
+            <div class="status" id="animation-status">Animation: Standby</div>
+            
+            <div class="section-title">🎭 VRM Controls</div>
+            <button class="button" onclick="loadVRM()">Load Ichika VRM</button>
+            <button class="button" onclick="resetCharacterPosition()">Reset Position</button>
+            <button class="button" onclick="randomizePosition()">Randomize Position</button>
+            
+            <div class="section-title">🏫 Classroom Controls</div>
+            <button class="button" onclick="loadClassroom()">Load Classroom GLB</button>
+            <button class="button" onclick="toggleClassroom()">Toggle Classroom View</button>
+            
+            <div class="section-title">🚶 Walking Animation</div>
+            <button class="button" onclick="walkToPosition('blackboard')">Walk to Blackboard</button>
+            <button class="button" onclick="walkToPosition('desk')">Walk to Desk</button>
+            <button class="button" onclick="walkToPosition('center')">Walk to Center</button>
+            <button class="button" onclick="walkToPosition('random')">Walk Random</button>
+            
+            <div class="section-title">🎬 Animation Controls</div>
+            <button class="button" onclick="toggleAnimation()">Toggle Animation</button>
+            <button class="button" onclick="resetAnimation()">Reset Animation</button>
+            <button class="button" onclick="loadAnimation('walking')">Load Walking</button>
+            <button class="button" onclick="loadAnimation('idle')">Load Idle</button>
+            
+            <div class="section-title">📹 Camera Controls</div>
+            <button class="button" onclick="setCameraView('front')">Front View</button>
+            <button class="button" onclick="setCameraView('side')">Side View</button>
+            <button class="button" onclick="setCameraView('top')">Top View</button>
+            <button class="button" onclick="setCameraView('follow')">Follow Avatar</button>
+            
+            <div class="section-title">💡 Lighting</div>
+            <button class="button" onclick="toggleLighting()">Toggle Lighting</button>
+            <button class="button" onclick="adjustBrightness(0.5)">Dim</button>
+            <button class="button" onclick="adjustBrightness(1.0)">Normal</button>
+            <button class="button" onclick="adjustBrightness(1.5)">Bright</button>
+            
+            <div class="section-title">🔧 Debug Log</div>
+            <div id="debug-info"></div>
+        </div>
+    </div>
+
+    <!-- Import map for THREE.js modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js"
+        }
+    }
+    </script>
+
+    <!-- Load the existing working VRM infrastructure -->
+    <script src="../src/components/animation/vrm/vrm_mesh_classroom.js"></script>
+    <script src="../src/components/animation/vrm/VRMLightingManager.js"></script>
+    <script src="../src/components/animation/vrm/VRMDiagnostics.js"></script>
+    <script src="../src/components/animation/vrm/VRMBVHAdapter.js"></script>
+
+    <script type="module">
+        // Import THREE.js modules
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Global variables for the scene
+        let scene, camera, renderer, controls;
+        let classroom, vrmCharacter, vrmAdapter, lightingManager;
+        let animationMixer, currentAction;
+        let bvhData = null;
+        let isPlaying = false;
+        let animationFrame = 0;
+        let moveSpeed = 0.5;
+        let characterPosition = new THREE.Vector3(0, 0, 0);
+        let isWalking = false;
+        let walkTarget = null;
+        let walkSpeed = 2.0;
+
+        // Make THREE and GLTFLoader global for classroom module
+        window.THREE = THREE;
+        window.GLTFLoader = GLTFLoader;
+
+        // Animation clock
+        const clock = new THREE.Clock();
+
+        // Debug logging
+        function debugLog(message) {
+            console.log('📝', message);
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.textContent += message + '\n';
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+        }
+
+        function updateStatus(elementId, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+            }
+        }
+
+        function updateLoadingStatus(message) {
+            debugLog(message);
+            const statusElement = document.getElementById('loading-status');
+            if (statusElement) {
+                statusElement.textContent = message;
+            }
+        }
+
+        async function init() {
+            updateLoadingStatus('Creating 3D scene...');
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            
+            // Create camera positioned for optimal avatar viewing
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.8, 3);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth - 400, window.innerHeight - 200); // Account for controls panel
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0.9, 0);
+            
+            updateLoadingStatus('Initializing classroom environment...');
+            
+            // Initialize classroom GLB loader
+            classroom = new ClassroomGLBLoader(scene);
+            await classroom.initialize();
+            
+            // Setup lighting
+            setupLighting();
+            
+            // Setup keyboard controls for walking
+            setupKeyboardControls();
+            
+            updateLoadingStatus('Loading default assets...');
+            
+            // Auto-load default assets
+            await loadDefaultAssets();
+            
+            updateLoadingStatus('Ready!');
+            
+            // Start animation loop
+            animate();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 1000);
+            
+            debugLog('🎮 Restored VRM Classroom System Ready!');
+            debugLog('🎭 System uses existing VRM infrastructure');
+            debugLog('🏫 Classroom GLB loader initialized');
+            debugLog('📝 Ready to load Ichika VRM and classroom');
+        }
+
+        async function loadDefaultAssets() {
+            // Try to load default classroom
+            try {
+                updateLoadingStatus('Loading default classroom...');
+                const classroomPath = '../assets/scenes/classroom.glb';
+                const classroomLoaded = await classroom.loadClassroomGLB(classroomPath);
+                
+                if (classroomLoaded) {
+                    debugLog('✅ Default classroom.glb loaded successfully');
+                    updateStatus('classroom-status', 'Classroom: Loaded');
+                } else {
+                    debugLog('ℹ️ No default classroom found - use manual load');
+                    updateStatus('classroom-status', 'Classroom: Not found');
+                }
+            } catch (error) {
+                debugLog('⚠️ Default classroom loading failed: ' + error.message);
+                updateStatus('classroom-status', 'Classroom: Failed');
+            }
+
+            // Try to load default VRM
+            try {
+                updateLoadingStatus('Loading Ichika VRM...');
+                await loadDefaultVRM();
+            } catch (error) {
+                debugLog('⚠️ Default VRM loading failed: ' + error.message);
+                updateStatus('vrm-status', 'VRM: Failed');
+            }
+        }
+
+        async function loadDefaultVRM() {
+            const defaultVRMs = [
+                '../assets/avatars/ichika.vrm',
+                '../assets/avatars/kaede.vrm', 
+                '../assets/avatars/buny.vrm'
+            ];
+            
+            for (const vrmPath of defaultVRMs) {
+                try {
+                    const response = await fetch(vrmPath);
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        await loadVRMFromArrayBuffer(arrayBuffer, vrmPath.split('/').pop());
+                        debugLog(`✅ Auto-loaded VRM: ${vrmPath.split('/').pop()}`);
+                        updateStatus('vrm-status', `VRM: ${vrmPath.split('/').pop()}`);
+                        return;
+                    }
+                } catch (error) {
+                    debugLog(`⚠️ Failed to load ${vrmPath}: ${error.message}`);
+                }
+            }
+            
+            debugLog('ℹ️ No default VRM characters found - use manual load');
+            updateStatus('vrm-status', 'VRM: Not found');
+        }
+
+        async function loadVRMFromArrayBuffer(arrayBuffer, filename) {
+            const loader = new GLTFLoader();
+            loader.register((parser) => new VRMLoaderPlugin(parser));
+            
+            const gltf = await new Promise((resolve, reject) => {
+                loader.parse(arrayBuffer, '', resolve, reject);
+            });
+            
+            if (vrmCharacter) {
+                scene.remove(vrmCharacter.scene);
+            }
+            
+            vrmCharacter = gltf.userData.vrm;
+            scene.add(vrmCharacter.scene);
+            
+            // Position character at ground level
+            let safePosition = new THREE.Vector3(0, 0, 0);
+            try {
+                if (classroom && classroom.initialized) {
+                    safePosition = classroom.getRandomSafePosition();
+                    safePosition.y = 0; // Ensure ground level
+                }
+            } catch (error) {
+                debugLog('Using default position (no classroom collision)');
+            }
+            
+            vrmCharacter.scene.position.copy(safePosition);
+            characterPosition.copy(safePosition);
+            
+            // Initialize VRM adapter for animations
+            if (window.VRMBVHAdapter) {
+                vrmAdapter = new VRMBVHAdapter(
+                    { vrm: vrmCharacter, scene: vrmCharacter.scene },
+                    null
+                );
+                debugLog('✅ VRM BVH Adapter initialized');
+            }
+            
+            debugLog(`✅ VRM loaded: ${filename}`);
+            debugLog(`📍 Position: (${safePosition.x.toFixed(2)}, ${safePosition.y.toFixed(2)}, ${safePosition.z.toFixed(2)})`);
+            
+            // Optimize lighting for VRM
+            if (lightingManager && lightingManager.initialized) {
+                lightingManager.optimizeForVRM(vrmCharacter);
+                debugLog('💡 Lighting optimized for VRM character');
+            }
+            
+            // Focus camera on character
+            controls.target.copy(vrmCharacter.scene.position);
+            controls.target.y += 1.0;
+            
+            updateStatus('vrm-status', `VRM: ${filename} Ready`);
+        }
+
+        function setupLighting() {
+            debugLog('💡 Setting up VRM-optimized lighting...');
+            
+            if (window.VRMLightingManager) {
+                lightingManager = new VRMLightingManager(scene, renderer);
+                
+                lightingManager.initialize('classroom').then(() => {
+                    debugLog('✅ VRM lighting system initialized');
+                }).catch(error => {
+                    debugLog('❌ Lighting initialization failed, using fallback');
+                    setupFallbackLighting();
+                });
+            } else {
+                setupFallbackLighting();
+            }
+        }
+
+        function setupFallbackLighting() {
+            // Basic lighting setup
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            debugLog('✅ Fallback lighting setup complete');
+        }
+
+        function setupKeyboardControls() {
+            const keys = {};
+            
+            document.addEventListener('keydown', (event) => {
+                keys[event.code] = true;
+                
+                // Walking controls
+                if (vrmCharacter) {
+                    let direction = new THREE.Vector3();
+                    
+                    if (keys['ArrowUp'] || keys['KeyW']) direction.z = -1;
+                    if (keys['ArrowDown'] || keys['KeyS']) direction.z = 1;
+                    if (keys['ArrowLeft'] || keys['KeyA']) direction.x = -1;
+                    if (keys['ArrowRight'] || keys['KeyD']) direction.x = 1;
+                    
+                    if (direction.length() > 0) {
+                        direction.normalize();
+                        moveCharacter(direction);
+                    }
+                }
+            });
+            
+            document.addEventListener('keyup', (event) => {
+                keys[event.code] = false;
+            });
+            
+            debugLog('⌨️ Keyboard controls activated (WASD/Arrow keys)');
+        }
+
+        function moveCharacter(direction) {
+            if (!vrmCharacter) return;
+            
+            const moveDistance = moveSpeed * clock.getDelta();
+            const newPosition = vrmCharacter.scene.position.clone();
+            newPosition.add(direction.multiplyScalar(moveDistance));
+            
+            // Check collision with classroom if available
+            if (classroom && classroom.initialized) {
+                if (!classroom.checkCollision(newPosition)) {
+                    vrmCharacter.scene.position.copy(newPosition);
+                    characterPosition.copy(newPosition);
+                    
+                    // Rotate character to face movement direction
+                    if (direction.length() > 0) {
+                        const angle = Math.atan2(direction.x, direction.z);
+                        vrmCharacter.scene.rotation.y = angle;
+                    }
+                }
+            } else {
+                vrmCharacter.scene.position.copy(newPosition);
+                characterPosition.copy(newPosition);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            controls.update();
+            
+            // Handle walking animation
+            if (isWalking && walkTarget && vrmCharacter) {
+                const direction = walkTarget.clone().sub(vrmCharacter.scene.position);
+                const distance = direction.length();
+                
+                if (distance < 0.1) {
+                    // Reached target
+                    isWalking = false;
+                    walkTarget = null;
+                    debugLog('🎯 Reached walking target');
+                    updateStatus('animation-status', 'Animation: Idle');
+                } else {
+                    // Move towards target
+                    direction.normalize();
+                    const moveDistance = walkSpeed * clock.getDelta();
+                    const newPosition = vrmCharacter.scene.position.clone();
+                    newPosition.add(direction.multiplyScalar(moveDistance));
+                    
+                    vrmCharacter.scene.position.copy(newPosition);
+                    
+                    // Rotate to face movement direction
+                    const angle = Math.atan2(direction.x, direction.z);
+                    vrmCharacter.scene.rotation.y = angle;
+                }
+            }
+            
+            // Update VRM if available
+            if (vrmCharacter) {
+                const deltaTime = clock.getDelta();
+                vrmCharacter.update(deltaTime);
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Control functions (global scope for buttons)
+        window.loadVRM = async function() {
+            debugLog('🎭 Manual VRM loading requested...');
+            await loadDefaultVRM();
+        };
+
+        window.resetCharacterPosition = function() {
+            if (vrmCharacter) {
+                vrmCharacter.scene.position.set(0, 0, 0);
+                characterPosition.set(0, 0, 0);
+                debugLog('🔄 Character position reset to origin');
+            }
+        };
+
+        window.randomizePosition = function() {
+            if (vrmCharacter) {
+                let randomPos = new THREE.Vector3(
+                    (Math.random() - 0.5) * 10,
+                    0,
+                    (Math.random() - 0.5) * 10
+                );
+                
+                if (classroom && classroom.initialized) {
+                    randomPos = classroom.getRandomSafePosition();
+                    randomPos.y = 0;
+                }
+                
+                vrmCharacter.scene.position.copy(randomPos);
+                characterPosition.copy(randomPos);
+                debugLog(`🎲 Random position: (${randomPos.x.toFixed(2)}, ${randomPos.y.toFixed(2)}, ${randomPos.z.toFixed(2)})`);
+            }
+        };
+
+        window.loadClassroom = async function() {
+            debugLog('🏫 Manual classroom loading requested...');
+            try {
+                const success = await classroom.loadClassroomGLB('../assets/scenes/classroom.glb');
+                if (success) {
+                    updateStatus('classroom-status', 'Classroom: Loaded');
+                    debugLog('✅ Classroom loaded successfully');
+                } else {
+                    updateStatus('classroom-status', 'Classroom: Failed');
+                    debugLog('❌ Failed to load classroom');
+                }
+            } catch (error) {
+                debugLog('❌ Classroom loading error: ' + error.message);
+            }
+        };
+
+        window.walkToPosition = function(target) {
+            if (!vrmCharacter) {
+                debugLog('❌ No VRM character loaded for walking');
+                return;
+            }
+            
+            let targetPosition = new THREE.Vector3();
+            
+            switch(target) {
+                case 'blackboard':
+                    targetPosition.set(0, 0, 4);
+                    break;
+                case 'desk':
+                    targetPosition.set(-2, 0, 2);
+                    break;
+                case 'center':
+                    targetPosition.set(0, 0, 0);
+                    break;
+                case 'random':
+                    if (classroom && classroom.initialized) {
+                        targetPosition = classroom.getRandomSafePosition();
+                        targetPosition.y = 0;
+                    } else {
+                        targetPosition.set(
+                            (Math.random() - 0.5) * 8,
+                            0,
+                            (Math.random() - 0.5) * 8
+                        );
+                    }
+                    break;
+            }
+            
+            walkTarget = targetPosition;
+            isWalking = true;
+            debugLog(`🚶 Walking to ${target}: (${targetPosition.x.toFixed(2)}, ${targetPosition.y.toFixed(2)}, ${targetPosition.z.toFixed(2)})`);
+            updateStatus('animation-status', `Animation: Walking to ${target}`);
+        };
+
+        window.toggleAnimation = function() {
+            isPlaying = !isPlaying;
+            debugLog(`🎬 Animation ${isPlaying ? 'started' : 'stopped'}`);
+            updateStatus('animation-status', `Animation: ${isPlaying ? 'Playing' : 'Paused'}`);
+        };
+
+        window.resetAnimation = function() {
+            isPlaying = false;
+            animationFrame = 0;
+            debugLog('🔄 Animation reset to frame 0');
+            updateStatus('animation-status', 'Animation: Reset');
+        };
+
+        window.loadAnimation = function(animType) {
+            debugLog(`🎭 Loading ${animType} animation...`);
+            updateStatus('animation-status', `Animation: Loading ${animType}`);
+        };
+
+        window.setCameraView = function(view) {
+            if (!camera || !controls) return;
+            
+            switch(view) {
+                case 'front':
+                    camera.position.set(0, 1.8, 3);
+                    controls.target.set(0, 0.9, 0);
+                    break;
+                case 'side':
+                    camera.position.set(3, 1.8, 0);
+                    controls.target.set(0, 0.9, 0);
+                    break;
+                case 'top':
+                    camera.position.set(0, 8, 0);
+                    controls.target.set(0, 0, 0);
+                    break;
+                case 'follow':
+                    if (vrmCharacter) {
+                        const charPos = vrmCharacter.scene.position;
+                        camera.position.set(charPos.x, charPos.y + 2, charPos.z + 3);
+                        controls.target.copy(charPos);
+                    }
+                    break;
+            }
+            
+            controls.update();
+            debugLog(`📹 Camera view set to: ${view}`);
+        };
+
+        window.toggleClassroom = function() {
+            if (classroom && classroom.classroomModel) {
+                classroom.classroomModel.visible = !classroom.classroomModel.visible;
+                debugLog(`🏫 Classroom ${classroom.classroomModel.visible ? 'shown' : 'hidden'}`);
+            }
+        };
+
+        window.toggleLighting = function() {
+            debugLog('💡 Toggling lighting...');
+        };
+
+        window.adjustBrightness = function(level) {
+            if (renderer) {
+                renderer.toneMappingExposure = level;
+                debugLog(`💡 Brightness adjusted to: ${level}`);
+            }
+        };
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (camera && renderer) {
+                const width = window.innerWidth - 400;
+                const height = window.innerHeight - 200;
+                
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height);
+            }
+        });
+
+        // Initialize the scene
+        init().catch(error => {
+            debugLog('❌ Failed to initialize scene: ' + error.message);
+            console.error('Initialization error:', error);
+        });
+    </script>
+</body>
+</html>

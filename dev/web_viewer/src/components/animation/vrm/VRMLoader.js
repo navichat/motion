@@ -15,10 +15,10 @@
       this.opts = opts;
     }
     async loadFromArrayBuffer(arrayBuffer, filename = 'model.vrm') {
-      // Dynamically import only when actually running in a browser with modules
-      const THREE = await import('https://unpkg.com/three@0.159.0/build/three.module.js');
-      const { GLTFLoader } = await import('https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js');
-      const { VRMLoaderPlugin } = await import('https://unpkg.com/@pixiv/three-vrm@3.1.0/lib/three-vrm.module.js');
+      // Use the same Three.js version as the main application
+      const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js');
+      const { GLTFLoader } = await import('https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/loaders/GLTFLoader.js');
+      const { VRMLoaderPlugin } = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js');
       const loader = new GLTFLoader();
       loader.register(parser => new VRMLoaderPlugin(parser));
       const gltf = await loader.parseAsync(arrayBuffer, filename);

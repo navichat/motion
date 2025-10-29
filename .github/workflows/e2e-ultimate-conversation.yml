@@ -41,6 +41,14 @@ jobs:
         run: npm run test:e2e:ultimate:conversation
         shell: bash
 
+      - name: Run mic-first smoke
+        run: npm run test:e2e:ultimate:mic-first
+        shell: bash
+
+      - name: Run ultimate conversation (audio)
+        run: npm run test:e2e:ultimate:audio
+        shell: bash
+
       - name: Upload Playwright report (always)
         if: always()
         uses: actions/upload-artifact@v4
@@ -77,6 +85,14 @@ jobs:
 
       - name: Run ultimate conversation E2E (Vite self-serve)
         run: npm run test:e2e:ultimate:conversation:vite
+        shell: bash
+
+      - name: Run mic-first smoke (Vite self-serve)
+        run: npm run test:e2e:ultimate:mic-first:vite
+        shell: bash
+
+      - name: Run ultimate conversation (audio, Vite self-serve)
+        run: npm run test:e2e:ultimate:audio:vite
         shell: bash
 
       - name: Upload Playwright report (always)

@@ -100,10 +100,10 @@ cd ../../components/animation/vrm/
 
 # Run organized test suites
 cd ../../testing/
-npx playwright test e2e/
-npx playwright test unit/
-npx playwright test integration/
-npx playwright test performance/
+timeout 900s npx playwright test e2e/
+timeout 900s npx playwright test unit/
+timeout 900s npx playwright test integration/
+timeout 900s npx playwright test performance/
 ```
 
 ### Full Motion Processing Pipeline

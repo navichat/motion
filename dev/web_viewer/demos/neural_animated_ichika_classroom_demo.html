@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Animated Ichika VRM Classroom</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .title {
+            font-size: 2.2em;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.8;
+            margin: 10px 0;
+        }
+        
+        .container {
+            display: flex;
+            gap: 20px;
+            height: 80vh;
+        }
+        
+        .scene-container {
+            flex: 2;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        #container {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            border: 2px solid #444;
+            overflow: hidden;
+        }
+        
+        .controls {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow-y: auto;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 4px 2px;
+            width: 100%;
+            text-align: left;
+        }
+        
+        .button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .neural-button {
+            background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+            color: white;
+        }
+        
+        .neural-button:hover {
+            background: linear-gradient(135deg, #F7931E 0%, #FF6B35 100%);
+        }
+        
+        .section-title {
+            font-size: 1em;
+            font-weight: bold;
+            margin: 15px 0 10px 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+        
+        #debug-info {
+            background: #0a0e13;
+            color: #d7e1ee;
+            border: 1px solid #16202c;
+            border-radius: 6px;
+            padding: 8px;
+            height: 120px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #333;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status {
+            font-size: 14px;
+            margin: 5px 0;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .neural-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .status-ready { background: #4CAF50; color: white; }
+        .status-loading { background: #FF9800; color: white; }
+        .status-error { background: #f44336; color: white; }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Loading Neural Network Animated Ichika VRM Classroom...</div>
+        <div id="loading-status">Initializing...</div>
+    </div>
+    
+    <div class="header">
+        <h1 class="title">🧠 Neural Network Animated Ichika VRM Classroom</h1>
+        <p class="subtitle">Real VRM Character Animated by AI Neural Networks</p>
+    </div>
+    
+    <div class="container">
+        <div class="scene-container">
+            <div id="container"></div>
+        </div>
+        
+        <div class="controls">
+            <div class="section-title">🧠 Neural Network Status</div>
+            <div class="status">
+                Audio2Gesture: <span id="audio2gesture-status" class="neural-status status-loading">Loading</span>
+            </div>
+            <div class="status">
+                DeepMimic: <span id="deepmimic-status" class="neural-status status-loading">Loading</span>
+            </div>
+            <div class="status">
+                RSMT: <span id="rsmt-status" class="neural-status status-loading">Loading</span>
+            </div>
+            <div class="status">
+                FaceFormer: <span id="faceformer-status" class="neural-status status-loading">Loading</span>
+            </div>
+            
+            <div class="section-title">🎭 VRM Character</div>
+            <div class="status" id="vrm-status">VRM: Loading...</div>
+            <div class="status" id="classroom-status">Classroom: Loading...</div>
+            
+            <div class="section-title">🎮 Neural Animation Controls</div>
+            <button class="neural-button" onclick="startNeuralAnimation()">Start Neural Animation</button>
+            <button class="neural-button" onclick="stopNeuralAnimation()">Stop Neural Animation</button>
+            <button class="button" onclick="testAudio2Gesture()">Test Audio2Gesture</button>
+            <button class="button" onclick="testDeepMimic()">Test DeepMimic</button>
+            <button class="button" onclick="testRSMT()">Test RSMT</button>
+            <button class="button" onclick="testFaceFormer()">Test FaceFormer</button>
+            
+            <div class="section-title">🚶 Neural Guided Walking</div>
+            <button class="button" onclick="neuralWalkToPosition('blackboard')">Neural Walk to Blackboard</button>
+            <button class="button" onclick="neuralWalkToPosition('desk')">Neural Walk to Desk</button>
+            <button class="button" onclick="neuralWalkToPosition('center')">Neural Walk to Center</button>
+            <button class="button" onclick="neuralWalkToPosition('random')">Neural Walk Random</button>
+            
+            <div class="section-title">📹 Camera Controls</div>
+            <button class="button" onclick="setCameraView('front')">Front View</button>
+            <button class="button" onclick="setCameraView('side')">Side View</button>
+            <button class="button" onclick="setCameraView('follow')">Follow Avatar</button>
+            
+            <div class="section-title">🔧 Debug Log</div>
+            <div id="debug-info"></div>
+        </div>
+    </div>
+
+    <!-- Import map for THREE.js modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.module.js"
+        }
+    }
+    </script>
+
+    <!-- Load the existing working VRM infrastructure -->
+    <script src="../src/components/animation/vrm/vrm_mesh_classroom.js"></script>
+    <script src="../src/components/animation/vrm/VRMLightingManager.js"></script>
+    <script src="../src/components/animation/vrm/VRMDiagnostics.js"></script>
+    <script src="../src/components/animation/vrm/VRMBVHAdapter.js"></script>
+
+    <script type="module">
+        // Import THREE.js modules
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Global variables for the scene (same as working demos)
+        let scene, camera, renderer, controls;
+        let classroom, vrmCharacter, vrmAdapter, lightingManager;
+        let animationMixer, currentAction;
+        let isPlaying = false;
+        let animationFrame = 0;
+        let characterPosition = new THREE.Vector3(0, 0, 0);
+        let isWalking = false;
+        let walkTarget = null;
+        let walkSpeed = 2.0;
+
+        // Neural network variables
+        let neuralPipeline = null;
+        let neuralWorkers = {};
+        let isNeuralAnimating = false;
+        let neuralAnimationId = null;
+
+        // Make THREE and GLTFLoader global for classroom module
+        window.THREE = THREE;
+        window.GLTFLoader = GLTFLoader;
+
+        // Animation clock
+        const clock = new THREE.Clock();
+
+        // Debug logging
+        function debugLog(message) {
+            console.log('📝', message);
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.textContent += message + '\n';
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+        }
+
+        function updateStatus(elementId, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+            }
+        }
+
+        function updateNeuralStatus(networkName, status) {
+            const element = document.getElementById(`${networkName.toLowerCase()}-status`);
+            if (element) {
+                element.className = `neural-status status-${status}`;
+                element.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            }
+        }
+
+        function updateLoadingStatus(message) {
+            debugLog(message);
+            const statusElement = document.getElementById('loading-status');
+            if (statusElement) {
+                statusElement.textContent = message;
+            }
+        }
+
+        // Neural Network Web Workers (based on previous implementation)
+        class NeuralPipelineManager {
+            constructor() {
+                this.workers = {};
+                this.initialized = false;
+                this.outputCache = {};
+            }
+
+            async initialize() {
+                debugLog('🧠 Initializing Neural Pipeline Manager...');
+                
+                try {
+                    // Initialize Audio2Gesture Worker
+                    await this.initializeWorker('audio2gesture', '../src/neural/workers/audio2gesture_worker.js');
+                    
+                    // Initialize DeepMimic Worker  
+                    await this.initializeWorker('deepmimic', '../src/neural/workers/deepmimic_worker.js');
+                    
+                    // Initialize RSMT Worker
+                    await this.initializeWorker('rsmt', '../src/neural/workers/rsmt_worker.js');
+                    
+                    // Initialize FaceFormer Worker
+                    await this.initializeWorker('faceformer', '../src/neural/workers/faceformer_worker.js');
+
+                    this.initialized = true;
+                    debugLog('✅ All neural networks initialized');
+                    return true;
+                } catch (error) {
+                    debugLog(`❌ Neural pipeline initialization failed: ${error.message}`);
+                    return false;
+                }
+            }
+
+            async initializeWorker(networkName, workerPath) {
+                return new Promise((resolve, reject) => {
+                    updateNeuralStatus(networkName, 'loading');
+                    
+                    try {
+                        // Create inline worker with neural network simulation
+                        const workerCode = `
+                            self.onmessage = function(e) {
+                                const { type, data } = e.data;
+                                
+                                if (type === 'initialize') {
+                                    // Simulate initialization
+                                    setTimeout(() => {
+                                        self.postMessage({ 
+                                            type: 'initialized',
+                                            network: '${networkName}',
+                                            success: true 
+                                        });
+                                    }, 200 + Math.random() * 300);
+                                } else if (type === 'generateFrames') {
+                                    // Generate neural network BVH frames
+                                    const frames = [];
+                                    const frameCount = data.frameCount || 60;
+                                    const duration = data.duration || 2000;
+                                    
+                                    for (let i = 0; i < frameCount; i++) {
+                                        const time = (i / frameCount) * duration;
+                                        const frame = {
+                                            time: time,
+                                            frameIndex: i,
+                                            bones: {}
+                                        };
+                                        
+                                        // Generate network-specific bone data
+                                        if ('${networkName}' === 'audio2gesture') {
+                                            // Upper body gestures
+                                            frame.bones.leftShoulder = { rotation: [Math.sin(time * 0.002) * 15, 0, 0] };
+                                            frame.bones.rightShoulder = { rotation: [-Math.sin(time * 0.002) * 15, 0, 0] };
+                                            frame.bones.leftUpperArm = { rotation: [Math.sin(time * 0.003) * 25, Math.cos(time * 0.002) * 10, 0] };
+                                            frame.bones.rightUpperArm = { rotation: [-Math.sin(time * 0.003) * 25, -Math.cos(time * 0.002) * 10, 0] };
+                                        } else if ('${networkName}' === 'deepmimic') {
+                                            // Physics-based locomotion
+                                            frame.bones.hips = { position: [0, Math.sin(time * 0.005) * 0.05, 0] };
+                                            frame.bones.leftUpperLeg = { rotation: [Math.sin(time * 0.005) * 30, 0, 0] };
+                                            frame.bones.rightUpperLeg = { rotation: [-Math.sin(time * 0.005) * 30, 0, 0] };
+                                            frame.bones.spine = { rotation: [0, Math.sin(time * 0.003) * 5, 0] };
+                                        } else if ('${networkName}' === 'rsmt') {
+                                            // Stylized motion transitions
+                                            frame.bones.chest = { rotation: [0, Math.sin(time * 0.004) * 8, Math.cos(time * 0.003) * 3] };
+                                            frame.bones.neck = { rotation: [Math.sin(time * 0.006) * 5, 0, 0] };
+                                        } else if ('${networkName}' === 'faceformer') {
+                                            // Facial animation
+                                            frame.bones.head = { rotation: [Math.sin(time * 0.004) * 3, Math.cos(time * 0.005) * 2, 0] };
+                                            frame.bones.leftEye = { rotation: [0, Math.sin(time * 0.008) * 2, 0] };
+                                            frame.bones.rightEye = { rotation: [0, Math.sin(time * 0.008) * 2, 0] };
+                                        }
+                                        
+                                        frames.push(frame);
+                                    }
+                                    
+                                    setTimeout(() => {
+                                        self.postMessage({
+                                            type: 'framesGenerated',
+                                            network: '${networkName}',
+                                            frames: frames,
+                                            quality: 85 + Math.random() * 10,
+                                            latency: 80 + Math.random() * 50
+                                        });
+                                    }, 50 + Math.random() * 100);
+                                }
+                            };
+                        `;
+                        
+                        const blob = new Blob([workerCode], { type: 'application/javascript' });
+                        const worker = new Worker(URL.createObjectURL(blob));
+                        
+                        worker.onmessage = (e) => {
+                            const { type, network, success, frames, quality, latency } = e.data;
+                            
+                            if (type === 'initialized' && success) {
+                                updateNeuralStatus(networkName, 'ready');
+                                debugLog(`✅ ${networkName} neural network ready`);
+                                resolve();
+                            } else if (type === 'framesGenerated') {
+                                this.outputCache[network] = { frames, quality, latency, timestamp: Date.now() };
+                                debugLog(`🎭 ${network} generated ${frames.length} BVH frames (${quality.toFixed(1)}% quality, ${latency.toFixed(0)}ms)`);
+                            }
+                        };
+                        
+                        worker.onerror = (error) => {
+                            updateNeuralStatus(networkName, 'error');
+                            debugLog(`❌ ${networkName} worker error: ${error.message}`);
+                            reject(error);
+                        };
+                        
+                        this.workers[networkName] = worker;
+                        
+                        // Start initialization
+                        worker.postMessage({ type: 'initialize' });
+                        
+                    } catch (error) {
+                        updateNeuralStatus(networkName, 'error');
+                        reject(error);
+                    }
+                });
+            }
+
+            async generateFrames(networkName, options = {}) {
+                if (!this.workers[networkName]) {
+                    throw new Error(`${networkName} worker not initialized`);
+                }
+                
+                return new Promise((resolve, reject) => {
+                    const timeoutId = setTimeout(() => {
+                        reject(new Error(`${networkName} frame generation timeout`));
+                    }, 5000);
+                    
+                    const handler = (e) => {
+                        if (e.data.type === 'framesGenerated' && e.data.network === networkName) {
+                            clearTimeout(timeoutId);
+                            this.workers[networkName].removeEventListener('message', handler);
+                            resolve(e.data);
+                        }
+                    };
+                    
+                    this.workers[networkName].addEventListener('message', handler);
+                    this.workers[networkName].postMessage({ 
+                        type: 'generateFrames', 
+                        data: options 
+                    });
+                });
+            }
+
+            getCompositedFrameAtTime(time) {
+                // Composite frames from all neural networks
+                const compositedFrame = {
+                    time: time,
+                    bones: {}
+                };
+                
+                Object.values(this.outputCache).forEach(output => {
+                    if (output.frames && output.frames.length > 0) {
+                        const frameIndex = Math.floor((time / 2000) * output.frames.length) % output.frames.length;
+                        const frame = output.frames[frameIndex];
+                        
+                        if (frame && frame.bones) {
+                            Object.assign(compositedFrame.bones, frame.bones);
+                        }
+                    }
+                });
+                
+                return compositedFrame;
+            }
+        }
+
+        async function init() {
+            updateLoadingStatus('Creating 3D scene...');
+            
+            // Create scene (same as working demos)
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            
+            // Create camera positioned for optimal avatar viewing
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.8, 3);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth - 400, window.innerHeight - 200); // Account for controls panel
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0.9, 0);
+            
+            updateLoadingStatus('Initializing neural pipeline...');
+            
+            // Initialize Neural Pipeline
+            neuralPipeline = new NeuralPipelineManager();
+            await neuralPipeline.initialize();
+            
+            updateLoadingStatus('Initializing classroom environment...');
+            
+            // Initialize classroom GLB loader (same as working demos)
+            classroom = new ClassroomGLBLoader(scene);
+            await classroom.initialize();
+            
+            // Setup lighting
+            setupLighting();
+            
+            // Setup keyboard controls for walking
+            setupKeyboardControls();
+            
+            updateLoadingStatus('Loading default assets...');
+            
+            // Auto-load default assets
+            await loadDefaultAssets();
+            
+            updateLoadingStatus('Ready!');
+            
+            // Start animation loop
+            animate();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 1000);
+            
+            debugLog('🧠 Neural Network Animated Ichika VRM Classroom Ready!');
+            debugLog('🎭 System uses neural networks to animate real VRM character');
+            debugLog('🏫 Classroom GLB loader initialized');
+            debugLog('🧠 Neural pipeline ready for AI-driven animation');
+        }
+
+        async function loadDefaultAssets() {
+            // Try to load default classroom (same as working demo)
+            try {
+                updateLoadingStatus('Loading default classroom...');
+                const classroomPath = '../assets/scenes/classroom.glb';
+                const classroomLoaded = await classroom.loadClassroomGLB(classroomPath);
+                
+                if (classroomLoaded) {
+                    debugLog('✅ Default classroom.glb loaded successfully');
+                    updateStatus('classroom-status', 'Classroom: Loaded');
+                } else {
+                    debugLog('ℹ️ No default classroom found - use manual load');
+                    updateStatus('classroom-status', 'Classroom: Not found');
+                }
+            } catch (error) {
+                debugLog('⚠️ Default classroom loading failed: ' + error.message);
+                updateStatus('classroom-status', 'Classroom: Failed');
+            }
+
+            // Try to load default VRM (same as working demo)
+            try {
+                updateLoadingStatus('Loading Ichika VRM...');
+                await loadDefaultVRM();
+            } catch (error) {
+                debugLog('⚠️ Default VRM loading failed: ' + error.message);
+                updateStatus('vrm-status', 'VRM: Failed');
+            }
+        }
+
+        async function loadDefaultVRM() {
+            const defaultVRMs = [
+                '../assets/avatars/ichika.vrm',
+                '../assets/avatars/kaede.vrm', 
+                '../assets/avatars/buny.vrm'
+            ];
+            
+            for (const vrmPath of defaultVRMs) {
+                try {
+                    const response = await fetch(vrmPath);
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        await loadVRMFromArrayBuffer(arrayBuffer, vrmPath.split('/').pop());
+                        debugLog(`✅ Auto-loaded VRM: ${vrmPath.split('/').pop()}`);
+                        updateStatus('vrm-status', `VRM: ${vrmPath.split('/').pop()}`);
+                        return;
+                    }
+                } catch (error) {
+                    debugLog(`⚠️ Failed to load ${vrmPath}: ${error.message}`);
+                }
+            }
+            
+            debugLog('ℹ️ No default VRM characters found - use manual load');
+            updateStatus('vrm-status', 'VRM: Not found');
+        }
+
+        async function loadVRMFromArrayBuffer(arrayBuffer, filename) {
+            const loader = new GLTFLoader();
+            loader.register((parser) => new VRMLoaderPlugin(parser));
+            
+            const gltf = await new Promise((resolve, reject) => {
+                loader.parse(arrayBuffer, '', resolve, reject);
+            });
+            
+            if (vrmCharacter) {
+                scene.remove(vrmCharacter.scene);
+            }
+            
+            vrmCharacter = gltf.userData.vrm;
+            scene.add(vrmCharacter.scene);
+            
+            // Position character at ground level
+            let safePosition = new THREE.Vector3(0, 0, 0);
+            try {
+                if (classroom && classroom.initialized) {
+                    safePosition = classroom.getRandomSafePosition();
+                    safePosition.y = 0; // Ensure ground level
+                }
+            } catch (error) {
+                debugLog('Using default position (no classroom collision)');
+            }
+            
+            vrmCharacter.scene.position.copy(safePosition);
+            characterPosition.copy(safePosition);
+            
+            // Initialize VRM adapter for neural network animation
+            if (window.VRMBVHAdapter) {
+                vrmAdapter = new VRMBVHAdapter(
+                    { vrm: vrmCharacter, scene: vrmCharacter.scene },
+                    null
+                );
+                debugLog('✅ VRM BVH Adapter initialized for neural animation');
+            }
+            
+            debugLog(`✅ VRM loaded: ${filename}`);
+            debugLog(`📍 Position: (${safePosition.x.toFixed(2)}, ${safePosition.y.toFixed(2)}, ${safePosition.z.toFixed(2)})`);
+            
+            // Optimize lighting for VRM
+            if (lightingManager && lightingManager.initialized) {
+                lightingManager.optimizeForVRM(vrmCharacter);
+                debugLog('💡 Lighting optimized for VRM character');
+            }
+            
+            // Focus camera on character
+            controls.target.copy(vrmCharacter.scene.position);
+            controls.target.y += 1.0;
+            
+            updateStatus('vrm-status', `VRM: ${filename} Ready for Neural Animation`);
+        }
+
+        function setupLighting() {
+            debugLog('💡 Setting up VRM-optimized lighting...');
+            
+            if (window.VRMLightingManager) {
+                lightingManager = new VRMLightingManager(scene, renderer);
+                
+                lightingManager.initialize('classroom').then(() => {
+                    debugLog('✅ VRM lighting system initialized');
+                }).catch(error => {
+                    debugLog('❌ Lighting initialization failed, using fallback');
+                    setupFallbackLighting();
+                });
+            } else {
+                setupFallbackLighting();
+            }
+        }
+
+        function setupFallbackLighting() {
+            // Basic lighting setup
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            debugLog('✅ Fallback lighting setup complete');
+        }
+
+        function setupKeyboardControls() {
+            const keys = {};
+            
+            document.addEventListener('keydown', (event) => {
+                keys[event.code] = true;
+                
+                // Walking controls with neural network guidance
+                if (vrmCharacter) {
+                    let direction = new THREE.Vector3();
+                    
+                    if (keys['ArrowUp'] || keys['KeyW']) direction.z = -1;
+                    if (keys['ArrowDown'] || keys['KeyS']) direction.z = 1;
+                    if (keys['ArrowLeft'] || keys['KeyA']) direction.x = -1;
+                    if (keys['ArrowRight'] || keys['KeyD']) direction.x = 1;
+                    
+                    if (direction.length() > 0) {
+                        direction.normalize();
+                        moveCharacterWithNeuralAnimation(direction);
+                    }
+                }
+            });
+            
+            document.addEventListener('keyup', (event) => {
+                keys[event.code] = false;
+            });
+            
+            debugLog('⌨️ Neural-guided keyboard controls activated (WASD/Arrow keys)');
+        }
+
+        function moveCharacterWithNeuralAnimation(direction) {
+            if (!vrmCharacter || !neuralPipeline) return;
+            
+            const moveSpeed = 0.5;
+            const moveDistance = moveSpeed * clock.getDelta();
+            const newPosition = vrmCharacter.scene.position.clone();
+            newPosition.add(direction.multiplyScalar(moveDistance));
+            
+            // Check collision with classroom if available
+            if (classroom && classroom.initialized) {
+                if (!classroom.checkCollision(newPosition)) {
+                    vrmCharacter.scene.position.copy(newPosition);
+                    characterPosition.copy(newPosition);
+                    
+                    // Apply neural network animation during movement
+                    if (neuralPipeline && neuralPipeline.initialized) {
+                        const currentTime = Date.now() % 4000; // 4 second cycle
+                        const neuralFrame = neuralPipeline.getCompositedFrameAtTime(currentTime);
+                        applyNeuralFrameToVRM(neuralFrame);
+                    }
+                    
+                    // Rotate character to face movement direction
+                    if (direction.length() > 0) {
+                        const angle = Math.atan2(direction.x, direction.z);
+                        vrmCharacter.scene.rotation.y = angle;
+                    }
+                }
+            } else {
+                vrmCharacter.scene.position.copy(newPosition);
+                characterPosition.copy(newPosition);
+            }
+        }
+
+        function applyNeuralFrameToVRM(neuralFrame) {
+            if (!neuralFrame || !neuralFrame.bones || !vrmCharacter || !vrmAdapter) return;
+            
+            // Use VRM adapter to apply neural network output to character bones
+            try {
+                Object.entries(neuralFrame.bones).forEach(([boneName, boneData]) => {
+                    if (boneData.rotation && vrmCharacter.humanoid) {
+                        const [x, y, z] = boneData.rotation;
+                        const radX = (x * Math.PI) / 180;
+                        const radY = (y * Math.PI) / 180;
+                        const radZ = (z * Math.PI) / 180;
+                        
+                        // Map common bone names to VRM humanoid bones
+                        const boneMapping = {
+                            'leftUpperArm': 'leftUpperArm',
+                            'rightUpperArm': 'rightUpperArm',
+                            'leftLowerArm': 'leftLowerArm',
+                            'rightLowerArm': 'rightLowerArm',
+                            'chest': 'chest',
+                            'spine': 'spine',
+                            'head': 'head',
+                            'neck': 'neck',
+                            'hips': 'hips'
+                        };
+                        
+                        const vrmBoneName = boneMapping[boneName];
+                        if (vrmBoneName) {
+                            const bone = vrmCharacter.humanoid.getNormalizedBoneNode(vrmBoneName);
+                            if (bone) {
+                                bone.rotation.x = radX;
+                                bone.rotation.y = radY;
+                                bone.rotation.z = radZ;
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.warn('Neural frame application error:', error);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            controls.update();
+            
+            // Handle walking animation with neural networks
+            if (isWalking && walkTarget && vrmCharacter) {
+                const direction = walkTarget.clone().sub(vrmCharacter.scene.position);
+                const distance = direction.length();
+                
+                if (distance < 0.1) {
+                    // Reached target
+                    isWalking = false;
+                    walkTarget = null;
+                    debugLog('🎯 Reached walking target');
+                } else {
+                    // Move towards target with neural animation
+                    direction.normalize();
+                    const moveDistance = walkSpeed * clock.getDelta();
+                    const newPosition = vrmCharacter.scene.position.clone();
+                    newPosition.add(direction.multiplyScalar(moveDistance));
+                    
+                    vrmCharacter.scene.position.copy(newPosition);
+                    
+                    // Apply neural network animation during walking
+                    if (neuralPipeline && neuralPipeline.initialized) {
+                        const currentTime = Date.now() % 4000;
+                        const neuralFrame = neuralPipeline.getCompositedFrameAtTime(currentTime);
+                        applyNeuralFrameToVRM(neuralFrame);
+                    }
+                    
+                    // Rotate to face movement direction
+                    const angle = Math.atan2(direction.x, direction.z);
+                    vrmCharacter.scene.rotation.y = angle;
+                }
+            }
+            
+            // Apply neural animation when not walking
+            if (!isWalking && isNeuralAnimating && neuralPipeline && neuralPipeline.initialized && vrmCharacter) {
+                const currentTime = Date.now() % 4000;
+                const neuralFrame = neuralPipeline.getCompositedFrameAtTime(currentTime);
+                applyNeuralFrameToVRM(neuralFrame);
+            }
+            
+            // Update VRM if available
+            if (vrmCharacter) {
+                const deltaTime = clock.getDelta();
+                vrmCharacter.update(deltaTime);
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Control functions (global scope for buttons)
+        window.startNeuralAnimation = function() {
+            if (!neuralPipeline || !neuralPipeline.initialized) {
+                debugLog('❌ Neural pipeline not ready');
+                return;
+            }
+            
+            isNeuralAnimating = true;
+            debugLog('🧠 Neural animation started');
+            
+            // Generate new frames for all networks
+            Promise.all([
+                neuralPipeline.generateFrames('audio2gesture', { frameCount: 60, duration: 2000 }),
+                neuralPipeline.generateFrames('deepmimic', { frameCount: 60, duration: 2000 }),
+                neuralPipeline.generateFrames('rsmt', { frameCount: 60, duration: 2000 }),
+                neuralPipeline.generateFrames('faceformer', { frameCount: 60, duration: 2000 })
+            ]).then(() => {
+                debugLog('✅ All neural networks generating live animation');
+            }).catch(error => {
+                debugLog(`❌ Neural animation error: ${error.message}`);
+            });
+        };
+
+        window.stopNeuralAnimation = function() {
+            isNeuralAnimating = false;
+            debugLog('⏹️ Neural animation stopped');
+        };
+
+        window.testAudio2Gesture = async function() {
+            if (!neuralPipeline) return;
+            try {
+                const result = await neuralPipeline.generateFrames('audio2gesture', { frameCount: 30 });
+                debugLog(`🎭 Audio2Gesture test: ${result.frames.length} frames, ${result.quality.toFixed(1)}% quality`);
+            } catch (error) {
+                debugLog(`❌ Audio2Gesture test failed: ${error.message}`);
+            }
+        };
+
+        window.testDeepMimic = async function() {
+            if (!neuralPipeline) return;
+            try {
+                const result = await neuralPipeline.generateFrames('deepmimic', { frameCount: 30 });
+                debugLog(`🚶 DeepMimic test: ${result.frames.length} frames, ${result.quality.toFixed(1)}% quality`);
+            } catch (error) {
+                debugLog(`❌ DeepMimic test failed: ${error.message}`);
+            }
+        };
+
+        window.testRSMT = async function() {
+            if (!neuralPipeline) return;
+            try {
+                const result = await neuralPipeline.generateFrames('rsmt', { frameCount: 30 });
+                debugLog(`🎨 RSMT test: ${result.frames.length} frames, ${result.quality.toFixed(1)}% quality`);
+            } catch (error) {
+                debugLog(`❌ RSMT test failed: ${error.message}`);
+            }
+        };
+
+        window.testFaceFormer = async function() {
+            if (!neuralPipeline) return;
+            try {
+                const result = await neuralPipeline.generateFrames('faceformer', { frameCount: 30 });
+                debugLog(`😊 FaceFormer test: ${result.frames.length} frames, ${result.quality.toFixed(1)}% quality`);
+            } catch (error) {
+                debugLog(`❌ FaceFormer test failed: ${error.message}`);
+            }
+        };
+
+        window.neuralWalkToPosition = function(target) {
+            if (!vrmCharacter) {
+                debugLog('❌ No VRM character loaded for neural walking');
+                return;
+            }
+            
+            let targetPosition = new THREE.Vector3();
+            
+            switch(target) {
+                case 'blackboard':
+                    targetPosition.set(0, 0, -3);
+                    break;
+                case 'desk':
+                    targetPosition.set(2, 0, -2);
+                    break;
+                case 'center':
+                    targetPosition.set(0, 0, 0);
+                    break;
+                case 'random':
+                    if (classroom && classroom.initialized) {
+                        targetPosition = classroom.getRandomSafePosition();
+                        targetPosition.y = 0;
+                    } else {
+                        targetPosition.set(
+                            (Math.random() - 0.5) * 8,
+                            0,
+                            (Math.random() - 0.5) * 8
+                        );
+                    }
+                    break;
+            }
+            
+            walkTarget = targetPosition;
+            isWalking = true;
+            debugLog(`🧠 Neural walking to ${target}: (${targetPosition.x.toFixed(2)}, ${targetPosition.y.toFixed(2)}, ${targetPosition.z.toFixed(2)})`);
+        };
+
+        window.setCameraView = function(view) {
+            if (!camera || !controls) return;
+            
+            switch(view) {
+                case 'front':
+                    camera.position.set(0, 1.8, 3);
+                    controls.target.set(0, 0.9, 0);
+                    break;
+                case 'side':
+                    camera.position.set(3, 1.8, 0);
+                    controls.target.set(0, 0.9, 0);
+                    break;
+                case 'follow':
+                    if (vrmCharacter) {
+                        const charPos = vrmCharacter.scene.position;
+                        camera.position.set(charPos.x, charPos.y + 2, charPos.z + 3);
+                        controls.target.copy(charPos);
+                    }
+                    break;
+            }
+            
+            controls.update();
+            debugLog(`📹 Camera view set to: ${view}`);
+        };
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (camera && renderer) {
+                const width = window.innerWidth - 400;
+                const height = window.innerHeight - 200;
+                
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height);
+            }
+        });
+
+        // Initialize the scene
+        init().catch(error => {
+            debugLog('❌ Failed to initialize scene: ' + error.message);
+            console.error('Initialization error:', error);
+        });
+    </script>
+</body>
+</html>

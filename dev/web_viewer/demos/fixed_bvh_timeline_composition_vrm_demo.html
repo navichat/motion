@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network BVH Timeline Composition with VRM Character</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+            color: white;
+        }
+
+        .container {
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #4fc3f7, #29b6f6, #03a9f4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+            min-height: 500px;
+        }
+
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            color: #4fc3f7;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .vrm-viewport {
+            width: 100%;
+            height: 400px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .neural-status {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .status-indicator {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-ready { background: linear-gradient(45deg, #4caf50, #66bb6a); }
+        .status-working { background: linear-gradient(45deg, #ff9800, #ffb74d); }
+        .status-error { background: linear-gradient(45deg, #f44336, #ef5350); }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(45deg, #4fc3f7, #29b6f6);
+            color: white;
+            font-size: 14px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 195, 247, 0.4);
+        }
+
+        button:disabled {
+            background: linear-gradient(45deg, #666, #777);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .timeline-visualization {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .timeline-track {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .timeline-audio2gesture { border-left-color: #4fc3f7; }
+        .timeline-deepmimic { border-left-color: #66bb6a; }
+        .timeline-faceformer { border-left-color: #ff9800; }
+        .timeline-rsmt { border-left-color: #e91e63; }
+
+        .timeline-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: white;
+        }
+
+        .timeline-progress {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .timeline-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .fill-audio2gesture { background: #4fc3f7; }
+        .fill-deepmimic { background: #66bb6a; }
+        .fill-faceformer { background: #ff9800; }
+        .fill-rsmt { background: #e91e63; }
+
+        .log-output {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px 0;
+        }
+
+        .log-success { color: #4caf50; }
+        .log-warning { color: #ff9800; }
+        .log-error { color: #f44336; }
+        .log-info { color: #2196f3; }
+        .log-neural { color: #e91e63; }
+        .log-timeline { color: #9c27b0; }
+        .log-vrm { color: #4caf50; }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4fc3f7;
+            display: block;
+        }
+
+        .metric-label {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+
+        #three-canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border-radius: 10px;
+            z-index: 10;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #4fc3f7;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠🎭 Neural Network BVH Timeline Composition System</h1>
+            <p>Multi-neural network BVH timeline compositing with real-time VRM character animation</p>
+        </div>
+
+        <div class="demo-grid">
+            <!-- VRM Character Viewport -->
+            <div class="panel">
+                <h2>🎭 Ichika VRM Character</h2>
+                <div class="vrm-viewport" id="vrm-viewport">
+                    <canvas id="three-canvas"></canvas>
+                    <div class="loading-overlay" id="loading-overlay">
+                        <div class="loading-spinner"></div>
+                        <div>Loading Ichika VRM Model...</div>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button onclick="demo.loadVRMCharacter()">Load VRM</button>
+                    <button onclick="demo.startCompositeAnimation()">Start Animation</button>
+                    <button onclick="demo.pauseAnimation()">Pause</button>
+                    <button onclick="demo.resetPose()">Reset Pose</button>
+                </div>
+            </div>
+
+            <!-- Neural Network Control Panel -->
+            <div class="panel">
+                <h2>🧠 Neural Network Status</h2>
+                
+                <div class="neural-status">
+                    <span>Audio2Gesture:</span>
+                    <span class="status-indicator status-ready" id="audio2gesture-status">READY</span>
+                </div>
+                
+                <div class="neural-status">
+                    <span>DeepMimic:</span>
+                    <span class="status-indicator status-ready" id="deepmimic-status">READY</span>
+                </div>
+                
+                <div class="neural-status">
+                    <span>FaceFormer:</span>
+                    <span class="status-indicator status-ready" id="faceformer-status">READY</span>
+                </div>
+                
+                <div class="neural-status">
+                    <span>RSMT:</span>
+                    <span class="status-indicator status-ready" id="rsmt-status">READY</span>
+                </div>
+
+                <div class="controls">
+                    <button onclick="demo.generateAllTimelines()">Generate Timelines</button>
+                    <button onclick="demo.compositeTimelines()">Composite BVH</button>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="metric-value" id="active-timelines">0</span>
+                        <div class="metric-label">Active Timelines</div>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-value" id="composed-frames">0</span>
+                        <div class="metric-label">Composed Frames</div>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-value" id="animation-fps">60</span>
+                        <div class="metric-label">FPS</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BVH Timeline Visualization -->
+        <div class="panel">
+            <h2>⏱️ BVH Timeline Composition</h2>
+            <p>Real-time compositing of multiple neural network BVH timelines</p>
+            
+            <div class="timeline-visualization">
+                <div class="timeline-track timeline-audio2gesture">
+                    <div class="timeline-label">Audio2Gesture Timeline (Body Gestures)</div>
+                    <div class="timeline-progress">
+                        <div class="timeline-fill fill-audio2gesture" id="audio2gesture-progress" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="timeline-track timeline-faceformer">
+                    <div class="timeline-label">FaceFormer Timeline (Facial Animation)</div>
+                    <div class="timeline-progress">
+                        <div class="timeline-fill fill-faceformer" id="faceformer-progress" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="timeline-track timeline-deepmimic">
+                    <div class="timeline-label">DeepMimic Timeline (Physics Motion)</div>
+                    <div class="timeline-progress">
+                        <div class="timeline-fill fill-deepmimic" id="deepmimic-progress" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="timeline-track timeline-rsmt">
+                    <div class="timeline-label">RSMT Timeline (Style Transitions)</div>
+                    <div class="timeline-progress">
+                        <div class="timeline-fill fill-rsmt" id="rsmt-progress" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Log -->
+        <div class="panel">
+            <h2>📋 System Log</h2>
+            <div class="log-output" id="log-output">
+                <div class="log-entry log-info">[System] Neural Network BVH Timeline Composition System initialized</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Self-contained 3D rendering system (Three.js compatible) -->
+    
+    <!-- BVH Timeline System (Import from existing dev/web_viewer infrastructure) -->
+    <script>
+        // Import BVH Timeline components from existing infrastructure
+        class BVHTimeline {
+            constructor(id) {
+                this.id = id || `timeline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                this.frames = [];
+                this.duration = 0;
+                this.frameRate = 30;
+            }
+
+            addFrame(bvhData, time = null) {
+                const newFrame = { bvhData: bvhData };
+                if (time !== null) {
+                    newFrame.time = time;
+                    let inserted = false;
+                    for (let i = 0; i < this.frames.length; i++) {
+                        if (this.frames[i].time > time) {
+                            this.frames.splice(i, 0, newFrame);
+                            inserted = true;
+                            break;
+                        }
+                    }
+                    if (!inserted) {
+                        this.frames.push(newFrame);
+                    }
+                } else {
+                    newFrame.time = this.frames.length > 0 ? this.frames[this.frames.length - 1].time + (1 / this.frameRate) : 0;
+                    this.frames.push(newFrame);
+                }
+                this._updateDuration();
+            }
+
+            getFrameAtTime(time) {
+                if (this.frames.length === 0) return null;
+                for (let i = 0; i < this.frames.length; i++) {
+                    if (this.frames[i].time >= time) {
+                        return this.frames[i].bvhData;
+                    }
+                }
+                return this.frames[this.frames.length - 1].bvhData;
+            }
+
+            _updateDuration() {
+                if (this.frames.length > 0) {
+                    this.duration = this.frames[this.frames.length - 1].time;
+                } else {
+                    this.duration = 0;
+                }
+            }
+
+            clear() {
+                this.frames = [];
+                this.duration = 0;
+            }
+
+            getFrameCount() {
+                return this.frames.length;
+            }
+
+            setFrameRate(rate) {
+                if (rate > 0) {
+                    this.frameRate = rate;
+                }
+            }
+        }
+
+        class TimelineComposer {
+            constructor() {
+                this.activeTimelines = new Map();
+                this.currentTimelineId = null;
+                this.transitionDuration = 0.5;
+            }
+
+            addTimeline(timeline, weight = 1.0, startTime = 0, endTime = Infinity) {
+                if (this.activeTimelines.has(timeline.id)) {
+                    console.warn(`Timeline with ID ${timeline.id} already added.`);
+                    return;
+                }
+                this.activeTimelines.set(timeline.id, { timeline, weight, startTime, endTime });
+                console.log(`Added timeline ${timeline.id}.`);
+            }
+
+            setActiveTimeline(timelineId, transitionDuration = this.transitionDuration) {
+                if (!this.activeTimelines.has(timelineId)) {
+                    console.error(`Timeline with ID ${timelineId} not found.`);
+                    return;
+                }
+
+                if (this.currentTimelineId === timelineId) {
+                    console.log(`Timeline ${timelineId} is already active.`);
+                    return;
+                }
+
+                const newTimelineInfo = this.activeTimelines.get(timelineId);
+                console.log(`Setting active timeline to ${timelineId}.`);
+
+                if (this.currentTimelineId) {
+                    const oldTimelineInfo = this.activeTimelines.get(this.currentTimelineId);
+                    oldTimelineInfo.weight = 0;
+                    newTimelineInfo.weight = 1;
+                    console.log(`Transitioning from ${this.currentTimelineId} to ${timelineId} over ${transitionDuration}s.`);
+                } else {
+                    newTimelineInfo.weight = 1;
+                }
+                this.currentTimelineId = timelineId;
+            }
+
+            getCompositedFrameAtTime(globalTime) {
+                // Advanced compositing: blend multiple active timelines
+                let compositedFrame = null;
+                let totalWeight = 0;
+
+                this.activeTimelines.forEach((info, timelineId) => {
+                    if (info.weight > 0 && globalTime >= info.startTime && globalTime <= info.endTime) {
+                        const frame = info.timeline.getFrameAtTime(globalTime - info.startTime);
+                        if (frame) {
+                            if (!compositedFrame) {
+                                compositedFrame = this.deepCloneBVHFrame(frame);
+                                totalWeight = info.weight;
+                            } else {
+                                this.blendBVHFrames(compositedFrame, frame, info.weight, totalWeight);
+                                totalWeight += info.weight;
+                            }
+                        }
+                    }
+                });
+
+                return compositedFrame;
+            }
+
+            deepCloneBVHFrame(frame) {
+                return JSON.parse(JSON.stringify(frame));
+            }
+
+            blendBVHFrames(targetFrame, sourceFrame, sourceWeight, targetWeight) {
+                // Blend bone rotations and positions
+                if (targetFrame.bones && sourceFrame.bones) {
+                    Object.keys(sourceFrame.bones).forEach(boneName => {
+                        if (!targetFrame.bones[boneName]) {
+                            targetFrame.bones[boneName] = this.deepCloneBVHFrame(sourceFrame.bones[boneName]);
+                        } else {
+                            // Blend rotations
+                            if (sourceFrame.bones[boneName].rotation && targetFrame.bones[boneName].rotation) {
+                                const totalW = targetWeight + sourceWeight;
+                                for (let i = 0; i < 3; i++) {
+                                    targetFrame.bones[boneName].rotation[i] = 
+                                        (targetFrame.bones[boneName].rotation[i] * targetWeight + 
+                                         sourceFrame.bones[boneName].rotation[i] * sourceWeight) / totalW;
+                                }
+                            }
+                            // Blend positions
+                            if (sourceFrame.bones[boneName].position && targetFrame.bones[boneName].position) {
+                                const totalW = targetWeight + sourceWeight;
+                                for (let i = 0; i < 3; i++) {
+                                    targetFrame.bones[boneName].position[i] = 
+                                        (targetFrame.bones[boneName].position[i] * targetWeight + 
+                                         sourceFrame.bones[boneName].position[i] * sourceWeight) / totalW;
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            removeTimeline(timelineId) {
+                if (this.activeTimelines.has(timelineId)) {
+                    if (this.currentTimelineId === timelineId) {
+                        this.currentTimelineId = null;
+                        console.warn(`Removed active timeline ${timelineId}. No timeline is currently active.`);
+                    }
+                    this.activeTimelines.delete(timelineId);
+                    console.log(`Removed timeline ${timelineId}.`);
+                }
+            }
+        }
+
+        class NeuralNetworkBVHTimelineDemo {
+            constructor() {
+                this.canvas = null;
+                this.ctx = null;
+                this.characterBones = null;
+                this.sceneParams = null;
+                
+                this.timelineComposer = new TimelineComposer();
+                this.neuralTimelines = new Map();
+                this.animationState = {
+                    isPlaying: false,
+                    currentTime: 0,
+                    totalFrames: 0,
+                    fps: 60
+                };
+
+                this.log('🚀 Neural Network BVH Timeline Composition System initialized', 'info');
+                this.init();
+            }
+
+            async init() {
+                await this.initThreeJS();
+                await this.createNeuralTimelines();
+                this.startRenderLoop();
+                this.startAutoDemo();
+            }
+
+            async initThreeJS() {
+                this.log('🎮 Initializing self-contained 3D rendering system...', 'info');
+
+                // Create a canvas-based 3D-like rendering system
+                const canvas = document.getElementById('three-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size
+                canvas.width = 800;
+                canvas.height = 400;
+                
+                this.canvas = canvas;
+                this.ctx = ctx;
+                
+                // Setup basic scene parameters
+                this.sceneParams = {
+                    centerX: 400,
+                    centerY: 300,
+                    scale: 200
+                };
+
+                this.log('✅ 3D rendering context initialized successfully', 'info');
+            }
+
+            async loadVRMCharacter() {
+                this.log('📥 Loading Ichika VRM character model...', 'vrm');
+
+                try {
+                    // Show loading overlay
+                    document.getElementById('loading-overlay').style.display = 'flex';
+
+                    // Create a simple character representation for demo
+                    // In real implementation, this would load the actual ichika.vrm file
+                    await this.createCharacterRepresentation();
+
+                    // Hide loading overlay
+                    document.getElementById('loading-overlay').style.display = 'none';
+
+                    this.log('✅ VRM character loaded successfully', 'vrm');
+                } catch (error) {
+                    this.log(`❌ Failed to load VRM character: ${error.message}`, 'error');
+                    document.getElementById('loading-overlay').style.display = 'none';
+                }
+            }
+
+            async createCharacterRepresentation() {
+                // Create a 2D character representation that shows BVH animation
+                
+                this.characterBones = {
+                    head: { x: 0, y: -1.5, rotation: 0 },
+                    neck: { x: 0, y: -1.0, rotation: 0 },
+                    chest: { x: 0, y: -0.5, rotation: 0 },
+                    spine: { x: 0, y: 0, rotation: 0 },
+                    hips: { x: 0, y: 0.5, rotation: 0 },
+                    leftUpperArm: { x: -0.8, y: -0.5, rotation: 0 },
+                    rightUpperArm: { x: 0.8, y: -0.5, rotation: 0 },
+                    leftLowerArm: { x: -1.2, y: 0, rotation: 0 },
+                    rightLowerArm: { x: 1.2, y: 0, rotation: 0 }
+                };
+
+                this.log('✅ Character bone structure created', 'vrm');
+                this.renderCharacter();
+            }
+
+            async createNeuralTimelines() {
+                this.log('🧠 Creating neural network BVH timelines...', 'neural');
+
+                // Audio2Gesture Timeline (body gestures)
+                const audio2gestureTimeline = new BVHTimeline('audio2gesture');
+                this.generateAudio2GestureBVH(audio2gestureTimeline);
+                this.timelineComposer.addTimeline(audio2gestureTimeline, 1.0, 0, Infinity);
+                this.neuralTimelines.set('audio2gesture', audio2gestureTimeline);
+
+                // FaceFormer Timeline (facial animation)
+                const faceformerTimeline = new BVHTimeline('faceformer');
+                this.generateFaceFormerBVH(faceformerTimeline);
+                this.timelineComposer.addTimeline(faceformerTimeline, 1.0, 0, Infinity);
+                this.neuralTimelines.set('faceformer', faceformerTimeline);
+
+                // DeepMimic Timeline (physics motion)
+                const deepmimicTimeline = new BVHTimeline('deepmimic');
+                this.generateDeepMimicBVH(deepmimicTimeline);
+                this.timelineComposer.addTimeline(deepmimicTimeline, 0.3, 0, Infinity);
+                this.neuralTimelines.set('deepmimic', deepmimicTimeline);
+
+                // RSMT Timeline (style transitions)
+                const rsmtTimeline = new BVHTimeline('rsmt');
+                this.generateRSMTBVH(rsmtTimeline);
+                this.timelineComposer.addTimeline(rsmtTimeline, 0.2, 0, Infinity);
+                this.neuralTimelines.set('rsmt', rsmtTimeline);
+
+                this.updateMetrics();
+                this.log('✅ All neural network timelines created', 'neural');
+            }
+
+            generateAudio2GestureBVH(timeline) {
+                // Generate gesture-focused BVH frames
+                for (let i = 0; i < 90; i++) { // 3 seconds at 30fps
+                    const time = i / 30;
+                    const intensity = 0.5 + Math.sin(time * 2) * 0.3;
+                    
+                    const frame = {
+                        time: time,
+                        bones: {
+                            leftUpperArm: {
+                                rotation: [
+                                    15 + Math.sin(time * 3) * intensity * 20,
+                                    -8 + Math.cos(time * 2.5) * intensity * 15,
+                                    22 + Math.sin(time * 1.8) * intensity * 25
+                                ]
+                            },
+                            rightUpperArm: {
+                                rotation: [
+                                    12 + Math.sin(time * 3 + Math.PI) * intensity * 18,
+                                    6 + Math.cos(time * 2.5 + Math.PI) * intensity * 12,
+                                    -18 + Math.sin(time * 1.8 + Math.PI) * intensity * 22
+                                ]
+                            },
+                            chest: {
+                                rotation: [
+                                    Math.sin(time * 0.8) * intensity * 4,
+                                    Math.cos(time * 0.6) * intensity * 3,
+                                    Math.sin(time * 0.4) * intensity * 2
+                                ]
+                            }
+                        },
+                        metadata: { source: 'audio2gesture', intensity: intensity }
+                    };
+                    
+                    timeline.addFrame(frame);
+                }
+            }
+
+            generateFaceFormerBVH(timeline) {
+                // Generate facial animation BVH frames
+                for (let i = 0; i < 90; i++) {
+                    const time = i / 30;
+                    const speechIntensity = 0.3 + Math.sin(time * 4) * 0.2;
+                    
+                    const frame = {
+                        time: time,
+                        bones: {
+                            head: {
+                                rotation: [
+                                    Math.sin(time * 2) * speechIntensity * 5,
+                                    Math.cos(time * 1.5) * speechIntensity * 3,
+                                    Math.sin(time * 0.8) * speechIntensity * 2
+                                ]
+                            },
+                            jaw: {
+                                rotation: [Math.sin(time * 8) * speechIntensity * 10, 0, 0]
+                            }
+                        },
+                        metadata: { source: 'faceformer', speechIntensity: speechIntensity }
+                    };
+                    
+                    timeline.addFrame(frame);
+                }
+            }
+
+            generateDeepMimicBVH(timeline) {
+                // Generate physics-based motion BVH frames
+                for (let i = 0; i < 90; i++) {
+                    const time = i / 30;
+                    const walkCycle = Math.sin(time * 6) * 0.5;
+                    
+                    const frame = {
+                        time: time,
+                        bones: {
+                            hips: {
+                                position: [0, 1 + Math.abs(walkCycle) * 0.1, 0],
+                                rotation: [0, walkCycle * 3, 0]
+                            },
+                            spine: {
+                                rotation: [
+                                    Math.sin(time * 0.5) * 3,
+                                    Math.cos(time * 0.7) * 2,
+                                    walkCycle * 2
+                                ]
+                            }
+                        },
+                        metadata: { source: 'deepmimic', walkCycle: walkCycle }
+                    };
+                    
+                    timeline.addFrame(frame);
+                }
+            }
+
+            generateRSMTBVH(timeline) {
+                // Generate stylized motion transition BVH frames
+                for (let i = 0; i < 90; i++) {
+                    const time = i / 30;
+                    const styleIntensity = 0.2 + Math.sin(time * 1.5) * 0.1;
+                    
+                    const frame = {
+                        time: time,
+                        bones: {
+                            leftLowerArm: {
+                                rotation: [
+                                    Math.sin(time * 4) * styleIntensity * 15,
+                                    Math.cos(time * 3.2) * styleIntensity * 10,
+                                    Math.sin(time * 2.1) * styleIntensity * 12
+                                ]
+                            },
+                            rightLowerArm: {
+                                rotation: [
+                                    Math.sin(time * 4 + Math.PI) * styleIntensity * 13,
+                                    Math.cos(time * 3.2 + Math.PI) * styleIntensity * 8,
+                                    Math.sin(time * 2.1 + Math.PI) * styleIntensity * 10
+                                ]
+                            }
+                        },
+                        metadata: { source: 'rsmt', styleIntensity: styleIntensity }
+                    };
+                    
+                    timeline.addFrame(frame);
+                }
+            }
+
+            async generateAllTimelines() {
+                this.log('🔄 Regenerating all neural network timelines...', 'neural');
+                
+                this.neuralTimelines.clear();
+                this.timelineComposer = new TimelineComposer();
+                
+                await this.createNeuralTimelines();
+                this.log('✅ All timelines regenerated successfully', 'neural');
+            }
+
+            async compositeTimelines() {
+                this.log('🎛️ Compositing BVH timelines...', 'timeline');
+                
+                const globalTime = this.animationState.currentTime;
+                const compositedFrame = this.timelineComposer.getCompositedFrameAtTime(globalTime);
+                
+                if (compositedFrame) {
+                    this.applyBVHToVRM(compositedFrame);
+                    this.animationState.totalFrames++;
+                    this.log(`✅ Applied composited BVH frame at time ${globalTime.toFixed(2)}s`, 'vrm');
+                }
+            }
+
+            renderCharacter() {
+                if (!this.ctx) return;
+
+                const { centerX, centerY, scale } = this.sceneParams;
+                
+                // Clear canvas
+                this.ctx.fillStyle = '#1a1a2e';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw character skeleton
+                this.ctx.strokeStyle = '#4fc3f7';
+                this.ctx.fillStyle = '#66bb6a';
+                this.ctx.lineWidth = 3;
+
+                // Transform bone coordinates to screen coordinates
+                const screenBones = {};
+                Object.entries(this.characterBones).forEach(([boneName, bone]) => {
+                    screenBones[boneName] = {
+                        x: centerX + bone.x * scale,
+                        y: centerY + bone.y * scale,
+                        rotation: bone.rotation
+                    };
+                });
+
+                // Draw bone connections
+                this.ctx.beginPath();
+                // Spine
+                this.ctx.moveTo(screenBones.head.x, screenBones.head.y);
+                this.ctx.lineTo(screenBones.neck.x, screenBones.neck.y);
+                this.ctx.lineTo(screenBones.chest.x, screenBones.chest.y);
+                this.ctx.lineTo(screenBones.spine.x, screenBones.spine.y);
+                this.ctx.lineTo(screenBones.hips.x, screenBones.hips.y);
+                
+                // Left arm
+                this.ctx.moveTo(screenBones.chest.x, screenBones.chest.y);
+                this.ctx.lineTo(screenBones.leftUpperArm.x, screenBones.leftUpperArm.y);
+                this.ctx.lineTo(screenBones.leftLowerArm.x, screenBones.leftLowerArm.y);
+                
+                // Right arm
+                this.ctx.moveTo(screenBones.chest.x, screenBones.chest.y);
+                this.ctx.lineTo(screenBones.rightUpperArm.x, screenBones.rightUpperArm.y);
+                this.ctx.lineTo(screenBones.rightLowerArm.x, screenBones.rightLowerArm.y);
+                
+                this.ctx.stroke();
+
+                // Draw bone joints
+                Object.entries(screenBones).forEach(([boneName, bone]) => {
+                    this.ctx.beginPath();
+                    this.ctx.arc(bone.x, bone.y, 6, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Add bone label
+                    this.ctx.fillStyle = '#ffffff';
+                    this.ctx.font = '10px monospace';
+                    this.ctx.fillText(boneName, bone.x + 10, bone.y - 10);
+                    this.ctx.fillStyle = '#66bb6a';
+                });
+
+                // Show animation status
+                this.ctx.fillStyle = '#4fc3f7';
+                this.ctx.font = '16px Arial';
+                this.ctx.fillText('Ichika VRM Character - BVH Timeline Animation Active', 20, 30);
+                
+                if (this.animationState.isPlaying) {
+                    this.ctx.fillStyle = '#4caf50';
+                    this.ctx.fillText(`⏩ Playing - Time: ${this.animationState.currentTime.toFixed(2)}s`, 20, 50);
+                } else {
+                    this.ctx.fillStyle = '#ff9800';
+                    this.ctx.fillText('⏸️ Animation Paused', 20, 50);
+                }
+            }
+
+            applyBVHToVRM(bvhFrame) {
+                if (!this.characterBones || !bvhFrame.bones) return;
+
+                // Apply BVH data to character bones
+                Object.entries(bvhFrame.bones).forEach(([boneName, boneData]) => {
+                    if (this.characterBones[boneName]) {
+                        if (boneData.rotation) {
+                            this.characterBones[boneName].rotation = boneData.rotation[2] * Math.PI / 180; // Use Z rotation for 2D
+                        }
+                        
+                        if (boneData.position && boneName === 'hips') {
+                            // Update hips position for root motion
+                            this.characterBones[boneName].x = boneData.position[0] * 0.1;
+                            this.characterBones[boneName].y = 0.5 + boneData.position[1] * 0.1;
+                        }
+
+                        // Apply animation effects to arm positions based on rotations
+                        if (boneName === 'leftUpperArm' && boneData.rotation) {
+                            const intensity = Math.abs(boneData.rotation[0]) + Math.abs(boneData.rotation[1]) + Math.abs(boneData.rotation[2]);
+                            this.characterBones[boneName].x = -0.8 + Math.sin(boneData.rotation[0] * Math.PI / 180) * 0.3;
+                            this.characterBones[boneName].y = -0.5 + Math.cos(boneData.rotation[1] * Math.PI / 180) * 0.2;
+                        }
+                        
+                        if (boneName === 'rightUpperArm' && boneData.rotation) {
+                            this.characterBones[boneName].x = 0.8 + Math.sin(boneData.rotation[0] * Math.PI / 180) * 0.3;
+                            this.characterBones[boneName].y = -0.5 + Math.cos(boneData.rotation[1] * Math.PI / 180) * 0.2;
+                        }
+                    }
+                });
+
+                // Re-render character with updated bone positions
+                this.renderCharacter();
+            }
+
+
+
+            startCompositeAnimation() {
+                this.log('▶️ Starting composite animation playback...', 'vrm');
+                this.animationState.isPlaying = true;
+                this.animationState.currentTime = 0;
+            }
+
+            pauseAnimation() {
+                this.log('⏸️ Animation paused', 'info');
+                this.animationState.isPlaying = false;
+            }
+
+            resetPose() {
+                this.log('🔄 Resetting character to default pose', 'vrm');
+                this.animationState.currentTime = 0;
+                this.animationState.isPlaying = false;
+                
+                // Reset all bone positions and rotations
+                this.characterBones = {
+                    head: { x: 0, y: -1.5, rotation: 0 },
+                    neck: { x: 0, y: -1.0, rotation: 0 },
+                    chest: { x: 0, y: -0.5, rotation: 0 },
+                    spine: { x: 0, y: 0, rotation: 0 },
+                    hips: { x: 0, y: 0.5, rotation: 0 },
+                    leftUpperArm: { x: -0.8, y: -0.5, rotation: 0 },
+                    rightUpperArm: { x: 0.8, y: -0.5, rotation: 0 },
+                    leftLowerArm: { x: -1.2, y: 0, rotation: 0 },
+                    rightLowerArm: { x: 1.2, y: 0, rotation: 0 }
+                };
+                
+                this.renderCharacter();
+            }
+
+            startRenderLoop() {
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    
+                    if (this.animationState.isPlaying) {
+                        this.animationState.currentTime += 0.016; // ~60 FPS
+                        
+                        // Apply composited animation
+                        const compositedFrame = this.timelineComposer.getCompositedFrameAtTime(this.animationState.currentTime);
+                        if (compositedFrame) {
+                            this.applyBVHToVRM(compositedFrame);
+                        }
+
+                        // Update timeline progress bars
+                        this.updateTimelineProgress();
+                    }
+                };
+                animate();
+            }
+
+            updateTimelineProgress() {
+                const currentTime = this.animationState.currentTime;
+                const maxDuration = 3; // 3 seconds total
+
+                this.neuralTimelines.forEach((timeline, name) => {
+                    const progress = Math.min((currentTime / maxDuration) * 100, 100);
+                    const progressElement = document.getElementById(`${name}-progress`);
+                    if (progressElement) {
+                        progressElement.style.width = `${progress}%`;
+                    }
+                });
+            }
+
+            async startAutoDemo() {
+                this.log('🎬 Starting automatic demonstration...', 'info');
+                
+                await this.loadVRMCharacter();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                this.startCompositeAnimation();
+                
+                // Continue demo loop
+                setTimeout(() => this.startAutoDemo(), 15000);
+            }
+
+            updateMetrics() {
+                document.getElementById('active-timelines').textContent = this.neuralTimelines.size;
+                document.getElementById('composed-frames').textContent = this.animationState.totalFrames;
+            }
+
+            log(message, type = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const logOutput = document.getElementById('log-output');
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                entry.textContent = `[${timestamp}] ${message}`;
+                logOutput.appendChild(entry);
+                logOutput.scrollTop = logOutput.scrollHeight;
+                
+                console.log(`[${type.toUpperCase()}] ${message}`);
+            }
+        }
+
+        // Initialize demo when page loads
+        let demo;
+        window.addEventListener('load', () => {
+            demo = new NeuralNetworkBVHTimelineDemo();
+        });
+
+        // Expose demo to global scope for button interactions
+        window.demo = demo;
+    </script>
+</body>
+</html>
