@@ -25,9 +25,6 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     libgtk-3-0 \
     libgconf-2-4 \
-    # AI/ML dependencies
-    libopenblas-dev \
-    liblapack-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up working directory

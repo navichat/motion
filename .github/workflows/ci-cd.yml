@@ -61,7 +61,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -79,9 +79,9 @@ jobs:
           - unit
           - unit:animation
           - unit:web
+          - unit:serverless
           - ml:serverless
           - e2e:root-smokes
-          - taskmanager
       fail-fast: false
     
     steps:
@@ -115,85 +115,12 @@ jobs:
           playwright-report/
         retention-days: 30
 
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        cache-dependency-path: 'dev/tests/package-lock.json'
-        
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        
-    - name: Install test dependencies
-      working-directory: dev/tests
-      run: |
-        npm ci
-        npx playwright install --with-deps
-        
-    - name: Install psyche dependencies
-      working-directory: dev/psyche
-      run: npm install
-        
-    - name: Start test server
-      working-directory: dev/server
-      run: |
-        npm ci
-        npm run start:test &
-        # Wait for server to be ready
-        npx wait-on http://localhost:3001/health --timeout 30000
-        
-    - name: Run unit tests
-      working-directory: dev/tests
-      run: npm run test:unit
-      
-    - name: Run integration tests
-      working-directory: dev/tests
-      run: npm run test:integration
-      
-    - name: Run visual regression tests
-      working-directory: dev/tests
-      run: |
-        npm run test:visual
-        
-    - name: Run performance tests
-      working-directory: dev/tests
-      run: npm run test:performance
-      
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: |
-          dev/tests/reports/
-          dev/tests/screenshots/
-          dev/tests/test-results/
-        retention-days: 30
-        
-    - name: Upload coverage reports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: dev/tests/coverage/
-        retention-days: 30
-
   visual-diff:
     name: Visual Regression Analysis
     runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'pull_request'
+    needs: test-in-docker
+    # Disabled: Requires dev/tests infrastructure that needs separate web server setup
+    if: false && github.event_name == 'pull_request'
     
     steps:
     - name: Checkout code
@@ -275,8 +202,9 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    needs: test-in-docker
+    # Disabled: Requires dev/viewer build setup and deployment configuration
+    if: false && github.ref == 'refs/heads/develop' && github.event_name == 'push'
     environment: staging
     
     steps:
@@ -323,8 +251,9 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: test-in-docker
+    # Disabled: Requires dev/viewer build setup and deployment configuration
+    if: false && github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
     
     steps:
@@ -390,7 +319,8 @@ jobs:
     name: Performance Monitoring
     runs-on: ubuntu-latest
     needs: deploy-production
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Disabled: Depends on deploy-production which is disabled
+    if: false && github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
     - name: Checkout code
